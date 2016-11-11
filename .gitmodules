@@ -1,0 +1,12 @@
+[submodule "_vendor/src/github.com/uber-go/zap"]
+	path = _vendor/src/github.com/uber-go/zap
+	url = https://github.com/uber-go/zap
+[submodule "_vendor/src/github.com/uber-go/atomic"]
+	path = _vendor/src/github.com/uber-go/atomic
+	url = https://github.com/uber-go/atomic
+[submodule "_vendor/src/github.com/BurntSushi/toml"]
+	path = _vendor/src/github.com/BurntSushi/toml
+	url = https://github.com/BurntSushi/toml
+[submodule "_vendor/src/github.com/lomik/zapwriter"]
+	path = _vendor/src/github.com/lomik/zapwriter
+	url = https://github.com/lomik/zapwriter
