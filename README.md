@@ -28,7 +28,7 @@ make
 3. Add graphite-clickhouse `host:port` to graphite-web [CLUSTER_SERVERS](http://graphite.readthedocs.io/en/latest/config-local-settings.html#cluster-configuration)
 
 ## Configuration
-Create `/etc/graphite-clickhouse/rollup.xml` with same content as for ClickHouse. Short sample:
+* Create `/etc/graphite-clickhouse/rollup.xml` with same content as for ClickHouse. Short sample:
 ```xml
 <graphite_rollup>
         <default>
@@ -44,7 +44,7 @@ Create `/etc/graphite-clickhouse/rollup.xml` with same content as for ClickHouse
         </default>
 </graphite_rollup>
 ```
-Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
+* Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 ```toml
 [common]
 listen = ":9090"
@@ -64,4 +64,4 @@ extra-prefix = ""
 data-timeout = "1m0s"
 tree-timeout = "1m0s"
 ```
-Run
+* Run
