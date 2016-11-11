@@ -75,7 +75,7 @@ func main() {
 
 	/* CONFIG start */
 
-	configFile := flag.String("config", "", "Filename of config")
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 
