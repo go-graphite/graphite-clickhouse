@@ -4,7 +4,7 @@ Graphite cluster backend with ClickHouse support
 ## Work scheme
 ![stack.png](doc/stack.png)
 
-Gray components are optional or alternative for default
+Gray components are optional or alternative
 
 ## Build
 Required golang 1.7+
