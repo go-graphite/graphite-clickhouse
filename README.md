@@ -64,7 +64,6 @@ extra-prefix = ""
 data-timeout = "1m0s"
 tree-timeout = "1m0s"
 ```
-Run
 
 ## Run on same host with graphite-web
 By default graphite-web won't connect to CLUSTER_SERVER on localhost. Cheat:
