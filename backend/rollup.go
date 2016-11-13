@@ -40,8 +40,8 @@ import (
 */
 
 type RollupRetention struct {
-	Age       int64 `xml:"age"`
-	Precision int64 `xml:"precision"`
+	Age       int32 `xml:"age"`
+	Precision int32 `xml:"precision"`
 }
 
 type RollupRule struct {
@@ -221,7 +221,7 @@ func aggrAny(points []Point) (r float64) {
 	return
 }
 
-func doMetricPrecision(points []Point, precision int64, aggr func([]Point) float64) []Point {
+func doMetricPrecision(points []Point, precision int32, aggr func([]Point) float64) []Point {
 	l := len(points)
 	var i, n int
 	// i - current position of iterator
@@ -259,7 +259,7 @@ func doMetricPrecision(points []Point, precision int64, aggr func([]Point) float
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rollup) RollupMetric(points []Point) ([]Point, int64) {
+func (r *Rollup) RollupMetric(points []Point) ([]Point, int32) {
 	// pp.Println(points)
 
 	l := len(points)
@@ -267,9 +267,9 @@ func (r *Rollup) RollupMetric(points []Point) ([]Point, int64) {
 		return points, 1
 	}
 
-	now := time.Now().Unix()
+	now := int32(time.Now().Unix())
 	rule := r.Match(points[0].Metric)
-	precision := int64(1)
+	precision := int32(1)
 
 	for _, retention := range rule.Retention {
 		if points[0].Time > now-retention.Age && retention.Age != 0 {

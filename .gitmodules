@@ -10,3 +10,6 @@
 [submodule "_vendor/src/github.com/lomik/zapwriter"]
 	path = _vendor/src/github.com/lomik/zapwriter
 	url = https://github.com/lomik/zapwriter
+[submodule "_vendor/src/github.com/gogo/protobuf"]
+	path = _vendor/src/github.com/gogo/protobuf
+	url = https://github.com/gogo/protobuf

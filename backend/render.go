@@ -13,14 +13,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/uber-go/zap"
 )
 
 type Point struct {
 	Metric    string
-	Time      int64
+	Time      int32
 	Value     float64
-	Timestamp int64 // keep max if metric and time equal on two points
+	Timestamp int32 // keep max if metric and time equal on two points
 }
 
 type Points []Point
@@ -217,9 +219,9 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		points = append(points, Point{
 			Metric:    name,
-			Time:      int64(time),
+			Time:      int32(time),
 			Value:     value,
-			Timestamp: int64(timestamp),
+			Timestamp: int32(timestamp),
 		})
 	}
 
@@ -238,10 +240,10 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	points = PointsUniq(points)
 
 	// pp.Println(points)
-	h.Reply(w, r, points, fromTimestamp, untilTimestamp, prefix)
+	h.Reply(w, r, points, int32(fromTimestamp), int32(untilTimestamp), prefix)
 }
 
-func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int64, prefix string) {
+func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	start := time.Now()
 	switch r.URL.Query().Get("format") {
 	case "pickle":
@@ -252,7 +254,7 @@ func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []P
 	Logger(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
 }
 
-func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []Point, from, until int64, prefix string) {
+func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
@@ -302,7 +304,7 @@ func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, poin
 		p.String("values")
 		p.List()
 		for _, point := range points {
-			if point.Time < from || point.Time > until {
+			if point.Time < start || point.Time > end {
 				continue
 			}
 
@@ -350,25 +352,12 @@ func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, poin
 	p.Stop()
 }
 
-func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []Point, from, until int64, prefix string) {
+func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	if len(points) == 0 {
 		return
 	}
 
-	/*
-		message FetchResponse {
-		    required string name = 1;
-		    required int32 startTime = 2;
-		    required int32 stopTime = 3;
-		    required int32 stepTime = 4;
-		    repeated double values = 5;
-		    repeated bool isAbsent = 6;
-		}
-
-		message MultiFetchResponse {
-		    repeated FetchResponse metrics = 1;
-		}
-	*/
+	var multiResponse carbonzipperpb.MultiFetchResponse
 
 	writeMetric := func(points []Point) {
 		points, step := h.config.Rollup.RollupMetric(points)
@@ -381,53 +370,39 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 			name = points[0].Metric
 		}
 
-		buf := bytes.NewBuffer(nil)
-
-		// name
-		buf.Write(ZipperFetchResponseNameTag)
-		ProtobufWriteVarint(buf, uint64(len(name)))
-		buf.Write([]byte(name))
-
-		// step
-		buf.Write(ZipperFetchResponseStepTimeTag)
-		ProtobufWriteVarint(buf, uint64(step))
-
 		start := from - (from % step)
 		if start < from {
 			start += step
 		}
-		end := until - (until % step)
-		last := start - step
+		stop := until - (until % step)
+		count := ((stop - start) / step) + 1
 
-		for _, point := range points {
-			if point.Time < from || point.Time > until {
-				continue
-			}
-
-			if point.Time > last+step {
-				ProtobufWriteNullsValues(buf, int(((point.Time-last)/step)-1))
-			}
-
-			buf.Write(ZipperFetchResponseValuesTag)
-			ProtobufWriteDouble(buf, point.Value)
-			buf.Write(ZipperIsPresentValue)
-
-			last = point.Time
+		response := carbonzipperpb.FetchResponse{
+			Name:      proto.String(name),
+			StartTime: &start,
+			StopTime:  &stop,
+			StepTime:  &step,
+			Values:    make([]float64, count),
+			IsAbsent:  make([]bool, count),
 		}
 
-		if end > last {
-			ProtobufWriteNullsValues(buf, int((end-last)/step))
+		var index int32
+		// skip points before start
+		for index = 0; points[index].Time < start; index++ {
 		}
 
-		buf.Write(ZipperFetchResponseStartTimeTag)
-		ProtobufWriteVarint(buf, uint64(start))
+		for i := int32(0); i < count; i++ {
+			if points[index].Time == start+step*i {
+				response.Values[i] = points[index].Value
+				response.IsAbsent[i] = false
+				index++
+			} else {
+				response.Values[i] = 0
+				response.IsAbsent[i] = true
+			}
+		}
 
-		buf.Write(ZipperFetchResponseStopTimeTag)
-		ProtobufWriteVarint(buf, uint64(end))
-
-		w.Write(ZipperMultiFetchResponseMetricsTag)
-		ProtobufWriteVarint(w, uint64(buf.Len()))
-		w.Write(buf.Bytes())
+		multiResponse.Metrics = append(multiResponse.Metrics, &response)
 	}
 
 	// group by Metric
