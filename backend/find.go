@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 )
 
 type FindHandler struct {
@@ -196,25 +199,21 @@ func (h *FindHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, chRe
 
 	name := r.URL.Query().Get("query")
 
-	// approximate response size
-	// tag(name) + varint(len(name)) ~ 3 bytes
-	// + len(name)
-	// rows * (
-	//    tag(matches) + varint(len(GlobMatch)) ~ 3
-	//  + tag(path) + varint(len(path)) ~ 3
-	//  + len(path)
-	//  + tag(isLeaf) + varint(isLeaf) = 2
-	// )
-	// b := make([]byte, 0, len(name)+len(chResponse)+3+8*len(rows))
-	// buf := bytes.NewBuffer(buf)
+	// message GlobMatch {
+	//     required string path = 1;
+	//     required bool isLeaf = 2;
+	// }
 
-	w.Write(ZipperGlobResponseNameTag)
-	ProtobufWriteVarint(w, uint64(len(name)))
-	w.Write([]byte(name))
+	// message GlobResponse {
+	//     required string name = 1;
+	//     repeated GlobMatch matches = 2;
+	// }
+
+	var response carbonzipperpb.GlobResponse
+	response.Name = proto.String(name)
 
 	var metricPath string
 	var isLeaf bool
-	var pathLenBytes []byte
 
 	for _, metricPath = range rows {
 		if len(metricPath) == 0 {
@@ -232,20 +231,14 @@ func (h *FindHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, chRe
 			isLeaf = true
 		}
 
-		pathLenBytes = ProtobufReturnVarint(uint64(len(metricPath)))
-		w.Write(ZipperGlobResponseMatchesTag)
-		ProtobufWriteVarint(w, uint64(len(pathLenBytes)+len(metricPath)+3)) // 3 = tag(path) + tag(isLeaf) + value(isLeaf)
-		w.Write(ZipperGlobMatchPathTag)
-		w.Write(pathLenBytes)
-		w.Write([]byte(metricPath))
-
-		if isLeaf {
-			w.Write(ZipperGlobMatchIsLeafTrue)
-		} else {
-			w.Write(ZipperGlobMatchIsLeafFalse)
-		}
+		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
+			Path:   proto.String(metricPath),
+			IsLeaf: &isLeaf,
+		})
 	}
 
+	body, _ := proto.Marshal(&response)
+	w.Write(body)
 }
 
 func NewFindHandler(config *Config) *FindHandler {

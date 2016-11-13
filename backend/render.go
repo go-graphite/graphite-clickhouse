@@ -419,6 +419,9 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 		}
 	}
 	writeMetric(points[n:i])
+
+	body, _ := proto.Marshal(&multiResponse)
+	w.Write(body)
 }
 func NewRenderHandler(config *Config) *RenderHandler {
 	return &RenderHandler{
