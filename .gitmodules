@@ -13,3 +13,18 @@
 [submodule "_vendor/src/github.com/gogo/protobuf"]
 	path = _vendor/src/github.com/gogo/protobuf
 	url = https://github.com/gogo/protobuf
+[submodule "vendor/github.com/gogo/protobuf"]
+	path = vendor/github.com/gogo/protobuf
+	url = https://github.com/gogo/protobuf
+[submodule "vendor/github.com/BurntSushi/toml"]
+	path = vendor/github.com/BurntSushi/toml
+	url = https://github.com/BurntSushi/toml
+[submodule "vendor/github.com/uber-go/zap"]
+	path = vendor/github.com/uber-go/zap
+	url = https://github.com/uber-go/zap
+[submodule "vendor/github.com/uber-go/atomic"]
+	path = vendor/github.com/uber-go/atomic
+	url = https://github.com/uber-go/atomic
+[submodule "vendor/github.com/lomik/zapwriter"]
+	path = vendor/github.com/lomik/zapwriter
+	url = https://github.com/lomik/zapwriter
