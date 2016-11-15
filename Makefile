@@ -8,4 +8,4 @@ submodules:
 	git submodule update --recursive
 
 graphite-clickhouse:
-	$(GO) build graphite-clickhouse.go
+	$(GO) build github.com/lomik/graphite-clickhouse
