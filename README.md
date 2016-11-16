@@ -68,17 +68,9 @@ tree-timeout = "1m0s"
 ## Run on same host with graphite-web
 By default graphite-web won't connect to CLUSTER_SERVER on localhost. Cheat:
 ```python
-class ForceLocal(object):
-    def __init__(self, val):
-        self.val = val
-    def split(self, *args):
+class ForceLocal(str):
+    def split(self, *args, **kwargs):
         return ["8.8.8.8", "8080"]
-    def rfind(self, *args, **kwargs):
-        return self.val.rfind(*args, **kwargs)
-    def __getitem__(self, *args, **kwargs):
-        return self.val.__getitem__(*args, **kwargs)
-    def __contains__(self, *args, **kwargs):
-        return self.val.__contains__(*args, **kwargs)
 
 CLUSTER_SERVERS = [ForceLocal("127.0.0.1:9090")]
 ```
