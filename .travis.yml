@@ -21,5 +21,5 @@ deploy:
   file_glob: true
   file: "*.{deb,rpm}"
   on:
-    repo: lomik/carbon-clickhouse
+    repo: lomik/graphite-clickhouse
     tags: true
