@@ -14,7 +14,7 @@ submodules:
 	git submodule update --recursive
 
 $(NAME):
-	$(GO) build github.com/lomik/$(NAME).go
+	$(GO) build github.com/lomik/$(NAME)
 
 gox-build:
 	rm -rf out
