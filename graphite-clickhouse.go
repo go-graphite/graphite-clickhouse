@@ -17,7 +17,7 @@ import (
 	_ "net/http/pprof"
 )
 
-// Version of carbon-clickhouse
+// Version of graphite-clickhouse
 const Version = "0.1"
 
 type LogResponseWriter struct {

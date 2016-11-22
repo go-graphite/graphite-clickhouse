@@ -1,0 +1,14 @@
+[Unit]
+Description=Graphite cluster backend with ClickHouse support
+Documentation=https://github.com/lomik/graphite-clickhouse
+After=network.target
+
+[Service]
+Type=simple
+PermissionsStartOnly=true
+ExecStart=/usr/bin/graphite-clickhouse -config /etc/graphite-clickhouse/graphite-clickhouse.conf
+Restart=on-failure
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

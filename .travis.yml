@@ -1,0 +1,25 @@
+language: go
+
+go:
+- 1.7.3
+
+script:
+- make
+
+before_deploy:
+- sudo apt-get install -y rpm ruby ruby-dev
+- go get github.com/mitchellh/gox
+- gem install fpm
+- make gox-build
+- make fpm-deb
+- make fpm-rpm
+
+deploy:
+  provider: releases
+  api_key:
+    secure: wRM0StqWKeNXBr5LZhJXuzu1Ce8Ra6YTJOLQdZTscEYIYhj7/K3FdVRgweo/6/TCVrATu4UsBV+drzfMqyrRiYW041UCaEf45Vh5tB74js/Nqhmn0FyYQEhAGMVsEMa8kO8CCQlNfx/w4b9CVr0FX41LUzz4lxNigft6DpTZ3O05V219nwWVAX4+YFheTgi1cZ2EV8cLR5FsgHoubmgcQq9HrvriSfva/QyqIrmyBerWpaO5dHJ/2E+0xrpRx2BCeoia9DNrFIeZDDx+lu9ehy7DILxAZ0rcB1cDykoKMD5+qK5Mtd8JKa2GgCFyEiNAyKeV5VC/4mudIFd4tSMqT205XKzAOMgABt9M6I9tBCrLUgSTAwnj3f0hhjW3y92dYQ8brBy9eQ+xRYM6S1siJtse9phO+7lVgT9CAzdomzToe4eoBAaAJdPCojftZMaSVeSwf5KjYAfleEk5VCcufQPGwqSGHvnohIHNmV95fgBp1l9LDL8+2OvAIX0L8N6L0tv2CXJOSAx5iPuJsgOeKk8KV6V6TDUjfBRdSgmwlS/+0ljiVNjOIf046cMqSTpN+ou+U9pg9o34OglrQISS5kBUKb8KX65vy1AO243tj4v2jJJ8Pde/Bt0nRZe5oRCKY77blkDHPyxlHx5YRX5JTzX2bR5q0ADyo9t3UatqnBQ=
+  file_glob: true
+  file: "*.{deb,rpm}"
+  on:
+    repo: lomik/carbon-clickhouse
+    tags: true
