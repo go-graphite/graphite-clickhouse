@@ -392,7 +392,7 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 		}
 
 		for i := int32(0); i < count; i++ {
-			if points[index].Time == start+step*i {
+			if index < len(points) && points[index].Time == start+step*i {
 				response.Values[i] = points[index].Value
 				response.IsAbsent[i] = false
 				index++
@@ -423,6 +423,7 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 	body, _ := proto.Marshal(&multiResponse)
 	w.Write(body)
 }
+
 func NewRenderHandler(config *Config) *RenderHandler {
 	return &RenderHandler{
 		config: config,
