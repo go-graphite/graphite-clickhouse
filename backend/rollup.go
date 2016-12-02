@@ -224,7 +224,7 @@ func aggrAny(points []Point) (r float64) {
 
 func aggrAnyLast(points []Point) (r float64) {
 	if len(points) > 0 {
-		r = points[len(points)].Value
+		r = points[len(points)-1].Value
 	}
 	return
 }
