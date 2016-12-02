@@ -109,7 +109,7 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		treeData, err := Query(
 			r.Context(),
 			h.config.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", h.config.ClickHouse.TreeTable, treeWhere),
+			fmt.Sprintf("SELECT Path FROM %s PREWHERE %s GROUP BY Path", h.config.ClickHouse.TreeTable, treeWhere),
 			h.config.ClickHouse.TreeTimeout.Value(),
 		)
 
@@ -158,7 +158,7 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SELECT 
 			Path, Time, Value, Timestamp
 		FROM %s 
-		WHERE (%s) AND (%s)
+		PREWHERE (%s) AND (%s)
 		FORMAT RowBinary
 		`,
 		h.config.ClickHouse.DataTable,
