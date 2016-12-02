@@ -72,6 +72,7 @@ func (rr *RollupRule) compile(hasRegexp bool) error {
 		"min": aggrMin,
 		"sum": aggrSum,
 		"any": aggrAny,
+		"anyLast": aggrAnyLast,
 	}
 
 	var exists bool
@@ -220,6 +221,14 @@ func aggrAny(points []Point) (r float64) {
 	}
 	return
 }
+
+func aggrAnyLast(points []Point) (r float64) {
+	if len(points) > 0 {
+		r = points[len(points)].Value
+	}
+	return
+}
+
 
 func doMetricPrecision(points []Point, precision int32, aggr func([]Point) float64) []Point {
 	l := len(points)
