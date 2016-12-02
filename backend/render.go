@@ -392,7 +392,7 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 		}
 
 		for i := int32(0); i < count; i++ {
-			if index < len(points) && points[index].Time == start+step*i {
+			if index < int32(len(points)) && points[index].Time == start+step*i {
 				response.Values[i] = points[index].Value
 				response.IsAbsent[i] = false
 				index++
