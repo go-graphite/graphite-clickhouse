@@ -42,14 +42,9 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 		return
 	}
 
-	q := p.Query()
-
-	q.Set("query", query)
-
-	p.RawQuery = q.Encode()
 	url := p.String()
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("POST", url, strings.NewReader(query))
 	if err != nil {
 		return
 	}

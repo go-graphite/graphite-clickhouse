@@ -44,6 +44,13 @@ Create `/etc/graphite-clickhouse/rollup.xml` with same content as for ClickHouse
         </default>
 </graphite_rollup>
 ```
+
+For complex clickhouse queries you might need to increase default query_max_size. To do that add following line to `/etc/clickhouse-server/users.xml` for the user you are using:
+```xml
+<!-- Default is 262144 -->
+<max_query_size>10485760</max_query_size>
+```
+
 Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 ```toml
 [common]
