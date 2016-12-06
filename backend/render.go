@@ -15,28 +15,6 @@ import (
 	"github.com/uber-go/zap"
 )
 
-type Points []Point
-
-func (s Points) Len() int      { return len(s) }
-func (s Points) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByKey struct{ Points }
-
-func (s ByKey) Less(i, j int) bool {
-	c := strings.Compare(s.Points[i].Metric, s.Points[j].Metric)
-
-	switch c {
-	case -1:
-		return true
-	case 1:
-		return false
-	case 0:
-		return s.Points[i].Time < s.Points[j].Time
-	}
-
-	return false
-}
-
 type RenderHandler struct {
 	config *Config
 }
