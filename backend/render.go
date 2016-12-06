@@ -3,10 +3,7 @@ package backend
 import (
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
-	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -159,7 +156,7 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dateWhere,
 	)
 
-	data, err := Query(
+	body, err := Query(
 		r.Context(),
 		h.config.ClickHouse.Url,
 		query,
@@ -173,67 +170,23 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	parseStart := time.Now()
 
-	buf := bytes.NewBuffer(data)
+	data, err := DataParse(body)
 
-	b := make([]byte, 1024*1024)
-	points := make([]Point, 0)
-
-	for {
-		namelen, err := binary.ReadUvarint(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			break
-		}
-		_, err = buf.Read(b[:namelen])
-		if err != nil {
-			break
-		}
-		name := string(b[:namelen])
-
-		_, err = buf.Read(b[:4])
-		if err != nil {
-			break
-		}
-		time := binary.LittleEndian.Uint32(b[:4])
-
-		_, err = buf.Read(b[:8])
-		if err != nil {
-			break
-		}
-		value := math.Float64frombits(binary.LittleEndian.Uint64(b[:8]))
-
-		_, err = buf.Read(b[:4])
-		if err != nil {
-			break
-		}
-		timestamp := binary.LittleEndian.Uint32(b[:4])
-
-		points = append(points, Point{
-			Metric:    name,
-			Time:      int32(time),
-			Value:     value,
-			Timestamp: int32(timestamp),
-		})
-	}
-
-	if err != nil && err == io.EOF {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = nil
 
 	logger.Debug("parse", zap.Duration("time_ns", time.Since(parseStart)))
 
 	sortStart := time.Now()
-	sort.Sort(ByKey{points})
+	sort.Sort(data)
 	logger.Debug("sort", zap.Duration("time_ns", time.Since(sortStart)))
 
-	points = PointsUniq(points)
+	data.Points = PointsUniq(data.Points)
 
 	// pp.Println(points)
-	h.Reply(w, r, points, int32(fromTimestamp), int32(untilTimestamp), prefix)
+	h.Reply(w, r, data.Points, int32(fromTimestamp), int32(untilTimestamp), prefix)
 }
 
 func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {

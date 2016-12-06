@@ -150,3 +150,19 @@ func DataParse(body []byte) (*Data, error) {
 
 	return d, nil
 }
+
+func (d *Data) Len() int {
+	return len(d.Points)
+}
+
+func (d *Data) Less(i, j int) bool {
+	if d.Points[i].id == d.Points[j].id {
+		return d.Points[i].Time < d.Points[j].Time
+	}
+
+	return d.Points[i].id < d.Points[j].id
+}
+
+func (d *Data) Swap(i, j int) {
+	d.Points[i], d.Points[j] = d.Points[j], d.Points[i]
+}
