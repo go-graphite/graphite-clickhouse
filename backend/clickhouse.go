@@ -25,7 +25,11 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	start := time.Now()
 
 	logger := Logger(ctx)
-	logger = logger.With(zap.String("query", formatSQL(query)))
+	queryForLogger := query
+	if len(queryForLogger) > 500 {
+		queryForLogger = queryForLogger[:495] + "<...>"
+	}
+	logger = logger.With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
 		log := logger.With(zap.Duration("time_ns", time.Since(start)))
