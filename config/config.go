@@ -1,4 +1,4 @@
-package backend
+package config
 
 import (
 	"bytes"
@@ -64,7 +64,7 @@ type Config struct {
 }
 
 // NewConfig ...
-func NewConfig() *Config {
+func New() *Config {
 	cfg := &Config{
 		Common: commonConfig{
 			Listen:   ":9090",
@@ -96,7 +96,7 @@ func NewConfig() *Config {
 }
 
 // PrintConfig ...
-func PrintConfig(cfg interface{}) error {
+func Print(cfg interface{}) error {
 	buf := new(bytes.Buffer)
 
 	encoder := toml.NewEncoder(buf)
@@ -110,8 +110,8 @@ func PrintConfig(cfg interface{}) error {
 	return nil
 }
 
-// ParseConfig ...
-func ParseConfig(filename string, cfg *Config) error {
+// Parse ...
+func Parse(filename string, cfg *Config) error {
 	if filename != "" {
 		if _, err := toml.DecodeFile(filename, cfg); err != nil {
 			return err
