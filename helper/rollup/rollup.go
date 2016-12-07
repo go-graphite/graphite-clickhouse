@@ -109,7 +109,7 @@ func (r *Rollup) compile() error {
 	return nil
 }
 
-func ParseRollupXML(body []byte) (*Rollup, error) {
+func ParseXML(body []byte) (*Rollup, error) {
 	r := &Rollup{}
 	err := xml.Unmarshal(body, r)
 	if err != nil {
@@ -122,49 +122,6 @@ func ParseRollupXML(body []byte) (*Rollup, error) {
 	}
 
 	return r, nil
-}
-
-// PointsCleanup removes points with empty metric
-// for run after Deduplicate, Merge, etc for result cleanup
-func PointsCleanup(points []point.Point) []point.Point {
-	l := len(points)
-	squashed := 0
-
-	for i := 0; i < l; i++ {
-		if points[i].Metric == "" {
-			squashed++
-			continue
-		}
-		if squashed > 0 {
-			points[i-squashed] = points[i]
-		}
-	}
-
-	return points[:l-squashed]
-}
-
-// PointsUniq removes points with equal metric and time
-func PointsUniq(points []point.Point) []point.Point {
-	l := len(points)
-	var i, n int
-	// i - current position of iterator
-	// n - position on first record with current key (metric + time)
-
-	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric ||
-			points[i].Time != points[n].Time {
-			n = i
-			continue
-		}
-
-		if points[i].Timestamp > points[n].Timestamp {
-			points[n] = points[i]
-		}
-
-		points[i].Metric = "" // mark for remove
-	}
-
-	return PointsCleanup(points)
 }
 
 // Match returns rollup rules for metric
@@ -211,7 +168,7 @@ func doMetricPrecision(points []point.Point, precision int32, aggr func([]point.
 		points[n].Value = aggr(points[n:i])
 	}
 
-	return PointsCleanup(points)
+	return point.CleanUp(points)
 }
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
