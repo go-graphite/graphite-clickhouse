@@ -23,6 +23,7 @@ test:
 	$(GO) test $(MODULE)/helper/pickle
 	$(GO) test $(MODULE)/helper/point
 	$(GO) test $(MODULE)/helper/rollup
+	$(GO) test $(MODULE)/config
 
 gox-build:
 	rm -rf out

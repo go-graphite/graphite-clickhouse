@@ -8,9 +8,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/uber-go/zap"
-)
 
-const MetricEndpointLocal = "local"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
+)
 
 // Duration wrapper time.Duration for TOML
 type Duration struct {
@@ -58,15 +58,15 @@ type ClickHouse struct {
 
 // Config ...
 type Config struct {
-	Common     Common     `toml:"common"`
-	ClickHouse ClickHouse `toml:"clickhouse"`
-	Rollup     *Rollup    `toml:"-"`
+	Common     Common         `toml:"common"`
+	ClickHouse ClickHouse     `toml:"clickhouse"`
+	Rollup     *rollup.Rollup `toml:"-"`
 }
 
 // NewConfig ...
 func New() *Config {
 	cfg := &Config{
-		Common: commonConfig{
+		Common: Common{
 			Listen:   ":9090",
 			LogFile:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
 			LogLevel: zap.InfoLevel,
@@ -77,7 +77,7 @@ func New() *Config {
 			// MetricEndpoint: MetricEndpointLocal,
 			MaxCPU: 1,
 		},
-		ClickHouse: clickhouseConfig{
+		ClickHouse: ClickHouse{
 			Url: "http://localhost:8123",
 
 			DataTable: "graphite",
@@ -123,7 +123,7 @@ func Parse(filename string, cfg *Config) error {
 		return err
 	}
 
-	r, err := ParseRollupXML(rollupConfBody)
+	r, err := rollup.ParseXML(rollupConfBody)
 	if err != nil {
 		return err
 	}
