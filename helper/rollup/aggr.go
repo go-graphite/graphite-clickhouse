@@ -1,13 +1,17 @@
 package rollup
 
-func AggrSum(points []Point) (r float64) {
+import (
+	"github.com/lomik/graphite-clickhouse/helper/point"
+)
+
+func AggrSum(points []point.Point) (r float64) {
 	for _, p := range points {
 		r += p.Value
 	}
 	return
 }
 
-func AggrMax(points []Point) (r float64) {
+func AggrMax(points []point.Point) (r float64) {
 	if len(points) > 0 {
 		r = points[0].Value
 	}
@@ -19,7 +23,7 @@ func AggrMax(points []Point) (r float64) {
 	return
 }
 
-func AggrMin(points []Point) (r float64) {
+func AggrMin(points []point.Point) (r float64) {
 	if len(points) > 0 {
 		r = points[0].Value
 	}
@@ -31,22 +35,22 @@ func AggrMin(points []Point) (r float64) {
 	return
 }
 
-func AggrAvg(points []Point) (r float64) {
+func AggrAvg(points []point.Point) (r float64) {
 	if len(points) == 0 {
 		return
 	}
-	r = aggrSum(points) / float64(len(points))
+	r = AggrSum(points) / float64(len(points))
 	return
 }
 
-func AggrAny(points []Point) (r float64) {
+func AggrAny(points []point.Point) (r float64) {
 	if len(points) > 0 {
 		r = points[0].Value
 	}
 	return
 }
 
-func AggrAnyLast(points []Point) (r float64) {
+func AggrAnyLast(points []point.Point) (r float64) {
 	if len(points) > 0 {
 		r = points[len(points)-1].Value
 	}

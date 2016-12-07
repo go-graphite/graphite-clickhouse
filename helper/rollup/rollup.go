@@ -1,10 +1,12 @@
-package render
+package rollup
 
 import (
 	"encoding/xml"
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
 /*
@@ -66,7 +68,7 @@ func (rr *Pattern) compile(hasRegexp bool) error {
 		}
 	}
 
-	aggrMap := map[string](func([]Point) float64){
+	aggrMap := map[string](func([]point.Point) float64){
 		"avg":     AggrAvg,
 		"max":     AggrMax,
 		"min":     AggrMin,
@@ -124,7 +126,7 @@ func ParseRollupXML(body []byte) (*Rollup, error) {
 
 // PointsCleanup removes points with empty metric
 // for run after Deduplicate, Merge, etc for result cleanup
-func PointsCleanup(points []Point) []Point {
+func PointsCleanup(points []point.Point) []point.Point {
 	l := len(points)
 	squashed := 0
 
@@ -142,7 +144,7 @@ func PointsCleanup(points []Point) []Point {
 }
 
 // PointsUniq removes points with equal metric and time
-func PointsUniq(points []Point) []Point {
+func PointsUniq(points []point.Point) []point.Point {
 	l := len(points)
 	var i, n int
 	// i - current position of iterator
@@ -176,7 +178,7 @@ func (r *Rollup) Match(metric string) *Pattern {
 	return r.Default
 }
 
-func doMetricPrecision(points []Point, precision int32, aggr func([]Point) float64) []Point {
+func doMetricPrecision(points []point.Point, precision int32, aggr func([]point.Point) float64) []point.Point {
 	l := len(points)
 	var i, n int
 	// i - current position of iterator
@@ -214,7 +216,7 @@ func doMetricPrecision(points []Point, precision int32, aggr func([]Point) float
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rollup) RollupMetric(points []Point) ([]Point, int32) {
+func (r *Rollup) RollupMetric(points []point.Point) ([]point.Point, int32) {
 	// pp.Println(points)
 
 	l := len(points)
