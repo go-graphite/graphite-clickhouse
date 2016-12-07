@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/uber-go/zap"
+
+	"github.com/lomik/graphite-clickhouse/helper/log"
 )
 
 func formatSQL(q string) string {
@@ -24,7 +26,8 @@ func formatSQL(q string) string {
 func Query(ctx context.Context, dsn string, query string, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
-	logger := Logger(ctx)
+	logger := log.FromContext(ctx)
+
 	queryForLogger := query
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:495] + "<...>"
