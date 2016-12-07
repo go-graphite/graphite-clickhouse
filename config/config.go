@@ -36,7 +36,7 @@ func (d *Duration) Value() time.Duration {
 	return d.Duration
 }
 
-type commonConfig struct {
+type Common struct {
 	Listen   string    `toml:"listen"`
 	LogFile  string    `toml:"logfile"`
 	LogLevel zap.Level `toml:"loglevel"`
@@ -46,7 +46,7 @@ type commonConfig struct {
 	MaxCPU int `toml:"max-cpu"`
 }
 
-type clickhouseConfig struct {
+type ClickHouse struct {
 	Url         string    `toml:"url"`
 	DataTable   string    `toml:"data-table"`
 	DataTimeout *Duration `toml:"data-timeout"`
@@ -58,9 +58,9 @@ type clickhouseConfig struct {
 
 // Config ...
 type Config struct {
-	Common     commonConfig     `toml:"common"`
-	ClickHouse clickhouseConfig `toml:"clickhouse"`
-	Rollup     *Rollup          `toml:"-"`
+	Common     Common     `toml:"common"`
+	ClickHouse ClickHouse `toml:"clickhouse"`
+	Rollup     *Rollup    `toml:"-"`
 }
 
 // NewConfig ...
