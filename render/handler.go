@@ -11,16 +11,29 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/uber-go/zap"
+
+	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
+	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/log"
+	"github.com/lomik/graphite-clickhouse/helper/pickle"
+	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
 type Handler struct {
-	config *Config
+	config *config.Config
+}
+
+func NewHandler(config *config.Config) *Handler {
+	return &Handler{
+		config: config,
+	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := Logger(r.Context())
+	logger := log.FromContext(r.Context())
 	target := r.URL.Query().Get("target")
 
 	if strings.IndexByte(target, '\'') > -1 { // sql injection dumb fix
@@ -32,14 +45,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if h.config.ClickHouse.ExtraPrefix != "" {
-		prefix, target, err = RemoveExtraPrefix(h.config.ClickHouse.ExtraPrefix, target)
+		prefix, target, err = find.RemoveExtraPrefix(h.config.ClickHouse.ExtraPrefix, target)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if target == "" {
-			h.Reply(w, r, make([]Point, 0), 0, 0, "")
+			h.Reply(w, r, make([]point.Point, 0), 0, 0, "")
 			return
 		}
 	}
@@ -66,15 +79,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var pathWhere string
 
-	if hasWildcard(target) {
+	if find.HasWildcard(target) {
 		// Search in small index table first
-		treeWhere := makeWhere(target, true)
+		treeWhere := find.MakeWhere(target, true)
 		if treeWhere == "" {
 			http.Error(w, "Bad or unsupported query", http.StatusBadRequest)
 			return
 		}
 
-		treeData, err := Query(
+		treeData, err := clickhouse.Query(
 			r.Context(),
 			h.config.ClickHouse.Url,
 			fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", h.config.ClickHouse.TreeTable, treeWhere),
@@ -102,7 +115,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if listBuf.Len() == 0 {
-			h.Reply(w, r, make([]Point, 0), 0, 0, "")
+			h.Reply(w, r, make([]point.Point, 0), 0, 0, "")
 			return
 		}
 
@@ -134,7 +147,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dateWhere,
 	)
 
-	body, err := Query(
+	body, err := clickhouse.Query(
 		r.Context(),
 		h.config.ClickHouse.Url,
 		query,
@@ -161,13 +174,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sort.Sort(data)
 	logger.Debug("sort", zap.Duration("time_ns", time.Since(sortStart)))
 
-	data.Points = PointsUniq(data.Points)
+	data.Points = point.Uniq(data.Points)
 
 	// pp.Println(points)
 	h.Reply(w, r, data.Points, int32(fromTimestamp), int32(untilTimestamp), prefix)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
 	start := time.Now()
 	switch r.URL.Query().Get("format") {
 	case "pickle":
@@ -175,30 +188,30 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, points []Point, 
 	case "protobuf":
 		h.ReplyProtobuf(w, r, points, from, until, prefix)
 	}
-	Logger(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
+	log.FromContext(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
 }
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
 	defer func() {
-		Logger(r.Context()).Debug("rollup", zap.Duration("time_ns", rollupTime))
-		Logger(r.Context()).Debug("pickle", zap.Duration("time_ns", pickleTime))
+		log.FromContext(r.Context()).Debug("rollup", zap.Duration("time_ns", rollupTime))
+		log.FromContext(r.Context()).Debug("pickle", zap.Duration("time_ns", pickleTime))
 	}()
 
 	if len(points) == 0 {
-		w.Write(PickleEmptyList)
+		w.Write(pickle.EmptyList)
 		return
 	}
 
 	writer := bufio.NewWriterSize(w, 1024*1024)
-	p := NewPickler(writer)
+	p := pickle.NewWriter(writer)
 	defer writer.Flush()
 
 	p.List()
 
-	writeMetric := func(points []Point) {
+	writeMetric := func(points []point.Point) {
 		rollupStart := time.Now()
 		points, step := h.config.Rollup.RollupMetric(points)
 		rollupTime += time.Since(rollupStart)
@@ -276,14 +289,14 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []P
 	p.Stop()
 }
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
 	if len(points) == 0 {
 		return
 	}
 
 	var multiResponse carbonzipperpb.MultiFetchResponse
 
-	writeMetric := func(points []Point) {
+	writeMetric := func(points []point.Point) {
 		points, step := h.config.Rollup.RollupMetric(points)
 
 		var name string
@@ -346,10 +359,4 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points [
 
 	body, _ := proto.Marshal(&multiResponse)
 	w.Write(body)
-}
-
-func NewHandler(config *Config) *Handler {
-	return &Handler{
-		config: config,
-	}
 }
