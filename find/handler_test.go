@@ -1,27 +1,33 @@
 package find
 
 import (
+	"context"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/uber-go/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
 )
 
 type clickhouseMock struct {
-	requestLog chan *http.Request
+	requestLog chan []byte
 }
 
 func (m *clickhouseMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+
 	if m.requestLog != nil {
-		m.requestLog <- r
+		m.requestLog <- body
 	}
 }
 
 func TestFind(t *testing.T) {
 
 	testCase := func(findQuery, expectedClickHouseQuery string) {
-		requestLog := make(chan *http.Request, 1)
+		requestLog := make(chan []byte, 1)
 		m := &clickhouseMock{
 			requestLog: requestLog,
 		}
@@ -39,13 +45,16 @@ func TestFind(t *testing.T) {
 			"http://localhost/metrics/find/?local=1&format=pickle&query="+findQuery,
 			nil,
 		)
+
+		logger := zap.New(zap.NewJSONEncoder())
+		logger.SetLevel(-1000)
+		r = r.WithContext(context.WithValue(r.Context(), "logger", logger))
 		handler.ServeHTTP(w, r)
 
-		chRequest := <-requestLog
-		chQuery := chRequest.URL.Query().Get("query")
+		chQuery := <-requestLog
 
-		if chQuery != expectedClickHouseQuery {
-			t.Fatalf("%#v (actual) != %#v (expected)", chQuery, expectedClickHouseQuery)
+		if string(chQuery) != expectedClickHouseQuery {
+			t.Fatalf("%#v (actual) != %#v (expected)", string(chQuery), expectedClickHouseQuery)
 		}
 	}
 
