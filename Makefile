@@ -25,6 +25,7 @@ test:
 	$(GO) test $(MODULE)/helper/rollup
 	$(GO) test $(MODULE)/config
 	$(GO) test $(MODULE)/find
+	$(GO) test $(MODULE)/render
 
 gox-build:
 	rm -rf out

@@ -10,7 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/backend"
+	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/zapwriter"
 	"github.com/uber-go/zap"
 
@@ -89,14 +91,14 @@ func main() {
 	}
 
 	if *printDefaultConfig {
-		if err = backend.PrintConfig(backend.NewConfig()); err != nil {
+		if err = config.Print(config.New()); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
 
-	cfg := backend.NewConfig()
-	if err := backend.ParseConfig(*configFile, cfg); err != nil {
+	cfg := config.New()
+	if err := config.Parse(*configFile, cfg); err != nil {
 		log.Fatal(err)
 	}
 
@@ -120,8 +122,8 @@ func main() {
 
 	/* CONFIG end */
 
-	http.Handle("/metrics/find/", Handler(logger, backend.NewFindHandler(cfg)))
-	http.Handle("/render/", Handler(logger, backend.NewRenderHandler(cfg)))
+	http.Handle("/metrics/find/", Handler(logger, find.NewHandler(cfg)))
+	http.Handle("/render/", Handler(logger, render.NewHandler(cfg)))
 
 	http.Handle("/", Handler(logger, http.HandlerFunc(http.NotFound)))
 
