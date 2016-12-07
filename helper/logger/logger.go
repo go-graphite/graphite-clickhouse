@@ -6,7 +6,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
-func Logger(ctx context.Context) zap.Logger {
+func FromContext(ctx context.Context) zap.Logger {
 	logger := ctx.Value("logger")
 	if logger == nil {
 		return zap.New(zap.NullEncoder())

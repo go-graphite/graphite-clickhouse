@@ -1,4 +1,4 @@
-package backend
+package render
 
 import (
 	"bufio"
@@ -15,11 +15,11 @@ import (
 	"github.com/uber-go/zap"
 )
 
-type RenderHandler struct {
+type Handler struct {
 	config *Config
 }
 
-func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := Logger(r.Context())
 	target := r.URL.Query().Get("target")
 
@@ -167,7 +167,7 @@ func (h *RenderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Reply(w, r, data.Points, int32(fromTimestamp), int32(untilTimestamp), prefix)
 }
 
-func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	start := time.Now()
 	switch r.URL.Query().Get("format") {
 	case "pickle":
@@ -178,7 +178,7 @@ func (h *RenderHandler) Reply(w http.ResponseWriter, r *http.Request, points []P
 	Logger(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
 }
 
-func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
@@ -276,7 +276,7 @@ func (h *RenderHandler) ReplyPickle(w http.ResponseWriter, r *http.Request, poin
 	p.Stop()
 }
 
-func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []Point, from, until int32, prefix string) {
 	if len(points) == 0 {
 		return
 	}
@@ -348,8 +348,8 @@ func (h *RenderHandler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, po
 	w.Write(body)
 }
 
-func NewRenderHandler(config *Config) *RenderHandler {
-	return &RenderHandler{
+func NewHandler(config *Config) *Handler {
+	return &Handler{
 		config: config,
 	}
 }

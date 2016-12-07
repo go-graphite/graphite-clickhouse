@@ -1,4 +1,4 @@
-package backend
+package pickle
 
 import (
 	"encoding/binary"
@@ -9,43 +9,43 @@ import (
 var PickleEmptyList = []byte{0x28, 0x6c, 0x70, 0x30, 0xa, 0x2e}
 
 // Pickle encoder
-type Pickler struct {
+type Writer struct {
 	w io.Writer
 }
 
-func NewPickler(w io.Writer) *Pickler {
-	return &Pickler{w: w}
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{w: w}
 }
 
-func (p *Pickler) Mark() {
+func (p *Writer) Mark() {
 	p.w.Write([]byte{'('})
 }
 
-func (p *Pickler) Stop() {
+func (p *Writer) Stop() {
 	p.w.Write([]byte{'.'})
 }
 
-func (p *Pickler) Append() {
+func (p *Writer) Append() {
 	p.w.Write([]byte{'a'})
 }
 
-func (p *Pickler) SetItem() {
+func (p *Writer) SetItem() {
 	p.w.Write([]byte{'s'})
 }
 
-func (p *Pickler) List() {
+func (p *Writer) List() {
 	p.w.Write([]byte{'(', 'l'})
 }
 
-func (p *Pickler) Dict() {
+func (p *Writer) Dict() {
 	p.w.Write([]byte{'(', 'd'})
 }
 
-func (p *Pickler) TupleEnd() {
+func (p *Writer) TupleEnd() {
 	p.w.Write([]byte{'t'})
 }
 
-func (p *Pickler) Bytes(byt []byte) {
+func (p *Writer) Bytes(byt []byte) {
 	l := len(byt)
 
 	if l < 256 {
@@ -60,18 +60,18 @@ func (p *Pickler) Bytes(byt []byte) {
 	p.w.Write(byt)
 }
 
-func (p *Pickler) String(v string) {
+func (p *Writer) String(v string) {
 	p.Bytes([]byte(v))
 }
 
-func (p *Pickler) Uint32(v uint32) {
+func (p *Writer) Uint32(v uint32) {
 	p.w.Write([]byte{'J'})
 	var b [4]byte
 	binary.LittleEndian.PutUint32(b[:], uint32(v))
 	p.w.Write(b[:])
 }
 
-func (p *Pickler) AppendFloat64(v float64) {
+func (p *Writer) AppendFloat64(v float64) {
 	u := math.Float64bits(v)
 
 	var b [10]byte
@@ -83,13 +83,13 @@ func (p *Pickler) AppendFloat64(v float64) {
 	p.w.Write(b[:])
 }
 
-func (p *Pickler) AppendNulls(count int) {
+func (p *Writer) AppendNulls(count int) {
 	for i := 0; i < count; i++ {
 		p.w.Write([]byte{'N', 'a'})
 	}
 }
 
-func (p *Pickler) Bool(b bool) {
+func (p *Writer) Bool(b bool) {
 	if b {
 		p.w.Write([]byte{'I', '0', '1', '\n'})
 	} else {

@@ -1,4 +1,4 @@
-package backend
+package render
 
 import (
 	"encoding/xml"
@@ -67,11 +67,11 @@ func (rr *RollupRule) compile(hasRegexp bool) error {
 	}
 
 	aggrMap := map[string](func([]Point) float64){
-		"avg": aggrAvg,
-		"max": aggrMax,
-		"min": aggrMin,
-		"sum": aggrSum,
-		"any": aggrAny,
+		"avg":     aggrAvg,
+		"max":     aggrMax,
+		"min":     aggrMin,
+		"sum":     aggrSum,
+		"any":     aggrAny,
 		"anyLast": aggrAnyLast,
 	}
 
@@ -228,7 +228,6 @@ func aggrAnyLast(points []Point) (r float64) {
 	}
 	return
 }
-
 
 func doMetricPrecision(points []Point, precision int32, aggr func([]Point) float64) []Point {
 	l := len(points)
