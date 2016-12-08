@@ -119,38 +119,19 @@ func TestMetricStep(t *testing.T) {
 		from         int32
 		expectedStep int32
 	}{
-		{
-			name:         "metric.foo1",
-			from:         now - 500,
-			expectedStep: 1,
-		},
-		{
-			name:         "metric.foo2",
-			from:         now - 3600,
-			expectedStep: 10,
-		},
-		{
-			name:         "foo.bar1",
-			from:         now - 500,
-			expectedStep: 60,
-		},
-		{
-			name:         "foo.bar2",
-			from:         now - 3700,
-			expectedStep: 300,
-		},
-		{
-			name:         "foo.bar3",
-			from:         now - 87000,
-			expectedStep: 3600,
-		},
+		{"metric.foo.first-retention", now - 500, 1},
+		{"metric.foo.second-retention", now - 3600, 10},
+		{"foo.bar.default-first-retention", now - 500, 60},
+		{"foo.bar.default-second-retention", now - 3700, 300},
+		{"foo.bar.default-last-retention", now - 87000, 3600},
 	}
 
 	for _, test := range tests {
-		fmt.Printf("Performing test for metric=%v (from=now-%v)\n", test.name, now-test.from)
-		step := r.Step(test.name, test.from)
-		if step != test.expectedStep {
-			t.Errorf("metric=%v (from=now-%v), expected step=%v, actual step=%v", test.name, now-test.from, test.expectedStep, step)
-		}
+		t.Run(fmt.Sprintf("metric=%v (from=now-%v)", test.name, now-test.from), func(t *testing.T) {
+			step := r.Step(test.name, test.from)
+			if step != test.expectedStep {
+				t.Fatalf("metric=%v (from=now-%v), expected step=%v, actual step=%v", test.name, now-test.from, test.expectedStep, step)
+			}
+		})
 	}
 }

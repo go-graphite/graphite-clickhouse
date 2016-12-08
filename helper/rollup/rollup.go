@@ -144,7 +144,7 @@ func (r *Rollup) Step(metric string, from int32) int32 {
 			return pattern.Retention[i].Precision
 		}
 	}
-	return pattern.Retention[len(pattern.Retention)].Precision
+	return pattern.Retention[len(pattern.Retention)-1].Precision
 }
 
 func doMetricPrecision(points []point.Point, precision int32, aggr func([]point.Point) float64) []point.Point {
