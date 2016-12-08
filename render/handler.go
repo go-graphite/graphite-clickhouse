@@ -69,16 +69,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dateWhere := fmt.Sprintf(
-		"(Date >='%s' AND Date <= '%s' AND Time >= %d AND Time <= %d)",
-		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
-		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
-		fromTimestamp,
-		untilTimestamp,
-	)
-
 	var pathWhere string
 
+	maxStep := int32(0)
 	if find.HasWildcard(target) {
 		// Search in small index table first
 		treeWhere := find.MakeWhere(target, true)
@@ -104,6 +97,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, p := range strings.Split(string(treeData), "\n") {
 			if p == "" {
 				continue
+			}
+			step := h.config.Rollup.Step(p, int32(fromTimestamp))
+			if step > maxStep {
+				maxStep = step
 			}
 
 			if !first {
@@ -131,7 +128,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// pathWhere = makeWhere(target, false)
 	} else {
 		pathWhere = fmt.Sprintf("Path = '%s'", target)
+		maxStep = h.config.Rollup.Step(target, int32(fromTimestamp))
 	}
+
+	untilTimestamp = untilTimestamp - untilTimestamp % int64(maxStep) + int64(maxStep) - 1
+	dateWhere := fmt.Sprintf(
+		"(Date >='%s' AND Date <= '%s' AND Time >= %d AND Time <= %d)",
+		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
+		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
+		fromTimestamp,
+		untilTimestamp,
+	)
 
 	// @TODO: change format to RowBinary
 	query := fmt.Sprintf(
