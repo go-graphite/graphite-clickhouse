@@ -1,4 +1,4 @@
-package backend
+package render
 
 import (
 	"bytes"
@@ -6,15 +6,9 @@ import (
 	"errors"
 	"math"
 	"unsafe"
-)
 
-type Point struct {
-	id        int
-	Metric    string
-	Time      int32
-	Value     float64
-	Timestamp int32 // keep max if metric and time equal on two points
-}
+	"github.com/lomik/graphite-clickhouse/helper/point"
+)
 
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
@@ -45,7 +39,7 @@ func ReadUvarint(array []byte) (uint64, int, error) {
 
 type Data struct {
 	body     []byte // raw RowBinary from clickhouse
-	Points   []Point
+	Points   []point.Point
 	nameToID map[string]int
 	maxID    int
 }
@@ -91,7 +85,7 @@ func DataParse(body []byte) (*Data, error) {
 	}
 
 	d := &Data{
-		Points:   make([]Point, count),
+		Points:   make([]point.Point, count),
 		nameToID: make(map[string]int),
 	}
 
@@ -140,7 +134,7 @@ func DataParse(body []byte) (*Data, error) {
 		timestamp := binary.LittleEndian.Uint32(body[offset : offset+4])
 		offset += 4
 
-		d.Points[index].id = id
+		d.Points[index].MetricID = id
 		d.Points[index].Metric = unsafeString(name)
 		d.Points[index].Time = int32(time)
 		d.Points[index].Value = value
@@ -156,11 +150,11 @@ func (d *Data) Len() int {
 }
 
 func (d *Data) Less(i, j int) bool {
-	if d.Points[i].id == d.Points[j].id {
+	if d.Points[i].MetricID == d.Points[j].MetricID {
 		return d.Points[i].Time < d.Points[j].Time
 	}
 
-	return d.Points[i].id < d.Points[j].id
+	return d.Points[i].MetricID < d.Points[j].MetricID
 }
 
 func (d *Data) Swap(i, j int) {

@@ -1,4 +1,4 @@
-package backend
+package config
 
 import (
 	"bytes"
@@ -8,9 +8,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/uber-go/zap"
-)
 
-const MetricEndpointLocal = "local"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
+)
 
 // Duration wrapper time.Duration for TOML
 type Duration struct {
@@ -36,7 +36,7 @@ func (d *Duration) Value() time.Duration {
 	return d.Duration
 }
 
-type commonConfig struct {
+type Common struct {
 	Listen   string    `toml:"listen"`
 	LogFile  string    `toml:"logfile"`
 	LogLevel zap.Level `toml:"loglevel"`
@@ -46,7 +46,7 @@ type commonConfig struct {
 	MaxCPU int `toml:"max-cpu"`
 }
 
-type clickhouseConfig struct {
+type ClickHouse struct {
 	Url         string    `toml:"url"`
 	DataTable   string    `toml:"data-table"`
 	DataTimeout *Duration `toml:"data-timeout"`
@@ -58,15 +58,15 @@ type clickhouseConfig struct {
 
 // Config ...
 type Config struct {
-	Common     commonConfig     `toml:"common"`
-	ClickHouse clickhouseConfig `toml:"clickhouse"`
-	Rollup     *Rollup          `toml:"-"`
+	Common     Common         `toml:"common"`
+	ClickHouse ClickHouse     `toml:"clickhouse"`
+	Rollup     *rollup.Rollup `toml:"-"`
 }
 
 // NewConfig ...
-func NewConfig() *Config {
+func New() *Config {
 	cfg := &Config{
-		Common: commonConfig{
+		Common: Common{
 			Listen:   ":9090",
 			LogFile:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
 			LogLevel: zap.InfoLevel,
@@ -77,7 +77,7 @@ func NewConfig() *Config {
 			// MetricEndpoint: MetricEndpointLocal,
 			MaxCPU: 1,
 		},
-		ClickHouse: clickhouseConfig{
+		ClickHouse: ClickHouse{
 			Url: "http://localhost:8123",
 
 			DataTable: "graphite",
@@ -96,7 +96,7 @@ func NewConfig() *Config {
 }
 
 // PrintConfig ...
-func PrintConfig(cfg interface{}) error {
+func Print(cfg interface{}) error {
 	buf := new(bytes.Buffer)
 
 	encoder := toml.NewEncoder(buf)
@@ -110,8 +110,8 @@ func PrintConfig(cfg interface{}) error {
 	return nil
 }
 
-// ParseConfig ...
-func ParseConfig(filename string, cfg *Config) error {
+// Parse ...
+func Parse(filename string, cfg *Config) error {
 	if filename != "" {
 		if _, err := toml.DecodeFile(filename, cfg); err != nil {
 			return err
@@ -123,7 +123,7 @@ func ParseConfig(filename string, cfg *Config) error {
 		return err
 	}
 
-	r, err := ParseRollupXML(rollupConfBody)
+	r, err := rollup.ParseXML(rollupConfBody)
 	if err != nil {
 		return err
 	}

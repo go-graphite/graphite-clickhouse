@@ -1,6 +1,7 @@
 NAME:=graphite-clickhouse
 MAINTAINER:="Roman Lomonosov <r.lomonosov@gmail.com>"
 DESCRIPTION:="Graphite cluster backend with ClickHouse support"
+MODULE:=github.com/lomik/graphite-clickhouse
 
 GO ?= go
 export GOPATH := $(CURDIR)/_vendor
@@ -14,7 +15,17 @@ submodules:
 	git submodule update --recursive
 
 $(NAME):
-	$(GO) build github.com/lomik/$(NAME)
+	$(GO) build $(MODULE)
+
+test:
+	$(GO) test $(MODULE)/helper/clickhouse
+	$(GO) test $(MODULE)/helper/log
+	$(GO) test $(MODULE)/helper/pickle
+	$(GO) test $(MODULE)/helper/point
+	$(GO) test $(MODULE)/helper/rollup
+	$(GO) test $(MODULE)/config
+	$(GO) test $(MODULE)/find
+	$(GO) test $(MODULE)/render
 
 gox-build:
 	rm -rf out
