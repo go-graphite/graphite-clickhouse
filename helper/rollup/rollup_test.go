@@ -1,7 +1,9 @@
 package rollup
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
@@ -71,5 +73,65 @@ func TestMetricPrecision(t *testing.T) {
 	for _, test := range tests {
 		result := doMetricPrecision(test[0], 60, AggrSum)
 		point.AssertListEq(t, test[1], result)
+	}
+}
+
+func TestMetricStep(t *testing.T) {
+	config := `
+<graphite_rollup>
+ 	<pattern>
+ 		<regexp>^metric\.</regexp>
+ 		<function>any</function>
+ 		<retention>
+ 			<age>0</age>
+ 			<precision>1</precision>
+ 		</retention>
+ 		<retention>
+ 			<age>3600</age>
+ 			<precision>10</precision>
+ 		</retention>
+ 	</pattern>
+ 	<default>
+ 		<function>max</function>
+ 		<retention>
+ 			<age>0</age>
+ 			<precision>60</precision>
+ 		</retention>
+ 		<retention>
+ 			<age>3600</age>
+ 			<precision>300</precision>
+ 		</retention>
+ 		<retention>
+ 			<age>86400</age>
+ 			<precision>3600</precision>
+ 		</retention>
+ 	</default>
+</graphite_rollup>
+`
+	r, err := ParseXML([]byte(config))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := int32(time.Now().Unix())
+
+	tests := []struct {
+		name         string
+		from         int32
+		expectedStep int32
+	}{
+		{"metric.foo.first-retention", now - 500, 1},
+		{"metric.foo.second-retention", now - 3600, 10},
+		{"foo.bar.default-first-retention", now - 500, 60},
+		{"foo.bar.default-second-retention", now - 3700, 300},
+		{"foo.bar.default-last-retention", now - 87000, 3600},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("metric=%v (from=now-%v)", test.name, now-test.from), func(t *testing.T) {
+			step := r.Step(test.name, test.from)
+			if step != test.expectedStep {
+				t.Fatalf("metric=%v (from=now-%v), expected step=%v, actual step=%v", test.name, now-test.from, test.expectedStep, step)
+			}
+		})
 	}
 }

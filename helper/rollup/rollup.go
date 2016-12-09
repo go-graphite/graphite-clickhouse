@@ -135,6 +135,18 @@ func (r *Rollup) Match(metric string) *Pattern {
 	return r.Default
 }
 
+func (r *Rollup) Step(metric string, from int32) int32 {
+	pattern := r.Match(metric)
+	now := int32(time.Now().Unix())
+
+	for i := range pattern.Retention {
+		if i == len(pattern.Retention)-1 || from > now-pattern.Retention[i+1].Age {
+			return pattern.Retention[i].Precision
+		}
+	}
+	return pattern.Retention[len(pattern.Retention)-1].Precision
+}
+
 func doMetricPrecision(points []point.Point, precision int32, aggr func([]point.Point) float64) []point.Point {
 	l := len(points)
 	var i, n int
