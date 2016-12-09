@@ -131,13 +131,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		maxStep = h.config.Rollup.Step(target, int32(fromTimestamp))
 	}
 
-	untilTimestamp = untilTimestamp - untilTimestamp % int64(maxStep) + int64(maxStep) - 1
+	until := untilTimestamp - untilTimestamp % int64(maxStep) + int64(maxStep) - 1
 	dateWhere := fmt.Sprintf(
 		"(Date >='%s' AND Date <= '%s' AND Time >= %d AND Time <= %d)",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
 		fromTimestamp,
-		untilTimestamp,
+		until,
 	)
 
 	// @TODO: change format to RowBinary
