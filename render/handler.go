@@ -332,7 +332,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points [
 
 		var index int32
 		// skip points before start
-		for index = 0; points[index].Time < start; index++ {
+		for index = 0; index < len(points) && points[index].Time < start; index++ {
 		}
 
 		for i := int32(0); i < count; i++ {
