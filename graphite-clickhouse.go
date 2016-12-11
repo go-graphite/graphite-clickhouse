@@ -108,17 +108,25 @@ func main() {
 	}
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 
-	zapOutput, err := zapwriter.New(cfg.Common.LogFile)
+	zapOutput, err := zapwriter.New(cfg.Logging.File)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	var logLevel zap.Level
+	if err = logLevel.UnmarshalText([]byte(cfg.Logging.Level)); err != nil {
+		log.Fatal(err)
+	}
+
+	dynamicLevel := zap.DynamicLevel()
+	dynamicLevel.SetLevel(logLevel)
 
 	logger := zap.New(
 		zapwriter.NewMixedEncoder(),
 		zap.AddCaller(),
 		zap.Output(zapOutput),
+		dynamicLevel,
 	)
-	logger.SetLevel(cfg.Common.LogLevel)
 
 	/* CONFIG end */
 

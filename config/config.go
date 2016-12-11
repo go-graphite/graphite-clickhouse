@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/uber-go/zap"
 
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
@@ -37,9 +36,7 @@ func (d *Duration) Value() time.Duration {
 }
 
 type Common struct {
-	Listen   string    `toml:"listen"`
-	LogFile  string    `toml:"logfile"`
-	LogLevel zap.Level `toml:"loglevel"`
+	Listen string `toml:"listen"`
 	// MetricPrefix   string    `toml:"metric-prefix"`
 	// MetricInterval *Duration `toml:"metric-interval"`
 	// MetricEndpoint string    `toml:"metric-endpoint"`
@@ -56,10 +53,16 @@ type ClickHouse struct {
 	ExtraPrefix string    `toml:"extra-prefix"`
 }
 
+type Logging struct {
+	File  string `toml:"file"`
+	Level string `toml:"level"`
+}
+
 // Config ...
 type Config struct {
 	Common     Common         `toml:"common"`
 	ClickHouse ClickHouse     `toml:"clickhouse"`
+	Logging    Logging        `toml:"logging"`
 	Rollup     *rollup.Rollup `toml:"-"`
 }
 
@@ -67,9 +70,7 @@ type Config struct {
 func New() *Config {
 	cfg := &Config{
 		Common: Common{
-			Listen:   ":9090",
-			LogFile:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
-			LogLevel: zap.InfoLevel,
+			Listen: ":9090",
 			// MetricPrefix: "carbon.graphite-clickhouse.{host}",
 			// MetricInterval: &Duration{
 			// 	Duration: time.Minute,
@@ -89,6 +90,10 @@ func New() *Config {
 				Duration: time.Minute,
 			},
 			RollupConf: "/etc/graphite-clickhouse/rollup.xml",
+		},
+		Logging: Logging{
+			File:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
+			Level: "info",
 		},
 	}
 

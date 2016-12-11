@@ -55,8 +55,6 @@ Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 ```toml
 [common]
 listen = ":9090"
-logfile = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
-loglevel = "info"
 max-cpu = 1
 
 [clickhouse]
@@ -70,6 +68,10 @@ rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
 extra-prefix = ""
 data-timeout = "1m0s"
 tree-timeout = "1m0s"
+
+[logging]
+file = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
+level = "info"
 ```
 
 ## Run on same host with graphite-web
