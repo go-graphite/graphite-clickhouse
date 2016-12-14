@@ -2,7 +2,7 @@
 Graphite cluster backend with ClickHouse support
 
 ## Work scheme
-![stack.png](doc/stack.png?v2)
+![stack.png](doc/stack.png?v3)
 
 Gray components are optional or alternative
 
