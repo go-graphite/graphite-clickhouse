@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -35,11 +34,6 @@ func NewHandler(config *config.Config) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := log.FromContext(r.Context())
 	target := r.URL.Query().Get("target")
-
-	if strings.IndexByte(target, '\'') > -1 { // sql injection dumb fix
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
 
 	var prefix string
 	var err error
@@ -94,11 +88,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		listBuf := bytes.NewBuffer(nil)
 		first := true
-		for _, p := range strings.Split(string(treeData), "\n") {
-			if p == "" {
+		for _, p := range bytes.Split(treeData, []byte{'\n'}) {
+			if len(p) == 0 {
 				continue
 			}
-			step := h.config.Rollup.Step(p, int32(fromTimestamp))
+			step := h.config.Rollup.Step(unsafeString(p), int32(fromTimestamp))
 			if step > maxStep {
 				maxStep = step
 			}
@@ -108,7 +102,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			first = false
 
-			listBuf.WriteString("'" + p + "'") // SQL-Injection
+			listBuf.WriteString("'" + clickhouse.Escape(unsafeString(p)) + "'")
 		}
 
 		if listBuf.Len() == 0 {
@@ -127,11 +121,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// )
 		// pathWhere = makeWhere(target, false)
 	} else {
-		pathWhere = fmt.Sprintf("Path = '%s'", target)
+		pathWhere = fmt.Sprintf("Path = '%s'", clickhouse.Escape(target))
 		maxStep = h.config.Rollup.Step(target, int32(fromTimestamp))
 	}
 
-	until := untilTimestamp - untilTimestamp % int64(maxStep) + int64(maxStep) - 1
+	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	dateWhere := fmt.Sprintf(
 		"(Date >='%s' AND Date <= '%s' AND Time >= %d AND Time <= %d)",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),

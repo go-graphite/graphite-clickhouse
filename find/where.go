@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 func HasWildcard(target string) bool {
@@ -31,7 +33,7 @@ func MakeWhere(target string, withLevel bool) (where string) {
 
 	// simple metric
 	if !HasWildcard(target) {
-		AND(fmt.Sprintf("Path = '%s'", target))
+		AND(fmt.Sprintf("Path = '%s'", clickhouse.Escape(target)))
 		return
 	}
 
@@ -39,7 +41,7 @@ func MakeWhere(target string, withLevel bool) (where string) {
 	simplePrefix := target[:strings.IndexAny(target, "[]{}*")]
 
 	if len(simplePrefix) > 0 {
-		AND(fmt.Sprintf("Path LIKE '%s%%'", simplePrefix))
+		AND(fmt.Sprintf("Path LIKE '%s%%'", clickhouse.Escape(simplePrefix)))
 	}
 
 	// prefix search like "metric.name.xx*"
@@ -48,7 +50,7 @@ func MakeWhere(target string, withLevel bool) (where string) {
 	}
 
 	pattern := GlobToRegexp(target)
-	AND(fmt.Sprintf("match(Path, '%s')", pattern))
+	AND(fmt.Sprintf("match(Path, '%s')", clickhouse.Escape(pattern)))
 
 	return
 }

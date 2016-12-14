@@ -3,7 +3,6 @@ package find
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -21,11 +20,6 @@ func NewHandler(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
-
-	if strings.IndexByte(query, '\'') > -1 { // sql injection dumb fix
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
 
 	var prefix string
 	var err error

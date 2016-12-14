@@ -23,6 +23,12 @@ func formatSQL(q string) string {
 	return strings.Join(s, " ")
 }
 
+func Escape(s string) string {
+	s = strings.Replace(s, `\`, `\\`, -1)
+	s = strings.Replace(s, `'`, `\'`, -1)
+	return s
+}
+
 func Query(ctx context.Context, dsn string, query string, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
