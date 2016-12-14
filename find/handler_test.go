@@ -47,7 +47,7 @@ func TestFind(t *testing.T) {
 		)
 
 		logger := zap.New(zap.NewJSONEncoder())
-		logger.SetLevel(-1000)
+		// logger.SetLevel(-1000)
 		r = r.WithContext(context.WithValue(r.Context(), "logger", logger))
 		handler.ServeHTTP(w, r)
 
