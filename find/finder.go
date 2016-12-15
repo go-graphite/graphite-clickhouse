@@ -16,7 +16,8 @@ type Finder struct {
 	query           string // original query
 	prefix          string // prefix from config
 	effectivePrefix string // real prefix for add to response
-	q               string // query after remove prefix, convert from glob to regexp
+	tagPrefix       string // "_tag.test"
+	q               string // query after remove prefix
 	prefixReply     string // single reply
 	prefixMatched   bool   //
 	body            []byte // raw clickhouse response
@@ -93,38 +94,83 @@ func (f *Finder) Execute() error {
 		return nil
 	}
 
-	where := MakeWhere(f.q, true)
+	qs := strings.Split(f.q, ".")
 
 	var err error
-	f.body, err = clickhouse.Query(
-		f.context,
-		f.config.ClickHouse.Url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", f.config.ClickHouse.TreeTable, where),
-		f.config.ClickHouse.TreeTimeout.Value(),
-	)
 
-	return err
+	if f.TagEnabled() && len(qs) == 2 && qs[0] == "_tag" && qs[1] == "*" {
+		// tag list
+		f.body, err = clickhouse.Query(
+			f.context,
+			f.config.ClickHouse.Url,
+			fmt.Sprintf("SELECT concat(Tag1,'.') FROM %s WHERE Tag1 != '' GROUP BY Tag1", f.config.ClickHouse.TagTable),
+			f.config.ClickHouse.TreeTimeout.Value(),
+		)
+
+	} else if f.TagEnabled() && len(qs) > 2 && qs[0] == "_tag" {
+		f.tagPrefix = strings.Join(qs[:2], ".")
+
+		where := MakeWhere(strings.Join(qs[2:], "."), true)
+
+		f.body, err = clickhouse.Query(
+			f.context,
+			f.config.ClickHouse.Url,
+			fmt.Sprintf(
+				"SELECT Path FROM %s WHERE Tag1 == '%s' AND %s GROUP BY Path",
+				f.config.ClickHouse.TagTable,
+				clickhouse.Escape(qs[1]),
+				where,
+			),
+			f.config.ClickHouse.TreeTimeout.Value(),
+		)
+	} else {
+		where := MakeWhere(f.q, true)
+
+		f.body, err = clickhouse.Query(
+			f.context,
+			f.config.ClickHouse.Url,
+			fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", f.config.ClickHouse.TreeTable, where),
+			f.config.ClickHouse.TreeTimeout.Value(),
+		)
+
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// add virtual "_tag" folder in root
+	if f.TagEnabled() && f.q == "*" {
+		f.body = append(f.body, []byte("\n_tag.")...)
+	}
+
+	return nil
 }
 
 // add prefix and remove last dot
 func (f *Finder) Path(path string) string {
-	if f.effectivePrefix != "" {
-		if path == "" {
-			return f.effectivePrefix
-		} else {
-			if path[len(path)-1] == '.' {
-				return f.effectivePrefix + "." + path[:len(path)-1]
-			} else {
-				return f.effectivePrefix + "." + path
-			}
-		}
+
+	if path == "" {
+		path = f.tagPrefix
+	} else {
+		path = f.tagPrefix + "." + path
+	}
+
+	if path == "" {
+		path = f.effectivePrefix
+	} else {
+		path = f.effectivePrefix + "." + path
 	}
 
 	if len(path) > 0 && path[len(path)-1] == '.' {
-		return path[:len(path)-1]
+		path = path[:len(path)-1]
 	}
 
 	return path
+}
+
+func (f *Finder) TagEnabled() bool {
+	return f.config.ClickHouse.TagTable != ""
 }
 
 // check last byte
