@@ -49,6 +49,7 @@ type ClickHouse struct {
 	DataTimeout *Duration `toml:"data-timeout"`
 	TreeTable   string    `toml:"tree-table"`
 	TreeTimeout *Duration `toml:"tree-timeout"`
+	TagTable    string    `toml:"tag-table"`
 	RollupConf  string    `toml:"rollup-conf"`
 	ExtraPrefix string    `toml:"extra-prefix"`
 }
@@ -90,6 +91,7 @@ func New() *Config {
 				Duration: time.Minute,
 			},
 			RollupConf: "/etc/graphite-clickhouse/rollup.xml",
+			TagTable:   "",
 		},
 		Logging: Logging{
 			File:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",

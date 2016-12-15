@@ -11,33 +11,12 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/pickle"
 )
 
-// Find result
-type Response struct {
-	body        []byte // raw bytes from clickhouse
-	extraPrefix string
-	query       string
-}
-
-func NewResponse(body []byte, extraPrefix string, query string) *Response {
-	if body == nil {
-		body = []byte{}
-	}
-	return &Response{
-		body:        body,
-		extraPrefix: extraPrefix,
-	}
-}
-
-func NewEmptyResponse(query string) *Response {
-	return NewResponse(nil, "", query)
-}
-
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func (r *Response) WritePickle(w io.Writer) error {
-	rows := bytes.Split(r.body, []byte{'\n'})
+func (f *Finder) WritePickle(w io.Writer) error {
+	rows := bytes.Split(f.body, []byte{'\n'})
 
 	if len(rows) == 0 { // empty
 		w.Write(pickle.EmptyList)
@@ -49,34 +28,20 @@ func (r *Response) WritePickle(w io.Writer) error {
 	p.List()
 
 	var row []byte
-	var isLeaf bool
-	var metricPath string
 
 	for _, row = range rows {
 		if len(row) == 0 {
 			continue
 		}
 
-		isLeaf = true
-		if row[len(row)-1] == '.' {
-			row = row[:len(row)-1]
-			isLeaf = false
-		}
-
-		if r.extraPrefix != "" {
-			metricPath = r.extraPrefix + "." + unsafeString(row)
-		} else {
-			metricPath = unsafeString(row)
-		}
-
 		p.Dict()
 
 		p.String("metric_path")
-		p.String(metricPath)
+		p.String(f.Path(unsafeString(row)))
 		p.SetItem()
 
 		p.String("isLeaf")
-		p.Bool(isLeaf)
+		p.Bool(f.IsLeaf(unsafeString(row)))
 		p.SetItem()
 
 		p.Append()
@@ -86,8 +51,8 @@ func (r *Response) WritePickle(w io.Writer) error {
 	return nil
 }
 
-func (r *Response) WriteProtobuf(w io.Writer) error {
-	rows := bytes.Split(r.body, []byte{'\n'})
+func (f *Finder) WriteProtobuf(w io.Writer) error {
+	rows := bytes.Split(f.body, []byte{'\n'})
 
 	if len(rows) == 0 { // empty
 		return nil
@@ -104,9 +69,8 @@ func (r *Response) WriteProtobuf(w io.Writer) error {
 	// }
 
 	var response carbonzipperpb.GlobResponse
-	response.Name = proto.String(r.query)
+	response.Name = proto.String(f.query)
 
-	var metricPath string
 	var isLeaf bool
 	var row []byte
 
@@ -115,20 +79,10 @@ func (r *Response) WriteProtobuf(w io.Writer) error {
 			continue
 		}
 
-		isLeaf = true
-		if row[len(row)-1] == '.' {
-			row = row[:len(row)-1]
-			isLeaf = false
-		}
-
-		if r.extraPrefix != "" {
-			metricPath = r.extraPrefix + "." + string(row)
-		} else {
-			metricPath = string(row)
-		}
+		isLeaf = f.IsLeaf(unsafeString(row))
 
 		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
-			Path:   proto.String(metricPath),
+			Path:   proto.String(f.Path(string(row))),
 			IsLeaf: &isLeaf,
 		})
 	}
