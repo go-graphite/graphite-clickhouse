@@ -28,3 +28,6 @@
 [submodule "vendor/github.com/lomik/zapwriter"]
 	path = vendor/github.com/lomik/zapwriter
 	url = https://github.com/lomik/zapwriter
+[submodule "vendor/github.com/stretchr/testify"]
+	path = vendor/github.com/stretchr/testify
+	url = https://github.com/stretchr/testify
