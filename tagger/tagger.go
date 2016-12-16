@@ -2,6 +2,7 @@ package tagger
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"regexp"
@@ -18,6 +19,15 @@ import (
 type Metric struct {
 	Path []byte
 	Tags map[string]bool
+}
+
+type TagRecord struct {
+	Tag1    string   `json:"Tag1"`
+	Level   int      `json:"Level"`
+	Path    string   `json:"Path"`
+	Date    string   `json:"Date"`
+	Version uint32   `json:"Version"`
+	Tags    []string `json:"Tags"`
 }
 
 func unsafeString(b []byte) string {
@@ -52,6 +62,8 @@ func countMetrics(body []byte) (int, error) {
 func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logger) error {
 	var start time.Time
 
+	version := uint32(time.Now().Unix())
+
 	// Parse rules
 	start = time.Now()
 	rules := &Rules{}
@@ -83,7 +95,6 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			tag.BytesHasSuffix = []byte(tag.HasSuffix)
 		}
 	}
-
 	logger.Info("parse rules", zap.Duration("time", time.Since(start)))
 
 	// Mark prefix tree
@@ -242,11 +253,46 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	logger.Info("copy tags from childs to parents", zap.Duration("time", time.Since(start)))
 
 	// print result with tags
+	start = time.Now()
+	// var outBuf bytes.Buffer
+	record := TagRecord{
+		Date:    date,
+		Version: version,
+	}
+
 	for _, m := range metricList {
-		if len(m.Tags) != 0 {
-			fmt.Println(m)
+		if len(m.Tags) == 0 {
+			continue
+		}
+
+		level := bytes.Count(m.Path, []byte{'.'}) + 1
+		if m.Path[len(m.Path)-1] == '.' {
+			level--
+		}
+
+		tags := make([]string, len(m.Tags))
+		i := 0
+		for tag, _ := range m.Tags {
+			tags[i] = tag
+			i++
+		}
+
+		record.Level = level
+		record.Path = unsafeString(m.Path)
+		record.Tags = tags
+
+		for _, tag := range tags {
+			record.Tag1 = tag
+			b, err := json.Marshal(record)
+
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(unsafeString(b))
 		}
 	}
+	logger.Info("marshal json", zap.Duration("time", time.Since(start)))
 
 	// fmt.Println(rules)
 

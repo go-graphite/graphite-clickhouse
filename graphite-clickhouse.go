@@ -82,7 +82,7 @@ func main() {
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	tagsMake := flag.String("tags-make", "", "Build tags table")
-	tagsDate := flag.String("tags-date", "2016-01-01", "Date for records in tags table")
+	tagsDate := flag.String("tags-date", "2016-11-01", "Date for records in tags table")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
