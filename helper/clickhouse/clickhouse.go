@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/log"
 )
+
+var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
+var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
+var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
 
 func formatSQL(q string) string {
 	s := strings.Split(q, "\n")
@@ -79,4 +84,23 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 
 	// logrus.Debugf("[clickhouse] (time: %s) %s", time.Now().Sub(start).String(), formatSQL(query))
 	return
+}
+
+func ReadUvarint(array []byte) (uint64, int, error) {
+	var x uint64
+	var s uint
+	l := len(array) - 1
+	for i := 0; ; i++ {
+		if i > l {
+			return x, i + 1, ErrUvarintRead
+		}
+		if array[i] < 0x80 {
+			if i > 9 || i == 9 && array[i] > 1 {
+				return x, i + 1, ErrUvarintOverflow
+			}
+			return x | uint64(array[i])<<s, i + 1, nil
+		}
+		x |= uint64(array[i]&0x7f) << s
+		s += 7
+	}
 }
