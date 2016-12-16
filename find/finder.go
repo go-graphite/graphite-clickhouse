@@ -1,6 +1,7 @@
 package find
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
@@ -179,4 +180,9 @@ func (f *Finder) IsLeaf(path string) bool {
 		return false
 	}
 	return path[len(path)-1] != '.'
+}
+
+// List returns metrics list. Without prefixes, tags, etc
+func (f *Finder) List() [][]byte {
+	return bytes.Split(f.body, []byte{'\n'})
 }

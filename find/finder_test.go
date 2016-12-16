@@ -24,6 +24,7 @@ func TestFinderPrepare(t *testing.T) {
 		{"ch.data", "epta.*", false, "", "", false},
 		{"", "epta.*", true, "epta.*", "", false},
 		{"", "epta.[1", false, "", "", true}, // broken regexp
+		{"ch.data", "ch.data._tag.daemon.h.hostname.top.cpu_avg", true, "_tag.daemon.h.hostname.top.cpu_avg", "", false},
 	}
 
 	for _, test := range table {
