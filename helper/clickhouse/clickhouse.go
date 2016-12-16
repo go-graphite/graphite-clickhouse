@@ -46,7 +46,11 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	logger = logger.With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
-		log := logger.With(zap.Duration("time_ns", time.Since(start)))
+		d := time.Since(start)
+		log := logger.With(
+			zap.Duration("time_ns", d),
+			zap.String("time", d.String()),
+		)
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
 		if err != nil {
 			log.Error("query", zap.Error(err))

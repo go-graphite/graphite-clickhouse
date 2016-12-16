@@ -3,8 +3,9 @@ package tagger
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"runtime"
 	"sort"
@@ -89,8 +90,19 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	end()
 
 	// Read clickhouse
-	begin("read and parse metrics")
-	body, err := ioutil.ReadFile("tree.bin")
+	begin("read and parse tree")
+	// body, err := ioutil.ReadFile("tree.bin")
+	// if err != nil {
+	// 	return err
+	// }
+
+	body, err := clickhouse.Query(
+		context.WithValue(context.Background(), "logger", logger),
+		cfg.ClickHouse.Url,
+		fmt.Sprintf("SELECT Path from %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
+		cfg.ClickHouse.TreeTimeout.Value(),
+	)
+
 	if err != nil {
 		return err
 	}
