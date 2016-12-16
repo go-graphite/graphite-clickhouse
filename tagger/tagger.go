@@ -124,7 +124,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 	// Mark prefix tree
 	begin("make prefix tree")
-	prefixTree := &PrefixTree{}
+	prefixTree := &Tree{}
 
 	for i := 0; i < len(rules.Tag); i++ {
 		tag := &rules.Tag[i]
