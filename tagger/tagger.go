@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"runtime"
 	"sort"
 	"time"
 	"unsafe"
 
-	"github.com/BurntSushi/toml"
 	"github.com/uber-go/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -80,51 +78,9 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 	// Parse rules
 	begin("parse rules")
-	rules := &Rules{}
-
-	if _, err := toml.DecodeFile(rulesFilename, rules); err != nil {
+	rules, err := ParseRules(rulesFilename)
+	if err != nil {
 		return err
-	}
-
-	var err error
-
-	for i := 0; i < len(rules.Tag); i++ {
-		tag := &rules.Tag[i]
-
-		// compile and check regexp
-		tag.re, err = regexp.Compile(tag.Regexp)
-		if err != nil {
-			return err
-		}
-		if tag.Equal != "" {
-			tag.BytesEqual = []byte(tag.Equal)
-		}
-		if tag.Contains != "" {
-			tag.BytesContains = []byte(tag.Contains)
-		}
-		if tag.HasPrefix != "" {
-			tag.BytesHasPrefix = []byte(tag.HasPrefix)
-		}
-		if tag.HasSuffix != "" {
-			tag.BytesHasSuffix = []byte(tag.HasSuffix)
-		}
-	}
-	end()
-
-	// Mark prefix tree
-	begin("make prefix tree")
-	prefixTree := &Tree{}
-	otherTags := make([]*Tag, 0)
-
-	for i := 0; i < len(rules.Tag); i++ {
-		tag := &rules.Tag[i]
-
-		if tag.BytesHasPrefix != nil {
-			prefixTree.Add(tag.BytesHasPrefix, tag)
-			continue
-		}
-
-		otherTags = append(otherTags, tag)
 	}
 	end()
 
@@ -188,32 +144,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			m.Tags = EmptySet
 		}
 
-		// @TODO: make prefix tree method
-		x := prefixTree
-		j := 0
-		for {
-			if j >= len(m.Path) {
-				break
-			}
-
-			x = x.Next[m.Path[j]]
-			if x == nil {
-				break
-			}
-
-			if x.Rules != nil {
-				for _, rule := range x.Rules {
-					rule.MatchAndMark(m)
-				}
-			}
-
-			j++
-		}
-
-		// fullscan match
-		for j := 0; j < len(otherTags); j++ {
-			otherTags[j].MatchAndMark(&metricList[i])
-		}
+		rules.Match(m)
 	}
 	end()
 

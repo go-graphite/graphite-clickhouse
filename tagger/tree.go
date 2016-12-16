@@ -2,10 +2,10 @@ package tagger
 
 type Tree struct {
 	Next  [256]*Tree
-	Rules []*Tag
+	Rules []*Rule
 }
 
-func (t *Tree) Add(prefix []byte, rule *Tag) {
+func (t *Tree) Add(prefix []byte, rule *Rule) {
 	x := t
 
 	for i := 0; i < len(prefix); i++ {
@@ -17,7 +17,7 @@ func (t *Tree) Add(prefix []byte, rule *Tag) {
 	}
 
 	if x.Rules == nil {
-		x.Rules = make([]*Tag, 0)
+		x.Rules = make([]*Rule, 0)
 	}
 
 	x.Rules = append(x.Rules, rule)
