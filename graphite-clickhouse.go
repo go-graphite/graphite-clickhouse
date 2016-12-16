@@ -135,7 +135,7 @@ func main() {
 
 	/* CONSOLE COMMANDS start */
 	if *tagsMake != "" {
-		if err := tagger.Make(*tagsMake, *tagsDate, cfg, logger.With(zap.String("module", "logger"))); err != nil {
+		if err := tagger.Make(*tagsMake, *tagsDate, cfg, logger.With(zap.String("module", "tagger"))); err != nil {
 			log.Fatal(err)
 		}
 		return

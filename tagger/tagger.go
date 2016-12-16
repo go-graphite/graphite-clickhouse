@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"runtime"
+	"sort"
 	"time"
 	"unsafe"
 
@@ -20,6 +22,12 @@ type Metric struct {
 	Path []byte
 	Tags map[string]bool
 }
+
+type ByPath []Metric
+
+func (p ByPath) Len() int           { return len(p) }
+func (p ByPath) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p ByPath) Less(i, j int) bool { return bytes.Compare(p[i].Path, p[j].Path) < 0 }
 
 type TagRecord struct {
 	Tag1    string   `json:"Tag1"`
@@ -61,11 +69,28 @@ func countMetrics(body []byte) (int, error) {
 
 func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logger) error {
 	var start time.Time
+	var block string
+	begin := func(b string) {
+		block = b
+		start = time.Now()
+		logger.Info(block)
+	}
+
+	end := func() {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		d := time.Since(start)
+		logger.Info(block,
+			zap.String("time", d.String()),
+			zap.Duration("time_ns", d),
+			zap.Uint64("mem_rss_mb", (m.Sys-m.HeapReleased)/1048576),
+		)
+	}
 
 	version := uint32(time.Now().Unix())
 
 	// Parse rules
-	start = time.Now()
+	begin("parse rules")
 	rules := &Rules{}
 
 	if _, err := toml.DecodeFile(rulesFilename, rules); err != nil {
@@ -95,10 +120,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			tag.BytesHasSuffix = []byte(tag.HasSuffix)
 		}
 	}
-	logger.Info("parse rules", zap.Duration("time", time.Since(start)))
+	end()
 
 	// Mark prefix tree
-	start = time.Now()
+	begin("make prefix tree")
 	prefixTree := &PrefixTree{}
 
 	for i := 0; i < len(rules.Tag); i++ {
@@ -108,10 +133,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			prefixTree.Add(tag.BytesHasPrefix, tag)
 		}
 	}
-	logger.Info("make prefix tree", zap.Duration("time", time.Since(start)))
+	end()
 
 	// Read clickhouse
-	start = time.Now()
+	begin("read and parse metrics")
 	body, err := ioutil.ReadFile("tree.bin")
 	if err != nil {
 		return err
@@ -149,9 +174,14 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 		offset += readBytes + int(namelen)
 	}
-	logger.Info("read and parse metrics", zap.Duration("time", time.Since(start)))
+	end()
 
+	begin("sort")
 	start = time.Now()
+	sort.Sort(ByPath(metricList))
+	end()
+
+	begin("prefix tree match")
 	for i := 0; i < count; i++ {
 		m := &metricList[i]
 
@@ -180,10 +210,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			j++
 		}
 	}
-	logger.Info("prefix tree match", zap.Duration("time", time.Since(start)))
+	end()
 
 	// start stupid match
-	start = time.Now()
+	begin("fullscan match")
 	for i := 0; i < len(metricList); i++ {
 		for j := 0; j < len(rules.Tag); j++ {
 			if rules.Tag[j].BytesHasPrefix != nil {
@@ -194,10 +224,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			rules.Tag[j].MatchAndMark(&metricList[i])
 		}
 	}
-	logger.Info("fullscan match", zap.Duration("time", time.Since(start)))
+	end()
 
 	// copy from parents to childs
-	start = time.Now()
+	begin("copy tags from parents to childs")
 	for _, m := range metricList {
 		p := m.Path
 
@@ -222,10 +252,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			p = p[:index]
 		}
 	}
-	logger.Info("copy tags from parents to childs", zap.Duration("time", time.Since(start)))
+	end()
 
 	// copy from childs to parents
-	start = time.Now()
+	begin("copy tags from childs to parents")
 	for _, m := range metricList {
 		p := m.Path
 
@@ -250,10 +280,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			p = p[:index]
 		}
 	}
-	logger.Info("copy tags from childs to parents", zap.Duration("time", time.Since(start)))
+	end()
 
 	// print result with tags
-	start = time.Now()
+	begin("marshal json")
 	// var outBuf bytes.Buffer
 	record := TagRecord{
 		Date:    date,
@@ -292,7 +322,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			fmt.Println(unsafeString(b))
 		}
 	}
-	logger.Info("marshal json", zap.Duration("time", time.Since(start)))
+	end()
 
 	// fmt.Println(rules)
 
