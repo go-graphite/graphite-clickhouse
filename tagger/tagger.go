@@ -148,7 +148,6 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	}
 
 	metricList := make([]Metric, count)
-	metricMap := make(map[string]*Metric, 0)
 
 	var namelen uint64
 	bodyLen := len(body)
@@ -170,8 +169,6 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 		metricList[index].Path = body[offset+readBytes : offset+readBytes+int(namelen)]
 		metricList[index].Tags = make(map[string]bool)
 
-		metricMap[unsafeString(metricList[index].Path)] = &metricList[index]
-
 		offset += readBytes + int(namelen)
 	}
 	end()
@@ -179,6 +176,13 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	begin("sort")
 	start = time.Now()
 	sort.Sort(ByPath(metricList))
+	end()
+
+	begin("make map")
+	metricMap := make(map[string]*Metric, 0)
+	for index := 0; index < len(metricList); index++ {
+		metricMap[unsafeString(metricList[index].Path)] = &metricList[index]
+	}
 	end()
 
 	begin("prefix tree match")
