@@ -25,9 +25,9 @@ type Rule struct {
 type Rules struct {
 	Rule     []Rule  `toml:"tag"`
 	prefix   *Tree   `toml:"-"`
-	suffix   *Tree   `toml:"-"`
-	contains *Tree   `toml:"-"`
-	equal    *Tree   `toml:"-"`
+	suffix   *Tree   `toml:"-"` // @TODO
+	contains *Tree   `toml:"-"` // @TODO
+	equal    *Tree   `toml:"-"` // @TODO
 	other    []*Rule `toml:"-"`
 }
 
