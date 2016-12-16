@@ -20,7 +20,7 @@ import (
 
 type Metric struct {
 	Path []byte
-	Tags map[string]bool
+	Tags *Set
 }
 
 type ByPath []Metric
@@ -167,7 +167,6 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 		}
 
 		metricList[index].Path = body[offset+readBytes : offset+readBytes+int(namelen)]
-		metricList[index].Tags = make(map[string]bool)
 
 		offset += readBytes + int(namelen)
 	}
@@ -248,9 +247,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			parent := metricMap[unsafeString(p[:index+1])]
 
 			if parent != nil {
-				for k := range parent.Tags {
-					m.Tags[k] = true
-				}
+				m.Tags = m.Tags.Merge(parent.Tags)
 			}
 
 			p = p[:index]
@@ -276,9 +273,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			parent := metricMap[unsafeString(p[:index+1])]
 
 			if parent != nil {
-				for k := range m.Tags {
-					parent.Tags[k] = true
-				}
+				parent.Tags = parent.Tags.Merge(m.Tags)
 			}
 
 			p = p[:index]
@@ -295,7 +290,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	}
 
 	for _, m := range metricList {
-		if len(m.Tags) == 0 {
+		if m.Tags == nil || m.Tags.Len() == 0 {
 			continue
 		}
 
@@ -304,18 +299,11 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			level--
 		}
 
-		tags := make([]string, len(m.Tags))
-		i := 0
-		for tag, _ := range m.Tags {
-			tags[i] = tag
-			i++
-		}
-
 		record.Level = level
 		record.Path = unsafeString(m.Path)
-		record.Tags = tags
+		record.Tags = m.Tags.List()
 
-		for _, tag := range tags {
+		for _, tag := range record.Tags {
 			record.Tag1 = tag
 			b, err := json.Marshal(record)
 

@@ -46,12 +46,10 @@ func (r *Tag) MatchAndMark(m *Metric) {
 	}
 
 	if r.Name != "" {
-		m.Tags[r.Name] = true
+		m.Tags = m.Tags.Add(r.Name)
 	}
 
 	if r.List != nil {
-		for _, n := range r.List {
-			m.Tags[n] = true
-		}
+		m.Tags = m.Tags.Add(r.List...)
 	}
 }
