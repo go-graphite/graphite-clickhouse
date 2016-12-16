@@ -3,8 +3,10 @@ package tagger
 import "bytes"
 
 type Metric struct {
-	Path []byte
-	Tags *Set
+	Path        []byte
+	Level       int
+	ParentIndex int
+	Tags        *Set
 }
 
 type ByPath []Metric
