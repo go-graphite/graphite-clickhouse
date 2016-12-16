@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -99,7 +98,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	body, err := clickhouse.Query(
 		context.WithValue(context.Background(), "logger", logger),
 		cfg.ClickHouse.Url,
-		fmt.Sprintf("SELECT Path from %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
+		fmt.Sprintf("SELECT Path FROM %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
 		cfg.ClickHouse.TreeTimeout.Value(),
 	)
 
@@ -192,9 +191,9 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 	// print result with tags
 	begin("marshal json")
-	// var outBuf bytes.Buffer
+	var outBuf bytes.Buffer
 
-	writer := bufio.NewWriter(os.Stdout)
+	writer := bufio.NewWriter(&outBuf)
 
 	commonJson, err := json.Marshal(map[string]interface{}{
 		"Date":    date,
@@ -233,11 +232,26 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			writer.WriteString("}\n")
 		}
 	}
-	end()
+
+	// empty path as last version
+	writer.Write(commonJson)
+	writer.WriteString(`"","Level":0,"Path":""}`)
 
 	writer.Flush()
+	end()
 
-	// fmt.Println(rules)
+	begin("upload to clickhouse")
+	_, err = clickhouse.Post(
+		context.WithValue(context.Background(), "logger", logger),
+		cfg.ClickHouse.Url,
+		fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
+		&outBuf,
+		cfg.ClickHouse.TreeTimeout.Value(),
+	)
+	if err != nil {
+		return err
+	}
+	end()
 
 	return nil
 }

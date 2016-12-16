@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -34,7 +35,11 @@ func Escape(s string) string {
 	return s
 }
 
-func Query(ctx context.Context, dsn string, query string, timeout time.Duration) (body []byte, err error) {
+func Query(ctx context.Context, dsn string, query string, timeout time.Duration) ([]byte, error) {
+	return Post(ctx, dsn, query, nil, timeout)
+}
+
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
 	logger := log.FromContext(ctx)
@@ -64,9 +69,17 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 		return
 	}
 
+	if postBody != nil {
+		q := p.Query()
+		q.Set("query", query)
+		p.RawQuery = q.Encode()
+	} else {
+		postBody = strings.NewReader(query)
+	}
+
 	url := p.String()
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(query))
+	req, err := http.NewRequest("POST", url, postBody)
 	if err != nil {
 		return
 	}
@@ -81,12 +94,10 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	body, _ = ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		// logrus.Errorf("[clickhouse] (time: %s, error: %s) %s", time.Now().Sub(start).String(), string(body), formatSQL(query))
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
 		return
 	}
 
-	// logrus.Debugf("[clickhouse] (time: %s) %s", time.Now().Sub(start).String(), formatSQL(query))
 	return
 }
 
