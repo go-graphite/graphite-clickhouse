@@ -18,17 +18,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
-type Metric struct {
-	Path []byte
-	Tags *Set
-}
-
-type ByPath []Metric
-
-func (p ByPath) Len() int           { return len(p) }
-func (p ByPath) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p ByPath) Less(i, j int) bool { return bytes.Compare(p[i].Path, p[j].Path) < 0 }
-
 type TagRecord struct {
 	Tag1    string   `json:"Tag1"`
 	Level   int      `json:"Level"`
@@ -125,13 +114,17 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	// Mark prefix tree
 	begin("make prefix tree")
 	prefixTree := &Tree{}
+	otherTags := make([]*Tag, 0)
 
 	for i := 0; i < len(rules.Tag); i++ {
 		tag := &rules.Tag[i]
 
 		if tag.BytesHasPrefix != nil {
 			prefixTree.Add(tag.BytesHasPrefix, tag)
+			continue
 		}
+
+		otherTags = append(otherTags, tag)
 	}
 	end()
 
@@ -184,14 +177,18 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	}
 	end()
 
-	begin("prefix tree match")
+	begin("match")
 	for i := 0; i < count; i++ {
 		m := &metricList[i]
 
-		// if i%1000 == 0 {
-		// 	fmt.Println("tree", i)
-		// }
+		parent := metricMap[unsafeString(m.ParentPath())]
+		if parent != nil && parent.Tags != nil {
+			m.Tags = parent.Tags
+		} else {
+			m.Tags = EmptySet
+		}
 
+		// @TODO: make prefix tree method
 		x := prefixTree
 		j := 0
 		for {
@@ -212,45 +209,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 			j++
 		}
-	}
-	end()
 
-	// start stupid match
-	begin("fullscan match")
-	for i := 0; i < len(metricList); i++ {
-		for j := 0; j < len(rules.Tag); j++ {
-			if rules.Tag[j].BytesHasPrefix != nil {
-				// already checked by tree
-				continue
-			}
-
-			rules.Tag[j].MatchAndMark(&metricList[i])
-		}
-	}
-	end()
-
-	// copy from parents to childs
-	begin("copy tags from parents to childs")
-	for _, m := range metricList {
-		p := m.Path
-
-		if len(p) > 0 && p[len(p)-1] == '.' {
-			p = p[:len(p)-1]
-		}
-
-		for {
-			index := bytes.LastIndexByte(p, '.')
-			if index < 0 {
-				break
-			}
-
-			parent := metricMap[unsafeString(p[:index+1])]
-
-			if parent != nil {
-				m.Tags = m.Tags.Merge(parent.Tags)
-			}
-
-			p = p[:index]
+		// fullscan match
+		for j := 0; j < len(otherTags); j++ {
+			otherTags[j].MatchAndMark(&metricList[i])
 		}
 	}
 	end()
