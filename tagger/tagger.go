@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"time"
 	"unsafe"
 
 	"github.com/BurntSushi/toml"
@@ -13,25 +14,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
-
-type Tag struct {
-	Name           string         `toml:"name"`
-	List           []string       `toml:"list"`
-	re             *regexp.Regexp `toml:"-"`
-	Equal          string         `toml:"equal"`
-	HasPrefix      string         `toml:"has-prefix"`
-	HasSuffix      string         `toml:"has-suffix"`
-	Contains       string         `toml:"contains"`
-	Regexp         string         `toml:"regexp"`
-	BytesEqual     []byte         `toml:"-"`
-	BytesHasPrefix []byte         `toml:"-"`
-	BytesHasSuffix []byte         `toml:"-"`
-	BytesContains  []byte         `toml:"-"`
-}
-
-type Rules struct {
-	Tag []Tag `toml:"tag"`
-}
 
 type Metric struct {
 	Path []byte
@@ -68,6 +50,10 @@ func countMetrics(body []byte) (int, error) {
 }
 
 func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logger) error {
+	var start time.Time
+
+	// Parse rules
+	start = time.Now()
 	rules := &Rules{}
 
 	if _, err := toml.DecodeFile(rulesFilename, rules); err != nil {
@@ -98,10 +84,23 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 		}
 	}
 
-	// fmt.Println("start tree")
-	// fmt.Println("end tree")
-	// return nil
+	logger.Info("parse rules", zap.Duration("time", time.Since(start)))
 
+	// Mark prefix tree
+	start = time.Now()
+	prefixTree := &PrefixTree{}
+
+	for i := 0; i < len(rules.Tag); i++ {
+		tag := &rules.Tag[i]
+
+		if tag.BytesHasPrefix != nil {
+			prefixTree.Add(tag.BytesHasPrefix, tag)
+		}
+	}
+	logger.Info("make prefix tree", zap.Duration("time", time.Since(start)))
+
+	// Read clickhouse
+	start = time.Now()
 	body, err := ioutil.ReadFile("tree.bin")
 	if err != nil {
 		return err
@@ -139,56 +138,55 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 		offset += readBytes + int(namelen)
 	}
+	logger.Info("read and parse metrics", zap.Duration("time", time.Since(start)))
 
-	rulesCount := len(rules.Tag)
-	// check all rules
-	// @TODO: optimize? prefix trees, etc
-	// MetricLoop:
-	index := 0
-	for _, m := range metricList {
-		index++
-		if index%1000 == 0 {
-			fmt.Println("rule", index)
-		}
-	RuleLoop:
-		for i := 0; i < rulesCount; i++ {
-			r := &rules.Tag[i]
+	start = time.Now()
+	for i := 0; i < count; i++ {
+		m := &metricList[i]
 
-			if r.BytesEqual != nil && !bytes.Equal(m.Path, r.BytesEqual) {
-				continue RuleLoop
+		// if i%1000 == 0 {
+		// 	fmt.Println("tree", i)
+		// }
+
+		x := prefixTree
+		j := 0
+		for {
+			if j >= len(m.Path) {
+				break
 			}
 
-			if r.BytesHasPrefix != nil && !bytes.HasPrefix(m.Path, r.BytesHasPrefix) {
-				continue RuleLoop
+			x = x.Next[m.Path[j]]
+			if x == nil {
+				break
 			}
 
-			if r.BytesHasSuffix != nil && !bytes.HasSuffix(m.Path, r.BytesHasSuffix) {
-				continue RuleLoop
-			}
-
-			if r.BytesContains != nil && !bytes.Contains(m.Path, r.BytesContains) {
-				continue RuleLoop
-			}
-
-			if r.re != nil {
-				if r.re.Match(m.Path) {
-					continue RuleLoop
+			if x.Rules != nil {
+				for _, rule := range x.Rules {
+					rule.MatchAndMark(m)
 				}
 			}
 
-			if r.Name != "" {
-				m.Tags[r.Name] = true
-			}
-
-			if r.List != nil {
-				for _, n := range r.List {
-					m.Tags[n] = true
-				}
-			}
+			j++
 		}
 	}
+	logger.Info("prefix tree match", zap.Duration("time", time.Since(start)))
+
+	// start stupid match
+	start = time.Now()
+	for i := 0; i < len(metricList); i++ {
+		for j := 0; j < len(rules.Tag); j++ {
+			if rules.Tag[j].BytesHasPrefix != nil {
+				// already checked by tree
+				continue
+			}
+
+			rules.Tag[j].MatchAndMark(&metricList[i])
+		}
+	}
+	logger.Info("fullscan match", zap.Duration("time", time.Since(start)))
 
 	// copy from parents to childs
+	start = time.Now()
 	for _, m := range metricList {
 		p := m.Path
 
@@ -213,8 +211,10 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			p = p[:index]
 		}
 	}
+	logger.Info("copy tags from parents to childs", zap.Duration("time", time.Since(start)))
 
-	// copy from chids to parents
+	// copy from childs to parents
+	start = time.Now()
 	for _, m := range metricList {
 		p := m.Path
 
@@ -239,6 +239,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 			p = p[:index]
 		}
 	}
+	logger.Info("copy tags from childs to parents", zap.Duration("time", time.Since(start)))
 
 	// print result with tags
 	for _, m := range metricList {
@@ -247,7 +248,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 		}
 	}
 
-	fmt.Println(rules)
+	// fmt.Println(rules)
 
 	return nil
 }
