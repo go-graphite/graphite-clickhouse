@@ -1,6 +1,9 @@
 package tagger
 
-import "bytes"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 type Metric struct {
 	Path        []byte
@@ -26,4 +29,12 @@ func (m *Metric) ParentPath() []byte {
 	}
 
 	return m.Path[:index+1]
+}
+
+func (m *Metric) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"Path":  unsafeString(m.Path),
+		"Level": m.Level,
+		"Tags":  m.Tags,
+	})
 }

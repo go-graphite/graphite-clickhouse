@@ -1,9 +1,14 @@
 package tagger
 
+import (
+	"encoding/json"
+)
+
 // set with copy-on-write
 type Set struct {
 	data map[string]bool
 	list []string
+	json []byte
 }
 
 var EmptySet = &Set{
@@ -52,4 +57,18 @@ func (s *Set) Len() int {
 
 func (s *Set) List() []string {
 	return s.list
+}
+
+func (s *Set) MarshalJSON() ([]byte, error) {
+	if s.json != nil {
+		return s.json, nil
+	}
+
+	var err error
+	s.json, err = json.Marshal(s.list)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.json, nil
 }

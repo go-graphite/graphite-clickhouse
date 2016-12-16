@@ -1,10 +1,11 @@
 package tagger
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -15,15 +16,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
-
-type TagRecord struct {
-	Tag1    string   `json:"Tag1"`
-	Level   int      `json:"Level"`
-	Path    string   `json:"Path"`
-	Date    string   `json:"Date"`
-	Version uint32   `json:"Version"`
-	Tags    []string `json:"Tags"`
-}
 
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
@@ -189,32 +181,49 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	// print result with tags
 	begin("marshal json")
 	// var outBuf bytes.Buffer
-	record := TagRecord{
-		Date:    date,
-		Version: version,
+
+	writer := bufio.NewWriter(os.Stdout)
+
+	commonJson, err := json.Marshal(map[string]interface{}{
+		"Date":    date,
+		"Version": version,
+	})
+	if err != nil {
+		return err
 	}
+
+	commonJson[0] = '{'
+	commonJson[len(commonJson)-1] = ','
+	commonJson = append(commonJson, []byte("\"Tag1\":")...)
 
 	for _, m := range metricList {
 		if m.Tags == nil || m.Tags.Len() == 0 {
 			continue
 		}
 
-		record.Level = m.Level
-		record.Path = unsafeString(m.Path)
-		record.Tags = m.Tags.List()
+		metricJson, err := m.MarshalJSON()
+		if err != nil {
+			return err
+		}
 
-		for _, tag := range record.Tags {
-			record.Tag1 = tag
-			b, err := json.Marshal(record)
+		metricJson = metricJson[1 : len(metricJson)-1]
 
+		for _, tag := range m.Tags.List() {
+			b, err := json.Marshal(tag)
 			if err != nil {
 				return err
 			}
 
-			fmt.Println(unsafeString(b))
+			writer.Write(commonJson)
+			writer.Write(b)
+			writer.WriteString(",")
+			writer.Write(metricJson)
+			writer.WriteString("}\n")
 		}
 	}
 	end()
+
+	writer.Flush()
 
 	// fmt.Println(rules)
 
