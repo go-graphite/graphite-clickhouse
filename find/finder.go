@@ -151,16 +151,20 @@ func (f *Finder) Execute() error {
 // add prefix and remove last dot
 func (f *Finder) Path(path string) string {
 
-	if path == "" {
-		path = f.tagPrefix
-	} else {
-		path = f.tagPrefix + "." + path
+	if f.tagPrefix != "" {
+		if path == "" {
+			path = f.tagPrefix
+		} else {
+			path = f.tagPrefix + "." + path
+		}
 	}
 
-	if path == "" {
-		path = f.effectivePrefix
-	} else {
-		path = f.effectivePrefix + "." + path
+	if f.effectivePrefix != "" {
+		if path == "" {
+			path = f.effectivePrefix
+		} else {
+			path = f.effectivePrefix + "." + path
+		}
 	}
 
 	if len(path) > 0 && path[len(path)-1] == '.' {
