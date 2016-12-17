@@ -27,7 +27,7 @@ equal = "equal"
 
 [[tag]]
 name = "regexp"
-regexp = "regexp"
+regexp = "reg[e]xp"
 `
 
 func TestRules(t *testing.T) {
@@ -43,9 +43,27 @@ func TestRules(t *testing.T) {
 	}{
 		{"prefix.metric", "", []string{"prefix"}},
 		{"prefix.metric", "prefix", []string{"prefix"}},
-		{"prefix.metric", "suffix", []string{}},
-		{"prefix.metric", "contains", []string{}},
-		{"prefix.metric", "other", []string{}},
+		{"prefix.metric", "suffix", nil},
+		{"prefix.metric", "contains", nil},
+		{"prefix.metric", "other", nil},
+
+		{"metric.suffix", "", []string{"suffix"}},
+		{"metric.suffix", "prefix", nil},
+		{"metric.suffix", "suffix", []string{"suffix"}},
+		{"metric.suffix", "contains", nil},
+		{"metric.suffix", "other", nil},
+
+		{"hello.contains.world", "", []string{"contains"}},
+		{"hello.contains.world", "prefix", nil},
+		{"hello.contains.world", "suffix", nil},
+		{"hello.contains.world", "contains", []string{"contains"}},
+		{"hello.contains.world", "other", nil},
+
+		{"hello.regexp.world", "", []string{"regexp"}},
+		{"hello.regexp.world", "prefix", nil},
+		{"hello.regexp.world", "suffix", nil},
+		{"hello.regexp.world", "contains", nil},
+		{"hello.regexp.world", "other", []string{"regexp"}},
 	}
 
 	for i := 0; i < len(table); i++ {
@@ -64,10 +82,14 @@ func TestRules(t *testing.T) {
 			rules.matchOther(&m)
 		}
 
-		sort.Strings(t.expectedTags)
+		expected := t.expectedTags
+		if expected == nil {
+			expected = []string{}
+		}
+		sort.Strings(expected)
 		tags := m.Tags.List()
 		sort.Strings(tags)
 
-		assert.Equal(tags, t.expectedTags, fmt.Sprintf("path: %s, method: %s", t.path, t.method))
+		assert.Equal(expected, tags, fmt.Sprintf("path: %s, method: %s", t.path, t.method))
 	}
 }
