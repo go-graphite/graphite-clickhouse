@@ -2,6 +2,7 @@ package tagger
 
 import (
 	"bytes"
+	"io/ioutil"
 	"regexp"
 
 	"github.com/BurntSushi/toml"
@@ -30,7 +31,16 @@ type Rules struct {
 	other    []*Rule `toml:"-"`
 }
 
-func ParseRules(filename string) (*Rules, error) {
+func ParseFile(filename string) (*Rules, error) {
+	c, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return Parse(string(c))
+}
+
+func Parse(content string) (*Rules, error) {
 	rules := &Rules{
 		prefix:   &Tree{},
 		suffix:   &Tree{},
@@ -38,7 +48,7 @@ func ParseRules(filename string) (*Rules, error) {
 		other:    make([]*Rule, 0),
 	}
 
-	if _, err := toml.DecodeFile(filename, rules); err != nil {
+	if _, err := toml.Decode(content, rules); err != nil {
 		return nil, err
 	}
 

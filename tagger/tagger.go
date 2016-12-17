@@ -83,7 +83,7 @@ func Make(rulesFilename string, date string, debugFromFile string, cfg *config.C
 
 	// Parse rules
 	begin("parse rules")
-	rules, err := ParseRules(rulesFilename)
+	rules, err := ParseFile(rulesFilename)
 	if err != nil {
 		return err
 	}
