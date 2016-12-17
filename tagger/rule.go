@@ -9,8 +9,8 @@ import (
 )
 
 type Rule struct {
-	Name           string         `toml:"name"`
-	List           []string       `toml:"list"`
+	Single         string         `toml:"tag"`
+	List           []string       `toml:"tags"`
 	re             *regexp.Regexp `toml:"-"`
 	Equal          string         `toml:"equal"`
 	HasPrefix      string         `toml:"has-prefix"`
@@ -21,10 +21,11 @@ type Rule struct {
 	BytesHasPrefix []byte         `toml:"-"`
 	BytesHasSuffix []byte         `toml:"-"`
 	BytesContains  []byte         `toml:"-"`
+	Tags           *Set           `toml:"-"`
 }
 
 type Rules struct {
-	Rule     []Rule  `toml:"tag"`
+	Rule     []Rule  `toml:"rule"`
 	prefix   *Tree   `toml:"-"`
 	suffix   *Tree   `toml:"-"` // @TODO
 	contains *Tree   `toml:"-"`
@@ -56,6 +57,15 @@ func Parse(content string) (*Rules, error) {
 
 	for i := 0; i < len(rules.Rule); i++ {
 		rule := &rules.Rule[i]
+		rule.Tags = EmptySet
+
+		if rule.Single != "" {
+			rule.Tags = rule.Tags.Add(rule.Single)
+		}
+
+		if rule.List != nil {
+			rule.Tags = rule.Tags.Add(rule.List...)
+		}
 
 		// compile and check regexp
 		rule.re, err = regexp.Compile(rule.Regexp)
@@ -185,11 +195,5 @@ func (r *Rule) Match(m *Metric) {
 		return
 	}
 
-	if r.Name != "" {
-		m.Tags = m.Tags.Add(r.Name)
-	}
-
-	if r.List != nil {
-		m.Tags = m.Tags.Add(r.List...)
-	}
+	m.Tags = m.Tags.Merge(r.Tags)
 }

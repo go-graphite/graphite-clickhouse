@@ -9,24 +9,24 @@ import (
 )
 
 var RulesConf = `
-[[tag]]
-name = "prefix"
+[[rule]]
+tag = "prefix"
 has-prefix = "prefix"
 
-[[tag]]
-name = "suffix"
+[[rule]]
+tag = "suffix"
 has-suffix = "suffix"
 
-[[tag]]
-name = "contains"
+[[rule]]
+tag = "contains"
 contains = "contains"
 
-[[tag]]
-name = "equal"
+[[rule]]
+tag = "equal"
 equal = "equal"
 
-[[tag]]
-name = "regexp"
+[[rule]]
+tag = "regexp"
 regexp = "reg[e]xp"
 `
 
@@ -64,6 +64,8 @@ func TestRules(t *testing.T) {
 		{"hello.regexp.world", "suffix", nil},
 		{"hello.regexp.world", "contains", nil},
 		{"hello.regexp.world", "other", []string{"regexp"}},
+
+		{"prefix.suffix", "", []string{"prefix", "suffix"}},
 	}
 
 	for i := 0; i < len(table); i++ {
