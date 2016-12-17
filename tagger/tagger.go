@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"runtime"
 	"sort"
 	"time"
@@ -58,7 +59,7 @@ func pathLevel(path []byte) int {
 	return bytes.Count(path, []byte{'.'}) + 1
 }
 
-func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logger) error {
+func Make(rulesFilename string, date string, debugFromFile string, cfg *config.Config, logger zap.Logger) error {
 	var start time.Time
 	var block string
 	begin := func(b string) {
@@ -90,17 +91,21 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 
 	// Read clickhouse
 	begin("read and parse tree")
-	// body, err := ioutil.ReadFile("tree.bin")
-	// if err != nil {
-	// 	return err
-	// }
+	var body []byte
 
-	body, err := clickhouse.Query(
-		context.WithValue(context.Background(), "logger", logger),
-		cfg.ClickHouse.Url,
-		fmt.Sprintf("SELECT Path FROM %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
-		cfg.ClickHouse.TreeTimeout.Value(),
-	)
+	if debugFromFile != "" {
+		body, err = ioutil.ReadFile(debugFromFile)
+		if err != nil {
+			return err
+		}
+	} else {
+		body, err = clickhouse.Query(
+			context.WithValue(context.Background(), "logger", logger),
+			cfg.ClickHouse.Url,
+			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
+			cfg.ClickHouse.TreeTimeout.Value(),
+		)
+	}
 
 	if err != nil {
 		return err
@@ -240,20 +245,24 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	writer.Flush()
 	end()
 
-	begin("upload to clickhouse")
-	_, err = clickhouse.Post(
-		context.WithValue(context.Background(), "logger", logger),
-		cfg.ClickHouse.Url,
-		fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
-		&outBuf,
-		cfg.ClickHouse.TreeTimeout.Value(),
-	)
-	if err != nil {
-		return err
+	if debugFromFile != "" {
+		begin("write to stdout")
+		fmt.Println(outBuf.String())
+		end()
+	} else {
+		begin("upload to clickhouse")
+		_, err = clickhouse.Post(
+			context.WithValue(context.Background(), "logger", logger),
+			cfg.ClickHouse.Url,
+			fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
+			&outBuf,
+			cfg.ClickHouse.TreeTimeout.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		end()
 	}
-	end()
-
-	// fmt.Println(outBuf.String())
 
 	return nil
 }

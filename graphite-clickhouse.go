@@ -83,6 +83,7 @@ func main() {
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	tagsMake := flag.String("tags-make", "", "Build tags table")
 	tagsDate := flag.String("tags-date", "2016-11-01", "Date for records in tags table")
+	tagsDebug := flag.String("tags-debug", "", "Read metrics list from file (in RowBinary) and write result to stdout")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -135,7 +136,7 @@ func main() {
 
 	/* CONSOLE COMMANDS start */
 	if *tagsMake != "" {
-		if err := tagger.Make(*tagsMake, *tagsDate, cfg, logger.With(zap.String("module", "tagger"))); err != nil {
+		if err := tagger.Make(*tagsMake, *tagsDate, *tagsDebug, cfg, logger.With(zap.String("module", "tagger"))); err != nil {
 			log.Fatal(err)
 		}
 		return
