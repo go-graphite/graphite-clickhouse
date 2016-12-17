@@ -81,6 +81,8 @@ func Parse(content string) (*Rules, error) {
 			rules.prefix.Add(rule.BytesEqual, rule)
 		} else if rule.BytesContains != nil {
 			rules.contains.Add(rule.BytesContains, rule)
+		} else if rule.BytesHasSuffix != nil {
+			rules.suffix.AddSuffix(rule.BytesHasSuffix, rule)
 		} else {
 			rules.other = append(rules.other, rule)
 		}
@@ -91,8 +93,9 @@ func Parse(content string) (*Rules, error) {
 
 func (r *Rules) Match(m *Metric) {
 	r.matchPrefix(m)
-	r.matchOther(m)
+	r.matchSuffix(m)
 	r.matchContains(m)
+	r.matchOther(m)
 }
 
 func matchByPrefix(path []byte, tree *Tree, m *Metric) {
@@ -118,8 +121,35 @@ func matchByPrefix(path []byte, tree *Tree, m *Metric) {
 	}
 }
 
+func matchBySuffix(path []byte, tree *Tree, m *Metric) {
+	x := tree
+	i := len(path) - 1
+	for {
+		if i <= 0 {
+			break
+		}
+
+		x = x.Next[path[i]]
+		if x == nil {
+			break
+		}
+
+		if x.Rules != nil {
+			for _, rule := range x.Rules {
+				rule.Match(m)
+			}
+		}
+
+		i--
+	}
+}
+
 func (r *Rules) matchPrefix(m *Metric) {
 	matchByPrefix(m.Path, r.prefix, m)
+}
+
+func (r *Rules) matchSuffix(m *Metric) {
+	matchBySuffix(m.Path, r.suffix, m)
 }
 
 func (r *Rules) matchContains(m *Metric) {

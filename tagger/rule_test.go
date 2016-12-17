@@ -76,6 +76,8 @@ func TestRules(t *testing.T) {
 			rules.Match(&m)
 		case "prefix":
 			rules.matchPrefix(&m)
+		case "suffix":
+			rules.matchSuffix(&m)
 		case "contains":
 			rules.matchContains(&m)
 		case "other":
