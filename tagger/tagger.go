@@ -253,5 +253,7 @@ func Make(rulesFilename string, date string, cfg *config.Config, logger zap.Logg
 	}
 	end()
 
+	// fmt.Println(outBuf.String())
+
 	return nil
 }

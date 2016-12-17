@@ -26,8 +26,7 @@ type Rules struct {
 	Rule     []Rule  `toml:"tag"`
 	prefix   *Tree   `toml:"-"`
 	suffix   *Tree   `toml:"-"` // @TODO
-	contains *Tree   `toml:"-"` // @TODO
-	equal    *Tree   `toml:"-"` // @TODO
+	contains *Tree   `toml:"-"`
 	other    []*Rule `toml:"-"`
 }
 
@@ -36,7 +35,6 @@ func ParseRules(filename string) (*Rules, error) {
 		prefix:   &Tree{},
 		suffix:   &Tree{},
 		contains: &Tree{},
-		equal:    &Tree{},
 		other:    make([]*Rule, 0),
 	}
 
@@ -69,6 +67,10 @@ func ParseRules(filename string) (*Rules, error) {
 
 		if rule.BytesHasPrefix != nil {
 			rules.prefix.Add(rule.BytesHasPrefix, rule)
+		} else if rule.BytesEqual != nil {
+			rules.prefix.Add(rule.BytesEqual, rule)
+		} else if rule.BytesContains != nil {
+			rules.contains.Add(rule.BytesContains, rule)
 		} else {
 			rules.other = append(rules.other, rule)
 		}
@@ -80,17 +82,18 @@ func ParseRules(filename string) (*Rules, error) {
 func (r *Rules) Match(m *Metric) {
 	r.matchPrefix(m)
 	r.matchOther(m)
+	r.matchContains(m)
 }
 
-func (r *Rules) matchPrefix(m *Metric) {
-	x := r.prefix
+func matchByPrefix(path []byte, tree *Tree, m *Metric) {
+	x := tree
 	i := 0
 	for {
-		if i >= len(m.Path) {
+		if i >= len(path) {
 			break
 		}
 
-		x = x.Next[m.Path[i]]
+		x = x.Next[path[i]]
 		if x == nil {
 			break
 		}
@@ -102,6 +105,16 @@ func (r *Rules) matchPrefix(m *Metric) {
 		}
 
 		i++
+	}
+}
+
+func (r *Rules) matchPrefix(m *Metric) {
+	matchByPrefix(m.Path, r.prefix, m)
+}
+
+func (r *Rules) matchContains(m *Metric) {
+	for i := 0; i < len(m.Path); i++ {
+		matchByPrefix(m.Path[i:], r.contains, m)
 	}
 }
 
