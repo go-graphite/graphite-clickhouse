@@ -11,3 +11,18 @@ type TagFinder struct {
 	logger  *zap.Logger
 	prefix  string
 }
+
+func (t *TagFinder) Wrap(f Finder) Finder {
+	t.wrapped = f
+	return t
+}
+
+func (t *TagFinder) WithConfig(cfg *config.Config) Finder {
+	t.config = cfg
+	return t
+}
+
+func (t *TagFinder) WithLogger(logger *zap.Logger) Finder {
+	t.logger = logger
+	return t
+}

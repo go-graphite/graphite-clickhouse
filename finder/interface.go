@@ -9,7 +9,7 @@ type Finder interface {
 	Wrap(Finder) Finder
 	WithConfig(*config.Config) Finder
 	WithLogger(*zap.Logger) Finder
-	Execute(query string) Finder
+	Execute(query string) error
 	List() [][]byte
 	Abs([]byte) []byte
 }
