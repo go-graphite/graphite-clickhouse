@@ -33,7 +33,7 @@ func MakeWhere(target string, withLevel bool) (where string) {
 
 	// simple metric
 	if !HasWildcard(target) {
-		AND(fmt.Sprintf("Path = '%s'", clickhouse.Escape(target)))
+		AND(fmt.Sprintf("Path = '%s' OR Path = '%s.'", clickhouse.Escape(target), clickhouse.Escape(target)))
 		return
 	}
 
