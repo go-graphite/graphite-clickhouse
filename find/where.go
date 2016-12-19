@@ -50,7 +50,7 @@ func MakeWhere(target string, withLevel bool) (where string) {
 	}
 
 	pattern := GlobToRegexp(target)
-	AND(fmt.Sprintf("match(Path, '%s')", clickhouse.Escape(pattern)))
+	AND(fmt.Sprintf("match(Path, '^%s$')", clickhouse.Escape(pattern)))
 
 	return
 }
