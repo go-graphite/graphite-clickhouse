@@ -5,7 +5,7 @@ type MockFinder struct {
 	query  string   // logged from execute
 }
 
-func NewMockFinder(result [][]byte) Finder {
+func NewMockFinder(result [][]byte) *MockFinder {
 	return &MockFinder{
 		result: result,
 	}

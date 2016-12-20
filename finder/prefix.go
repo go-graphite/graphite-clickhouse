@@ -25,7 +25,7 @@ type PrefixFinder struct {
 	matchedPart string            // request. for partial matched
 }
 
-func WrapPrefix(f Finder, prefix string, config *config.Config, logger *zap.Logger) Finder {
+func WrapPrefix(f Finder, prefix string, config *config.Config, logger *zap.Logger) *PrefixFinder {
 	return &PrefixFinder{
 		wrapped: f,
 		prefix:  prefix,
