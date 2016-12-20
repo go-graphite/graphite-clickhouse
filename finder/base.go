@@ -10,14 +10,21 @@ type BaseFinder struct {
 	logger *zap.Logger
 }
 
-func (b *BaseFinder) Wrap(Finder) Finder { return b }
-
-func (b *BaseFinder) WithConfig(cfg *config.Config) Finder {
-	b.config = cfg
-	return b
+func NewBase(config *config.Config, logger *zap.Logger) Finder {
+	return &BaseFinder{
+		config: config,
+		logger: logger,
+	}
 }
 
-func (b *BaseFinder) WithLogger(logger *zap.Logger) Finder {
-	b.logger = logger
-	return b
+func (b *BaseFinder) Execute(query string) error {
+	return nil
+}
+
+func (b *BaseFinder) List() [][]byte {
+	return nil
+}
+
+func (b *BaseFinder) Abs([]byte) []byte {
+	return nil
 }

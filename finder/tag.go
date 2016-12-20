@@ -9,20 +9,24 @@ type TagFinder struct {
 	wrapped Finder
 	config  *config.Config
 	logger  *zap.Logger
-	prefix  string
 }
 
-func (t *TagFinder) Wrap(f Finder) Finder {
-	t.wrapped = f
-	return t
+func WrapTag(f Finder, config *config.Config, logger *zap.Logger) Finder {
+	return &TagFinder{
+		wrapped: f,
+		logger:  logger,
+		config:  config,
+	}
 }
 
-func (t *TagFinder) WithConfig(cfg *config.Config) Finder {
-	t.config = cfg
-	return t
+func (t *TagFinder) Execute(query string) error {
+	return nil
 }
 
-func (t *TagFinder) WithLogger(logger *zap.Logger) Finder {
-	t.logger = logger
-	return t
+func (t *TagFinder) List() [][]byte {
+	return nil
+}
+
+func (t *TagFinder) Abs([]byte) []byte {
+	return nil
 }
