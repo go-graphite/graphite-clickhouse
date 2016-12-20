@@ -32,7 +32,7 @@ func TestPrefixFinderExecute(t *testing.T) {
 
 		m := NewMockFinder([][]byte{})
 
-		f := WrapPrefix(m, test.prefix, nil, nil)
+		f := WrapPrefix(m, test.prefix)
 
 		err := f.Execute(test.query)
 

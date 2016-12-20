@@ -3,9 +3,6 @@ package finder
 import (
 	"regexp"
 	"strings"
-
-	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/uber-go/zap"
 )
 
 type PrefixMatchResult int
@@ -18,19 +15,15 @@ const (
 
 type PrefixFinder struct {
 	wrapped     Finder
-	config      *config.Config    // config
-	logger      *zap.Logger       // config
 	prefix      string            // config
 	matched     PrefixMatchResult // request
 	matchedPart string            // request. for partial matched
 }
 
-func WrapPrefix(f Finder, prefix string, config *config.Config, logger *zap.Logger) *PrefixFinder {
+func WrapPrefix(f Finder, prefix string) *PrefixFinder {
 	return &PrefixFinder{
 		wrapped: f,
 		prefix:  prefix,
-		logger:  logger,
-		config:  config,
 	}
 }
 
