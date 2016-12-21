@@ -24,6 +24,7 @@ func TestPrefixFinderExecute(t *testing.T) {
 		{"ch.data", "ch.data.*", PrefixMatched, "*", "", false},
 		{"ch.data", "epta.*", PrefixNotMatched, "", "", false},
 		{"ch.data", "ch.data._tag.daemon.h.hostname.top.cpu_avg", PrefixMatched, "_tag.daemon.h.hostname.top.cpu_avg", "", false},
+		{"ch.data", "ch.d[a]", PrefixNotMatched, "", "", false},
 	}
 
 	for _, test := range table {

@@ -44,7 +44,7 @@ func (p *PrefixFinder) Execute(query string) error {
 
 	var i int
 	for i = 0; i < len(qs) && i < len(ps); i++ {
-		m, err := regexp.MatchString(GlobToRegexp(qs[i]), ps[i])
+		m, err := regexp.MatchString("^"+GlobToRegexp(qs[i])+"$", ps[i])
 		if err != nil {
 			return err
 		}
