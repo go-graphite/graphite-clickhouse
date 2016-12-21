@@ -27,6 +27,10 @@ func (t *TagFinder) List() [][]byte {
 	return nil
 }
 
+func (t *TagFinder) Series() [][]byte {
+	return nil
+}
+
 func (t *TagFinder) Abs([]byte) []byte {
 	return nil
 }

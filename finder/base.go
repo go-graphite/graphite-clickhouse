@@ -25,6 +25,10 @@ func (b *BaseFinder) List() [][]byte {
 	return nil
 }
 
+func (b *BaseFinder) Series() [][]byte {
+	return nil
+}
+
 func (b *BaseFinder) Abs([]byte) []byte {
 	return nil
 }

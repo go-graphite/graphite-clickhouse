@@ -20,6 +20,10 @@ func (m *MockFinder) List() [][]byte {
 	return m.result
 }
 
+func (m *MockFinder) Series() [][]byte {
+	return m.result
+}
+
 func (m *MockFinder) Abs(v []byte) []byte {
 	return v
 }
