@@ -92,13 +92,25 @@ func (t *TagFinder) tagListSQL() (string, error) {
 
 	and("Level=1")
 
+	// first
 	and(t.tagQuery[0].Where("Tag1"))
 
 	if len(t.tagQuery) == 1 {
 		return fmt.Sprintf("SELECT Tag1 FROM %s WHERE %s GROUP BY Tag1", t.table, where), nil
 	}
 
-	return where, nil
+	// 1..(n-1)
+	for i := 1; i < len(t.tagQuery)-1; i++ {
+		cond := t.tagQuery[i].Where("t")
+		if cond != "" {
+			and(fmt.Sprintf("arrayExists((x) -> %s, Tags)", cond))
+		}
+	}
+
+	// last
+	and(t.tagQuery[len(t.tagQuery)-1].Where("TagN"))
+
+	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, where), nil
 }
 
 func (t *TagFinder) MakeSQL(query string) (string, error) {

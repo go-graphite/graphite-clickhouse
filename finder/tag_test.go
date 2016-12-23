@@ -25,6 +25,8 @@ func TestTagsMakeSQL(t *testing.T) {
 		{"_tag.p1=", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1 LIKE 'p1=%') GROUP BY Tag1", false},
 		{"_tag.p1=.*", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1 LIKE 'p1=%') GROUP BY Tag1", false},
 		{"_tag.p1=.v1", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1='p1=v1') GROUP BY Tag1", false},
+		{"_tag.t2._tag.*", "", false},
+		{"_tag.t2._tag.t2._tag.p3=.*", "", false},
 	}
 
 	for _, test := range table {
