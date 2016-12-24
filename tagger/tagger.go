@@ -222,6 +222,8 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 
 	// encoderBuffer := new(bytes.Buffer)
 
+	// INSERT INTO graphite_tag (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary
+
 	encoder := RowBinary.NewEncoder(writer)
 
 	days := RowBinary.DateToUint16(date)
