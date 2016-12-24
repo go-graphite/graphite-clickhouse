@@ -266,6 +266,44 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		}
 	}
 
+	// AND Empty record With Level=0, Path=0 and Without Tags
+
+	// Date
+	err = encoder.Uint16(days)
+	if err != nil {
+		return err
+	}
+	// Version
+	err = encoder.Uint32(version)
+	if err != nil {
+		return err
+	}
+	// Level=0
+	err = encoder.Uint32(0)
+	if err != nil {
+		return err
+	}
+	// Path=""
+	err = encoder.Bytes([]byte{})
+	if err != nil {
+		return err
+	}
+	// IsLeaf=0
+	err = encoder.Uint8(0)
+	if err != nil {
+		return err
+	}
+	// Tags=[]
+	err = encoder.StringList([]string{})
+	if err != nil {
+		return err
+	}
+	// Tag1=""
+	err = encoder.String("")
+	if err != nil {
+		return err
+	}
+
 	writer.Close()
 	end()
 
