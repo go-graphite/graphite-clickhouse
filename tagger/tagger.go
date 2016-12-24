@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -15,6 +15,7 @@ import (
 	"github.com/uber-go/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/helper/RowBinary"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
@@ -59,7 +60,7 @@ func pathLevel(path []byte) int {
 	return bytes.Count(path, []byte{'.'}) + 1
 }
 
-func Make(rulesFilename string, date string, debugFromFile string, cfg *config.Config, logger zap.Logger) error {
+func Make(rulesFilename string, dateString string, debugFromFile string, cfg *config.Config, logger zap.Logger) error {
 	var start time.Time
 	var block string
 	begin := func(b string) {
@@ -84,6 +85,11 @@ func Make(rulesFilename string, date string, debugFromFile string, cfg *config.C
 	// Parse rules
 	begin("parse rules")
 	rules, err := ParseFile(rulesFilename)
+	if err != nil {
+		return err
+	}
+
+	date, err := time.ParseInLocation("2006-01-02", dateString, time.Local)
 	if err != nil {
 		return err
 	}
@@ -196,73 +202,100 @@ func Make(rulesFilename string, date string, debugFromFile string, cfg *config.C
 
 	// print result with tags
 	begin("marshal json")
-	var outBuf bytes.Buffer
+	// var outBuf bytes.Buffer
 
-	writer := bufio.NewWriter(&outBuf)
+	// writer := bufio.NewWriter(&outBuf)
+	writer := bufio.NewWriter(os.Stdout)
+	// Date, Version, Tag1, Level, Path, IsLeaf, Tags
 
-	commonJson, err := json.Marshal(map[string]interface{}{
-		"Date":    date,
-		"Version": version,
-	})
-	if err != nil {
-		return err
-	}
+	// commonJson, err := json.Marshal(map[string]interface{}{
+	// 	"Date":    date,
+	// 	"Version": version,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	commonJson[0] = '{'
-	commonJson[len(commonJson)-1] = ','
-	commonJson = append(commonJson, []byte("\"Tag1\":")...)
+	// commonJson[0] = '{'
+	// commonJson[len(commonJson)-1] = ','
+	// commonJson = append(commonJson, []byte("\"Tag1\":")...)
 
-	for _, m := range metricList {
+	// encoderBuffer := new(bytes.Buffer)
+
+	encoder := RowBinary.NewEncoder(writer)
+
+	days := RowBinary.DateToUint16(date)
+
+	for i := 0; i < len(metricList); i++ {
+		m := &metricList[i]
+
 		if m.Tags == nil || m.Tags.Len() == 0 {
 			continue
 		}
 
-		metricJson, err := m.MarshalJSON()
-		if err != nil {
-			return err
-		}
-
-		metricJson = metricJson[1 : len(metricJson)-1]
-
 		for _, tag := range m.Tags.List() {
-			b, err := json.Marshal(tag)
+
+			// Date
+			err := encoder.Uint16(days)
 			if err != nil {
 				return err
 			}
-
-			writer.Write(commonJson)
-			writer.Write(b)
-			writer.WriteString(",")
-			writer.Write(metricJson)
-			writer.WriteString("}\n")
+			// Version
+			err = encoder.Uint32(version)
+			if err != nil {
+				return err
+			}
+			// Tag1
+			err = encoder.String(tag)
+			if err != nil {
+				return err
+			}
+			// Level
+			err = encoder.Uint32(uint32(m.Level))
+			if err != nil {
+				return err
+			}
+			// Path
+			err = encoder.Bytes(m.Path)
+			if err != nil {
+				return err
+			}
+			// IsLeaf
+			err = encoder.Uint8(m.IsLeaf())
+			if err != nil {
+				return err
+			}
+			// Tags
+			err = encoder.StringList(m.Tags.List())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// empty path as last version
-	writer.Write(commonJson)
-	writer.WriteString(`"","Level":0,"Path":""}`)
 
 	writer.Flush()
 	end()
 
-	if debugFromFile != "" {
-		begin("write to stdout")
-		fmt.Println(outBuf.String())
-		end()
-	} else {
-		begin("upload to clickhouse")
-		_, err = clickhouse.Post(
-			context.WithValue(context.Background(), "logger", logger),
-			cfg.ClickHouse.Url,
-			fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
-			&outBuf,
-			cfg.ClickHouse.TreeTimeout.Value(),
-		)
-		if err != nil {
-			return err
-		}
-		end()
-	}
+	// if debugFromFile != "" {
+	// 	begin("write to stdout")
+	// 	fmt.Println(outBuf.String())
+	// 	end()
+	// } else {
+	// 	begin("upload to clickhouse")
+	// 	_, err = clickhouse.Post(
+	// 		context.WithValue(context.Background(), "logger", logger),
+	// 		cfg.ClickHouse.Url,
+	// 		fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
+	// 		&outBuf,
+	// 		cfg.ClickHouse.TreeTimeout.Value(),
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	end()
+	// }
 
 	return nil
 }

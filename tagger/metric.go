@@ -31,15 +31,18 @@ func (m *Metric) ParentPath() []byte {
 	return m.Path[:index+1]
 }
 
-func (m *Metric) MarshalJSON() ([]byte, error) {
-	IsLeaf := 0
+func (m *Metric) IsLeaf() uint8 {
 	if len(m.Path) > 0 && m.Path[len(m.Path)-1] == '.' {
-		IsLeaf = 1
+		return 1
 	}
+	return 0
+}
+
+func (m *Metric) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"Path":   unsafeString(m.Path),
 		"Level":  m.Level,
 		"Tags":   m.Tags,
-		"IsLeaf": IsLeaf,
+		"IsLeaf": m.IsLeaf(),
 	})
 }
