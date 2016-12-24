@@ -201,7 +201,7 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 	end()
 
 	// print result with tags
-	begin("marshal json")
+	begin("marshal RowBinary")
 	// var outBuf bytes.Buffer
 
 	// writer := bufio.NewWriter(&outBuf)
@@ -225,6 +225,8 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 	encoder := RowBinary.NewEncoder(writer)
 
 	days := RowBinary.DateToUint16(date)
+	metricBuffer := new(bytes.Buffer)
+	metricEncoder := RowBinary.NewEncoder(metricBuffer)
 
 	for i := 0; i < len(metricList); i++ {
 		m := &metricList[i]
@@ -233,40 +235,47 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 			continue
 		}
 
-		for _, tag := range m.Tags.List() {
+		metricBuffer.Reset()
 
-			// Date
-			err := encoder.Uint16(days)
+		// Date
+		err := metricEncoder.Uint16(days)
+		if err != nil {
+			return err
+		}
+		// Version
+		err = metricEncoder.Uint32(version)
+		if err != nil {
+			return err
+		}
+		// Level
+		err = metricEncoder.Uint32(uint32(m.Level))
+		if err != nil {
+			return err
+		}
+		// Path
+		err = metricEncoder.Bytes(m.Path)
+		if err != nil {
+			return err
+		}
+		// IsLeaf
+		err = metricEncoder.Uint8(m.IsLeaf())
+		if err != nil {
+			return err
+		}
+		// Tags
+		err = metricEncoder.StringList(m.Tags.List())
+		if err != nil {
+			return err
+		}
+
+		for _, tag := range m.Tags.List() {
+			_, err = writer.Write(metricBuffer.Bytes())
 			if err != nil {
 				return err
 			}
-			// Version
-			err = encoder.Uint32(version)
-			if err != nil {
-				return err
-			}
+
 			// Tag1
 			err = encoder.String(tag)
-			if err != nil {
-				return err
-			}
-			// Level
-			err = encoder.Uint32(uint32(m.Level))
-			if err != nil {
-				return err
-			}
-			// Path
-			err = encoder.Bytes(m.Path)
-			if err != nil {
-				return err
-			}
-			// IsLeaf
-			err = encoder.Uint8(m.IsLeaf())
-			if err != nil {
-				return err
-			}
-			// Tags
-			err = encoder.StringList(m.Tags.List())
 			if err != nil {
 				return err
 			}
