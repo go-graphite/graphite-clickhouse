@@ -266,9 +266,6 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		}
 	}
 
-	// empty path as last version
-
-	// writer.Flush()
 	writer.Close()
 	end()
 
@@ -276,25 +273,20 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		begin(fmt.Sprintf("write to %#v", cfg.Tags.OutputFile))
 		ioutil.WriteFile(cfg.Tags.OutputFile, outBuf.Bytes(), 0644)
 		end()
+	} else {
+		begin("upload to clickhouse")
+		_, err = clickhouse.PostGzip(
+			context.WithValue(context.Background(), "logger", logger),
+			cfg.ClickHouse.Url,
+			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
+			outBuf,
+			cfg.ClickHouse.TreeTimeout.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		end()
 	}
-	// if debugFromFile != "" {
-	// 	begin("write to stdout")
-	// 	fmt.Println(outBuf.String())
-	// 	end()
-	// } else {
-	// 	begin("upload to clickhouse")
-	// 	_, err = clickhouse.Post(
-	// 		context.WithValue(context.Background(), "logger", logger),
-	// 		cfg.ClickHouse.Url,
-	// 		fmt.Sprintf("INSERT INTO %s FORMAT JSONEachRow", cfg.ClickHouse.TagTable),
-	// 		&outBuf,
-	// 		cfg.ClickHouse.TreeTimeout.Value(),
-	// 	)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	end()
-	// }
 
 	return nil
 }
