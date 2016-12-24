@@ -39,7 +39,15 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	return Post(ctx, dsn, query, nil, timeout)
 }
 
-func Post(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) (body []byte, err error) {
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, false, timeout)
+}
+
+func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, true, timeout)
+}
+
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
 	logger := log.FromContext(ctx)
@@ -82,6 +90,10 @@ func Post(ctx context.Context, dsn string, query string, postBody io.Reader, tim
 	req, err := http.NewRequest("POST", url, postBody)
 	if err != nil {
 		return
+	}
+
+	if gzip {
+		req.Header.Add("Content-Encoding", "gzip")
 	}
 
 	client := &http.Client{Timeout: timeout}

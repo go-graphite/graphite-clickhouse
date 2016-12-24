@@ -1,10 +1,11 @@
 package tagger
 
 import (
-	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -200,29 +201,12 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 	}
 	end()
 
-	// print result with tags
-	begin("marshal RowBinary")
-	// var outBuf bytes.Buffer
-
-	// writer := bufio.NewWriter(&outBuf)
-	writer := bufio.NewWriter(os.Stdout)
-	// Date, Version, Tag1, Level, Path, IsLeaf, Tags
-
-	// commonJson, err := json.Marshal(map[string]interface{}{
-	// 	"Date":    date,
-	// 	"Version": version,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-
-	// commonJson[0] = '{'
-	// commonJson[len(commonJson)-1] = ','
-	// commonJson = append(commonJson, []byte("\"Tag1\":")...)
-
-	// encoderBuffer := new(bytes.Buffer)
-
+	begin("marshal RowBinary + gzip")
 	// INSERT INTO graphite_tag (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary
+	// with Content-Encoding: gzip
+
+	outBuf := new(bytes.Buffer)
+	writer := gzip.NewWriter(outBuf)
 
 	encoder := RowBinary.NewEncoder(writer)
 
@@ -286,9 +270,16 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 
 	// empty path as last version
 
-	writer.Flush()
+	// writer.Flush()
+	writer.Close()
 	end()
 
+	if debugFromFile != "" {
+		begin("write to stdout")
+		io.Copy(os.Stdout, outBuf)
+		// fmt.Print(outBuf.String())
+		end()
+	}
 	// if debugFromFile != "" {
 	// 	begin("write to stdout")
 	// 	fmt.Println(outBuf.String())
