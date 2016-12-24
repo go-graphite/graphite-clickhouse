@@ -81,9 +81,7 @@ func main() {
 	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
-	tagsMake := flag.String("tags-make", "", "Build tags table")
-	tagsDate := flag.String("tags-date", "2016-11-01", "Date for records in tags table")
-	tagsDebug := flag.String("tags-debug", "", "Read metrics list from file (in RowBinary) and write result to stdout")
+	tags := flag.Bool("tags", false, "Build tags table")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -135,8 +133,8 @@ func main() {
 	/* CONFIG end */
 
 	/* CONSOLE COMMANDS start */
-	if *tagsMake != "" {
-		if err := tagger.Make(*tagsMake, *tagsDate, *tagsDebug, cfg, logger.With(zap.String("module", "tagger"))); err != nil {
+	if *tags {
+		if err := tagger.Make(cfg, logger.With(zap.String("module", "tagger"))); err != nil {
 			log.Fatal(err)
 		}
 		return

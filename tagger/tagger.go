@@ -5,9 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -61,7 +59,7 @@ func pathLevel(path []byte) int {
 	return bytes.Count(path, []byte{'.'}) + 1
 }
 
-func Make(rulesFilename string, dateString string, debugFromFile string, cfg *config.Config, logger zap.Logger) error {
+func Make(cfg *config.Config, logger zap.Logger) error {
 	var start time.Time
 	var block string
 	begin := func(b string) {
@@ -85,12 +83,12 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 
 	// Parse rules
 	begin("parse rules")
-	rules, err := ParseFile(rulesFilename)
+	rules, err := ParseFile(cfg.Tags.Rules)
 	if err != nil {
 		return err
 	}
 
-	date, err := time.ParseInLocation("2006-01-02", dateString, time.Local)
+	date, err := time.ParseInLocation("2006-01-02", cfg.Tags.Date, time.Local)
 	if err != nil {
 		return err
 	}
@@ -100,8 +98,8 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 	begin("read and parse tree")
 	var body []byte
 
-	if debugFromFile != "" {
-		body, err = ioutil.ReadFile(debugFromFile)
+	if cfg.Tags.InputFile != "" {
+		body, err = ioutil.ReadFile(cfg.Tags.InputFile)
 		if err != nil {
 			return err
 		}
@@ -274,10 +272,9 @@ func Make(rulesFilename string, dateString string, debugFromFile string, cfg *co
 	writer.Close()
 	end()
 
-	if debugFromFile != "" {
-		begin("write to stdout")
-		io.Copy(os.Stdout, outBuf)
-		// fmt.Print(outBuf.String())
+	if cfg.Tags.OutputFile != "" {
+		begin(fmt.Sprintf("write to %#v", cfg.Tags.OutputFile))
+		ioutil.WriteFile(cfg.Tags.OutputFile, outBuf.Bytes(), 0644)
 		end()
 	}
 	// if debugFromFile != "" {

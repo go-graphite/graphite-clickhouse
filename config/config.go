@@ -54,6 +54,13 @@ type ClickHouse struct {
 	ExtraPrefix string    `toml:"extra-prefix"`
 }
 
+type Tags struct {
+	Rules      string `toml:"rules"`
+	Date       string `toml:"date"`
+	InputFile  string `toml:"input-file"`
+	OutputFile string `toml:"output-file"`
+}
+
 type Logging struct {
 	File  string `toml:"file"`
 	Level string `toml:"level"`
@@ -63,6 +70,7 @@ type Logging struct {
 type Config struct {
 	Common     Common         `toml:"common"`
 	ClickHouse ClickHouse     `toml:"clickhouse"`
+	Tags       Tags           `toml:"tags"`
 	Logging    Logging        `toml:"logging"`
 	Rollup     *rollup.Rollup `toml:"-"`
 }
@@ -92,6 +100,9 @@ func New() *Config {
 			},
 			RollupConf: "/etc/graphite-clickhouse/rollup.xml",
 			TagTable:   "",
+		},
+		Tags: Tags{
+			Date: "2016-11-01",
 		},
 		Logging: Logging{
 			File:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
