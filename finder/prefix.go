@@ -97,6 +97,7 @@ func (p *PrefixFinder) Series() [][]byte {
 	return p.wrapped.Series()
 }
 
-func (p *PrefixFinder) Abs(value []byte) []byte {
-	return append(p.prefixBytes, value...)
+func (p *PrefixFinder) Abs(value []byte) ([]byte, bool) {
+	// @TODO: call wrapped
+	return append(p.prefixBytes, value...), false
 }

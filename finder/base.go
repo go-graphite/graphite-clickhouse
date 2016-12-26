@@ -1,19 +1,23 @@
 package finder
 
 import (
-	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/uber-go/zap"
+	"context"
+	"time"
 )
 
 type BaseFinder struct {
-	config *config.Config
-	logger *zap.Logger
+	ctx     context.Context // for clickhouse.Query
+	url     string          // clickhouse dsn
+	table   string          // graphite_tree table
+	timeout time.Duration   // clickhouse query timeout
 }
 
-func NewBase(config *config.Config, logger *zap.Logger) Finder {
+func NewBase(ctx context.Context, url string, table string, timeout time.Duration) Finder {
 	return &BaseFinder{
-		config: config,
-		logger: logger,
+		ctx:     ctx,
+		url:     url,
+		table:   table,
+		timeout: timeout,
 	}
 }
 
@@ -29,6 +33,7 @@ func (b *BaseFinder) Series() [][]byte {
 	return nil
 }
 
-func (b *BaseFinder) Abs([]byte) []byte {
-	return nil
+func (b *BaseFinder) Abs([]byte) ([]byte, bool) {
+	// @TODO
+	return nil, false
 }

@@ -24,6 +24,6 @@ func (m *MockFinder) Series() [][]byte {
 	return m.result
 }
 
-func (m *MockFinder) Abs(v []byte) []byte {
-	return v
+func (m *MockFinder) Abs(v []byte) ([]byte, bool) {
+	return v, false
 }

@@ -90,6 +90,7 @@ func (t *TagFinder) tagListSQL() (string, error) {
 		}
 	}
 
+	and(fmt.Sprintf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table))
 	and("Level=1")
 
 	// first
@@ -101,7 +102,7 @@ func (t *TagFinder) tagListSQL() (string, error) {
 
 	// 1..(n-1)
 	for i := 1; i < len(t.tagQuery)-1; i++ {
-		cond := t.tagQuery[i].Where("t")
+		cond := t.tagQuery[i].Where("x")
 		if cond != "" {
 			and(fmt.Sprintf("arrayExists((x) -> %s, Tags)", cond))
 		}
@@ -216,6 +217,7 @@ func (t *TagFinder) Series() [][]byte {
 	return EmptyList
 }
 
-func (t *TagFinder) Abs(v []byte) []byte {
-	return v
+func (t *TagFinder) Abs(v []byte) ([]byte, bool) {
+	// @TODO
+	return v, false
 }

@@ -1,7 +1,6 @@
 package find
 
 import (
-	"bytes"
 	"io"
 	"unsafe"
 
@@ -15,8 +14,8 @@ func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func (f *Finder) WritePickle(w io.Writer) error {
-	rows := bytes.Split(f.body, []byte{'\n'})
+func (f *Find) WritePickle(w io.Writer) error {
+	rows := f.finder.List()
 
 	if len(rows) == 0 { // empty
 		w.Write(pickle.EmptyList)
@@ -25,23 +24,21 @@ func (f *Finder) WritePickle(w io.Writer) error {
 
 	p := pickle.NewWriter(w)
 
-	p.List()
-
-	var row []byte
-
-	for _, row = range rows {
-		if len(row) == 0 {
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
 			continue
 		}
 
 		p.Dict()
 
+		path, isLeaf := f.finder.Abs(rows[i])
+
 		p.String("metric_path")
-		p.String(f.Path(unsafeString(row)))
+		p.Bytes(path)
 		p.SetItem()
 
 		p.String("isLeaf")
-		p.Bool(f.IsLeaf(unsafeString(row)))
+		p.Bool(isLeaf)
 		p.SetItem()
 
 		p.Append()
@@ -51,8 +48,8 @@ func (f *Finder) WritePickle(w io.Writer) error {
 	return nil
 }
 
-func (f *Finder) WriteProtobuf(w io.Writer) error {
-	rows := bytes.Split(f.body, []byte{'\n'})
+func (f *Find) WriteProtobuf(w io.Writer) error {
+	rows := f.finder.List()
 
 	if len(rows) == 0 { // empty
 		return nil
@@ -71,18 +68,15 @@ func (f *Finder) WriteProtobuf(w io.Writer) error {
 	var response carbonzipperpb.GlobResponse
 	response.Name = proto.String(f.query)
 
-	var isLeaf bool
-	var row []byte
-
-	for _, row = range rows {
-		if len(row) == 0 {
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
 			continue
 		}
 
-		isLeaf = f.IsLeaf(unsafeString(row))
+		path, isLeaf := f.finder.Abs(rows[i])
 
 		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
-			Path:   proto.String(f.Path(string(row))),
+			Path:   proto.String(string(path)),
 			IsLeaf: &isLeaf,
 		})
 	}

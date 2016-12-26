@@ -14,18 +14,25 @@ import (
 func TestTagsMakeSQL(t *testing.T) {
 	assert := assert.New(t)
 
+	tag1Base := "SELECT Tag1 FROM table WHERE (Version>=(SELECT Max(Version) FROM table WHERE Tag1='' AND Level=0 AND Path='')) AND (Level=1)"
+	tag1Group := " GROUP BY Tag1"
+
+	tagNBase := "SELECT TagN FROM table ARRAY JOIN Tags AS TagN WHERE (Version>=(SELECT Max(Version) FROM table WHERE Tag1='' AND Level=0 AND Path='')) AND (IsLeaf=1)"
+	tagNGroup := " GROUP BY TagN"
+
 	table := []struct {
 		query string
 		sql   string
 		error bool
 	}{
+		// SELECT Tag1 FROM graphite_tag WHERE Version >= (SELECT Max(Version) FROM graphite_tag WHERE Tag1='' AND Level=0 AND Path='') AND Level=1 GROUP BY Tag1;
 		{"_tag", "", false},
-		{"_tag.*", "SELECT Tag1 FROM table WHERE (Level=1) GROUP BY Tag1", false},
-		{"_tag.t1", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1='t1') GROUP BY Tag1", false},
-		{"_tag.p1=", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1 LIKE 'p1=%') GROUP BY Tag1", false},
-		{"_tag.p1=.*", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1 LIKE 'p1=%') GROUP BY Tag1", false},
-		{"_tag.p1=.v1", "SELECT Tag1 FROM table WHERE (Level=1) AND (Tag1='p1=v1') GROUP BY Tag1", false},
-		{"_tag.t2._tag.*", "", false},
+		{"_tag.*", tag1Base + tag1Group, false},
+		{"_tag.t1", tag1Base + " AND (Tag1='t1')" + tag1Group, false},
+		{"_tag.p1=", tag1Base + " AND (Tag1 LIKE 'p1=%')" + tag1Group, false},
+		{"_tag.p1=.*", tag1Base + " AND (Tag1 LIKE 'p1=%')" + tag1Group, false},
+		{"_tag.p1=.v1", tag1Base + " AND (Tag1='p1=v1')" + tag1Group, false},
+		{"_tag.t2._tag.*", tagNBase + "" + tagNGroup, false},
 		{"_tag.t2._tag.t2._tag.p3=.*", "", false},
 	}
 
