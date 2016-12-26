@@ -1,10 +1,13 @@
 package finder
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type BaseFinder struct {
@@ -12,6 +15,7 @@ type BaseFinder struct {
 	url     string          // clickhouse dsn
 	table   string          // graphite_tree table
 	timeout time.Duration   // clickhouse query timeout
+	body    []byte          // clickhouse response body
 }
 
 func NewBase(ctx context.Context, url string, table string, timeout time.Duration) Finder {
@@ -65,13 +69,40 @@ func (b *BaseFinder) where(query string) (where string) {
 	return
 }
 
-func (b *BaseFinder) Execute(query string) error {
-	fmt.Println("execute", query)
-	return nil
+func (b *BaseFinder) Execute(query string) (err error) {
+	where := b.where(query)
+
+	b.body, err = clickhouse.Query(
+		b.ctx,
+		b.url,
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, where),
+		b.timeout,
+	)
+
+	return
 }
 
 func (b *BaseFinder) List() [][]byte {
-	return nil
+	if b.body == nil {
+		return [][]byte{}
+	}
+
+	rows := bytes.Split(b.body, []byte{'\n'})
+
+	skip := 0
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			skip++
+			continue
+		}
+		if skip > 0 {
+			rows[i-skip] = rows[i]
+		}
+	}
+
+	rows = rows[:len(rows)-skip]
+
+	return rows
 }
 
 func (b *BaseFinder) Series() [][]byte {
