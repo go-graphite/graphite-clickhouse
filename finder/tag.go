@@ -1,10 +1,13 @@
 package finder
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type TagState int
@@ -13,6 +16,7 @@ const (
 	TagRoot     TagState = iota // query = "*"
 	TagSkip                     // not _tag prefix
 	TagInfoRoot                 // query = "_tag"
+	TagList
 )
 
 type TagQ struct {
@@ -56,6 +60,7 @@ type TagFinder struct {
 	state       TagState
 	tagQuery    []TagQ
 	seriesQuery string
+	body        []byte // clickhouse response
 }
 
 var EmptyList [][]byte = [][]byte{}
@@ -151,6 +156,7 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	}
 
 	if t.seriesQuery == "" {
+		t.state = TagList
 		return t.tagListSQL()
 	}
 
@@ -179,9 +185,16 @@ func (t *TagFinder) Execute(query string) error {
 		return t.wrapped.Execute(query)
 	}
 
-	t.MakeSQL(query)
+	sql, err := t.MakeSQL(query)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	fmt.Println(err, sql)
+
+	t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+
+	return err
 }
 
 func (t *TagFinder) List() [][]byte {
@@ -193,11 +206,36 @@ func (t *TagFinder) List() [][]byte {
 	case TagRoot:
 		// pass
 		return append([][]byte{[]byte("_tag.")}, t.wrapped.List()...)
-	default:
-		return EmptyList
 	}
 
-	return EmptyList
+	if t.body == nil {
+		return [][]byte{}
+	}
+
+	rows := bytes.Split(t.body, []byte{'\n'})
+
+	skip := 0
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			skip++
+			continue
+		}
+		if skip > 0 {
+			rows[i-skip] = rows[i]
+		}
+	}
+
+	rows = rows[:len(rows)-skip]
+
+	if t.state == TagList {
+		// add dots
+		// @TODO: optimize?
+		for i := 0; i < len(rows); i++ {
+			rows[i] = append(rows[i], '.')
+		}
+	}
+
+	return rows
 }
 
 func (t *TagFinder) Series() [][]byte {
