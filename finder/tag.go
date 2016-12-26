@@ -95,12 +95,12 @@ func (t *TagFinder) tagListSQL() (string, error) {
 	}
 
 	and(fmt.Sprintf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table))
-	and("Level=1")
 
 	// first
 	and(t.tagQuery[0].Where("Tag1"))
 
 	if len(t.tagQuery) == 1 {
+		and("Level=1")
 		return fmt.Sprintf("SELECT Tag1 FROM %s WHERE %s GROUP BY Tag1", t.table, where), nil
 	}
 
@@ -114,6 +114,8 @@ func (t *TagFinder) tagListSQL() (string, error) {
 
 	// last
 	and(t.tagQuery[len(t.tagQuery)-1].Where("TagN"))
+
+	and("IsLeaf=1")
 
 	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, where), nil
 }
@@ -278,6 +280,10 @@ func (t *TagFinder) List() [][]byte {
 		for i := 0; i < len(rows); i++ {
 			rows[i] = append(rows[i], '.')
 		}
+	}
+
+	if t.state == TagListSeriesRoot {
+		rows = append(rows, []byte("_tag."))
 	}
 
 	return rows
