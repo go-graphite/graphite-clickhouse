@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type TagState int
@@ -37,13 +35,13 @@ func (q TagQ) String() string {
 
 func (q *TagQ) Where(field string) string {
 	if q.Param != nil && q.Value != nil && *q.Value != "*" {
-		return fmt.Sprintf("%s='%s%s'", field, clickhouse.Escape(*q.Param), clickhouse.Escape(*q.Value))
+		return fmt.Sprintf("%s=%s", field, Q(*q.Param+*q.Value))
 	}
 	if q.Param != nil {
-		return fmt.Sprintf("%s LIKE '%s%%'", field, clickhouse.Escape(*q.Param))
+		return fmt.Sprintf("%s LIKE %s", field, Q(*q.Param+`%`))
 	}
 	if q.Value != nil && *q.Value != "*" {
-		return fmt.Sprintf("%s='%s'", field, clickhouse.Escape(*q.Value))
+		return fmt.Sprintf("%s=%s", field, Q(*q.Value))
 	}
 
 	return ""
@@ -79,14 +77,14 @@ func (t *TagFinder) tagListSQL() (string, error) {
 	}
 
 	where := ""
-	and := func(condition string) {
-		if condition == "" {
+	and := func(exp string) {
+		if exp == "" {
 			return
 		}
 		if where != "" {
-			where = fmt.Sprintf("%s AND (%s)", where, condition)
+			where = fmt.Sprintf("%s AND (%s)", where, exp)
 		} else {
-			where = fmt.Sprintf("(%s)", condition)
+			where = fmt.Sprintf("(%s)", exp)
 		}
 	}
 
@@ -217,7 +215,7 @@ func (t *TagFinder) Series() [][]byte {
 	return EmptyList
 }
 
-func (t *TagFinder) Abs(v []byte) ([]byte, bool) {
+func (t *TagFinder) Abs(v []byte) []byte {
 	// @TODO
-	return v, false
+	return v
 }

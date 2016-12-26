@@ -10,7 +10,7 @@ type Finder interface {
 	Execute(query string) error
 	List() [][]byte
 	Series() [][]byte
-	Abs([]byte) ([]byte, bool)
+	Abs([]byte) []byte
 }
 
 func New(ctx context.Context, config *config.Config) Finder {
@@ -24,4 +24,13 @@ func New(ctx context.Context, config *config.Config) Finder {
 		f = WrapPrefix(f, config.ClickHouse.ExtraPrefix)
 	}
 	return f
+}
+
+// Leaf strips last dot and detect IsLeaf
+func Leaf(value []byte) ([]byte, bool) {
+	if len(value) > 0 && value[len(value)-1] == '.' {
+		return value[:len(value)-1], false
+	}
+
+	return value, true
 }

@@ -44,6 +44,8 @@ func (f *Find) WritePickle(w io.Writer) error {
 
 	p := pickle.NewWriter(w)
 
+	p.List()
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			continue
@@ -51,7 +53,7 @@ func (f *Find) WritePickle(w io.Writer) error {
 
 		p.Dict()
 
-		path, isLeaf := f.finder.Abs(rows[i])
+		path, isLeaf := finder.Leaf(rows[i])
 
 		p.String("metric_path")
 		p.Bytes(path)
@@ -93,7 +95,7 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 			continue
 		}
 
-		path, isLeaf := f.finder.Abs(rows[i])
+		path, isLeaf := finder.Leaf(rows[i])
 
 		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
 			Path:   proto.String(string(path)),

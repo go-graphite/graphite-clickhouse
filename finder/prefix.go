@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -33,6 +34,7 @@ func WrapPrefix(f Finder, prefix string) *PrefixFinder {
 func (p *PrefixFinder) Execute(query string) error {
 	qs := strings.Split(query, ".")
 
+	fmt.Println("prefix", query)
 	// check regexp
 	for _, queryPart := range qs {
 		if _, err := regexp.Compile(GlobToRegexp(queryPart)); err != nil {
@@ -66,6 +68,8 @@ func (p *PrefixFinder) Execute(query string) error {
 }
 
 func (p *PrefixFinder) List() [][]byte {
+	fmt.Println("matched", p.matched, p.part)
+
 	if p.matched == PrefixNotMatched {
 		return [][]byte{}
 	}
@@ -97,7 +101,7 @@ func (p *PrefixFinder) Series() [][]byte {
 	return p.wrapped.Series()
 }
 
-func (p *PrefixFinder) Abs(value []byte) ([]byte, bool) {
+func (p *PrefixFinder) Abs(value []byte) []byte {
 	// @TODO: call wrapped
-	return append(p.prefixBytes, value...), false
+	return append(p.prefixBytes, value...)
 }
