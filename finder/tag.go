@@ -17,6 +17,7 @@ const (
 	TagSkip                     // not _tag prefix
 	TagInfoRoot                 // query = "_tag"
 	TagList
+	TagListSeriesRoot
 )
 
 type TagQ struct {
@@ -117,6 +118,44 @@ func (t *TagFinder) tagListSQL() (string, error) {
 	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, where), nil
 }
 
+func (t *TagFinder) seriesRootSQL() (string, error) {
+	if len(t.tagQuery) == 0 {
+		return "", nil
+	}
+
+	where := ""
+	and := func(exp string) {
+		if exp == "" {
+			return
+		}
+		if where != "" {
+			where = fmt.Sprintf("%s AND (%s)", where, exp)
+		} else {
+			where = fmt.Sprintf("(%s)", exp)
+		}
+	}
+
+	and(fmt.Sprintf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table))
+	and("Level=1")
+
+	// first
+	and(t.tagQuery[0].Where("Tag1"))
+
+	if len(t.tagQuery) == 1 {
+		return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, where), nil
+	}
+
+	// 1..(n-1)
+	for i := 1; i < len(t.tagQuery); i++ {
+		cond := t.tagQuery[i].Where("x")
+		if cond != "" {
+			and(fmt.Sprintf("arrayExists((x) -> %s, Tags)", cond))
+		}
+	}
+
+	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, where), nil
+}
+
 func (t *TagFinder) MakeSQL(query string) (string, error) {
 	if query == "_tag" {
 		return "", nil
@@ -160,6 +199,12 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 		return t.tagListSQL()
 	}
 
+	if t.seriesQuery == "*" {
+		t.state = TagListSeriesRoot
+		return t.seriesRootSQL()
+	}
+
+	fmt.Println("series query", t.seriesQuery)
 	// where := ""
 
 	// AND := func(where string) string {
