@@ -138,6 +138,7 @@ func (t *TagFinder) seriesSQL() (string, error) {
 
 func (t *TagFinder) MakeSQL(query string) (string, error) {
 	if query == "_tag" {
+		t.state = TagInfoRoot
 		return "", nil
 	}
 
@@ -200,7 +201,7 @@ func (t *TagFinder) Execute(query string) error {
 		return t.wrapped.Execute(query)
 	}
 
-	if !strings.HasPrefix(query, "_tag.") {
+	if !strings.HasPrefix(query, "_tag.") && query != "_tag" {
 		return t.wrapped.Execute(query)
 	}
 
@@ -209,7 +210,9 @@ func (t *TagFinder) Execute(query string) error {
 		return err
 	}
 
-	t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+	if sql != "" {
+		t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+	}
 
 	return err
 }
