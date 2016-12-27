@@ -83,42 +83,32 @@ func (t *TagFinder) tagListSQL() (string, error) {
 		return "", nil
 	}
 
-	where := ""
-	and := func(exp string) {
-		if exp == "" {
-			return
-		}
-		if where != "" {
-			where = fmt.Sprintf("%s AND (%s)", where, exp)
-		} else {
-			where = fmt.Sprintf("(%s)", exp)
-		}
-	}
+	w := NewWhere()
 
-	and(fmt.Sprintf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table))
+	w.Andf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table)
 
 	// first
-	and(t.tagQuery[0].Where("Tag1"))
+	w.And(t.tagQuery[0].Where("Tag1"))
 
 	if len(t.tagQuery) == 1 {
-		and("Level=1")
-		return fmt.Sprintf("SELECT Tag1 FROM %s WHERE %s GROUP BY Tag1", t.table, where), nil
+		w.And("Level=1")
+		return fmt.Sprintf("SELECT Tag1 FROM %s WHERE %s GROUP BY Tag1", t.table, w), nil
 	}
 
 	// 1..(n-1)
 	for i := 1; i < len(t.tagQuery)-1; i++ {
 		cond := t.tagQuery[i].Where("x")
 		if cond != "" {
-			and(fmt.Sprintf("arrayExists((x) -> %s, Tags)", cond))
+			w.Andf("arrayExists((x) -> %s, Tags)", cond)
 		}
 	}
 
 	// last
-	and(t.tagQuery[len(t.tagQuery)-1].Where("TagN"))
+	w.And(t.tagQuery[len(t.tagQuery)-1].Where("TagN"))
 
-	and("IsLeaf=1")
+	w.And("IsLeaf=1")
 
-	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, where), nil
+	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, w), nil
 }
 
 func (t *TagFinder) seriesSQL() (string, error) {
@@ -126,34 +116,24 @@ func (t *TagFinder) seriesSQL() (string, error) {
 		return "", nil
 	}
 
-	where := ""
-	and := func(exp string) {
-		if exp == "" {
-			return
-		}
-		if where != "" {
-			where = fmt.Sprintf("%s AND (%s)", where, exp)
-		} else {
-			where = fmt.Sprintf("(%s)", exp)
-		}
-	}
+	w := NewWhere()
 
-	and(fmt.Sprintf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table))
+	w.Andf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table)
 	// first
-	and(t.tagQuery[0].Where("Tag1"))
+	w.And(t.tagQuery[0].Where("Tag1"))
 
 	// 1..(n-1)
 	for i := 1; i < len(t.tagQuery); i++ {
 		cond := t.tagQuery[i].Where("x")
 		if cond != "" {
-			and(fmt.Sprintf("arrayExists((x) -> %s, Tags)", cond))
+			w.Andf("arrayExists((x) -> %s, Tags)", cond)
 		}
 	}
 
 	base := &BaseFinder{}
-	and(base.where(t.seriesQuery))
+	w.And(base.where(t.seriesQuery))
 
-	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, where), nil
+	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, w), nil
 }
 
 func (t *TagFinder) MakeSQL(query string) (string, error) {

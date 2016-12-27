@@ -27,46 +27,37 @@ func NewBase(ctx context.Context, url string, table string, timeout time.Duratio
 	}
 }
 
-func (b *BaseFinder) where(query string) (where string) {
+func (b *BaseFinder) where(query string) string {
 	level := strings.Count(query, ".") + 1
 
-	and := func(exp string) {
-		if exp == "" {
-			return
-		}
-		if where != "" {
-			where = fmt.Sprintf("%s AND (%s)", where, exp)
-		} else {
-			where = fmt.Sprintf("(%s)", exp)
-		}
-	}
+	w := NewWhere()
 
-	and(fmt.Sprintf("Level = %d", level))
+	w.Andf("Level = %d", level)
 
 	if query == "*" {
-		return
+		return w.String()
 	}
 
 	// simple metric
 	if !HasWildcard(query) {
-		and(fmt.Sprintf("Path = %s OR Path = %s", Q(query), Q(query+".")))
-		return
+		w.Andf("Path = %s OR Path = %s", Q(query), Q(query+"."))
+		return w.String()
 	}
 
 	// before any wildcard symbol
 	simplePrefix := query[:strings.IndexAny(query, "[]{}*")]
 
 	if len(simplePrefix) > 0 {
-		and(fmt.Sprintf("Path LIKE %s", Q(simplePrefix+`%`)))
+		w.Andf("Path LIKE %s", Q(simplePrefix+`%`))
 	}
 
 	// prefix search like "metric.name.xx*"
 	if len(simplePrefix) == len(query)-1 && query[len(query)-1] == '*' {
-		return
+		return w.String()
 	}
 
-	and(fmt.Sprintf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`$`)))
-	return
+	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`$`))
+	return w.String()
 }
 
 func (b *BaseFinder) Execute(query string) (err error) {
