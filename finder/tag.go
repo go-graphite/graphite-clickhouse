@@ -279,16 +279,31 @@ func (t *TagFinder) List() [][]byte {
 func (t *TagFinder) Series() [][]byte {
 	switch t.state {
 	case TagSkip:
-		return t.wrapped.List()
+		return t.wrapped.Series()
 	case TagInfoRoot:
 		return EmptyList
 	case TagRoot:
 		return t.wrapped.Series()
-	default:
-		return EmptyList
 	}
 
-	return EmptyList
+	rows := t.List()
+
+	skip := 0
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			skip++
+			continue
+		}
+		if rows[i][len(rows[i])-1] == '.' {
+			skip++
+			continue
+		}
+		if skip > 0 {
+			rows[i-skip] = rows[i]
+		}
+	}
+
+	return rows
 }
 
 func (t *TagFinder) Abs(v []byte) []byte {

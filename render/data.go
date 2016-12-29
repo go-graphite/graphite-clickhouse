@@ -7,7 +7,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
@@ -43,7 +43,7 @@ type Data struct {
 	Points   []point.Point
 	nameToID map[string]int
 	maxID    int
-	Finder   *find.Finder
+	Finder   finder.Finder
 }
 
 func (d *Data) NameToID(name string) int {

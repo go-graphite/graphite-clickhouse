@@ -14,7 +14,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/pickle"
@@ -51,19 +51,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Search in small index table first
-	finder, err := find.NewFinder(target, h.config, r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	finder := finder.New(r.Context(), h.config)
 
-	err = finder.Execute()
+	err = finder.Execute(target)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	metricList := finder.List()
+	metricList := finder.Series()
 
 	maxStep := int32(0)
 
@@ -196,7 +192,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		p.Dict()
 
 		p.String("name")
-		p.String(data.Finder.Path(points[0].Metric))
+		p.Bytes(data.Finder.Abs([]byte(points[0].Metric)))
 		p.SetItem()
 
 		p.String("step")
@@ -274,7 +270,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		points, step := h.config.Rollup.RollupMetric(points)
 
 		var name string
-		name = data.Finder.Path(points[0].Metric)
+		name = string(data.Finder.Abs([]byte(points[0].Metric)))
 
 		start := from - (from % step)
 		if start < from {

@@ -73,7 +73,7 @@ func (b *BaseFinder) Execute(query string) (err error) {
 	return
 }
 
-func (b *BaseFinder) List() [][]byte {
+func (b *BaseFinder) makeList(onlySeries bool) [][]byte {
 	if b.body == nil {
 		return [][]byte{}
 	}
@@ -83,6 +83,10 @@ func (b *BaseFinder) List() [][]byte {
 	skip := 0
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
+			skip++
+			continue
+		}
+		if onlySeries && rows[i][len(rows[i])-1] == '.' {
 			skip++
 			continue
 		}
@@ -96,11 +100,14 @@ func (b *BaseFinder) List() [][]byte {
 	return rows
 }
 
-func (b *BaseFinder) Series() [][]byte {
-	return nil
+func (b *BaseFinder) List() [][]byte {
+	return b.makeList(false)
 }
 
-func (b *BaseFinder) Abs([]byte) []byte {
-	// @TODO
-	return nil
+func (b *BaseFinder) Series() [][]byte {
+	return b.makeList(true)
+}
+
+func (b *BaseFinder) Abs(v []byte) []byte {
+	return v
 }

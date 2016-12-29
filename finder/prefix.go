@@ -98,6 +98,5 @@ func (p *PrefixFinder) Series() [][]byte {
 }
 
 func (p *PrefixFinder) Abs(value []byte) []byte {
-	// @TODO: call wrapped
-	return append(p.prefixBytes, value...)
+	return append(p.prefixBytes, p.wrapped.Abs(value)...)
 }
