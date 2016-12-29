@@ -19,6 +19,7 @@ const (
 	TagList
 	TagListSeriesRoot
 	TagListSeries
+	TagListParam
 )
 
 type TagQ struct {
@@ -176,7 +177,11 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	}
 
 	if t.seriesQuery == "" {
-		t.state = TagList
+		if len(t.tagQuery) > 0 && t.tagQuery[len(t.tagQuery)-1].Param != nil {
+			t.state = TagListParam
+		} else {
+			t.state = TagList
+		}
 		return t.tagListSQL()
 	}
 
@@ -247,11 +252,20 @@ func (t *TagFinder) List() [][]byte {
 
 	rows = rows[:len(rows)-skip]
 
-	if t.state == TagList {
+	if t.state == TagList || t.state == TagListParam {
 		// add dots
-		// @TODO: optimize?
 		for i := 0; i < len(rows); i++ {
-			rows[i] = append(rows[i], '.')
+			eqIndex := bytes.IndexByte(rows[i], '=')
+			if eqIndex > 0 && eqIndex < len(rows[i])-1 {
+				if t.state == TagListParam {
+					rows[i] = append(rows[i][eqIndex+1:], '.')
+				} else {
+					rows[i][eqIndex+1] = '.'
+					rows[i] = rows[i][:eqIndex+2]
+				}
+			} else {
+				rows[i] = append(rows[i], '.')
+			}
 		}
 	}
 
