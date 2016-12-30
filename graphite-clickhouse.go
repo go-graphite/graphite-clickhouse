@@ -57,14 +57,16 @@ func Handler(logger zap.Logger, handler http.Handler) http.Handler {
 			requestID = fmt.Sprintf("%d", atomic.AddUint32(&requestCounter, 1))
 		}
 
-		logger := logger.With(zap.String("requestID", requestID))
+		logger := logger.With(zap.String("request_id", requestID))
 
 		r = r.WithContext(context.WithValue(r.Context(), "logger", logger))
 
 		start := time.Now()
 		handler.ServeHTTP(w, r)
+		d := time.Since(start)
 		logger.Info("access",
-			zap.Int("time_ms", int(time.Since(start)/time.Millisecond)),
+			zap.String("runtime", d.String()),
+			zap.Duration("runtime_ns", d),
 			zap.String("method", r.Method),
 			zap.String("url", r.URL.String()),
 			zap.String("peer", r.RemoteAddr),

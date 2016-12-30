@@ -61,8 +61,8 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip 
 	defer func() {
 		d := time.Since(start)
 		log := logger.With(
-			zap.Duration("time_ns", d),
-			zap.String("time", d.String()),
+			zap.Duration("runtime_ns", d),
+			zap.String("runtime", d.String()),
 		)
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
 		if err != nil {

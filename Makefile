@@ -26,6 +26,7 @@ test:
 	$(GO) test $(MODULE)/config
 	$(GO) test $(MODULE)/find
 	$(GO) test $(MODULE)/render
+	$(GO) test $(MODULE)/finder
 
 gox-build:
 	rm -rf out

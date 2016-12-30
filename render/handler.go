@@ -137,11 +137,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debug("parse", zap.Duration("time_ns", time.Since(parseStart)))
+	d := time.Since(parseStart)
+	logger.Debug("parse", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
 	sortStart := time.Now()
 	sort.Sort(data)
-	logger.Debug("sort", zap.Duration("time_ns", time.Since(sortStart)))
+	d = time.Since(sortStart)
+	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
 	data.Points = point.Uniq(data.Points)
 	data.Finder = finder
@@ -158,7 +160,8 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from
 	case "protobuf":
 		h.ReplyProtobuf(w, r, data, from, until, prefix)
 	}
-	log.FromContext(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
+	d := time.Since(start)
+	log.FromContext(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }
 
 func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
@@ -168,8 +171,14 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	points := data.Points
 
 	defer func() {
-		log.FromContext(r.Context()).Debug("rollup", zap.Duration("time_ns", rollupTime))
-		log.FromContext(r.Context()).Debug("pickle", zap.Duration("time_ns", pickleTime))
+		log.FromContext(r.Context()).Debug("rollup",
+			zap.String("runtime", rollupTime.String()),
+			zap.Duration("runtime_ns", rollupTime),
+		)
+		log.FromContext(r.Context()).Debug("pickle",
+			zap.String("runtime", pickleTime.String()),
+			zap.Duration("runtime_ns", pickleTime),
+		)
 	}()
 
 	if len(points) == 0 {

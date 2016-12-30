@@ -66,7 +66,7 @@ func (b *BaseFinder) Execute(query string) (err error) {
 	b.body, err = clickhouse.Query(
 		b.ctx,
 		b.url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, where),
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Version, Deleted)==0", b.table, where),
 		b.timeout,
 	)
 

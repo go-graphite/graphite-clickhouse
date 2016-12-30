@@ -73,8 +73,8 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		runtime.ReadMemStats(&m)
 		d := time.Since(start)
 		logger.Info(block,
-			zap.String("time", d.String()),
-			zap.Duration("time_ns", d),
+			zap.String("runtime", d.String()),
+			zap.Duration("runtime_ns", d),
 			zap.Uint64("mem_rss_mb", (m.Sys-m.HeapReleased)/1048576),
 		)
 	}
@@ -107,7 +107,7 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		body, err = clickhouse.Query(
 			context.WithValue(context.Background(), "logger", logger),
 			cfg.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path FORMAT RowBinary", cfg.ClickHouse.TreeTable),
+			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path HAVING argMax(Version, Deleted)==0 FORMAT RowBinary", cfg.ClickHouse.TreeTable),
 			cfg.ClickHouse.TreeTimeout.Value(),
 		)
 	}
