@@ -63,6 +63,7 @@ type TagFinder struct {
 	state       TagState
 	tagQuery    []TagQ
 	seriesQuery string
+	tagPrefix   []byte
 	body        []byte // clickhouse response
 }
 
@@ -143,7 +144,8 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 		return "", nil
 	}
 
-	qs := strings.Split(query, ".")
+	qs0 := strings.Split(query, ".")
+	qs := qs0
 
 	t.tagQuery = make([]TagQ, 0)
 
@@ -174,6 +176,10 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 			t.seriesQuery = strings.Join(qs, ".")
 			break
 		}
+	}
+
+	if len(qs0) > len(qs) {
+		t.tagPrefix = append([]byte(strings.Join(qs0[:len(qs0)-len(qs)], ".")), '.')
 	}
 
 	if t.seriesQuery == "" {
@@ -307,6 +313,9 @@ func (t *TagFinder) Series() [][]byte {
 }
 
 func (t *TagFinder) Abs(v []byte) []byte {
-	// @TODO
-	return v
+	if t.state == TagSkip {
+		return t.wrapped.Abs(v)
+	}
+
+	return append(t.tagPrefix, v...)
 }
