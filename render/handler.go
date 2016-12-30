@@ -14,7 +14,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/pickle"
@@ -38,19 +38,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var prefix string
 	var err error
 
-	if h.config.ClickHouse.ExtraPrefix != "" {
-		prefix, target, err = find.RemoveExtraPrefix(h.config.ClickHouse.ExtraPrefix, target)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if target == "" {
-			h.Reply(w, r, make([]point.Point, 0), 0, 0, "")
-			return
-		}
-	}
-
 	fromTimestamp, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 32)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -63,67 +50,48 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var pathWhere string
+	// Search in small index table first
+	finder := finder.New(r.Context(), h.config)
+
+	err = finder.Execute(target)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	metricList := finder.Series()
 
 	maxStep := int32(0)
-	if find.HasWildcard(target) {
-		// Search in small index table first
-		treeWhere := find.MakeWhere(target, true)
-		if treeWhere == "" {
-			http.Error(w, "Bad or unsupported query", http.StatusBadRequest)
-			return
+
+	listBuf := bytes.NewBuffer(nil)
+
+	// make Path IN (...), calculate max step
+	for index, m := range metricList {
+		if len(m) == 0 {
+			continue
+		}
+		step := h.config.Rollup.Step(unsafeString(m), int32(fromTimestamp))
+		if step > maxStep {
+			maxStep = step
 		}
 
-		treeData, err := clickhouse.Query(
-			r.Context(),
-			h.config.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", h.config.ClickHouse.TreeTable, treeWhere),
-			h.config.ClickHouse.TreeTimeout.Value(),
-		)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if index > 0 {
+			listBuf.Write([]byte{','})
 		}
 
-		listBuf := bytes.NewBuffer(nil)
-		first := true
-		for _, p := range bytes.Split(treeData, []byte{'\n'}) {
-			if len(p) == 0 {
-				continue
-			}
-			step := h.config.Rollup.Step(unsafeString(p), int32(fromTimestamp))
-			if step > maxStep {
-				maxStep = step
-			}
-
-			if !first {
-				listBuf.Write([]byte{','})
-			}
-			first = false
-
-			listBuf.WriteString("'" + clickhouse.Escape(unsafeString(p)) + "'")
-		}
-
-		if listBuf.Len() == 0 {
-			h.Reply(w, r, make([]point.Point, 0), 0, 0, "")
-			return
-		}
-
-		pathWhere = fmt.Sprintf(
-			"Path IN (%s)",
-			string(listBuf.Bytes()),
-		)
-
-		// pathWhere = fmt.Sprintf(
-		// 	"Path IN (SELECT Path FROM %s WHERE %s)",
-		// 	h.config.ClickHouse.DataTable,
-		// )
-		// pathWhere = makeWhere(target, false)
-	} else {
-		pathWhere = fmt.Sprintf("Path = '%s'", clickhouse.Escape(target))
-		maxStep = h.config.Rollup.Step(target, int32(fromTimestamp))
+		listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
 	}
+
+	if listBuf.Len() == 0 {
+		// Return empty response
+		h.Reply(w, r, &Data{Points: make([]point.Point, 0), Finder: finder}, 0, 0, "")
+		return
+	}
+
+	var pathWhere = fmt.Sprintf(
+		"Path IN (%s)",
+		string(listBuf.Bytes()),
+	)
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	dateWhere := fmt.Sprintf(
@@ -176,25 +144,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("sort", zap.Duration("time_ns", time.Since(sortStart)))
 
 	data.Points = point.Uniq(data.Points)
+	data.Finder = finder
 
 	// pp.Println(points)
-	h.Reply(w, r, data.Points, int32(fromTimestamp), int32(untilTimestamp), prefix)
+	h.Reply(w, r, data, int32(fromTimestamp), int32(untilTimestamp), prefix)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
 	start := time.Now()
 	switch r.URL.Query().Get("format") {
 	case "pickle":
-		h.ReplyPickle(w, r, points, from, until, prefix)
+		h.ReplyPickle(w, r, data, from, until, prefix)
 	case "protobuf":
-		h.ReplyProtobuf(w, r, points, from, until, prefix)
+		h.ReplyProtobuf(w, r, data, from, until, prefix)
 	}
 	log.FromContext(r.Context()).Debug("reply", zap.Duration("time_ns", time.Since(start)))
 }
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
+
+	points := data.Points
 
 	defer func() {
 		log.FromContext(r.Context()).Debug("rollup", zap.Duration("time_ns", rollupTime))
@@ -221,11 +192,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []p
 		p.Dict()
 
 		p.String("name")
-		if prefix != "" {
-			p.String(prefix + "." + points[0].Metric)
-		} else {
-			p.String(points[0].Metric)
-		}
+		p.Bytes(data.Finder.Abs([]byte(points[0].Metric)))
 		p.SetItem()
 
 		p.String("step")
@@ -290,7 +257,9 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, points []p
 	p.Stop()
 }
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points []point.Point, from, until int32, prefix string) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
+	points := data.Points
+
 	if len(points) == 0 {
 		return
 	}
@@ -301,12 +270,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, points [
 		points, step := h.config.Rollup.RollupMetric(points)
 
 		var name string
-
-		if prefix != "" {
-			name = prefix + "." + points[0].Metric
-		} else {
-			name = points[0].Metric
-		}
+		name = string(data.Finder.Abs([]byte(points[0].Metric)))
 
 		start := from - (from % step)
 		if start < from {

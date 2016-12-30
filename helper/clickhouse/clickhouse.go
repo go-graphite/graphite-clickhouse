@@ -2,7 +2,9 @@ package clickhouse
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -13,6 +15,10 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/log"
 )
+
+var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
+var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
+var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
 
 func formatSQL(q string) string {
 	s := strings.Split(q, "\n")
@@ -29,7 +35,19 @@ func Escape(s string) string {
 	return s
 }
 
-func Query(ctx context.Context, dsn string, query string, timeout time.Duration) (body []byte, err error) {
+func Query(ctx context.Context, dsn string, query string, timeout time.Duration) ([]byte, error) {
+	return Post(ctx, dsn, query, nil, timeout)
+}
+
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, false, timeout)
+}
+
+func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, true, timeout)
+}
+
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
 	logger := log.FromContext(ctx)
@@ -41,12 +59,16 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	logger = logger.With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
-		log := logger.With(zap.Duration("time_ns", time.Since(start)))
-
+		d := time.Since(start)
+		log := logger.With(
+			zap.Duration("time_ns", d),
+			zap.String("time", d.String()),
+		)
+		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
 		if err != nil {
 			log.Error("query", zap.Error(err))
 		} else {
-			log.Debug("query")
+			log.Info("query")
 		}
 	}()
 
@@ -55,11 +77,23 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 		return
 	}
 
+	if postBody != nil {
+		q := p.Query()
+		q.Set("query", query)
+		p.RawQuery = q.Encode()
+	} else {
+		postBody = strings.NewReader(query)
+	}
+
 	url := p.String()
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(query))
+	req, err := http.NewRequest("POST", url, postBody)
 	if err != nil {
 		return
+	}
+
+	if gzip {
+		req.Header.Add("Content-Encoding", "gzip")
 	}
 
 	client := &http.Client{Timeout: timeout}
@@ -72,11 +106,28 @@ func Query(ctx context.Context, dsn string, query string, timeout time.Duration)
 	body, _ = ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		// logrus.Errorf("[clickhouse] (time: %s, error: %s) %s", time.Now().Sub(start).String(), string(body), formatSQL(query))
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
 		return
 	}
 
-	// logrus.Debugf("[clickhouse] (time: %s) %s", time.Now().Sub(start).String(), formatSQL(query))
 	return
+}
+
+func ReadUvarint(array []byte) (uint64, int, error) {
+	var x uint64
+	var s uint
+	l := len(array) - 1
+	for i := 0; ; i++ {
+		if i > l {
+			return x, i + 1, ErrUvarintRead
+		}
+		if array[i] < 0x80 {
+			if i > 9 || i == 9 && array[i] > 1 {
+				return x, i + 1, ErrUvarintOverflow
+			}
+			return x | uint64(array[i])<<s, i + 1, nil
+		}
+		x |= uint64(array[i]&0x7f) << s
+		s += 7
+	}
 }
