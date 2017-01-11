@@ -3,6 +3,7 @@ package tagger
 import (
 	"bytes"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 
 	"github.com/BurntSushi/toml"
@@ -39,6 +40,26 @@ func ParseFile(filename string) (*Rules, error) {
 	}
 
 	return Parse(string(c))
+}
+
+func ParseGlob(glob string) (*Rules, error) {
+	content := []byte{}
+
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(files); i++ {
+		c, err := ioutil.ReadFile(files[i])
+		if err != nil {
+			return nil, err
+		}
+
+		content = append(append(content, '\n'), c...)
+	}
+
+	return Parse(string(content))
 }
 
 func Parse(content string) (*Rules, error) {

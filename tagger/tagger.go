@@ -83,7 +83,7 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 
 	// Parse rules
 	begin("parse rules")
-	rules, err := ParseFile(cfg.Tags.Rules)
+	rules, err := ParseGlob(cfg.Tags.Rules)
 	if err != nil {
 		return err
 	}

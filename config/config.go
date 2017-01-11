@@ -102,7 +102,8 @@ func New() *Config {
 			TagTable:   "",
 		},
 		Tags: Tags{
-			Date: "2016-11-01",
+			Date:  "2016-11-01",
+			Rules: "/etc/graphite-clickhouse/tag.d/*.conf",
 		},
 		Logging: Logging{
 			File:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
