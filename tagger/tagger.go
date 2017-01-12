@@ -107,7 +107,7 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		body, err = clickhouse.Query(
 			context.WithValue(context.Background(), "logger", logger),
 			cfg.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path HAVING argMax(Version, Deleted)==0 FORMAT RowBinary", cfg.ClickHouse.TreeTable),
+			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path HAVING argMax(Deleted, Version)==0 FORMAT RowBinary", cfg.ClickHouse.TreeTable),
 			cfg.ClickHouse.TreeTimeout.Value(),
 		)
 	}
