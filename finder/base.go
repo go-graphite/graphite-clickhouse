@@ -56,7 +56,9 @@ func (b *BaseFinder) where(query string) string {
 		return w.String()
 	}
 
-	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`.?$`))
+	// Q() replaces \ with \\, so using \. does not work here.
+	// work around with [.]
+	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`[.]?$`))
 	return w.String()
 }
 
