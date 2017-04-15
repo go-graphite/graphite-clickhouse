@@ -55,6 +55,57 @@ func TestParseXML(t *testing.T) {
 	}
 }
 
+
+func TestParseClickhouseXML(t *testing.T) {
+	config := `
+<yandex>
+	<graphite_rollup>
+		<pattern>
+			<regexp>click_cost</regexp>
+			<function>any</function>
+			<retention>
+				<age>0</age>
+				<precision>3600</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>60</precision>
+			</retention>
+		</pattern>
+		<default>
+			<function>max</function>
+			<retention>
+				<age>0</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>3600</age>
+				<precision>300</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+		</default>
+	</graphite_rollup>
+</yandex>
+`
+
+	r, err := ParseXML([]byte(config))
+	t.Logf("%+v", r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Pattern[0].Retention[1].Age != 86400 {
+		t.FailNow()
+	}
+
+	if r.Default.Retention[2].Precision != 3600 {
+		t.FailNow()
+	}
+}
+
 func TestMetricPrecision(t *testing.T) {
 	tests := [][2][]point.Point{
 		{

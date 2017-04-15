@@ -59,6 +59,10 @@ type Rollup struct {
 	Default *Pattern   `xml:"default"`
 }
 
+type ClickhouseRollup struct {
+	Rollup Rollup `xml:"graphite_rollup"`
+}
+
 func (rr *Pattern) compile(hasRegexp bool) error {
 	var err error
 	if hasRegexp {
@@ -114,6 +118,16 @@ func ParseXML(body []byte) (*Rollup, error) {
 	err := xml.Unmarshal(body, r)
 	if err != nil {
 		return nil, err
+	}
+
+	// Maybe we've got Clickhouse's graphite.xml?
+	if r.Default == nil && r.Pattern == nil {
+		y := &ClickhouseRollup{}
+		err = xml.Unmarshal(body, y)
+		if err != nil {
+			return nil, err
+		}
+		r = &y.Rollup
 	}
 
 	err = r.compile()
