@@ -1,6 +1,10 @@
 package point
 
-import "testing"
+import (
+	"math"
+
+	"testing"
+)
 
 // CleanUp removes points with empty metric
 // for run after Deduplicate, Merge, etc for result cleanup
@@ -9,7 +13,7 @@ func CleanUp(points []Point) []Point {
 	squashed := 0
 
 	for i := 0; i < l; i++ {
-		if points[i].Metric == "" {
+		if points[i].Metric == "" || math.IsNaN(points[i].Value) {
 			squashed++
 			continue
 		}
