@@ -16,6 +16,10 @@ type Finder interface {
 func New(ctx context.Context, config *config.Config) Finder {
 	f := NewBase(ctx, config.ClickHouse.Url, config.ClickHouse.TreeTable, config.ClickHouse.TreeTimeout.Value())
 
+	if config.ClickHouse.ReverseTreeTable != "" {
+		f = WrapReverse(f, ctx, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, config.ClickHouse.TreeTimeout.Value())
+	}
+
 	if config.ClickHouse.TagTable != "" {
 		f = WrapTag(f, ctx, config.ClickHouse.Url, config.ClickHouse.TagTable, config.ClickHouse.TreeTimeout.Value())
 	}

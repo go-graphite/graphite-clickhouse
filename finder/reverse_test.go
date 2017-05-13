@@ -18,6 +18,8 @@ func TestReverse(t *testing.T) {
 	}
 
 	for i := 0; i < len(table); i += 2 {
-		assert.Equal(table[i+1], Reverse(table[i]))
+		assert.Equal(table[i+1], ReverseString(table[i]))
+
+		assert.Equal([]byte(table[i+1]), ReverseBytes([]byte(table[i])))
 	}
 }

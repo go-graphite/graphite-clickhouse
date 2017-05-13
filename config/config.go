@@ -44,14 +44,15 @@ type Common struct {
 }
 
 type ClickHouse struct {
-	Url         string    `toml:"url"`
-	DataTable   string    `toml:"data-table"`
-	DataTimeout *Duration `toml:"data-timeout"`
-	TreeTable   string    `toml:"tree-table"`
-	TreeTimeout *Duration `toml:"tree-timeout"`
-	TagTable    string    `toml:"tag-table"`
-	RollupConf  string    `toml:"rollup-conf"`
-	ExtraPrefix string    `toml:"extra-prefix"`
+	Url              string    `toml:"url"`
+	DataTable        string    `toml:"data-table"`
+	DataTimeout      *Duration `toml:"data-timeout"`
+	TreeTable        string    `toml:"tree-table"`
+	ReverseTreeTable string    `toml:"reverse-tree-table"`
+	TreeTimeout      *Duration `toml:"tree-timeout"`
+	TagTable         string    `toml:"tag-table"`
+	RollupConf       string    `toml:"rollup-conf"`
+	ExtraPrefix      string    `toml:"extra-prefix"`
 }
 
 type Tags struct {
