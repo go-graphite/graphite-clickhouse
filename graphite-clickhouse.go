@@ -15,7 +15,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/tagger"
 	"github.com/lomik/zapwriter"
-	"github.com/uber-go/zap"
+	"go.uber.org/zap"
 
 	_ "net/http/pprof"
 )
@@ -47,7 +47,7 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
-func Handler(logger zap.Logger, handler http.Handler) http.Handler {
+func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 	var requestCounter uint32
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
@@ -65,8 +65,7 @@ func Handler(logger zap.Logger, handler http.Handler) http.Handler {
 		handler.ServeHTTP(w, r)
 		d := time.Since(start)
 		logger.Info("access",
-			zap.String("runtime", d.String()),
-			zap.Duration("runtime_ns", d),
+			zap.Duration("time", d),
 			zap.String("method", r.Method),
 			zap.String("url", r.URL.String()),
 			zap.String("peer", r.RemoteAddr),
@@ -95,14 +94,14 @@ func main() {
 	}
 
 	if *printDefaultConfig {
-		if err = config.Print(config.New()); err != nil {
+		if err = config.PrintDefaultConfig(); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
 
-	cfg := config.New()
-	if err := config.Parse(*configFile, cfg); err != nil {
+	cfg, err := config.ReadConfig(*configFile)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -110,33 +109,18 @@ func main() {
 	if *checkConfig {
 		return
 	}
+
+	if err = zapwriter.ApplyConfig(cfg.Logging); err != nil {
+		log.Fatal(err)
+	}
+
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
-
-	zapOutput, err := zapwriter.New(cfg.Logging.File)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var logLevel zap.Level
-	if err = logLevel.UnmarshalText([]byte(cfg.Logging.Level)); err != nil {
-		log.Fatal(err)
-	}
-
-	dynamicLevel := zap.DynamicLevel()
-	dynamicLevel.SetLevel(logLevel)
-
-	logger := zap.New(
-		zapwriter.NewMixedEncoder(),
-		zap.AddCaller(),
-		zap.Output(zapOutput),
-		dynamicLevel,
-	)
 
 	/* CONFIG end */
 
 	/* CONSOLE COMMANDS start */
 	if *tags {
-		if err := tagger.Make(cfg, logger.With(zap.String("module", "tagger"))); err != nil {
+		if err := tagger.Make(cfg); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -144,10 +128,10 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
-	http.Handle("/metrics/find/", Handler(logger, find.NewHandler(cfg)))
-	http.Handle("/render/", Handler(logger, render.NewHandler(cfg)))
+	http.Handle("/metrics/find/", Handler(zapwriter.Default(), find.NewHandler(cfg)))
+	http.Handle("/render/", Handler(zapwriter.Default(), render.NewHandler(cfg)))
 
-	http.Handle("/", Handler(logger, http.HandlerFunc(http.NotFound)))
+	http.Handle("/", Handler(zapwriter.Default(), http.HandlerFunc(http.NotFound)))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, nil))
 }

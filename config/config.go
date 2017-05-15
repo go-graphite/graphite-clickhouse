@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/zapwriter"
 )
 
 // Duration wrapper time.Duration for TOML
@@ -62,18 +64,13 @@ type Tags struct {
 	OutputFile string `toml:"output-file"`
 }
 
-type Logging struct {
-	File  string `toml:"file"`
-	Level string `toml:"level"`
-}
-
 // Config ...
 type Config struct {
-	Common     Common         `toml:"common"`
-	ClickHouse ClickHouse     `toml:"clickhouse"`
-	Tags       Tags           `toml:"tags"`
-	Logging    Logging        `toml:"logging"`
-	Rollup     *rollup.Rollup `toml:"-"`
+	Common     Common             `toml:"common"`
+	ClickHouse ClickHouse         `toml:"clickhouse"`
+	Tags       Tags               `toml:"tags"`
+	Logging    []zapwriter.Config `toml:"logging"`
+	Rollup     *rollup.Rollup     `toml:"-"`
 }
 
 // NewConfig ...
@@ -106,18 +103,30 @@ func New() *Config {
 			Date:  "2016-11-01",
 			Rules: "/etc/graphite-clickhouse/tag.d/*.conf",
 		},
-		Logging: Logging{
-			File:  "/var/log/graphite-clickhouse/graphite-clickhouse.log",
-			Level: "info",
-		},
+		Logging: nil,
 	}
 
 	return cfg
 }
 
+func NewLoggingConfig() zapwriter.Config {
+	cfg := zapwriter.NewConfig()
+	cfg.File = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
+	return cfg
+}
+
 // PrintConfig ...
-func Print(cfg interface{}) error {
+func PrintDefaultConfig() error {
+	cfg := New()
 	buf := new(bytes.Buffer)
+
+	if cfg.Logging == nil {
+		cfg.Logging = make([]zapwriter.Config, 0)
+	}
+
+	if len(cfg.Logging) == 0 {
+		cfg.Logging = append(cfg.Logging, NewLoggingConfig())
+	}
 
 	encoder := toml.NewEncoder(buf)
 	encoder.Indent = ""
@@ -130,25 +139,42 @@ func Print(cfg interface{}) error {
 	return nil
 }
 
-// Parse ...
-func Parse(filename string, cfg *Config) error {
+// ReadConfig ...
+func ReadConfig(filename string) (*Config, error) {
+	var err error
+
+	cfg := New()
 	if filename != "" {
-		if _, err := toml.DecodeFile(filename, cfg); err != nil {
-			return err
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+
+		body := string(b)
+
+		// @TODO: fix for config starts with [logging]
+		body = strings.Replace(body, "\n[logging]\n", "\n[[logging]]\n", -1)
+
+		if _, err := toml.Decode(body, cfg); err != nil {
+			return nil, err
 		}
 	}
 
-	rollupConfBody, err := ioutil.ReadFile(cfg.ClickHouse.RollupConf)
-	if err != nil {
-		return err
+	if cfg.Logging == nil {
+		cfg.Logging = make([]zapwriter.Config, 0)
 	}
 
-	r, err := rollup.ParseXML(rollupConfBody)
-	if err != nil {
-		return err
+	if len(cfg.Logging) == 0 {
+		cfg.Logging = append(cfg.Logging, NewLoggingConfig())
 	}
 
-	cfg.Rollup = r
+	if err := zapwriter.CheckConfig(cfg.Logging, nil); err != nil {
+		return nil, err
+	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }

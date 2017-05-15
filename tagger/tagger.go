@@ -11,11 +11,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/uber-go/zap"
+	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/RowBinary"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/zapwriter"
 )
 
 func unsafeString(b []byte) string {
@@ -59,9 +60,12 @@ func pathLevel(path []byte) int {
 	return bytes.Count(path, []byte{'.'}) + 1
 }
 
-func Make(cfg *config.Config, logger zap.Logger) error {
+func Make(cfg *config.Config) error {
 	var start time.Time
 	var block string
+
+	logger := zapwriter.Logger("tagger")
+
 	begin := func(b string) {
 		block = b
 		start = time.Now()
@@ -73,8 +77,7 @@ func Make(cfg *config.Config, logger zap.Logger) error {
 		runtime.ReadMemStats(&m)
 		d := time.Since(start)
 		logger.Info(block,
-			zap.String("runtime", d.String()),
-			zap.Duration("runtime_ns", d),
+			zap.Duration("time", d),
 			zap.Uint64("mem_rss_mb", (m.Sys-m.HeapReleased)/1048576),
 		)
 	}

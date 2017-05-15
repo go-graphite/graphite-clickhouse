@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/uber-go/zap"
+	"github.com/lomik/zapwriter"
 
-	"github.com/lomik/graphite-clickhouse/helper/log"
+	"go.uber.org/zap"
 )
 
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
@@ -50,19 +50,16 @@ func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader,
 func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (body []byte, err error) {
 	start := time.Now()
 
-	logger := log.FromContext(ctx)
-
 	queryForLogger := query
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:495] + "<...>"
 	}
-	logger = logger.With(zap.String("query", formatSQL(queryForLogger)))
+	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
 		d := time.Since(start)
 		log := logger.With(
-			zap.Duration("runtime_ns", d),
-			zap.String("runtime", d.String()),
+			zap.Duration("time", d),
 		)
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
 		if err != nil {

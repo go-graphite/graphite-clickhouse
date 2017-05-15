@@ -3,17 +3,17 @@ package log
 import (
 	"context"
 
-	"github.com/uber-go/zap"
+	"go.uber.org/zap"
 )
 
-func FromContext(ctx context.Context) zap.Logger {
+func FromContext(ctx context.Context) *zap.Logger {
 	logger := ctx.Value("logger")
 	if logger == nil {
-		return zap.New(zap.NullEncoder())
+		return zap.NewNop()
 	}
-	if zapLogger, ok := logger.(zap.Logger); ok {
+	if zapLogger, ok := logger.(*zap.Logger); ok {
 		return zapLogger
 	}
 
-	return zap.New(zap.NullEncoder())
+	return zap.NewNop()
 }
