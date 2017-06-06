@@ -4,6 +4,7 @@ go:
 - 1.7.3
 
 script:
+- make submodules
 - make
 - make test
 
