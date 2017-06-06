@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/uber-go/zap"
+	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
 )
@@ -46,7 +46,7 @@ func TestFind(t *testing.T) {
 			nil,
 		)
 
-		logger := zap.New(zap.NewJSONEncoder())
+		logger := zap.NewNop()
 		// logger.SetLevel(-1000)
 		r = r.WithContext(context.WithValue(r.Context(), "logger", logger))
 		handler.ServeHTTP(w, r)
