@@ -172,9 +172,17 @@ func ReadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 
+	rollupConfBody, err := ioutil.ReadFile(cfg.ClickHouse.RollupConf)
 	if err != nil {
 		return nil, err
 	}
+
+	r, err := rollup.ParseXML(rollupConfBody)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg.Rollup = r
 
 	return cfg, nil
 }
