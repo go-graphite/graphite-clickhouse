@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,7 +43,9 @@ type Common struct {
 	// MetricPrefix   string    `toml:"metric-prefix"`
 	// MetricInterval *Duration `toml:"metric-interval"`
 	// MetricEndpoint string    `toml:"metric-endpoint"`
-	MaxCPU int `toml:"max-cpu"`
+	MaxCPU          int              `toml:"max-cpu"`
+	TargetBlacklist []string         `toml:"target-blacklist"`
+	Blacklist       []*regexp.Regexp `toml:"-"` // compiled TargetBlacklist
 }
 
 type ClickHouse struct {
@@ -64,10 +67,21 @@ type Tags struct {
 	OutputFile string `toml:"output-file"`
 }
 
+type DataTable struct {
+	Table       string    `toml:"table"`
+	Reverse     bool      `toml:"reverse"`
+	MaxAge      *Duration `toml:"max-age"`
+	MinAge      *Duration `toml:"min-age"`
+	MaxInterval *Duration `toml:"max-interval"`
+	MinInterval *Duration `toml:"min-interval"`
+	TargetMatch string    `toml:"target-match"`
+}
+
 // Config ...
 type Config struct {
 	Common     Common             `toml:"common"`
 	ClickHouse ClickHouse         `toml:"clickhouse"`
+	DataTable  []DataTable        `toml:"data-table"`
 	Tags       Tags               `toml:"tags"`
 	Logging    []zapwriter.Config `toml:"logging"`
 	Rollup     *rollup.Rollup     `toml:"-"`
@@ -183,6 +197,18 @@ func ReadConfig(filename string) (*Config, error) {
 	}
 
 	cfg.Rollup = r
+
+	l := len(cfg.Common.TargetBlacklist)
+	if l > 0 {
+		cfg.Common.Blacklist = make([]*regexp.Regexp, l)
+		for i := 0; i < l; i++ {
+			r, err := regexp.Compile(cfg.Common.TargetBlacklist[i])
+			if err != nil {
+				return nil, err
+			}
+			cfg.Common.Blacklist[i] = r
+		}
+	}
 
 	return cfg, nil
 }
