@@ -102,7 +102,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		until,
 	)
 
-	// @TODO: change format to RowBinary
 	query := fmt.Sprintf(
 		`
 		SELECT 
