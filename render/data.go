@@ -80,14 +80,14 @@ func DataCount(body []byte) (int, error) {
 	return 0, nil
 }
 
-func DataParse(body []byte) (*Data, error) {
+func DataParse(body []byte, extraPoints []point.Point) (*Data, error) {
 	count, err := DataCount(body)
 	if err != nil {
 		return nil, err
 	}
 
 	d := &Data{
-		Points:   make([]point.Point, count),
+		Points:   make([]point.Point, count+len(extraPoints)),
 		nameToID: make(map[string]int),
 	}
 
@@ -96,6 +96,13 @@ func DataParse(body []byte) (*Data, error) {
 	readBytes := 0
 	bodyLen := len(body)
 	index := 0
+
+	// add extraPoints. With NameToID
+	for i := 0; i < len(extraPoints); i++ {
+		d.Points[index] = extraPoints[i]
+		d.Points[index].MetricID = d.NameToID(d.Points[index].Metric)
+		index++
+	}
 
 	name := []byte{}
 	id := 0

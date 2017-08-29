@@ -3,6 +3,7 @@ package render
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -19,16 +20,87 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/pickle"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+
+	graphitePickle "github.com/lomik/graphite-pickle"
 )
 
 type Handler struct {
-	config *config.Config
+	config     *config.Config
+	carbonlink *graphitePickle.CarbonlinkClient
 }
 
 func NewHandler(config *config.Config) *Handler {
-	return &Handler{
+	h := &Handler{
 		config: config,
 	}
+
+	if config.Carbonlink.Server != "" {
+		h.carbonlink = graphitePickle.NewCarbonlinkClient(
+			config.Carbonlink.Server,
+			config.Carbonlink.Retries,
+			config.Carbonlink.Threads,
+			config.Carbonlink.ConnectTimeout.Value(),
+			config.Carbonlink.QueryTimeout.Value(),
+		)
+	}
+	return h
+}
+
+// returns callable result fetcher
+func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, merticsList [][]byte) func() []point.Point {
+	if h.carbonlink == nil {
+		return func() []point.Point { return nil }
+	}
+
+	metrics := make([]string, len(merticsList))
+	for i := 0; i < len(metrics); i++ {
+		metrics[i] = unsafeString(merticsList[i])
+	}
+
+	carbonlinkResponseChan := make(chan []point.Point, 1)
+
+	fetchResult := func() []point.Point {
+		result := <-carbonlinkResponseChan
+		return result
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(parentCtx, h.config.Carbonlink.TotalTimeout.Value())
+		defer cancel()
+
+		res, err := h.carbonlink.CacheQueryMulti(ctx, metrics)
+
+		if err != nil {
+			logger.Info("carbonlink failed", zap.Error(err))
+		}
+
+		var result []point.Point
+
+		if res != nil && len(res) > 0 {
+			sz := 0
+			for _, points := range res {
+				sz += len(points)
+			}
+
+			tm := int32(time.Now().Unix())
+
+			result = make([]point.Point, sz)
+			i := 0
+			for metric, points := range res {
+				for _, p := range points {
+					result[i].Metric = metric
+					result[i].Time = int32(p.Timestamp)
+					result[i].Value = p.Value
+					result[i].Timestamp = tm
+				}
+				i++
+			}
+		}
+
+		carbonlinkResponseChan <- result
+	}()
+
+	return fetchResult
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -115,6 +187,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dateWhere,
 	)
 
+	// start carbonlink request
+	carbonlinkResponseRead := h.queryCarbonlink(r.Context(), logger, metricList)
+
 	body, err := clickhouse.Query(
 		r.Context(),
 		h.config.ClickHouse.Url,
@@ -127,9 +202,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// fetch carbonlink response
+	carbonlinkData := carbonlinkResponseRead()
+
 	parseStart := time.Now()
 
-	data, err := DataParse(body)
+	// pass carbonlinkData to DataParse
+	data, err := DataParse(body, carbonlinkData)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
