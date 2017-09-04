@@ -92,8 +92,8 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 					result[i].Time = int32(p.Timestamp)
 					result[i].Value = p.Value
 					result[i].Timestamp = tm
+					i++
 				}
-				i++
 			}
 		}
 
