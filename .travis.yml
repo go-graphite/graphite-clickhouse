@@ -1,13 +1,10 @@
 language: go
-
 go:
-- 1.7.3
-
+- 1.8.3
 script:
 - make submodules
 - make
 - make test
-
 before_deploy:
 - sudo apt-get install -y rpm ruby ruby-dev
 - go get github.com/mitchellh/gox
@@ -15,11 +12,10 @@ before_deploy:
 - make gox-build
 - make fpm-deb
 - make fpm-rpm
-
 deploy:
   provider: releases
   api_key:
-    secure: wRM0StqWKeNXBr5LZhJXuzu1Ce8Ra6YTJOLQdZTscEYIYhj7/K3FdVRgweo/6/TCVrATu4UsBV+drzfMqyrRiYW041UCaEf45Vh5tB74js/Nqhmn0FyYQEhAGMVsEMa8kO8CCQlNfx/w4b9CVr0FX41LUzz4lxNigft6DpTZ3O05V219nwWVAX4+YFheTgi1cZ2EV8cLR5FsgHoubmgcQq9HrvriSfva/QyqIrmyBerWpaO5dHJ/2E+0xrpRx2BCeoia9DNrFIeZDDx+lu9ehy7DILxAZ0rcB1cDykoKMD5+qK5Mtd8JKa2GgCFyEiNAyKeV5VC/4mudIFd4tSMqT205XKzAOMgABt9M6I9tBCrLUgSTAwnj3f0hhjW3y92dYQ8brBy9eQ+xRYM6S1siJtse9phO+7lVgT9CAzdomzToe4eoBAaAJdPCojftZMaSVeSwf5KjYAfleEk5VCcufQPGwqSGHvnohIHNmV95fgBp1l9LDL8+2OvAIX0L8N6L0tv2CXJOSAx5iPuJsgOeKk8KV6V6TDUjfBRdSgmwlS/+0ljiVNjOIf046cMqSTpN+ou+U9pg9o34OglrQISS5kBUKb8KX65vy1AO243tj4v2jJJ8Pde/Bt0nRZe5oRCKY77blkDHPyxlHx5YRX5JTzX2bR5q0ADyo9t3UatqnBQ=
+    secure: nqfd0//YFs03Rmi2adWSS334s2etRKFVs6JaQ1DEf1quJxPZlxU52e71wcN7fE/CcEcHTEKG/5gb9tf/siBXYbaq+vB55Xe3y6/bnCBKhCR80bwN7rO2sxyVL44D5pPKhWn/YRgoecK1krE2BmAH0K/fBt2125xN5CZcxqYKgaebVrMrwxv4Vxf/tiRaN7T0xLAI+7t9WE0iaMxM3H091JbBJJr3nHb67y/KyAO57LSQ+L4KQR7i3T55W+EvXnrz4iRpm+FRzgFYwomfcpdngq8vCxi1Nev+WyqGSrXL5fm1R+/ec8SrXKGKnTrw8WPAGWu+1s9uHeYCmUmPkQaOmueQWpQglII0GdOyS1JQGIyZBo7Kx0+LGmyzlY5tmsF6EkRrBFQZtGUT6VAYATWw8Xp750vJFiJWfuxK1valffgUyoR4ULIJhUMbP4dW5wmQVN6mUl4gVCGqnO9l+ptJifqL4Qz0IJbQubwLBcdWR2osFyubWJ+DwtbjT3wzyA3n+yDZis++jk/I7wV9DS/CJoeDzbYiCfW+2hxoasCr4d9A5RY8LI0yY5/BdLJXOEvd6wtn05/IoJXUF9ws61/VH4UK/BmploGFF/ihCd667Ok4fjogbJovf5K0j7BfRGwB0RSSsur7hJjFQ2ANynpklVLNGQ+2jJRq8/rg7yupxRI=
   file_glob: true
   file: "*.{deb,rpm}"
   on:
