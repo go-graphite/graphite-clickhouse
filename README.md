@@ -56,6 +56,8 @@ Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 [common]
 listen = ":9090"
 max-cpu = 1
+# Target blacklist. Daemon returns empty response if query matches any of regular expressions
+# target-blacklist = ["^not_found.*"]
 
 [clickhouse]
 # You can add user/password (http://user:password@localhost:8123) and any clickhouse options (GET-parameters) to url
@@ -69,9 +71,20 @@ extra-prefix = ""
 data-timeout = "1m0s"
 tree-timeout = "1m0s"
 
-[logging]
+[carbonlink]
+server = ""
+threads-per-request = 10
+connect-timeout = "50ms"
+query-timeout = "50ms"
+total-timeout = "500ms"
+
+[[logging]]
+logger = ""
 file = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
 level = "info"
+encoding = "mixed"
+encoding-time = "iso8601"
+encoding-duration = "seconds"
 ```
 
 ## Run on same host with graphite-web
