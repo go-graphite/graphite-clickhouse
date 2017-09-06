@@ -27,6 +27,10 @@ func New(ctx context.Context, config *config.Config) Finder {
 	if config.ClickHouse.ExtraPrefix != "" {
 		f = WrapPrefix(f, config.ClickHouse.ExtraPrefix)
 	}
+
+	if len(config.Common.Blacklist) > 0 {
+		f = WrapBlacklist(f, config.Common.Blacklist)
+	}
 	return f
 }
 
