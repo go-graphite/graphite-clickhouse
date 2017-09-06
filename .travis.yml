@@ -13,6 +13,7 @@ before_deploy:
 - make fpm-deb
 - make fpm-rpm
 deploy:
+  skip_cleanup: true
   provider: releases
   api_key:
     secure: nqfd0//YFs03Rmi2adWSS334s2etRKFVs6JaQ1DEf1quJxPZlxU52e71wcN7fE/CcEcHTEKG/5gb9tf/siBXYbaq+vB55Xe3y6/bnCBKhCR80bwN7rO2sxyVL44D5pPKhWn/YRgoecK1krE2BmAH0K/fBt2125xN5CZcxqYKgaebVrMrwxv4Vxf/tiRaN7T0xLAI+7t9WE0iaMxM3H091JbBJJr3nHb67y/KyAO57LSQ+L4KQR7i3T55W+EvXnrz4iRpm+FRzgFYwomfcpdngq8vCxi1Nev+WyqGSrXL5fm1R+/ec8SrXKGKnTrw8WPAGWu+1s9uHeYCmUmPkQaOmueQWpQglII0GdOyS1JQGIyZBo7Kx0+LGmyzlY5tmsF6EkRrBFQZtGUT6VAYATWw8Xp750vJFiJWfuxK1valffgUyoR4ULIJhUMbP4dW5wmQVN6mUl4gVCGqnO9l+ptJifqL4Qz0IJbQubwLBcdWR2osFyubWJ+DwtbjT3wzyA3n+yDZis++jk/I7wV9DS/CJoeDzbYiCfW+2hxoasCr4d9A5RY8LI0yY5/BdLJXOEvd6wtn05/IoJXUF9ws61/VH4UK/BmploGFF/ihCd667Ok4fjogbJovf5K0j7BfRGwB0RSSsur7hJjFQ2ANynpklVLNGQ+2jJRq8/rg7yupxRI=
