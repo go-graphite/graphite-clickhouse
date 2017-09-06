@@ -56,7 +56,7 @@ Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 [common]
 listen = ":9090"
 max-cpu = 1
-# Target blacklist. Daemon returns empty response if query matches any of regular expressions
+# Daemon returns empty response if query matches any of regular expressions
 # target-blacklist = ["^not_found.*"]
 
 [clickhouse]
