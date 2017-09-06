@@ -9,8 +9,8 @@ Gray components are optional or alternative
 ## Compatibility
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
 - [x] [graphite-web 1.0.0](https://github.com/graphite-project/graphite-web)
-- [ ] [carbonzipper](https://github.com/dgryski/carbonzipper): supported, untested
-- [x] [carbonapi](https://github.com/dgryski/carbonapi)
+- [x] [carbonzipper](https://github.com/go-graphite/carbonzipper)
+- [x] [carbonapi](https://github.com/go-graphite/carbonapi)
 
 ## Build
 Required golang 1.7+
