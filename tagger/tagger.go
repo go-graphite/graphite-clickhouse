@@ -19,6 +19,8 @@ import (
 	"github.com/lomik/zapwriter"
 )
 
+const SelectChunksCount = 10
+
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
@@ -99,59 +101,81 @@ func Make(cfg *config.Config) error {
 
 	// Read clickhouse
 	begin("read and parse tree")
-	var body []byte
+	// bodies := make([][]byte, 0)
+
+	var bodies [][]byte
 
 	if cfg.Tags.InputFile != "" {
-		body, err = ioutil.ReadFile(cfg.Tags.InputFile)
+		body, err := ioutil.ReadFile(cfg.Tags.InputFile)
 		if err != nil {
 			return err
 		}
+		bodies = [][]byte{body}
 	} else {
-		body, err = clickhouse.Query(
-			context.WithValue(context.Background(), "logger", logger),
-			cfg.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path HAVING argMax(Deleted, Version)==0 FORMAT RowBinary", cfg.ClickHouse.TreeTable),
-			cfg.ClickHouse.TreeTimeout.Value(),
-		)
+		bodies = make([][]byte, SelectChunksCount)
+		for i := 0; i < SelectChunksCount; i++ {
+			bodies[i], err = clickhouse.Query(
+				context.WithValue(context.Background(), "logger", logger),
+				cfg.ClickHouse.Url,
+				fmt.Sprintf(
+					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d == %d GROUP BY Path HAVING argMax(Deleted, Version)==0 FORMAT RowBinary",
+					cfg.ClickHouse.TreeTable,
+					SelectChunksCount,
+					i,
+				),
+				cfg.ClickHouse.TreeTimeout.Value(),
+			)
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
-	}
+	var count int
 
-	count, err := countMetrics(body)
-	if err != nil {
-		return err
+	for i := 0; i < len(bodies); i++ {
+		c, err := countMetrics(bodies[i])
+		if err != nil {
+			return err
+		}
+		count += c
 	}
 
 	metricList := make([]Metric, count)
 
-	var namelen uint64
-	bodyLen := len(body)
-	var offset, readBytes int
+	index := 0
+
 	var maxLevel int
 
-	for index := 0; ; index++ {
-		if offset >= bodyLen {
-			if offset == bodyLen {
-				break
+	for i := 0; i < len(bodies); i++ {
+		body := bodies[i]
+		var namelen uint64
+		bodyLen := len(body)
+		var offset, readBytes int
+
+		for ; ; index++ {
+			if offset >= bodyLen {
+				if offset == bodyLen {
+					break
+				}
+				return clickhouse.ErrClickHouseResponse
 			}
-			return clickhouse.ErrClickHouseResponse
+
+			namelen, readBytes, err = clickhouse.ReadUvarint(body[offset:])
+			if err != nil {
+				return err
+			}
+
+			metricList[index].Path = body[offset+readBytes : offset+readBytes+int(namelen)]
+			metricList[index].Level = pathLevel(metricList[index].Path)
+
+			if metricList[index].Level > maxLevel {
+				maxLevel = metricList[index].Level
+			}
+
+			offset += readBytes + int(namelen)
 		}
-
-		namelen, readBytes, err = clickhouse.ReadUvarint(body[offset:])
-		if err != nil {
-			return err
-		}
-
-		metricList[index].Path = body[offset+readBytes : offset+readBytes+int(namelen)]
-		metricList[index].Level = pathLevel(metricList[index].Path)
-
-		if metricList[index].Level > maxLevel {
-			maxLevel = metricList[index].Level
-		}
-
-		offset += readBytes + int(namelen)
 	}
 	end()
 
