@@ -23,8 +23,8 @@ type PrefixFinder struct {
 
 func bytesConcat(s1 []byte, s2 []byte) []byte {
 	ret := make([]byte, len(s1)+len(s2))
-	copy(result[i], s1)
-	copy(result[i][len(s1):], s2)
+	copy(ret, s1)
+	copy(ret[len(s1):], s2)
 	return ret
 }
 
