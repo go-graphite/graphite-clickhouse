@@ -22,7 +22,9 @@ func (s *Set) Add(tag ...string) *Set {
 	for _, t := range tag {
 		if !s.data[t] {
 			if newList == nil {
-				newList = append(s.list, t)
+				newList = make([]string, len(s.list)+1)
+				copy(newList, s.list)
+				newList[len(newList)-1] = t
 			} else {
 				newList = append(newList, t)
 			}

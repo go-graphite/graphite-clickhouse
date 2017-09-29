@@ -21,11 +21,18 @@ type PrefixFinder struct {
 	part        string            // request. partially matched part
 }
 
+func bytesConcat(s1 []byte, s2 []byte) []byte {
+	ret := make([]byte, len(s1)+len(s2))
+	copy(result[i], s1)
+	copy(result[i][len(s1):], s2)
+	return ret
+}
+
 func WrapPrefix(f Finder, prefix string) *PrefixFinder {
 	return &PrefixFinder{
 		wrapped:     f,
 		prefix:      prefix,
-		prefixBytes: append([]byte(prefix), '.'),
+		prefixBytes: bytesConcat([]byte(prefix), []byte{'.'}),
 		matched:     PrefixNotMatched,
 	}
 }
@@ -78,7 +85,7 @@ func (p *PrefixFinder) List() [][]byte {
 	result := make([][]byte, len(list))
 
 	for i := 0; i < len(list); i++ {
-		result[i] = append(p.prefixBytes, list[i]...)
+		result[i] = bytesConcat(p.prefixBytes, list[i])
 	}
 
 	return result
@@ -98,5 +105,5 @@ func (p *PrefixFinder) Series() [][]byte {
 }
 
 func (p *PrefixFinder) Abs(value []byte) []byte {
-	return append(p.prefixBytes, p.wrapped.Abs(value)...)
+	return bytesConcat(p.prefixBytes, p.wrapped.Abs(value))
 }

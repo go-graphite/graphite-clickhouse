@@ -317,5 +317,5 @@ func (t *TagFinder) Abs(v []byte) []byte {
 		return t.wrapped.Abs(v)
 	}
 
-	return append(t.tagPrefix, v...)
+	return bytesConcat(t.tagPrefix, v)
 }
