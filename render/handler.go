@@ -167,24 +167,29 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	dateWhere := fmt.Sprintf(
-		"(Date >='%s' AND Date <= '%s' AND Time >= %d AND Time <= %d)",
+		"(Date >='%s' AND Date <= '%s')",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
+	)
+	timeWhere := fmt.Sprintf(
+		"(Time >= %d AND Time <= %d)",
 		fromTimestamp,
 		until,
 	)
 
 	query := fmt.Sprintf(
 		`
-		SELECT 
+		SELECT
 			Path, Time, Value, Timestamp
-		FROM %s 
+		FROM %s
+		PREWHERE (%s)
 		WHERE (%s) AND (%s)
 		FORMAT RowBinary
 		`,
 		h.config.ClickHouse.DataTable,
-		pathWhere,
 		dateWhere,
+		pathWhere,
+		timeWhere,
 	)
 
 	// start carbonlink request
