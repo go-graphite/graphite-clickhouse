@@ -52,7 +52,7 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip 
 
 	queryForLogger := query
 	if len(queryForLogger) > 500 {
-		queryForLogger = queryForLogger[:495] + "<...>"
+		queryForLogger = queryForLogger[:395] + "<...>" + queryForLogger[len(queryForLogger)-100:]
 	}
 	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)))
 
