@@ -109,6 +109,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var prefix string
 	var err error
 
+	r.ParseForm()
+
 	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -121,13 +123,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aliases := make(map[string][]string)
+	preWhere := finder.NewWhere()
+	preWhere.Andf(
+		"Date >='%s' AND Date <= '%s'",
+		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
+		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
+	)
 
-	r.ParseForm()
+	aliases := make(map[string][]string)
 
 	for t := 0; t < len(r.Form["target"]); t++ {
 		target := r.Form["target"][t]
-		fnd := finder.New(r.Context(), h.config)
+
+		// Search in small index table first
+		// TODO use default constructor
+		var fnd finder.Finder
+		if h.config.ClickHouse.DateTreeTable != "" {
+			fnd = finder.NewDateFinder(preWhere.String(), r.Context(), h.config)
+		} else {
+			fnd = finder.New(r.Context(), h.config)
+		}
+
 		err = fnd.Execute(target)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -179,13 +195,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.Reply(w, r, &Data{Points: make([]point.Point, 0)}, 0, 0, "")
 		return
 	}
-
-	preWhere := finder.NewWhere()
-	preWhere.Andf(
-		"Date >='%s' AND Date <= '%s'",
-		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
-		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
-	)
 
 	where := finder.NewWhere()
 	where.Andf("Path in (%s)", listBuf.String())
