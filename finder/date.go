@@ -15,11 +15,10 @@ type DateFinder struct {
 
 func NewDateFinder(dateWhere string, ctx context.Context, config *config.Config) Finder {
 	b := &BaseFinder{
-		ctx:         ctx,
-		url:         config.ClickHouse.Url,
-		table:       config.ClickHouse.DateTreeTable,
-		expandLimit: config.ClickHouse.MetricLimitWithExpand,
-		timeout:     config.ClickHouse.TreeTimeout.Value(),
+		ctx:     ctx,
+		url:     config.ClickHouse.Url,
+		table:   config.ClickHouse.DateTreeTable,
+		timeout: config.ClickHouse.TreeTimeout.Value(),
 	}
 	return &DateFinder{b, dateWhere}
 }
@@ -27,13 +26,10 @@ func NewDateFinder(dateWhere string, ctx context.Context, config *config.Config)
 func (b *DateFinder) Execute(query string) (err error) {
 	where := b.where(query)
 
-	// TODO add deleted field to table?
 	b.body, err = clickhouse.Query(
 		b.ctx,
 		b.url,
-		fmt.Sprintf(`
-		SELECT distinct Path FROM %s PREWHERE (%s) WHERE (%s)
-		`, b.table, b.dateWhere, where),
+		fmt.Sprintf(`SELECT distinct Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, b.dateWhere, where),
 		b.timeout,
 	)
 
