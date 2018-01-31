@@ -105,33 +105,53 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := log.FromContext(r.Context())
-	target := r.URL.Query().Get("target")
 
 	var prefix string
 	var err error
 
-	fromTimestamp, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 32)
+	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
-	untilTimestamp, err := strconv.ParseInt(r.URL.Query().Get("until"), 10, 32)
+	untilTimestamp, err := strconv.ParseInt(r.FormValue("until"), 10, 32)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
-	// Search in small index table first
-	finder := finder.New(r.Context(), h.config)
+	aliases := make(map[string][]string)
 
-	err = finder.Execute(target)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	r.ParseForm()
+
+	for t := 0; t < len(r.Form["target"]); t++ {
+		target := r.Form["target"][t]
+		finder := finder.New(r.Context(), h.config)
+		err = finder.Execute(target)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		finderResult := finder.Series()
+
+		for i := 0; i < len(finderResult); i++ {
+			key := string(finderResult[i])
+			abs := string(finder.Abs(finderResult[i]))
+			if x, ok := aliases[key]; ok {
+				aliases[key] = append(x, abs, target)
+			} else {
+				aliases[key] = []string{abs, target}
+			}
+		}
 	}
 
-	metricList := finder.Series()
+	metricList := make([][]byte, len(aliases))
+	index := 0
+	for metric, _ := range aliases {
+		metricList[index] = []byte(metric)
+		index++
+	}
 
 	maxStep := int32(0)
 
@@ -156,7 +176,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if listBuf.Len() == 0 {
 		// Return empty response
-		h.Reply(w, r, &Data{Points: make([]point.Point, 0), Finder: finder}, 0, 0, "")
+		h.Reply(w, r, &Data{Points: make([]point.Point, 0)}, 0, 0, "")
 		return
 	}
 
@@ -229,7 +249,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
 	data.Points = point.Uniq(data.Points)
-	data.Finder = finder
+	data.Aliases = aliases
 
 	// pp.Println(points)
 	h.Reply(w, r, data, int32(fromTimestamp), int32(untilTimestamp), prefix)
@@ -237,7 +257,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
 	start := time.Now()
-	switch r.URL.Query().Get("format") {
+	switch r.FormValue("format") {
 	case "pickle":
 		h.ReplyPickle(w, r, data, from, until, prefix)
 	case "protobuf":
@@ -275,7 +295,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	p.List()
 
-	writeMetric := func(points []point.Point) {
+	writeMetric := func(name string, pathExpression string, points []point.Point) {
 		rollupStart := time.Now()
 		points, step := h.config.Rollup.RollupMetric(points)
 		rollupTime += time.Since(rollupStart)
@@ -284,7 +304,11 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		p.Dict()
 
 		p.String("name")
-		p.Bytes(data.Finder.Abs([]byte(points[0].Metric)))
+		p.String(name)
+		p.SetItem()
+
+		p.String("pathExpression")
+		p.String(pathExpression)
 		p.SetItem()
 
 		p.String("step")
@@ -339,12 +363,19 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	for i = 1; i < l; i++ {
 		if points[i].Metric != points[n].Metric {
-			writeMetric(points[n:i])
+			a := data.Aliases[points[n].Metric]
+			for n := 0; n < len(a); n += 2 {
+				writeMetric(a[n], a[n+1], points[n:i])
+			}
 			n = i
 			continue
 		}
 	}
-	writeMetric(points[n:i])
+
+	a := data.Aliases[points[n].Metric]
+	for n := 0; n < len(a); n += 2 {
+		writeMetric(a[n], a[n+1], points[n:i])
+	}
 
 	p.Stop()
 }
@@ -358,11 +389,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 
 	var multiResponse carbonzipperpb.MultiFetchResponse
 
-	writeMetric := func(points []point.Point) {
+	writeMetric := func(name string, points []point.Point) {
 		points, step := h.config.Rollup.RollupMetric(points)
-
-		var name string
-		name = string(data.Finder.Abs([]byte(points[0].Metric)))
 
 		start := from - (from % step)
 		if start < from {
@@ -407,12 +435,18 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 
 	for i = 1; i < l; i++ {
 		if points[i].Metric != points[n].Metric {
-			writeMetric(points[n:i])
+			a := data.Aliases[points[n].Metric]
+			for n := 0; n < len(a); n += 2 {
+				writeMetric(a[n], points[n:i])
+			}
 			n = i
 			continue
 		}
 	}
-	writeMetric(points[n:i])
+	a := data.Aliases[points[n].Metric]
+	for n := 0; n < len(a); n += 2 {
+		writeMetric(a[n], points[n:i])
+	}
 
 	body, _ := proto.Marshal(&multiResponse)
 	w.Write(body)
