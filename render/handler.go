@@ -127,17 +127,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	for t := 0; t < len(r.Form["target"]); t++ {
 		target := r.Form["target"][t]
-		finder := finder.New(r.Context(), h.config)
-		err = finder.Execute(target)
+		fnd := finder.New(r.Context(), h.config)
+		err = fnd.Execute(target)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		finderResult := finder.Series()
+		fndResult := fnd.Series()
 
-		for i := 0; i < len(finderResult); i++ {
-			key := string(finderResult[i])
-			abs := string(finder.Abs(finderResult[i]))
+		for i := 0; i < len(fndResult); i++ {
+			key := string(fndResult[i])
+			abs := string(fnd.Abs(fndResult[i]))
 			if x, ok := aliases[key]; ok {
 				aliases[key] = append(x, abs, target)
 			} else {
