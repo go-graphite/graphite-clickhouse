@@ -13,7 +13,7 @@ type DateFinder struct {
 	dateWhere string
 }
 
-func NewDateFinder(dateWhere string, ctx context.Context, config *config.Config) Finder {
+func NewDateFinder(ctx context.Context, config *config.Config, dateWhere string) Finder {
 	b := &BaseFinder{
 		ctx:     ctx,
 		url:     config.ClickHouse.Url,
@@ -29,7 +29,7 @@ func (b *DateFinder) Execute(query string) (err error) {
 	b.body, err = clickhouse.Query(
 		b.ctx,
 		b.url,
-		fmt.Sprintf(`SELECT distinct Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, b.dateWhere, where),
+		fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, b.dateWhere, where),
 		b.timeout,
 	)
 

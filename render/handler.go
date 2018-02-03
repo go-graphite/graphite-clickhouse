@@ -139,7 +139,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// TODO use default constructor
 		var fnd finder.Finder
 		if h.config.ClickHouse.DateTreeTable != "" {
-			fnd = finder.NewDateFinder(preWhere.String(), r.Context(), h.config)
+			fnd = finder.NewDateFinder(r.Context(), h.config, preWhere.String())
 		} else {
 			fnd = finder.New(r.Context(), h.config)
 		}
