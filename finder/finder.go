@@ -13,8 +13,14 @@ type Finder interface {
 	Abs([]byte) []byte
 }
 
-func New(ctx context.Context, config *config.Config) Finder {
-	f := NewBase(ctx, config.ClickHouse.Url, config.ClickHouse.TreeTable, config.ClickHouse.TreeTimeout.Value())
+func NewLimited(ctx context.Context, config *config.Config, fromTimestamp int64, untilTimestamp int64) Finder {
+	var f Finder
+
+	if fromTimestamp > 0 && untilTimestamp > 0 && config.ClickHouse.DateTreeTable != "" {
+		f = NewDateFinder(ctx, config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, config.ClickHouse.TreeTimeout.Value(), fromTimestamp, untilTimestamp)
+	} else {
+		f = NewBase(ctx, config.ClickHouse.Url, config.ClickHouse.TreeTable, config.ClickHouse.TreeTimeout.Value())
+	}
 
 	if config.ClickHouse.ReverseTreeTable != "" {
 		f = WrapReverse(f, ctx, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, config.ClickHouse.TreeTimeout.Value())
@@ -32,6 +38,10 @@ func New(ctx context.Context, config *config.Config) Finder {
 		f = WrapBlacklist(f, config.Common.Blacklist)
 	}
 	return f
+}
+
+func New(ctx context.Context, config *config.Config) Finder {
+	return NewLimited(ctx, config, 0, 0)
 }
 
 // Leaf strips last dot and detect IsLeaf
