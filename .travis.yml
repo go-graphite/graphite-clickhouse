@@ -2,7 +2,6 @@ language: go
 go:
 - 1.8.3
 script:
-- make submodules
 - make
 - make test
 before_deploy:
