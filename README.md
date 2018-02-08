@@ -18,7 +18,6 @@ Required golang 1.7+
 # build binary
 git clone https://github.com/lomik/graphite-clickhouse.git
 cd graphite-clickhouse
-make submodules
 make
 ```
 
