@@ -17,9 +17,9 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("query")
+	r.ParseForm()
 
-	f, err := New(h.config, r.Context(), query)
+	f, err := New(h.config, r.Context(), r.FormValue("query"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -29,7 +29,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) {
-	switch r.URL.Query().Get("format") {
+	switch r.FormValue("format") {
 	case "pickle":
 		f.WritePickle(w)
 	case "protobuf":
