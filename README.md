@@ -64,6 +64,13 @@ max-cpu = 1
 url = "http://localhost:8123"
 data-table = "graphite"
 tree-table = "graphite_tree"
+# Optional table with daily series list.
+# Useful for installations with big count of short-lived series
+date-tree-table = ""
+# Supported several schemas of date-tree-table:
+# 1 (default): table only with Path, Date, Level fields. Described here: https://habrahabr.ru/company/avito/blog/343928/
+# 2: table with Path, Date, Level, Deleted, Version fields. Table type "series" in the carbon-clickhouse
+date-tree-table-version = 0
 rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
 # Add extra prefix (directory in graphite) for all metrics
 extra-prefix = ""
