@@ -109,7 +109,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var prefix string
 	var err error
 
-	r.ParseForm()
+	r.ParseMultipartForm(1024 * 1024)
 
 	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 	if err != nil {

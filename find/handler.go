@@ -17,7 +17,7 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	r.ParseMultipartForm(1024 * 1024)
 
 	f, err := New(h.config, r.Context(), r.FormValue("query"))
 	if err != nil {
