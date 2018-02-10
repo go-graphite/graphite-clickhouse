@@ -7,6 +7,7 @@ Graphite cluster backend with ClickHouse support
 Gray components are optional or alternative
 
 ## Compatibility
+- [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web), seriesByTag not supported
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
 - [x] [graphite-web 1.0.0](https://github.com/graphite-project/graphite-web)
 - [x] [carbonzipper](https://github.com/go-graphite/carbonzipper)
