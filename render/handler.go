@@ -354,7 +354,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	}
 
 	// group by Metric
-	var i, n int
+	var i, n, k int
 	// i - current position of iterator
 	// n - position of the first record with current metric
 	l := len(points)
@@ -362,8 +362,8 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	for i = 1; i < l; i++ {
 		if points[i].Metric != points[n].Metric {
 			a := data.Aliases[points[n].Metric]
-			for n := 0; n < len(a); n += 2 {
-				writeMetric(a[n], a[n+1], points[n:i])
+			for k = 0; k < len(a); k += 2 {
+				writeMetric(a[k], a[k+1], points[n:i])
 			}
 			n = i
 			continue
@@ -371,8 +371,8 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	}
 
 	a := data.Aliases[points[n].Metric]
-	for n := 0; n < len(a); n += 2 {
-		writeMetric(a[n], a[n+1], points[n:i])
+	for k = 0; k < len(a); k += 2 {
+		writeMetric(a[k], a[k+1], points[n:i])
 	}
 
 	p.Stop()
@@ -426,7 +426,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	}
 
 	// group by Metric
-	var i, n int
+	var i, n, k int
 	// i - current position of iterator
 	// n - position of the first record with current metric
 	l := len(points)
@@ -434,16 +434,16 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	for i = 1; i < l; i++ {
 		if points[i].Metric != points[n].Metric {
 			a := data.Aliases[points[n].Metric]
-			for n := 0; n < len(a); n += 2 {
-				writeMetric(a[n], points[n:i])
+			for k = 0; k < len(a); k += 2 {
+				writeMetric(a[k], points[n:i])
 			}
 			n = i
 			continue
 		}
 	}
 	a := data.Aliases[points[n].Metric]
-	for n := 0; n < len(a); n += 2 {
-		writeMetric(a[n], points[n:i])
+	for k = 0; k < len(a); k += 2 {
+		writeMetric(a[k], points[n:i])
 	}
 
 	body, _ := proto.Marshal(&multiResponse)
