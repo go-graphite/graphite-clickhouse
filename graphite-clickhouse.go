@@ -21,7 +21,7 @@ import (
 )
 
 // Version of graphite-clickhouse
-const Version = "0.4.2"
+const Version = "0.5.0"
 
 type LogResponseWriter struct {
 	http.ResponseWriter
