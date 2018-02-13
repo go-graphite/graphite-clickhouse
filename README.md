@@ -94,7 +94,7 @@ encoding-time = "iso8601"
 encoding-duration = "seconds"
 ```
 
-## Run on same host with graphite-web
+## Run on same host with old graphite-web 0.9.x
 By default graphite-web won't connect to CLUSTER_SERVER on localhost. Cheat:
 ```python
 class ForceLocal(str):
