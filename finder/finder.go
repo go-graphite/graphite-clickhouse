@@ -26,6 +26,10 @@ func NewLimited(ctx context.Context, config *config.Config, fromTimestamp int64,
 		f = WrapReverse(f, ctx, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, config.ClickHouse.TreeTimeout.Value())
 	}
 
+	if config.ClickHouse.TaggedTable != "" && fromTimestamp > 0 && untilTimestamp > 0 {
+		f = WrapTagged(f, ctx, config.ClickHouse.Url, config.ClickHouse.TaggedTable, config.ClickHouse.TreeTimeout.Value(), fromTimestamp, untilTimestamp)
+	}
+
 	if config.ClickHouse.TagTable != "" {
 		f = WrapTag(f, ctx, config.ClickHouse.Url, config.ClickHouse.TagTable, config.ClickHouse.TreeTimeout.Value())
 	}

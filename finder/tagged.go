@@ -1,0 +1,274 @@
+package finder
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"net/url"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/go-graphite/carbonapi/pkg/parser"
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+)
+
+type taggedTermOp int
+
+const (
+	taggedTermEq       taggedTermOp = 1
+	taggedTermMatch    taggedTermOp = 2
+	taggedTermNe       taggedTermOp = 3
+	taggedTermNotMatch taggedTermOp = 4
+)
+
+type taggedTerm struct {
+	key   string
+	op    taggedTermOp
+	value string
+}
+
+type taggedTermList []taggedTerm
+
+func (s taggedTermList) Len() int {
+	return len(s)
+}
+func (s taggedTermList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s taggedTermList) Less(i, j int) bool {
+	return s[i].op < s[j].op
+}
+
+type TaggedFinder struct {
+	wrapped        Finder
+	ctx            context.Context // for clickhouse.Query
+	url            string          // clickhouse dsn
+	table          string          // graphite_tag table
+	timeout        time.Duration   // clickhouse query timeout
+	body           []byte          // clickhouse response
+	fromTimestamp  int64
+	untilTimestamp int64
+	isSeriesByTag  bool
+}
+
+func WrapTagged(f Finder, ctx context.Context, url string, table string, timeout time.Duration, fromTimestamp int64, untilTimestamp int64) *TaggedFinder {
+	return &TaggedFinder{
+		wrapped:        f,
+		ctx:            ctx,
+		url:            url,
+		table:          table,
+		timeout:        timeout,
+		fromTimestamp:  fromTimestamp,
+		untilTimestamp: untilTimestamp,
+	}
+}
+
+func taggedTermWhere1(term *taggedTerm) string {
+	switch term.op {
+	case taggedTermEq:
+		return fmt.Sprintf("Tag1=%s", Q(fmt.Sprintf("%s=%s", term.key, term.value)))
+	case taggedTermNe:
+		return fmt.Sprintf("Tag1!=%s", Q(fmt.Sprintf("%s=%s", term.key, term.value)))
+	case taggedTermMatch:
+		return fmt.Sprintf(
+			"(Tag1 LIKE %s) AND (match(Tag1, %s))",
+			Q(fmt.Sprintf("%s=%%", term.key)),
+			Q(fmt.Sprintf("%s=%s", term.key, term.value)),
+		)
+
+	case taggedTermNotMatch:
+		return fmt.Sprintf(
+			"NOT ((Tag1 LIKE %s) AND (match(Tag1, %s)))",
+			Q(fmt.Sprintf("%s=%%", term.key)),
+			Q(fmt.Sprintf("%s=%s", term.key, term.value)),
+		)
+	default:
+		return ""
+	}
+}
+
+func taggedTermWhereN(term *taggedTerm) string {
+	// arrayExists((x) -> %s, Tags)
+	switch term.op {
+	case taggedTermEq:
+		return fmt.Sprintf("arrayExists((x) -> x=%s, Tags)", Q(fmt.Sprintf("%s=%s", term.key, term.value)))
+	case taggedTermNe:
+		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Q(fmt.Sprintf("%s=%s", term.key, term.value)))
+	case taggedTermMatch:
+		return fmt.Sprintf(
+			"arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
+			Q(fmt.Sprintf("%s=%%", term.key)),
+			Q(fmt.Sprintf("%s=%s", term.key, term.value)),
+		)
+
+	case taggedTermNotMatch:
+		return fmt.Sprintf(
+			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
+			Q(fmt.Sprintf("%s=%%", term.key)),
+			Q(fmt.Sprintf("%s=%s", term.key, term.value)),
+		)
+	default:
+		return ""
+	}
+}
+
+func (t *TaggedFinder) makeWhere(query string) (string, error) {
+	expr, _, err := parser.ParseExpr(query)
+	if err != nil {
+		return "", err
+	}
+
+	validationError := fmt.Errorf("wrong seriesByTag call: %#v", query)
+
+	// check
+	if !expr.IsFunc() {
+		return "", validationError
+	}
+	if expr.Target() != "seriesByTag" {
+		return "", validationError
+	}
+
+	args := expr.Args()
+	if len(args) < 1 {
+		return "", validationError
+	}
+
+	for i := 0; i < len(args); i++ {
+		if !args[i].IsString() {
+			return "", validationError
+		}
+	}
+
+	terms := make([]taggedTerm, len(args))
+
+	for i := 0; i < len(args); i++ {
+		s := args[i].StringValue()
+		a := strings.SplitN(s, "=", 2)
+		if len(a) != 2 {
+			return "", validationError
+		}
+
+		a[0] = strings.TrimSpace(a[0])
+		a[1] = strings.TrimSpace(a[1])
+
+		op := "="
+
+		if len(a[0]) > 0 && a[0][len(a[0])-1] == '!' {
+			op = "!" + op
+			a[0] = strings.TrimSpace(a[0][:len(a[0])-1])
+		}
+
+		if len(a[1]) > 0 && a[1][0] == '~' {
+			op = op + "~"
+			a[1] = strings.TrimSpace(a[1][1:])
+		}
+
+		terms[i].key = a[0]
+		terms[i].value = a[1]
+
+		if terms[i].key == "name" {
+			terms[i].key = "__name__"
+		}
+
+		switch op {
+		case "=":
+			terms[i].op = taggedTermEq
+		case "!=":
+			terms[i].op = taggedTermNe
+		case "=~":
+			terms[i].op = taggedTermMatch
+		case "!=~":
+			terms[i].op = taggedTermNotMatch
+		default:
+			return "", validationError
+		}
+	}
+
+	sort.Sort(taggedTermList(terms))
+
+	w := NewWhere()
+	w.And(taggedTermWhere1(&terms[0]))
+
+	for i := 1; i < len(terms); i++ {
+		w.And(taggedTermWhereN(&terms[i]))
+	}
+
+	return w.String(), nil
+
+}
+
+func (t *TaggedFinder) Execute(query string) error {
+	if !strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
+		return t.wrapped.Execute(query)
+	}
+
+	t.isSeriesByTag = true
+
+	w, err := t.makeWhere(query)
+	if err != nil {
+		return err
+	}
+
+	sql := fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, w)
+	t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+	return err
+}
+
+func (t *TaggedFinder) List() [][]byte {
+	if !t.isSeriesByTag {
+		return t.wrapped.List()
+	}
+
+	if t.body == nil {
+		return [][]byte{}
+	}
+
+	rows := bytes.Split(t.body, []byte{'\n'})
+
+	skip := 0
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			skip++
+			continue
+		}
+		if skip > 0 {
+			rows[i-skip] = rows[i]
+		}
+	}
+
+	rows = rows[:len(rows)-skip]
+
+	return rows
+}
+
+func (t *TaggedFinder) Series() [][]byte {
+	if !t.isSeriesByTag {
+		return t.wrapped.Series()
+	}
+
+	return t.List()
+}
+
+func (t *TaggedFinder) Abs(v []byte) []byte {
+	if !t.isSeriesByTag {
+		return t.wrapped.Abs(v)
+	}
+
+	u, err := url.Parse(string(v))
+	if err != nil {
+		return v
+	}
+
+	tags := make([]string, 0, len(u.Query()))
+	for k, v := range u.Query() {
+		tags = append(tags, fmt.Sprintf("%s=%s", k, v[0]))
+	}
+
+	sort.Strings(tags)
+	if len(tags) == 0 {
+		return []byte(u.Path)
+	}
+
+	return []byte(fmt.Sprintf("%s;%s", u.Path, strings.Join(tags, ";")))
+}

@@ -55,6 +55,7 @@ type ClickHouse struct {
 	TreeTable            string    `toml:"tree-table"`
 	DateTreeTable        string    `toml:"date-tree-table"`
 	DateTreeTableVersion int       `toml:"date-tree-table-version"`
+	TaggedTable          string    `toml:"tagged-table"`
 	ReverseTreeTable     string    `toml:"reverse-tree-table"`
 	TreeTimeout          *Duration `toml:"tree-timeout"`
 	TagTable             string    `toml:"tag-table"`
