@@ -210,7 +210,7 @@ func (t *TaggedFinder) Execute(query string) error {
 		return err
 	}
 
-	sql := fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, w)
+	sql := fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", t.table, w)
 	t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
 	return err
 }
