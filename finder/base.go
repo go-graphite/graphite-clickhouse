@@ -11,16 +11,14 @@ import (
 )
 
 type BaseFinder struct {
-	ctx     context.Context // for clickhouse.Query
-	url     string          // clickhouse dsn
-	table   string          // graphite_tree table
-	timeout time.Duration   // clickhouse query timeout
-	body    []byte          // clickhouse response body
+	url     string        // clickhouse dsn
+	table   string        // graphite_tree table
+	timeout time.Duration // clickhouse query timeout
+	body    []byte        // clickhouse response body
 }
 
-func NewBase(ctx context.Context, url string, table string, timeout time.Duration) Finder {
+func NewBase(url string, table string, timeout time.Duration) Finder {
 	return &BaseFinder{
-		ctx:     ctx,
 		url:     url,
 		table:   table,
 		timeout: timeout,
@@ -62,11 +60,11 @@ func (b *BaseFinder) where(query string) string {
 	return w.String()
 }
 
-func (b *BaseFinder) Execute(query string) (err error) {
+func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	where := b.where(query)
 
 	b.body, err = clickhouse.Query(
-		b.ctx,
+		ctx,
 		b.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", b.table, where),
 		b.timeout,

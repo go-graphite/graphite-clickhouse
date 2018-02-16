@@ -40,7 +40,7 @@ func TestTagsMakeSQL(t *testing.T) {
 		testName := fmt.Sprintf("query: %#v", test.query)
 
 		m := NewMockFinder([][]byte{[]byte("mock")})
-		f := WrapTag(m, context.Background(), "http://localhost:8123/", "table", time.Second)
+		f := WrapTag(m, "http://localhost:8123/", "table", time.Second)
 
 		sql, err := f.MakeSQL(test.query)
 
@@ -99,9 +99,9 @@ func _TestTags(t *testing.T) {
 		srv := clickhouse.NewTestServer()
 
 		m := NewMockFinder(mockData)
-		f := WrapTag(m, context.Background(), srv.URL, "graphite_tag", time.Second)
+		f := WrapTag(m, srv.URL, "graphite_tag", time.Second)
 
-		f.Execute(test.query)
+		f.Execute(context.Background(), test.query, 0, 0)
 
 		list := make([]string, 0)
 		for _, r := range f.List() {

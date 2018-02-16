@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestPrefixFinderExecute(t *testing.T) {
 
 		f := WrapPrefix(m, test.prefix)
 
-		err := f.Execute(test.query)
+		err := f.Execute(context.Background(), test.query, 0, 0)
 
 		if test.expectedError {
 			assert.Error(err, testName)
@@ -83,7 +84,7 @@ func TestPrefixFinderList(t *testing.T) {
 		m := NewMockFinder(mockData)
 		f := WrapPrefix(m, prefix)
 
-		f.Execute(test.query)
+		f.Execute(context.Background(), test.query, 0, 0)
 
 		list := make([]string, 0)
 		for _, r := range f.List() {

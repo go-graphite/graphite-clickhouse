@@ -1,7 +1,6 @@
 package finder
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -14,8 +13,8 @@ import (
 func TestTaggedWhere(t *testing.T) {
 	assert := assert.New(t)
 
-	until := time.Now().Unix()
-	from := until - 5*24*60*60
+	// until := time.Now().Unix()
+	// from := until - 5*24*60*60
 
 	table := []struct {
 		query string
@@ -33,8 +32,7 @@ func TestTaggedWhere(t *testing.T) {
 
 		srv := clickhouse.NewTestServer()
 
-		m := NewMockFinder([][]byte{})
-		f := WrapTagged(m, context.Background(), srv.URL, "tbl", time.Second, from, until)
+		f := NewTagged(srv.URL, "tbl", time.Second)
 
 		w, err := f.makeWhere(test.query)
 

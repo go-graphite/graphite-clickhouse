@@ -1,5 +1,9 @@
 package finder
 
+import (
+	"context"
+)
+
 type MockFinder struct {
 	result [][]byte // from new
 	query  string   // logged from execute
@@ -11,7 +15,7 @@ func NewMockFinder(result [][]byte) *MockFinder {
 	}
 }
 
-func (m *MockFinder) Execute(query string) error {
+func (m *MockFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	m.query = query
 	return nil
 }

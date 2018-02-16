@@ -41,26 +41,17 @@ func (s taggedTermList) Less(i, j int) bool {
 }
 
 type TaggedFinder struct {
-	wrapped        Finder
-	ctx            context.Context // for clickhouse.Query
-	url            string          // clickhouse dsn
-	table          string          // graphite_tag table
-	timeout        time.Duration   // clickhouse query timeout
-	body           []byte          // clickhouse response
-	fromTimestamp  int64
-	untilTimestamp int64
-	isSeriesByTag  bool
+	url     string        // clickhouse dsn
+	table   string        // graphite_tag table
+	timeout time.Duration // clickhouse query timeout
+	body    []byte        // clickhouse response
 }
 
-func WrapTagged(f Finder, ctx context.Context, url string, table string, timeout time.Duration, fromTimestamp int64, untilTimestamp int64) *TaggedFinder {
+func NewTagged(url string, table string, timeout time.Duration) *TaggedFinder {
 	return &TaggedFinder{
-		wrapped:        f,
-		ctx:            ctx,
-		url:            url,
-		table:          table,
-		timeout:        timeout,
-		fromTimestamp:  fromTimestamp,
-		untilTimestamp: untilTimestamp,
+		url:     url,
+		table:   table,
+		timeout: timeout,
 	}
 }
 
@@ -198,28 +189,19 @@ func (t *TaggedFinder) makeWhere(query string) (string, error) {
 
 }
 
-func (t *TaggedFinder) Execute(query string) error {
-	if !strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
-		return t.wrapped.Execute(query)
-	}
-
-	t.isSeriesByTag = true
-
+func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	w, err := t.makeWhere(query)
 	if err != nil {
 		return err
 	}
 
+	// @TODO: from, until
 	sql := fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", t.table, w)
-	t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+	t.body, err = clickhouse.Query(ctx, t.url, sql, t.timeout)
 	return err
 }
 
 func (t *TaggedFinder) List() [][]byte {
-	if !t.isSeriesByTag {
-		return t.wrapped.List()
-	}
-
 	if t.body == nil {
 		return [][]byte{}
 	}
@@ -243,18 +225,10 @@ func (t *TaggedFinder) List() [][]byte {
 }
 
 func (t *TaggedFinder) Series() [][]byte {
-	if !t.isSeriesByTag {
-		return t.wrapped.Series()
-	}
-
 	return t.List()
 }
 
 func (t *TaggedFinder) Abs(v []byte) []byte {
-	if !t.isSeriesByTag {
-		return t.wrapped.Abs(v)
-	}
-
 	u, err := url.Parse(string(v))
 	if err != nil {
 		return v
