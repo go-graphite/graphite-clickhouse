@@ -53,7 +53,7 @@ func VarintLen(x uint64) uint64 {
 		return 2
 	}
 	j := uint64(2)
-	for i := uint64(16384); x < i; i *= 128 {
+	for i := uint64(16384); i <= x; i *= 128 {
 		j++
 	}
 	return j
