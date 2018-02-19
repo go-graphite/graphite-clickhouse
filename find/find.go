@@ -88,7 +88,7 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 	// }
 
 	var response carbonzipperpb.GlobResponse
-	response.Name = proto.String(f.query)
+	response.Name = f.query
 
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
@@ -98,8 +98,8 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 		path, isLeaf := finder.Leaf(rows[i])
 
 		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
-			Path:   proto.String(string(path)),
-			IsLeaf: &isLeaf,
+			Path:   string(path),
+			IsLeaf: isLeaf,
 		})
 	}
 

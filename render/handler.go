@@ -398,10 +398,10 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		count := ((stop - start) / step) + 1
 
 		response := carbonzipperpb.FetchResponse{
-			Name:      proto.String(name),
-			StartTime: &start,
-			StopTime:  &stop,
-			StepTime:  &step,
+			Name:      name,
+			StartTime: start,
+			StopTime:  stop,
+			StepTime:  step,
 			Values:    make([]float64, count),
 			IsAbsent:  make([]bool, count),
 		}
