@@ -1,7 +1,6 @@
 package render
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
-	"github.com/lomik/graphite-clickhouse/helper/pickle"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 
 	graphitePickle "github.com/lomik/graphite-pickle"
@@ -154,8 +152,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		index++
 	}
 
-	maxStep := int32(0)
+	pointsTable, isReverse := SelectDataTable(h.config, fromTimestamp, untilTimestamp)
 
+	maxStep := int32(0)
 	listBuf := bytes.NewBuffer(nil)
 
 	// make Path IN (...), calculate max step
@@ -172,7 +171,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			listBuf.WriteByte(',')
 		}
 
-		listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
+		if isReverse {
+			listBuf.WriteString("'" + clickhouse.Escape(reversePath(unsafeString(m))) + "'")
+		} else {
+			listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
+		}
 	}
 
 	if listBuf.Len() == 0 {
@@ -203,7 +206,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		WHERE (%s)
 		FORMAT RowBinary
 		`,
-		h.config.ClickHouse.DataTable,
+		pointsTable,
 		preWhere.String(),
 		where.String(),
 	)
@@ -229,7 +232,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	parseStart := time.Now()
 
 	// pass carbonlinkData to DataParse
-	data, err := DataParse(body, carbonlinkData)
+	data, err := DataParse(body, carbonlinkData, isReverse)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -261,243 +264,4 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from
 	}
 	d := time.Since(start)
 	log.FromContext(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
-}
-
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
-	var rollupTime time.Duration
-	var pickleTime time.Duration
-
-	points := data.Points
-
-	defer func() {
-		log.FromContext(r.Context()).Debug("rollup",
-			zap.String("runtime", rollupTime.String()),
-			zap.Duration("runtime_ns", rollupTime),
-		)
-		log.FromContext(r.Context()).Debug("pickle",
-			zap.String("runtime", pickleTime.String()),
-			zap.Duration("runtime_ns", pickleTime),
-		)
-	}()
-
-	if len(points) == 0 {
-		w.Write(pickle.EmptyList)
-		return
-	}
-
-	writer := bufio.NewWriterSize(w, 1024*1024)
-	p := pickle.NewWriter(writer)
-	defer writer.Flush()
-
-	p.List()
-
-	writeMetric := func(name string, pathExpression string, points []point.Point) {
-		rollupStart := time.Now()
-		points, step := h.config.Rollup.RollupMetric(points)
-		rollupTime += time.Since(rollupStart)
-
-		pickleStart := time.Now()
-		p.Dict()
-
-		p.String("name")
-		p.String(name)
-		p.SetItem()
-
-		p.String("pathExpression")
-		p.String(pathExpression)
-		p.SetItem()
-
-		p.String("step")
-		p.Uint32(uint32(step))
-		p.SetItem()
-
-		start := from - (from % step)
-		if start < from {
-			start += step
-		}
-		end := until - (until % step)
-		last := start - step
-
-		p.String("values")
-		p.List()
-		for _, point := range points {
-			if point.Time < start || point.Time > end {
-				continue
-			}
-
-			if point.Time > last+step {
-				p.AppendNulls(int(((point.Time - last) / step) - 1))
-			}
-
-			p.AppendFloat64(point.Value)
-
-			last = point.Time
-		}
-
-		if end > last {
-			p.AppendNulls(int((end - last) / step))
-		}
-		p.SetItem()
-
-		p.String("start")
-		p.Uint32(uint32(start))
-		p.SetItem()
-
-		p.String("end")
-		p.Uint32(uint32(end))
-		p.SetItem()
-
-		p.Append()
-		pickleTime += time.Since(pickleStart)
-	}
-
-	// group by Metric
-	var i, n, k int
-	// i - current position of iterator
-	// n - position of the first record with current metric
-	l := len(points)
-
-	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric {
-			a := data.Aliases[points[n].Metric]
-			for k = 0; k < len(a); k += 2 {
-				writeMetric(a[k], a[k+1], points[n:i])
-			}
-			n = i
-			continue
-		}
-	}
-
-	a := data.Aliases[points[n].Metric]
-	for k = 0; k < len(a); k += 2 {
-		writeMetric(a[k], a[k+1], points[n:i])
-	}
-
-	p.Stop()
-}
-
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
-	points := data.Points
-
-	if len(points) == 0 {
-		return
-	}
-
-	// var multiResponse carbonzipperpb.MultiFetchResponse
-	writer := bufio.NewWriterSize(w, 1024*1024)
-	defer writer.Flush()
-
-	mb := new(bytes.Buffer)
-
-	writeMetric := func(name string, points []point.Point) {
-		points, step := h.config.Rollup.RollupMetric(points)
-
-		start := from - (from % step)
-		if start < from {
-			start += step
-		}
-		stop := until - (until % step)
-		count := ((stop - start) / step) + 1
-
-		mb.Reset()
-
-		// name
-		VarintWrite(mb, (1<<3)+2) // tag
-		VarintWrite(mb, uint64(len(name)))
-		mb.WriteString(name)
-
-		// start
-		VarintWrite(mb, 2<<3)
-		VarintWrite(mb, uint64(start))
-
-		// stop
-		VarintWrite(mb, 3<<3)
-		VarintWrite(mb, uint64(stop))
-
-		// step
-		VarintWrite(mb, 4<<3)
-		VarintWrite(mb, uint64(step))
-
-		// start write to output
-
-		// repeated FetchResponse metrics = 1;
-		// write tag and len
-		VarintWrite(writer, (1<<3)+2)
-		VarintWrite(writer,
-			uint64(mb.Len())+
-				2+ // tags of <repeated double values = 5;> and <repeated bool isAbsent = 6;>
-				VarintLen(uint64(8*count))+ // len of packed <repeated double values>
-				VarintLen(uint64(count))+ // len of packed <repeated bool isAbsent>
-				uint64(9*count), // packed <repeated double values> and <repeated bool isAbsent>
-		)
-
-		writer.Write(mb.Bytes())
-
-		// Write values
-		VarintWrite(writer, (5<<3)+2)
-		VarintWrite(writer, uint64(8*count))
-
-		last := start - step
-		for _, point := range points {
-			if point.Time < start || point.Time > stop {
-				continue
-			}
-
-			if point.Time > last+step {
-				ProtobufWriteDoubleN(writer, 0, int(((point.Time-last)/step)-1))
-			}
-
-			ProtobufWriteDouble(writer, point.Value)
-
-			last = point.Time
-		}
-
-		if stop > last {
-			ProtobufWriteDoubleN(writer, 0, int((stop-last)/step))
-		}
-
-		// Write isAbsent
-		VarintWrite(writer, (6<<3)+2)
-		VarintWrite(writer, uint64(count))
-
-		last = start - step
-		for _, point := range points {
-			if point.Time < start || point.Time > stop {
-				continue
-			}
-
-			if point.Time > last+step {
-				WriteByteN(writer, '\x01', int(((point.Time-last)/step)-1))
-			}
-
-			writer.WriteByte('\x00')
-
-			last = point.Time
-		}
-
-		if stop > last {
-			WriteByteN(writer, '\x01', int((stop-last)/step))
-		}
-	}
-
-	// group by Metric
-	var i, n, k int
-	// i - current position of iterator
-	// n - position of the first record with current metric
-	l := len(points)
-
-	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric {
-			a := data.Aliases[points[n].Metric]
-			for k = 0; k < len(a); k += 2 {
-				writeMetric(a[k], points[n:i])
-			}
-			n = i
-			continue
-		}
-	}
-	a := data.Aliases[points[n].Metric]
-	for k = 0; k < len(a); k += 2 {
-		writeMetric(a[k], points[n:i])
-	}
 }

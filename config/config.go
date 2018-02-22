@@ -85,7 +85,6 @@ type DataTable struct {
 	MinAge      *Duration `toml:"min-age"`
 	MaxInterval *Duration `toml:"max-interval"`
 	MinInterval *Duration `toml:"min-interval"`
-	TargetMatch string    `toml:"target-match"`
 }
 
 // Config ...

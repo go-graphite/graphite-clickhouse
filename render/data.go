@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"strings"
 	"unsafe"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
@@ -12,6 +13,17 @@ import (
 
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+func reversePath(path string) string {
+	a := strings.Split(path, ".")
+
+	l := len(a)
+	for i := 0; i < l/2; i++ {
+		a[i], a[l-i-1] = a[l-i-1], a[i]
+	}
+
+	return strings.Join(a, ".")
 }
 
 var errUvarintRead = errors.New("ReadUvarint: Malformed array")
@@ -79,7 +91,7 @@ func DataCount(body []byte) (int, error) {
 	return 0, nil
 }
 
-func DataParse(body []byte, extraPoints []point.Point) (*Data, error) {
+func DataParse(body []byte, extraPoints []point.Point, isReverse bool) (*Data, error) {
 	count, err := DataCount(body)
 	if err != nil {
 		return nil, err
@@ -104,6 +116,7 @@ func DataParse(body []byte, extraPoints []point.Point) (*Data, error) {
 	}
 
 	name := []byte{}
+	finalName := ""
 	id := 0
 
 	for {
@@ -129,7 +142,12 @@ func DataParse(body []byte, extraPoints []point.Point) (*Data, error) {
 
 		if bytes.Compare(newName, name) != 0 {
 			name = newName
-			id = d.NameToID(unsafeString(name))
+			if isReverse {
+				finalName = reversePath(unsafeString(name))
+			} else {
+				finalName = unsafeString(name)
+			}
+			id = d.NameToID(finalName)
 			// fmt.Println(unsafeString(name), id)
 		}
 
@@ -143,7 +161,7 @@ func DataParse(body []byte, extraPoints []point.Point) (*Data, error) {
 		offset += 4
 
 		d.Points[index].MetricID = id
-		d.Points[index].Metric = unsafeString(name)
+		d.Points[index].Metric = finalName
 		d.Points[index].Time = int32(time)
 		d.Points[index].Value = value
 		d.Points[index].Timestamp = int32(timestamp)
