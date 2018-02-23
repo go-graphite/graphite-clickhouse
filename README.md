@@ -73,6 +73,8 @@ date-tree-table = ""
 # 2: table with Path, Date, Level, Deleted, Version fields. Table type "series" in the carbon-clickhouse
 date-tree-table-version = 0
 rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
+# `tagged` table from carbon-clickhouse. Required for seriesByTag
+tagged-table = ""
 # Add extra prefix (directory in graphite) for all metrics
 extra-prefix = ""
 data-timeout = "1m0s"
