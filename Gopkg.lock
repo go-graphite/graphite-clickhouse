@@ -16,8 +16,8 @@
 [[projects]]
   name = "github.com/go-graphite/carbonapi"
   packages = ["pkg/parser"]
-  revision = "e42524144e0d0ea50ec3f85e25827573ef27ce3d"
-  version = "0.9.1"
+  revision = "9db1310e484a8b3bd067a2b63fb499dc9b9de415"
+  version = "0.9.2"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
