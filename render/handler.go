@@ -125,18 +125,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		target := r.Form["target"][t]
 
 		// Search in small index table first
-		fnd := finder.NewLimited(r.Context(), h.config, fromTimestamp, untilTimestamp)
-
-		err = fnd.Execute(target)
+		fndResult, err := finder.Find(h.config, r.Context(), target, fromTimestamp, untilTimestamp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		fndResult := fnd.Series()
 
-		for i := 0; i < len(fndResult); i++ {
-			key := string(fndResult[i])
-			abs := string(fnd.Abs(fndResult[i]))
+		fndSeries := fndResult.Series()
+
+		for i := 0; i < len(fndSeries); i++ {
+			key := string(fndSeries[i])
+			abs := string(fndResult.Abs(fndSeries[i]))
 			if x, ok := aliases[key]; ok {
 				aliases[key] = append(x, abs, target)
 			} else {

@@ -56,10 +56,9 @@ func (q *TagQ) Where(field string) string {
 
 type TagFinder struct {
 	wrapped     Finder
-	ctx         context.Context // for clickhouse.Query
-	url         string          // clickhouse dsn
-	table       string          // graphite_tag table
-	timeout     time.Duration   // clickhouse query timeout
+	url         string        // clickhouse dsn
+	table       string        // graphite_tag table
+	timeout     time.Duration // clickhouse query timeout
 	state       TagState
 	tagQuery    []TagQ
 	seriesQuery string
@@ -69,10 +68,9 @@ type TagFinder struct {
 
 var EmptyList [][]byte = [][]byte{}
 
-func WrapTag(f Finder, ctx context.Context, url string, table string, timeout time.Duration) *TagFinder {
+func WrapTag(f Finder, url string, table string, timeout time.Duration) *TagFinder {
 	return &TagFinder{
 		wrapped:  f,
-		ctx:      ctx,
 		url:      url,
 		table:    table,
 		timeout:  timeout,
@@ -200,20 +198,20 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	return t.seriesSQL()
 }
 
-func (t *TagFinder) Execute(query string) error {
+func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	t.state = TagSkip
 
 	if query == "" {
-		return t.wrapped.Execute(query)
+		return t.wrapped.Execute(ctx, query, from, until)
 	}
 
 	if query == "*" {
 		t.state = TagRoot
-		return t.wrapped.Execute(query)
+		return t.wrapped.Execute(ctx, query, from, until)
 	}
 
 	if !strings.HasPrefix(query, "_tag.") && query != "_tag" {
-		return t.wrapped.Execute(query)
+		return t.wrapped.Execute(ctx, query, from, until)
 	}
 
 	sql, err := t.MakeSQL(query)
@@ -222,7 +220,7 @@ func (t *TagFinder) Execute(query string) error {
 	}
 
 	if sql != "" {
-		t.body, err = clickhouse.Query(t.ctx, t.url, sql, t.timeout)
+		t.body, err = clickhouse.Query(ctx, t.url, sql, t.timeout)
 	}
 
 	return err

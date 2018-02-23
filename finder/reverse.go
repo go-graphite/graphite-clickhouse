@@ -10,11 +10,10 @@ import (
 type ReverseFinder struct {
 	wrapped    Finder
 	baseFinder Finder
-	ctx        context.Context // for clickhouse.Query
-	url        string          // clickhouse dsn
-	table      string          // graphite_reverse_tree table
-	timeout    time.Duration   // clickhouse query timeout
-	isUsed     bool            // use reverse table
+	url        string        // clickhouse dsn
+	table      string        // graphite_reverse_tree table
+	timeout    time.Duration // clickhouse query timeout
+	isUsed     bool          // use reverse table
 }
 
 func ReverseString(target string) string {
@@ -39,29 +38,28 @@ func ReverseBytes(target []byte) []byte {
 	return bytes.Join(a, []byte{'.'})
 }
 
-func WrapReverse(f Finder, ctx context.Context, url string, table string, timeout time.Duration) *ReverseFinder {
+func WrapReverse(f Finder, url string, table string, timeout time.Duration) *ReverseFinder {
 	return &ReverseFinder{
 		wrapped:    f,
-		baseFinder: NewBase(ctx, url, table, timeout),
-		ctx:        ctx,
+		baseFinder: NewBase(url, table, timeout),
 		url:        url,
 		table:      table,
 		timeout:    timeout,
 	}
 }
 
-func (r *ReverseFinder) Execute(query string) error {
+func (r *ReverseFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	p := strings.LastIndexByte(query, '.')
 	if p < 0 || p >= len(query)-1 {
-		return r.wrapped.Execute(query)
+		return r.wrapped.Execute(ctx, query, from, until)
 	}
 
 	if HasWildcard(query[p+1:]) {
-		return r.wrapped.Execute(query)
+		return r.wrapped.Execute(ctx, query, from, until)
 	}
 
 	r.isUsed = true
-	return r.baseFinder.Execute(ReverseString(query))
+	return r.baseFinder.Execute(ctx, ReverseString(query), from, until)
 }
 
 func (r *ReverseFinder) List() [][]byte {

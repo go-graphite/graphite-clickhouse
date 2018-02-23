@@ -16,26 +16,25 @@ type Find struct {
 	config  *config.Config
 	context context.Context
 	query   string // original query
-	finder  finder.Finder
+	result  finder.Result
 }
 
 func New(config *config.Config, ctx context.Context, query string) (*Find, error) {
-	f := &Find{
-		query:   query,
-		config:  config,
-		context: ctx,
-		finder:  finder.New(ctx, config),
-	}
-
-	if err := f.finder.Execute(query); err != nil {
+	res, err := finder.Find(config, ctx, query, 0, 0)
+	if err != nil {
 		return nil, err
 	}
 
-	return f, nil
+	return &Find{
+		query:   query,
+		config:  config,
+		context: ctx,
+		result:  res,
+	}, nil
 }
 
 func (f *Find) WritePickle(w io.Writer) error {
-	rows := f.finder.List()
+	rows := f.result.List()
 
 	if len(rows) == 0 { // empty
 		w.Write(pickle.EmptyList)
@@ -71,7 +70,7 @@ func (f *Find) WritePickle(w io.Writer) error {
 }
 
 func (f *Find) WriteProtobuf(w io.Writer) error {
-	rows := f.finder.List()
+	rows := f.result.List()
 
 	if len(rows) == 0 { // empty
 		return nil

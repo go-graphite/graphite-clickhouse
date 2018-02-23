@@ -1,6 +1,9 @@
 package finder
 
-import "regexp"
+import (
+	"context"
+	"regexp"
+)
 
 type BlacklistFinder struct {
 	wrapped   Finder
@@ -15,7 +18,7 @@ func WrapBlacklist(f Finder, blacklist []*regexp.Regexp) *BlacklistFinder {
 	}
 }
 
-func (p *BlacklistFinder) Execute(query string) error {
+func (p *BlacklistFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	for i := 0; i < len(p.blacklist); i++ {
 		if p.blacklist[i].MatchString(query) {
 			p.matched = true
@@ -23,7 +26,7 @@ func (p *BlacklistFinder) Execute(query string) error {
 		}
 	}
 
-	return p.wrapped.Execute(query)
+	return p.wrapped.Execute(ctx, query, from, until)
 }
 
 func (p *BlacklistFinder) List() [][]byte {
@@ -43,6 +46,6 @@ func (p *BlacklistFinder) Series() [][]byte {
 	return p.wrapped.Series()
 }
 
-func (p *BlacklistFinder) Abs(value []byte) []byte {
-	return p.wrapped.Abs(value)
+func (p *BlacklistFinder) Abs(v []byte) []byte {
+	return p.wrapped.Abs(v)
 }

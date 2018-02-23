@@ -10,35 +10,32 @@ import (
 
 type DateFinder struct {
 	*BaseFinder
-	tableVersion   int
-	fromTimestamp  int64
-	untilTimestamp int64
+	tableVersion int
 }
 
-func NewDateFinder(ctx context.Context, url string, table string, tableVersion int, timeout time.Duration, fromTimestamp int64, untilTimestamp int64) Finder {
+func NewDateFinder(url string, table string, tableVersion int, timeout time.Duration) Finder {
 	b := &BaseFinder{
-		ctx:     ctx,
 		url:     url,
 		table:   table,
 		timeout: timeout,
 	}
 
-	return &DateFinder{b, tableVersion, fromTimestamp, untilTimestamp}
+	return &DateFinder{b, tableVersion}
 }
 
-func (b *DateFinder) Execute(query string) (err error) {
+func (b *DateFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	where := b.where(query)
 
 	dateWhere := NewWhere()
 	dateWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
-		time.Unix(b.fromTimestamp, 0).Format("2006-01-02"),
-		time.Unix(b.untilTimestamp, 0).Format("2006-01-02"),
+		time.Unix(from, 0).Format("2006-01-02"),
+		time.Unix(until, 0).Format("2006-01-02"),
 	)
 
 	if b.tableVersion == 2 {
 		b.body, err = clickhouse.Query(
-			b.ctx,
+			ctx,
 			b.url,
 			fmt.Sprintf(
 				`SELECT Path FROM %s PREWHERE (%s) WHERE (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
@@ -47,7 +44,7 @@ func (b *DateFinder) Execute(query string) (err error) {
 		)
 	} else {
 		b.body, err = clickhouse.Query(
-			b.ctx,
+			ctx,
 			b.url,
 			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere.String(), where),
 			b.timeout,
