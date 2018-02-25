@@ -120,9 +120,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	aliases := make(map[string][]string)
+	targets := make([]string, 0)
 
 	for t := 0; t < len(r.Form["target"]); t++ {
 		target := r.Form["target"][t]
+		if len(target) == 0 {
+			continue
+		}
+		targets = append(targets, target)
 
 		// Search in small index table first
 		fndResult, err := finder.Find(h.config, r.Context(), target, fromTimestamp, untilTimestamp)
@@ -151,7 +156,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		index++
 	}
 
-	pointsTable, isReverse := SelectDataTable(h.config, fromTimestamp, untilTimestamp)
+	pointsTable, isReverse := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
 
 	maxStep := int32(0)
 	listBuf := bytes.NewBuffer(nil)

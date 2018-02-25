@@ -6,28 +6,51 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 )
 
-func SelectDataTable(cfg *config.Config, from int64, until int64) (string, bool) {
+func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool) {
 	now := time.Now().Unix()
 
+TableLoop:
 	for i := 0; i < len(cfg.DataTable); i++ {
 		t := &cfg.DataTable[i]
 
 		if t.MaxInterval != nil && (until-from) > int64(t.MaxInterval.Value().Seconds()) {
-			continue
+			continue TableLoop
 		}
 
 		if t.MinInterval != nil && (until-from) < int64(t.MinInterval.Value().Seconds()) {
-			continue
+			continue TableLoop
 		}
 
 		if t.MaxAge != nil && from < now-int64(t.MaxAge.Value().Seconds()) {
-			continue
+			continue TableLoop
 
 		}
 
 		if t.MinAge != nil && until > now-int64(t.MinAge.Value().Seconds()) {
-			continue
+			continue TableLoop
 
+		}
+
+		if t.TargetMatchAllRegexp != nil {
+			for j := 0; j < len(targets); j++ {
+				if !t.TargetMatchAllRegexp.MatchString(targets[j]) {
+					continue TableLoop
+				}
+			}
+		}
+
+		if t.TargetMatchAnyRegexp != nil {
+			matched := false
+		TargetsLoop:
+			for j := 0; j < len(targets); j++ {
+				if t.TargetMatchAnyRegexp.MatchString(targets[j]) {
+					matched = true
+					break TargetsLoop
+				}
+			}
+			if !matched {
+				continue TableLoop
+			}
 		}
 
 		return t.Table, t.Reverse

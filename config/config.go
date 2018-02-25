@@ -80,12 +80,16 @@ type Carbonlink struct {
 }
 
 type DataTable struct {
-	Table       string    `toml:"table"`
-	Reverse     bool      `toml:"reverse"`
-	MaxAge      *Duration `toml:"max-age"`
-	MinAge      *Duration `toml:"min-age"`
-	MaxInterval *Duration `toml:"max-interval"`
-	MinInterval *Duration `toml:"min-interval"`
+	Table                string         `toml:"table"`
+	Reverse              bool           `toml:"reverse"`
+	MaxAge               *Duration      `toml:"max-age"`
+	MinAge               *Duration      `toml:"min-age"`
+	MaxInterval          *Duration      `toml:"max-interval"`
+	MinInterval          *Duration      `toml:"min-interval"`
+	TargetMatchAny       string         `toml:"target-match-any"`
+	TargetMatchAll       string         `toml:"target-match-all"`
+	TargetMatchAnyRegexp *regexp.Regexp `toml:"-"`
+	TargetMatchAllRegexp *regexp.Regexp `toml:"-"`
 }
 
 // Config ...
@@ -226,6 +230,23 @@ func ReadConfig(filename string) (*Config, error) {
 				return nil, err
 			}
 			cfg.Common.Blacklist[i] = r
+		}
+	}
+
+	for i := 0; i < len(cfg.DataTable); i++ {
+		if cfg.DataTable[i].TargetMatchAny != "" {
+			r, err := regexp.Compile(cfg.DataTable[i].TargetMatchAny)
+			if err != nil {
+				return nil, err
+			}
+			cfg.DataTable[i].TargetMatchAnyRegexp = r
+		}
+		if cfg.DataTable[i].TargetMatchAll != "" {
+			r, err := regexp.Compile(cfg.DataTable[i].TargetMatchAll)
+			if err != nil {
+				return nil, err
+			}
+			cfg.DataTable[i].TargetMatchAllRegexp = r
 		}
 	}
 
