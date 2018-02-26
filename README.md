@@ -7,7 +7,7 @@ Graphite cluster backend with ClickHouse support
 Gray components are optional or alternative
 
 ## Compatibility
-- [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web), seriesByTag not supported
+- [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web), tags autocomplete not supported
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
 - [x] [graphite-web 1.0.0](https://github.com/graphite-project/graphite-web)
 - [x] [carbonzipper](https://github.com/go-graphite/carbonzipper)
@@ -86,6 +86,33 @@ threads-per-request = 10
 connect-timeout = "50ms"
 query-timeout = "50ms"
 total-timeout = "500ms"
+
+# You can define multiple data tables (with points).
+# The first table that matches is used.
+#
+# # Sample, archived table with points older 30d
+# [[data-table]]
+# table = "graphite_archive"
+# min-age = "720h"
+# 
+# # All available options
+# [[data-table]]
+# # clickhouse table name
+# table = "table_name"
+# # points in table are stored with reverse path
+# reverse = false
+# # from >= now - {max-age}
+# max-age = "240h"
+# # until <= now - {min-age}
+# min-age = "240h"
+# # until - from <= {max-interval}
+# max-interval = "24h"
+# # until - from >= {min-interval}
+# min-interval = "24h"
+# # regexp.Match({target-match-any}, target[0]) || regexp.Match({target-match-any}, target[1]) || ...
+# target-match-any = "regexp"
+# # regexp.Match({target-match-all}, target[0]) && regexp.Match({target-match-all}, target[1]) && ...
+# target-match-all = "regexp"
 
 [[logging]]
 logger = ""
