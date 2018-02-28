@@ -101,6 +101,8 @@ total-timeout = "500ms"
 # table = "table_name"
 # # points in table are stored with reverse path
 # reverse = false
+# # custom rollup.conf for table
+# rollup-conf = ""
 # # from >= now - {max-age}
 # max-age = "240h"
 # # until <= now - {min-age}
