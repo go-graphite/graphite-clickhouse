@@ -7,11 +7,12 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	pickle "github.com/lomik/graphite-pickle"
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
@@ -41,7 +42,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	writeMetric := func(name string, pathExpression string, points []point.Point) {
 		rollupStart := time.Now()
-		points, step := h.config.Rollup.RollupMetric(points)
+		points, step := rollupObj.RollupMetric(points)
 		rollupTime += time.Since(rollupStart)
 
 		pickleStart := time.Now()

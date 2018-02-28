@@ -6,9 +6,10 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
 	points := data.Points
 
 	if len(points) == 0 {
@@ -22,7 +23,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	mb := new(bytes.Buffer)
 
 	writeMetric := func(name string, points []point.Point) {
-		points, step := h.config.Rollup.RollupMetric(points)
+		points, step := rollupObj.RollupMetric(points)
 
 		start := from - (from % step)
 		if start < from {

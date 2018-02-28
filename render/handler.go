@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
+
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -156,7 +158,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		index++
 	}
 
-	pointsTable, isReverse := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
+	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
 
 	maxStep := int32(0)
 	listBuf := bytes.NewBuffer(nil)
@@ -166,7 +168,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if len(m) == 0 {
 			continue
 		}
-		step := h.config.Rollup.Step(unsafeString(m), int32(fromTimestamp))
+		step := rollupObj.Step(unsafeString(m), int32(fromTimestamp))
 		if step > maxStep {
 			maxStep = step
 		}
@@ -184,7 +186,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if listBuf.Len() == 0 {
 		// Return empty response
-		h.Reply(w, r, &Data{Points: make([]point.Point, 0)}, 0, 0, "")
+		h.Reply(w, r, &Data{Points: make([]point.Point, 0)}, 0, 0, "", nil)
 		return
 	}
 
@@ -255,16 +257,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.Aliases = aliases
 
 	// pp.Println(points)
-	h.Reply(w, r, data, int32(fromTimestamp), int32(untilTimestamp), prefix)
+	h.Reply(w, r, data, int32(fromTimestamp), int32(untilTimestamp), prefix, rollupObj)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
 	start := time.Now()
 	switch r.FormValue("format") {
 	case "pickle":
-		h.ReplyPickle(w, r, data, from, until, prefix)
+		h.ReplyPickle(w, r, data, from, until, prefix, rollupObj)
 	case "protobuf":
-		h.ReplyProtobuf(w, r, data, from, until, prefix)
+		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj)
 	}
 	d := time.Since(start)
 	log.FromContext(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))

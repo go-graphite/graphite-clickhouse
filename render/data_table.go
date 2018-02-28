@@ -4,9 +4,10 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool) {
+func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool, *rollup.Rollup) {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -53,8 +54,12 @@ TableLoop:
 			}
 		}
 
-		return t.Table, t.Reverse
+		if t.Rollup != nil {
+			return t.Table, t.Reverse, t.Rollup
+		} else {
+			return t.Table, t.Reverse, cfg.Rollup
+		}
 	}
 
-	return cfg.ClickHouse.DataTable, false
+	return cfg.ClickHouse.DataTable, false, cfg.Rollup
 }

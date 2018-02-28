@@ -90,6 +90,8 @@ type DataTable struct {
 	TargetMatchAll       string         `toml:"target-match-all"`
 	TargetMatchAnyRegexp *regexp.Regexp `toml:"-"`
 	TargetMatchAllRegexp *regexp.Regexp `toml:"-"`
+	RollupConf           string         `toml:"rollup-conf"`
+	Rollup               *rollup.Rollup `toml:"-"`
 }
 
 // Config ...
@@ -247,6 +249,20 @@ func ReadConfig(filename string) (*Config, error) {
 				return nil, err
 			}
 			cfg.DataTable[i].TargetMatchAllRegexp = r
+		}
+
+		if cfg.DataTable[i].RollupConf != "" {
+			rollupConfBody, err := ioutil.ReadFile(cfg.DataTable[i].RollupConf)
+			if err != nil {
+				return nil, err
+			}
+
+			r, err := rollup.ParseXML(rollupConfBody)
+			if err != nil {
+				return nil, err
+			}
+
+			cfg.DataTable[i].Rollup = r
 		}
 	}
 
