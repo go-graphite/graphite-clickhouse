@@ -12,7 +12,7 @@ func GlobToRegexp(g string) string {
 	s = strings.Replace(s, ".", "[.]", -1)
 	s = strings.Replace(s, "{", "(", -1)
 	s = strings.Replace(s, "}", ")", -1)
-	s = strings.Replace(s, "?", "\\w{1}", -1)
+	s = strings.Replace(s, "?", "[^.]", -1)
 	s = strings.Replace(s, ",", "|", -1)
 	s = strings.Replace(s, "*", "([^.]*?)", -1)
 	return s
