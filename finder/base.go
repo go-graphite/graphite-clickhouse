@@ -43,7 +43,7 @@ func (b *BaseFinder) where(query string) string {
 	}
 
 	// before any wildcard symbol
-	simplePrefix := query[:strings.IndexAny(query, "[]{}*")]
+	simplePrefix := query[:strings.IndexAny(query, "[]{}*?")]
 
 	if len(simplePrefix) > 0 {
 		w.Andf("Path LIKE %s", Q(simplePrefix+`%`))
