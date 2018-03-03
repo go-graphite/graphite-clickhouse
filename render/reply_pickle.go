@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
@@ -57,7 +57,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		p.SetItem()
 
 		p.String("step")
-		p.Uint32(uint32(step))
+		p.Uint32(step)
 		p.SetItem()
 
 		start := from - (from % step)

@@ -3,6 +3,6 @@ package point
 type Point struct {
 	Metric    string
 	Value     float64
-	Time      int32
-	Timestamp int32 // keep max if metric and time equal on two points
+	Time      uint32
+	Timestamp uint32 // keep max if metric and time equal on two points
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
 	points := data.Points
 
 	if len(points) == 0 {

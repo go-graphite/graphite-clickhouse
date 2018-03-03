@@ -55,7 +55,6 @@ func TestParseXML(t *testing.T) {
 	}
 }
 
-
 func TestParseClickhouseXML(t *testing.T) {
 	config := `
 <yandex>
@@ -163,12 +162,12 @@ func TestMetricStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := int32(time.Now().Unix())
+	now := uint32(time.Now().Unix())
 
 	tests := []struct {
 		name         string
-		from         int32
-		expectedStep int32
+		from         uint32
+		expectedStep uint32
 	}{
 		{"metric.foo.first-retention", now - 500, 1},
 		{"metric.foo.second-retention", now - 3600, 10},

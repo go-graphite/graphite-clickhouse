@@ -80,14 +80,14 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 				sz += len(points)
 			}
 
-			tm := int32(time.Now().Unix())
+			tm := uint32(time.Now().Unix())
 
 			result = make([]point.Point, sz)
 			i := 0
 			for metric, points := range res {
 				for _, p := range points {
 					result[i].Metric = metric
-					result[i].Time = int32(p.Timestamp)
+					result[i].Time = uint32(p.Timestamp)
 					result[i].Value = p.Value
 					result[i].Timestamp = tm
 					i++
@@ -160,7 +160,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
 
-	maxStep := int32(0)
+	var maxStep uint32
 	listBuf := bytes.NewBuffer(nil)
 
 	// make Path IN (...), calculate max step
@@ -168,7 +168,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if len(m) == 0 {
 			continue
 		}
-		step := rollupObj.Step(unsafeString(m), int32(fromTimestamp))
+		step := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
 		if step > maxStep {
 			maxStep = step
 		}
@@ -257,10 +257,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.Aliases = aliases
 
 	// pp.Println(points)
-	h.Reply(w, r, data, int32(fromTimestamp), int32(untilTimestamp), prefix, rollupObj)
+	h.Reply(w, r, data, uint32(fromTimestamp), uint32(untilTimestamp), prefix, rollupObj)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until int32, prefix string, rollupObj *rollup.Rollup) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
 	start := time.Now()
 	switch r.FormValue("format") {
 	case "pickle":

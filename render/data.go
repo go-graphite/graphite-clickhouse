@@ -160,9 +160,9 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 		timestamp := binary.LittleEndian.Uint32(row[:4])
 
 		p.Metric = finalName
-		p.Time = int32(time)
+		p.Time = time
 		p.Value = value
-		p.Timestamp = int32(timestamp)
+		p.Timestamp = timestamp
 		d.Points = append(d.Points, p)
 	}
 
