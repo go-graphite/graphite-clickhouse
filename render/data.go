@@ -52,30 +52,20 @@ func ReadUvarint(array []byte) (uint64, int, error) {
 	}
 }
 
-type idNamePair struct {
-	id   uint32
-	name string
-}
-
 type Data struct {
 	body    []byte // raw RowBinary from clickhouse
 	Points  []point.Point
-	nameMap map[string]*idNamePair
-	maxID   uint32
+	nameMap map[string]string
 	Aliases map[string][]string
 }
 
-func (d *Data) NameToID(name string) (string, uint32) {
+func (d *Data) finalName(name string) string {
 	s, ok := d.nameMap[name]
 	if !ok {
-		d.maxID++
-		d.nameMap[name] = &idNamePair{
-			id:   d.maxID,
-			name: name,
-		}
-		return name, d.maxID
+		d.nameMap[name] = name
+		return name
 	}
-	return s.name, s.id
+	return s
 }
 
 // DataSplitFunc is split function for bufio.Scanner for read row binary records with data
@@ -114,21 +104,20 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 
 	d := &Data{
 		Points:  make([]point.Point, 0, len(extraPoints)),
-		nameMap: make(map[string]*idNamePair),
+		nameMap: make(map[string]string),
 	}
 
 	var p point.Point
 
 	// add extraPoints. With NameToID
 	for i := 0; i < len(extraPoints); i++ {
-		extraPoints[i].Metric, extraPoints[i].MetricID = d.NameToID(extraPoints[i].Metric)
+		extraPoints[i].Metric = d.finalName(extraPoints[i].Metric)
 		d.Points = append(d.Points, extraPoints[i])
 	}
 
 	nameBuf := make([]byte, 65536)
 	name := []byte{}
 	finalName := ""
-	var id uint32
 
 	scanner := bufio.NewScanner(bodyReader)
 	scanner.Buffer(make([]byte, 1048576), 1048576)
@@ -156,9 +145,9 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 				name = nameBuf[:len(newName)]
 			}
 			if isReverse {
-				finalName, id = d.NameToID(reversePath(string(name)))
+				finalName = d.finalName(reversePath(string(name)))
 			} else {
-				finalName, id = d.NameToID(string(name))
+				finalName = d.finalName(string(name))
 			}
 		}
 
@@ -170,7 +159,6 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 
 		timestamp := binary.LittleEndian.Uint32(row[:4])
 
-		p.MetricID = id
 		p.Metric = finalName
 		p.Time = int32(time)
 		p.Value = value
@@ -190,11 +178,11 @@ func (d *Data) Len() int {
 }
 
 func (d *Data) Less(i, j int) bool {
-	if d.Points[i].MetricID == d.Points[j].MetricID {
+	if d.Points[i].Metric == d.Points[j].Metric {
 		return d.Points[i].Time < d.Points[j].Time
 	}
 
-	return d.Points[i].MetricID < d.Points[j].MetricID
+	return d.Points[i].Metric < d.Points[j].Metric
 }
 
 func (d *Data) Swap(i, j int) {
