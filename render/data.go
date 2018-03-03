@@ -109,14 +109,16 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 	pp := d.Points
 
 	// add extraPoints. With NameToID
-	extraList := extraPoints.List()
-	for i := 0; i < len(extraList); i++ {
-		pp.AppendPoint(
-			pp.MetricID(extraPoints.MetricName(extraList[i].MetricID)),
-			extraList[i].Value,
-			extraList[i].Time,
-			extraList[i].Timestamp,
-		)
+	if extraPoints != nil {
+		extraList := extraPoints.List()
+		for i := 0; i < len(extraList); i++ {
+			pp.AppendPoint(
+				pp.MetricID(extraPoints.MetricName(extraList[i].MetricID)),
+				extraList[i].Value,
+				extraList[i].Time,
+				extraList[i].Timestamp,
+			)
+		}
 	}
 
 	nameBuf := make([]byte, 65536)
