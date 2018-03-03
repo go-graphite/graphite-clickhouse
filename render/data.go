@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"strings"
@@ -54,10 +53,12 @@ func ReadUvarint(array []byte) (uint64, int, error) {
 
 type Data struct {
 	body    []byte // raw RowBinary from clickhouse
-	Points  []point.Point
+	Points  *point.Points
 	nameMap map[string]string
 	Aliases map[string][]string
 }
+
+var EmptyData *Data = &Data{Points: point.NewPoints()}
 
 func (d *Data) finalName(name string) string {
 	s, ok := d.nameMap[name]
@@ -100,24 +101,27 @@ func DataSplitFunc(data []byte, atEOF bool) (advance int, token []byte, err erro
 	return tokenLen, data[:tokenLen], nil
 }
 
-func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) (*Data, error) {
-
+func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) (*Data, error) {
 	d := &Data{
-		Points:  make([]point.Point, 0, len(extraPoints)),
-		nameMap: make(map[string]string),
+		Points: point.NewPoints(),
 	}
 
-	var p point.Point
+	pp := d.Points
 
 	// add extraPoints. With NameToID
-	for i := 0; i < len(extraPoints); i++ {
-		extraPoints[i].Metric = d.finalName(extraPoints[i].Metric)
-		d.Points = append(d.Points, extraPoints[i])
+	extraList := extraPoints.List()
+	for i := 0; i < len(extraList); i++ {
+		pp.AppendPoint(
+			pp.MetricID(extraPoints.MetricName(extraList[i].MetricID)),
+			extraList[i].Value,
+			extraList[i].Time,
+			extraList[i].Timestamp,
+		)
 	}
 
 	nameBuf := make([]byte, 65536)
 	name := []byte{}
-	finalName := ""
+	var metricID uint32
 
 	scanner := bufio.NewScanner(bodyReader)
 	scanner.Buffer(make([]byte, 1048576), 1048576)
@@ -135,7 +139,6 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 		newName := row[:int(namelen)]
 		row = row[int(namelen):]
 
-		fmt.Println("cmp", string(name), string(newName))
 		if bytes.Compare(newName, name) != 0 {
 			if len(newName) > len(nameBuf) {
 				name = make([]byte, len(newName))
@@ -145,9 +148,9 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 				name = nameBuf[:len(newName)]
 			}
 			if isReverse {
-				finalName = d.finalName(reversePath(string(name)))
+				metricID = pp.MetricID(reversePath(string(name)))
 			} else {
-				finalName = d.finalName(string(name))
+				metricID = pp.MetricID(string(name))
 			}
 		}
 
@@ -159,11 +162,7 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 
 		timestamp := binary.LittleEndian.Uint32(row[:4])
 
-		p.Metric = finalName
-		p.Time = time
-		p.Value = value
-		p.Timestamp = timestamp
-		d.Points = append(d.Points, p)
+		pp.AppendPoint(metricID, value, time, timestamp)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -171,20 +170,4 @@ func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) 
 	}
 
 	return d, nil
-}
-
-func (d *Data) Len() int {
-	return len(d.Points)
-}
-
-func (d *Data) Less(i, j int) bool {
-	if d.Points[i].Metric == d.Points[j].Metric {
-		return d.Points[i].Time < d.Points[j].Time
-	}
-
-	return d.Points[i].Metric < d.Points[j].Metric
-}
-
-func (d *Data) Swap(i, j int) {
-	d.Points[i], d.Points[j] = d.Points[j], d.Points[i]
 }

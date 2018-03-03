@@ -182,7 +182,7 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr func([]point
 		points[i].Time = t
 
 		if points[n].Time == t {
-			points[i].Metric = ""
+			points[i].MetricID = 0
 		} else {
 			if i > n+1 {
 				points[n].Value = aggr(points[n:i])
@@ -199,7 +199,7 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr func([]point
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rollup) RollupMetric(points []point.Point) ([]point.Point, uint32) {
+func (r *Rollup) RollupMetric(metricName string, points []point.Point) ([]point.Point, uint32) {
 	// pp.Println(points)
 
 	l := len(points)
@@ -208,7 +208,7 @@ func (r *Rollup) RollupMetric(points []point.Point) ([]point.Point, uint32) {
 	}
 
 	now := uint32(time.Now().Unix())
-	rule := r.Match(points[0].Metric)
+	rule := r.Match(metricName)
 	precision := uint32(1)
 
 	for _, retention := range rule.Retention {

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 
@@ -45,9 +44,9 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 // returns callable result fetcher
-func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, merticsList [][]byte) func() []point.Point {
+func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, merticsList [][]byte) func() *point.Points {
 	if h.carbonlink == nil {
-		return func() []point.Point { return nil }
+		return func() *point.Points { return nil }
 	}
 
 	metrics := make([]string, len(merticsList))
@@ -55,9 +54,9 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 		metrics[i] = unsafeString(merticsList[i])
 	}
 
-	carbonlinkResponseChan := make(chan []point.Point, 1)
+	carbonlinkResponseChan := make(chan *point.Points, 1)
 
-	fetchResult := func() []point.Point {
+	fetchResult := func() *point.Points {
 		result := <-carbonlinkResponseChan
 		return result
 	}
@@ -72,25 +71,15 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 			logger.Info("carbonlink failed", zap.Error(err))
 		}
 
-		var result []point.Point
+		result := point.NewPoints()
 
 		if res != nil && len(res) > 0 {
-			sz := 0
-			for _, points := range res {
-				sz += len(points)
-			}
-
 			tm := uint32(time.Now().Unix())
 
-			result = make([]point.Point, sz)
-			i := 0
 			for metric, points := range res {
+				metricID := result.MetricID(metric)
 				for _, p := range points {
-					result[i].Metric = metric
-					result[i].Time = uint32(p.Timestamp)
-					result[i].Value = p.Value
-					result[i].Timestamp = tm
-					i++
+					result.AppendPoint(metricID, p.Value, uint32(p.Timestamp), tm)
 				}
 			}
 		}
@@ -186,7 +175,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if listBuf.Len() == 0 {
 		// Return empty response
-		h.Reply(w, r, &Data{Points: make([]point.Point, 0)}, 0, 0, "", nil)
+		h.Reply(w, r, EmptyData, 0, 0, "", nil)
 		return
 	}
 
@@ -249,11 +238,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("parse", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
 	sortStart := time.Now()
-	sort.Sort(data)
+	data.Points.Sort()
 	d = time.Since(sortStart)
 	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
-	data.Points = point.Uniq(data.Points)
+	data.Points.Uniq()
 	data.Aliases = aliases
 
 	// pp.Println(points)

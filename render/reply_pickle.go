@@ -16,7 +16,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 
-	points := data.Points
+	points := data.Points.List()
 
 	defer func() {
 		log.FromContext(r.Context()).Debug("rollup",
@@ -42,7 +42,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	writeMetric := func(name string, pathExpression string, points []point.Point) {
 		rollupStart := time.Now()
-		points, step := rollupObj.RollupMetric(points)
+		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), points)
 		rollupTime += time.Since(rollupStart)
 
 		pickleStart := time.Now()
@@ -107,8 +107,8 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	l := len(points)
 
 	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric {
-			a := data.Aliases[points[n].Metric]
+		if points[i].MetricID != points[n].MetricID {
+			a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
 			for k = 0; k < len(a); k += 2 {
 				writeMetric(a[k], a[k+1], points[n:i])
 			}
@@ -117,7 +117,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		}
 	}
 
-	a := data.Aliases[points[n].Metric]
+	a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
 	for k = 0; k < len(a); k += 2 {
 		writeMetric(a[k], a[k+1], points[n:i])
 	}
