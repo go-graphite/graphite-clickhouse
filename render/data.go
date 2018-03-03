@@ -1,9 +1,12 @@
 package render
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"io"
 	"math"
 	"strings"
 	"unsafe"
@@ -49,123 +52,134 @@ func ReadUvarint(array []byte) (uint64, int, error) {
 	}
 }
 
+type idNamePair struct {
+	id   uint32
+	name string
+}
+
 type Data struct {
-	body     []byte // raw RowBinary from clickhouse
-	Points   []point.Point
-	nameToID map[string]int
-	maxID    int
-	Aliases  map[string][]string
+	body    []byte // raw RowBinary from clickhouse
+	Points  []point.Point
+	nameMap map[string]*idNamePair
+	maxID   uint32
+	Aliases map[string][]string
 }
 
-func (d *Data) NameToID(name string) int {
-	id := d.nameToID[name]
-	if id == 0 {
+func (d *Data) NameToID(name string) (string, uint32) {
+	s, ok := d.nameMap[name]
+	if !ok {
 		d.maxID++
-		id = d.maxID
-		d.nameToID[name] = id
+		d.nameMap[name] = &idNamePair{
+			id:   d.maxID,
+			name: name,
+		}
+		return name, d.maxID
 	}
-	return id
+	return s.name, s.id
 }
 
-func DataCount(body []byte) (int, error) {
-	var namelen uint64
-	bodyLen := len(body)
-	var count, offset, readBytes int
-	var err error
-
-	for {
-		if offset >= bodyLen {
-			if offset == bodyLen {
-				return count, nil
-			}
-			return 0, errClickHouseResponse
+// DataSplitFunc is split function for bufio.Scanner for read row binary records with data
+func DataSplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if len(data) == 0 && atEOF {
+		// stop
+		return 0, nil, nil
+	}
+	namelen, readBytes, err := ReadUvarint(data)
+	if err == errUvarintRead {
+		if atEOF {
+			return 0, nil, errClickHouseResponse
 		}
-		namelen, readBytes, err = ReadUvarint(body[offset:])
-		if err != nil {
-			return 0, err
-		}
-		offset += readBytes + int(namelen) + 16
-		count++
+		// signal for read more
+		return 0, nil, nil
 	}
 
-	return 0, nil
-}
-
-func DataParse(body []byte, extraPoints []point.Point, isReverse bool) (*Data, error) {
-	count, err := DataCount(body)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
+
+	tokenLen := int(readBytes) + int(namelen) + 16
+
+	if len(data) < tokenLen {
+		if atEOF {
+			return 0, nil, errClickHouseResponse
+		}
+		// signal for read more
+		return 0, nil, nil
+	}
+
+	return tokenLen, data[:tokenLen], nil
+}
+
+func DataParse(bodyReader io.Reader, extraPoints []point.Point, isReverse bool) (*Data, error) {
 
 	d := &Data{
-		Points:   make([]point.Point, count+len(extraPoints)),
-		nameToID: make(map[string]int),
+		Points:  make([]point.Point, 0, len(extraPoints)),
+		nameMap: make(map[string]*idNamePair),
 	}
 
-	var namelen uint64
-	offset := 0
-	readBytes := 0
-	bodyLen := len(body)
-	index := 0
+	var p point.Point
 
 	// add extraPoints. With NameToID
 	for i := 0; i < len(extraPoints); i++ {
-		d.Points[index] = extraPoints[i]
-		d.Points[index].MetricID = d.NameToID(d.Points[index].Metric)
-		index++
+		extraPoints[i].Metric, extraPoints[i].MetricID = d.NameToID(extraPoints[i].Metric)
+		d.Points = append(d.Points, extraPoints[i])
 	}
 
+	nameBuf := make([]byte, 65536)
 	name := []byte{}
 	finalName := ""
-	id := 0
+	var id uint32
 
-	for {
-		if offset >= bodyLen {
-			if offset == bodyLen {
-				break
-			}
-			return nil, errClickHouseResponse
-		}
+	scanner := bufio.NewScanner(bodyReader)
+	scanner.Buffer(make([]byte, 1048576), 1048576)
+	scanner.Split(DataSplitFunc)
 
-		namelen, readBytes, err = ReadUvarint(body[offset:])
+	for scanner.Scan() {
+		row := scanner.Bytes()
+
+		namelen, readBytes, err := ReadUvarint(row)
 		if err != nil {
 			return nil, errClickHouseResponse
 		}
-		offset += readBytes
+		row = row[int(readBytes):]
 
-		if bodyLen-offset < int(namelen)+16 {
-			return nil, errClickHouseResponse
-		}
+		newName := row[:int(namelen)]
+		row = row[int(namelen):]
 
-		newName := body[offset : offset+int(namelen)]
-		offset += int(namelen)
-
+		fmt.Println("cmp", string(name), string(newName))
 		if bytes.Compare(newName, name) != 0 {
-			name = newName
-			if isReverse {
-				finalName = reversePath(unsafeString(name))
+			if len(newName) > len(nameBuf) {
+				name = make([]byte, len(newName))
+				copy(name, newName)
 			} else {
-				finalName = unsafeString(name)
+				copy(nameBuf, newName)
+				name = nameBuf[:len(newName)]
 			}
-			id = d.NameToID(finalName)
-			// fmt.Println(unsafeString(name), id)
+			if isReverse {
+				finalName, id = d.NameToID(reversePath(string(name)))
+			} else {
+				finalName, id = d.NameToID(string(name))
+			}
 		}
 
-		time := binary.LittleEndian.Uint32(body[offset : offset+4])
-		offset += 4
+		time := binary.LittleEndian.Uint32(row[:4])
+		row = row[4:]
 
-		value := math.Float64frombits(binary.LittleEndian.Uint64(body[offset : offset+8]))
-		offset += 8
+		value := math.Float64frombits(binary.LittleEndian.Uint64(row[:8]))
+		row = row[8:]
 
-		timestamp := binary.LittleEndian.Uint32(body[offset : offset+4])
-		offset += 4
+		timestamp := binary.LittleEndian.Uint32(row[:4])
 
-		d.Points[index].MetricID = id
-		d.Points[index].Metric = finalName
-		d.Points[index].Time = int32(time)
-		d.Points[index].Value = value
-		d.Points[index].Timestamp = int32(timestamp)
-		index++
+		p.MetricID = id
+		p.Metric = finalName
+		p.Time = int32(time)
+		p.Value = value
+		p.Timestamp = int32(timestamp)
+		d.Points = append(d.Points, p)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	return d, nil

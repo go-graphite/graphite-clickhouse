@@ -220,7 +220,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// start carbonlink request
 	carbonlinkResponseRead := h.queryCarbonlink(r.Context(), logger, metricList)
 
-	body, err := clickhouse.Query(
+	body, err := clickhouse.Reader(
 		r.Context(),
 		h.config.ClickHouse.Url,
 		query,

@@ -3,6 +3,7 @@ package RowBinary
 import (
 	"encoding/binary"
 	"io"
+	"math"
 	"time"
 )
 
@@ -41,6 +42,16 @@ func (w *Encoder) Uint32(value uint32) error {
 	binary.LittleEndian.PutUint32(w.buffer, value)
 	_, err := w.wrapped.Write(w.buffer[:4])
 	return err
+}
+
+func (w *Encoder) Uint64(value uint64) error {
+	binary.LittleEndian.PutUint64(w.buffer, value)
+	_, err := w.wrapped.Write(w.buffer[:8])
+	return err
+}
+
+func (w *Encoder) Float64(value float64) error {
+	return w.Uint64(math.Float64bits(value))
 }
 
 func (w *Encoder) Bytes(value []byte) error {

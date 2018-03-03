@@ -47,7 +47,11 @@ func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader,
 	return do(ctx, dsn, query, postBody, true, timeout)
 }
 
-func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (body []byte, err error) {
+func Reader(ctx context.Context, dsn string, query string, timeout time.Duration) (io.ReadCloser, error) {
+	return reader(ctx, dsn, query, nil, false, timeout)
+}
+
+func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
 	queryForLogger := query
@@ -100,14 +104,29 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip 
 	}
 	defer resp.Body.Close()
 
-	body, _ = ioutil.ReadAll(resp.Body)
-
 	if resp.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(resp.Body)
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
 		return
 	}
 
+	bodyReader = resp.Body
+
 	return
+}
+
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) ([]byte, error) {
+	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(bodyReader)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }
 
 func ReadUvarint(array []byte) (uint64, int, error) {
