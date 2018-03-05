@@ -13,7 +13,7 @@ func CleanUp(points []Point) []Point {
 	squashed := 0
 
 	for i := 0; i < l; i++ {
-		if points[i].Metric == "" || math.IsNaN(points[i].Value) {
+		if points[i].MetricID == 0 || math.IsNaN(points[i].Value) {
 			squashed++
 			continue
 		}
@@ -33,7 +33,7 @@ func Uniq(points []Point) []Point {
 	// n - position on first record with current key (metric + time)
 
 	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric ||
+		if points[i].MetricID != points[n].MetricID ||
 			points[i].Time != points[n].Time {
 			n = i
 			continue
@@ -43,7 +43,7 @@ func Uniq(points []Point) []Point {
 			points[n] = points[i]
 		}
 
-		points[i].Metric = "" // mark for remove
+		points[i].MetricID = 0 // mark for remove
 	}
 
 	return CleanUp(points)
@@ -55,7 +55,7 @@ func AssertListEq(t *testing.T, expected, actual []Point) {
 	}
 
 	for i := 0; i < len(actual); i++ {
-		if (actual[i].Metric != expected[i].Metric) ||
+		if (actual[i].MetricID != expected[i].MetricID) ||
 			(actual[i].Time != expected[i].Time) ||
 			(actual[i].Timestamp != expected[i].Timestamp) ||
 			(actual[i].Value != expected[i].Value) {

@@ -10,7 +10,7 @@ import (
 )
 
 func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
-	points := data.Points
+	points := data.Points.List()
 
 	if len(points) == 0 {
 		return
@@ -23,7 +23,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	mb := new(bytes.Buffer)
 
 	writeMetric := func(name string, points []point.Point) {
-		points, step := rollupObj.RollupMetric(points)
+		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), points)
 
 		start := from - (from % step)
 		if start < from {
@@ -120,8 +120,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	l := len(points)
 
 	for i = 1; i < l; i++ {
-		if points[i].Metric != points[n].Metric {
-			a := data.Aliases[points[n].Metric]
+		if points[i].MetricID != points[n].MetricID {
+			a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
 			for k = 0; k < len(a); k += 2 {
 				writeMetric(a[k], points[n:i])
 			}
@@ -129,7 +129,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 			continue
 		}
 	}
-	a := data.Aliases[points[n].Metric]
+	a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
 	for k = 0; k < len(a); k += 2 {
 		writeMetric(a[k], points[n:i])
 	}

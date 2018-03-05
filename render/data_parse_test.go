@@ -6,11 +6,17 @@ import (
 	"testing"
 
 	"github.com/lomik/graphite-clickhouse/helper/RowBinary"
-	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/stretchr/testify/assert"
 )
 
-func makeData(points []point.Point) []byte {
+type testPoint struct {
+	Metric    string
+	Value     float64
+	Time      uint32
+	Timestamp uint32
+}
+
+func makeData(points []testPoint) []byte {
 	buf := new(bytes.Buffer)
 	w := RowBinary.NewEncoder(buf)
 
@@ -31,11 +37,11 @@ func TestDataParse(t *testing.T) {
 
 		d, err := DataParse(r, nil, false)
 		assert.NoError(t, err)
-		assert.Equal(t, []point.Point{}, d.Points)
+		assert.Empty(t, d.Points.List())
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		table := [][]point.Point{
+		table := [][]testPoint{
 			{
 				{"hello.world", 42.1, 1520056686, 1520056706},
 			},
@@ -62,13 +68,18 @@ func TestDataParse(t *testing.T) {
 
 				d, err := DataParse(r, nil, false)
 				assert.NoError(t, err)
-				assert.Equal(t, table[i], d.Points)
+				for j := 0; j < len(table[i]); j++ {
+					assert.Equal(t, table[i][j].Metric, d.Points.MetricName(d.Points.List()[j].MetricID))
+					assert.Equal(t, table[i][j].Time, d.Points.List()[j].Time)
+					assert.Equal(t, table[i][j].Value, d.Points.List()[j].Value)
+					assert.Equal(t, table[i][j].Timestamp, d.Points.List()[j].Timestamp)
+				}
 			})
 		}
 	})
 
 	t.Run("incomplete response", func(t *testing.T) {
-		body := makeData([]point.Point{
+		body := makeData([]testPoint{
 			{
 				Metric:    "hello.world",
 				Value:     42.1,

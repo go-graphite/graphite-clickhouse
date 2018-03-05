@@ -109,13 +109,13 @@ func TestMetricPrecision(t *testing.T) {
 	tests := [][2][]point.Point{
 		{
 			{ // in
-				{Metric: "metric", Time: 1478025152, Value: 3},
-				{Metric: "metric", Time: 1478025154, Value: 2},
-				{Metric: "metric", Time: 1478025255, Value: 1},
+				{MetricID: 1, Time: 1478025152, Value: 3},
+				{MetricID: 1, Time: 1478025154, Value: 2},
+				{MetricID: 1, Time: 1478025255, Value: 1},
 			},
 			{ // out
-				{Metric: "metric", Time: 1478025120, Value: 5},
-				{Metric: "metric", Time: 1478025240, Value: 1},
+				{MetricID: 1, Time: 1478025120, Value: 5},
+				{MetricID: 1, Time: 1478025240, Value: 1},
 			},
 		},
 	}
