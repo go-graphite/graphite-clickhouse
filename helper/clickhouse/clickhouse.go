@@ -102,16 +102,15 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
 		return
 	}
 
 	bodyReader = resp.Body
-
 	return
 }
 
@@ -122,6 +121,7 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip 
 	}
 
 	body, err := ioutil.ReadAll(bodyReader)
+	bodyReader.Close()
 	if err != nil {
 		return nil, err
 	}
