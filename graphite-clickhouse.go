@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/autocomplete"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/render"
@@ -82,7 +83,7 @@ func main() {
 	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
-	tags := flag.Bool("tags", false, "Build tags table")
+	buildTags := flag.Bool("tags", false, "Build tags table")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -119,7 +120,7 @@ func main() {
 	/* CONFIG end */
 
 	/* CONSOLE COMMANDS start */
-	if *tags {
+	if *buildTags {
 		if err := tagger.Make(cfg); err != nil {
 			log.Fatal(err)
 		}
@@ -130,6 +131,8 @@ func main() {
 
 	http.Handle("/metrics/find/", Handler(zapwriter.Default(), find.NewHandler(cfg)))
 	http.Handle("/render/", Handler(zapwriter.Default(), render.NewHandler(cfg)))
+	http.Handle("/tags/autoComplete/tags", Handler(zapwriter.Default(), autocomplete.NewTags(cfg)))
+	http.Handle("/tags/autoComplete/values", Handler(zapwriter.Default(), autocomplete.NewValues(cfg)))
 
 	http.Handle("/", Handler(zapwriter.Default(), http.HandlerFunc(http.NotFound)))
 

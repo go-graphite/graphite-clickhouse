@@ -53,3 +53,10 @@ func (w *Where) Andf(format string, obj ...interface{}) {
 func (w *Where) String() string {
 	return w.where
 }
+
+func (w *Where) SQL() string {
+	if w.where == "" {
+		return ""
+	}
+	return "WHERE " + w.where
+}

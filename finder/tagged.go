@@ -104,40 +104,15 @@ func taggedTermWhereN(term *taggedTerm) string {
 	}
 }
 
-func (t *TaggedFinder) makeWhere(query string) (string, error) {
-	expr, _, err := parser.ParseExpr(query)
-	if err != nil {
-		return "", err
-	}
+func MakeTaggedWhere(expr []string) (string, error) {
+	terms := make([]taggedTerm, len(expr))
 
-	validationError := fmt.Errorf("wrong seriesByTag call: %#v", query)
+	for i := 0; i < len(expr); i++ {
+		s := expr[i]
 
-	// check
-	if !expr.IsFunc() {
-		return "", validationError
-	}
-	if expr.Target() != "seriesByTag" {
-		return "", validationError
-	}
-
-	args := expr.Args()
-	if len(args) < 1 {
-		return "", validationError
-	}
-
-	for i := 0; i < len(args); i++ {
-		if !args[i].IsString() {
-			return "", validationError
-		}
-	}
-
-	terms := make([]taggedTerm, len(args))
-
-	for i := 0; i < len(args); i++ {
-		s := args[i].StringValue()
 		a := strings.SplitN(s, "=", 2)
 		if len(a) != 2 {
-			return "", validationError
+			return "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
 
 		a[0] = strings.TrimSpace(a[0])
@@ -172,7 +147,7 @@ func (t *TaggedFinder) makeWhere(query string) (string, error) {
 		case "!=~":
 			terms[i].op = taggedTermNotMatch
 		default:
-			return "", validationError
+			return "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
 	}
 
@@ -186,7 +161,45 @@ func (t *TaggedFinder) makeWhere(query string) (string, error) {
 	}
 
 	return w.String(), nil
+}
 
+func (t *TaggedFinder) makeWhere(query string) (string, error) {
+	expr, _, err := parser.ParseExpr(query)
+	if err != nil {
+		return "", err
+	}
+
+	validationError := fmt.Errorf("wrong seriesByTag call: %#v", query)
+
+	// check
+	if !expr.IsFunc() {
+		return "", validationError
+	}
+	if expr.Target() != "seriesByTag" {
+		return "", validationError
+	}
+
+	args := expr.Args()
+	if len(args) < 1 {
+		return "", validationError
+	}
+
+	for i := 0; i < len(args); i++ {
+		if !args[i].IsString() {
+			return "", validationError
+		}
+	}
+
+	conditions := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		s := args[i].StringValue()
+		if s == "" {
+			continue
+		}
+		conditions = append(conditions, s)
+	}
+
+	return MakeTaggedWhere(conditions)
 }
 
 func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
