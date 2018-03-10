@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"regexp"
 	"runtime"
-	"sync/atomic"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/autocomplete"
@@ -48,19 +50,33 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
+var requestIdRegexp *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
+
 func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
-	var requestCounter uint32
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
 		requestID := r.Header.Get("X-Request-Id")
-		if requestID == "" {
-			requestID = fmt.Sprintf("%d", atomic.AddUint32(&requestCounter, 1))
+		if requestID == "" || !requestIdRegexp.MatchString(requestID) {
+			var b [16]byte
+			binary.LittleEndian.PutUint64(b[:], rand.Uint64())
+			binary.LittleEndian.PutUint64(b[8:], rand.Uint64())
+			requestID = fmt.Sprintf("%x", b)
 		}
 
 		logger := logger.With(zap.String("request_id", requestID))
 
-		r = r.WithContext(context.WithValue(r.Context(), "logger", logger))
+		r = r.WithContext(
+			context.WithValue(
+				context.WithValue(
+					r.Context(),
+					"logger",
+					logger,
+				),
+				"requestID",
+				requestID,
+			),
+		)
 
 		start := time.Now()
 		handler.ServeHTTP(w, r)

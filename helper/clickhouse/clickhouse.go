@@ -78,12 +78,20 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
+	queryWithRequestID := query
+	if requestID, ok := ctx.Value("requestID").(string); ok {
+		if strings.Index(requestID, "*/") < 0 { // prevent injection
+			queryWithRequestID = fmt.Sprintf("/* id:%s */ %s", requestID, query)
+			logger = logger.With(zap.String("request_id", requestID))
+		}
+	}
+
 	if postBody != nil {
 		q := p.Query()
-		q.Set("query", query)
+		q.Set("query", queryWithRequestID)
 		p.RawQuery = q.Encode()
 	} else {
-		postBody = strings.NewReader(query)
+		postBody = strings.NewReader(queryWithRequestID)
 	}
 
 	url := p.String()
