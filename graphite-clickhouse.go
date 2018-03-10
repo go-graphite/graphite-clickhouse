@@ -92,6 +92,8 @@ func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	var err error
 
 	/* CONFIG start */
