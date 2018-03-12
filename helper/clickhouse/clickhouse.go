@@ -2,10 +2,12 @@ package clickhouse
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -78,20 +80,26 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	queryWithRequestID := query
-	if requestID, ok := ctx.Value("requestID").(string); ok {
-		if strings.Index(requestID, "*/") < 0 { // prevent injection
-			queryWithRequestID = fmt.Sprintf("/* id:%s */ %s", requestID, query)
-			logger = logger.With(zap.String("request_id", requestID))
-		}
+	var b [16]byte
+	binary.LittleEndian.PutUint64(b[:], rand.Uint64())
+	binary.LittleEndian.PutUint64(b[8:], rand.Uint64())
+	queryID := fmt.Sprintf("%x", b)
+
+	var requestID string
+	if value, ok := ctx.Value("requestID").(string); ok {
+		requestID = value
 	}
+
+	q := p.Query()
+	q.Set("query_id", fmt.Sprintf("%s::%s", requestID, queryID))
+	p.RawQuery = q.Encode()
 
 	if postBody != nil {
 		q := p.Query()
-		q.Set("query", queryWithRequestID)
+		q.Set("query", query)
 		p.RawQuery = q.Encode()
 	} else {
-		postBody = strings.NewReader(queryWithRequestID)
+		postBody = strings.NewReader(query)
 	}
 
 	url := p.String()
