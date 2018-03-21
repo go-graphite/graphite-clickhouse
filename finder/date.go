@@ -14,6 +14,10 @@ type DateFinder struct {
 }
 
 func NewDateFinder(url string, table string, tableVersion int, timeout time.Duration) Finder {
+	if tableVersion == 3 {
+		return NewDateFinderV3(url, table, timeout)
+	}
+
 	b := &BaseFinder{
 		url:     url,
 		table:   table,
