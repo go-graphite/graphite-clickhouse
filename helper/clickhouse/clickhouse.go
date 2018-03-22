@@ -80,9 +80,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	var b [16]byte
+	var b [8]byte
 	binary.LittleEndian.PutUint64(b[:], rand.Uint64())
-	binary.LittleEndian.PutUint64(b[8:], rand.Uint64())
 	queryID := fmt.Sprintf("%x", b)
 
 	var requestID string
