@@ -57,11 +57,16 @@ func Reader(ctx context.Context, dsn string, query string, table string, timeout
 func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, timeout time.Duration) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
+	var requestID string
+	if value, ok := ctx.Value("requestID").(string); ok {
+		requestID = value
+	}
+
 	queryForLogger := query
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:395] + "<...>" + queryForLogger[len(queryForLogger)-100:]
 	}
-	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)))
+	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)), zap.String("request_id", requestID))
 
 	defer func() {
 		d := time.Since(start)
@@ -84,11 +89,6 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 	var b [8]byte
 	binary.LittleEndian.PutUint64(b[:], rand.Uint64())
 	queryID := fmt.Sprintf("%x", b)
-
-	var requestID string
-	if value, ok := ctx.Value("requestID").(string); ok {
-		requestID = value
-	}
 
 	q := p.Query()
 	q.Set("query_id", fmt.Sprintf("%s::%s", requestID, queryID))
