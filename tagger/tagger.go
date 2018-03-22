@@ -123,6 +123,7 @@ func Make(cfg *config.Config) error {
 					SelectChunksCount,
 					i,
 				),
+				cfg.ClickHouse.TreeTable,
 				cfg.ClickHouse.TreeTimeout.Value(),
 			)
 		}
@@ -344,6 +345,7 @@ func Make(cfg *config.Config) error {
 			context.WithValue(context.Background(), "logger", logger),
 			cfg.ClickHouse.Url,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
+			cfg.ClickHouse.TagTable,
 			outBuf,
 			cfg.ClickHouse.TreeTimeout.Value(),
 		)

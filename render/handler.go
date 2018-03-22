@@ -213,6 +213,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		h.config.ClickHouse.Url,
 		query,
+		pointsTable,
 		h.config.ClickHouse.DataTimeout.Value(),
 	)
 

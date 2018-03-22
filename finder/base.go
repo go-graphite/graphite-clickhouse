@@ -67,6 +67,7 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 		ctx,
 		b.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", b.table, where),
+		b.table,
 		b.timeout,
 	)
 

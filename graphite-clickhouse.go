@@ -15,6 +15,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/autocomplete"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/tagger"
 	"github.com/lomik/zapwriter"
@@ -25,6 +26,10 @@ import (
 
 // Version of graphite-clickhouse
 const Version = "0.6.2"
+
+func init() {
+	version.Version = Version
+}
 
 type LogResponseWriter struct {
 	http.ResponseWriter

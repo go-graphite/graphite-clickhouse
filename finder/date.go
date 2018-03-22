@@ -44,6 +44,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			fmt.Sprintf(
 				`SELECT Path FROM %s PREWHERE (%s) WHERE (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
 				b.table, dateWhere.String(), where),
+			b.table,
 			b.timeout,
 		)
 	} else {
@@ -51,6 +52,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			ctx,
 			b.url,
 			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere.String(), where),
+			b.table,
 			b.timeout,
 		)
 	}

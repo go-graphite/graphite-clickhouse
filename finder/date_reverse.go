@@ -39,6 +39,7 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 		fmt.Sprintf(
 			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
 			f.table, dateWhere.String(), where),
+		f.table,
 		f.timeout,
 	)
 

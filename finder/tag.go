@@ -220,7 +220,7 @@ func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until
 	}
 
 	if sql != "" {
-		t.body, err = clickhouse.Query(ctx, t.url, sql, t.timeout)
+		t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.timeout)
 	}
 
 	return err

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/zapwriter"
 
 	"go.uber.org/zap"
@@ -37,23 +38,23 @@ func Escape(s string) string {
 	return s
 }
 
-func Query(ctx context.Context, dsn string, query string, timeout time.Duration) ([]byte, error) {
-	return Post(ctx, dsn, query, nil, timeout)
+func Query(ctx context.Context, dsn string, query string, table string, timeout time.Duration) ([]byte, error) {
+	return Post(ctx, dsn, query, table, nil, timeout)
 }
 
-func Post(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
-	return do(ctx, dsn, query, postBody, false, timeout)
+func Post(ctx context.Context, dsn string, query string, table string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, table, postBody, false, timeout)
 }
 
-func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
-	return do(ctx, dsn, query, postBody, true, timeout)
+func PostGzip(ctx context.Context, dsn string, query string, table string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
+	return do(ctx, dsn, query, table, postBody, true, timeout)
 }
 
-func Reader(ctx context.Context, dsn string, query string, timeout time.Duration) (io.ReadCloser, error) {
-	return reader(ctx, dsn, query, nil, false, timeout)
+func Reader(ctx context.Context, dsn string, query string, table string, timeout time.Duration) (io.ReadCloser, error) {
+	return reader(ctx, dsn, query, table, nil, false, timeout)
 }
 
-func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) (bodyReader io.ReadCloser, err error) {
+func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, timeout time.Duration) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
 	queryForLogger := query
@@ -108,6 +109,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
+	req.Header.Add("User-Agent", fmt.Sprintf("graphite-clickhouse/%s (table:%s)", version.Version, table))
+
 	if gzip {
 		req.Header.Add("Content-Encoding", "gzip")
 	}
@@ -129,8 +132,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, timeout time.Duration) ([]byte, error) {
-	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, timeout)
+func do(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, timeout time.Duration) ([]byte, error) {
+	bodyReader, err := reader(ctx, dsn, query, table, postBody, gzip, timeout)
 	if err != nil {
 		return nil, err
 	}
