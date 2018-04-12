@@ -1,12 +1,11 @@
 FROM golang:alpine as builder
 
 WORKDIR /go/src/github.com/lomik/graphite-clickhouse
-
 COPY . .
 
-RUN apk --no-cache add make
+ENV GOPATH=/go
 
-RUN make
+RUN go build -ldflags '-extldflags "-static"' github.com/lomik/graphite-clickhouse
 
 FROM alpine:latest
 
