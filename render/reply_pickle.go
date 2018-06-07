@@ -42,7 +42,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	writeMetric := func(name string, pathExpression string, points []point.Point) {
 		rollupStart := time.Now()
-		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), points)
+		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
 		rollupTime += time.Since(rollupStart)
 
 		pickleStart := time.Now()

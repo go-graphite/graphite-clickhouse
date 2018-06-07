@@ -23,7 +23,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	mb := new(bytes.Buffer)
 
 	writeMetric := func(name string, points []point.Point) {
-		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), points)
+		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
 
 		start := from - (from % step)
 		if start < from {
