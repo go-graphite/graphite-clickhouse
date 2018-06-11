@@ -118,6 +118,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
 	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	where.Andf("Deleted = 0")
 
 	sql := fmt.Sprintf("SELECT %s FROM %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
@@ -219,6 +220,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
 	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	where.Andf("Deleted = 0")
 
 	sql := fmt.Sprintf("SELECT %s FROM %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
