@@ -25,7 +25,7 @@ import (
 )
 
 // Version of graphite-clickhouse
-const Version = "0.6.3"
+const Version = "0.6.4"
 
 func init() {
 	version.Version = Version
