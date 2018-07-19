@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -120,7 +121,15 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 		req.Header.Add("Content-Encoding", "gzip")
 	}
 
-	client := &http.Client{Timeout: opts.Timeout}
+	client := &http.Client{
+		Timeout: opts.Timeout,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: opts.ConnectTimeout,
+			}).Dial,
+			DisableKeepAlives: true,
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return
