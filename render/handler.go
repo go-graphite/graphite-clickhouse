@@ -214,7 +214,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.config.ClickHouse.Url,
 		query,
 		pointsTable,
-		h.config.ClickHouse.DataTimeout.Value(),
+		clickhouse.Options{Timeout: h.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()},
 	)
 
 	if err != nil {

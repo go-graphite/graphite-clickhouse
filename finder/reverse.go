@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"strings"
-	"time"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type ReverseFinder struct {
 	wrapped    Finder
 	baseFinder Finder
-	url        string        // clickhouse dsn
-	table      string        // graphite_reverse_tree table
-	timeout    time.Duration // clickhouse query timeout
-	isUsed     bool          // use reverse table
+	url        string // clickhouse dsn
+	table      string // graphite_reverse_tree table
+	isUsed     bool   // use reverse table
 }
 
 func ReverseString(target string) string {
@@ -38,13 +38,12 @@ func ReverseBytes(target []byte) []byte {
 	return bytes.Join(a, []byte{'.'})
 }
 
-func WrapReverse(f Finder, url string, table string, timeout time.Duration) *ReverseFinder {
+func WrapReverse(f Finder, url string, table string, opts clickhouse.Options) *ReverseFinder {
 	return &ReverseFinder{
 		wrapped:    f,
-		baseFinder: NewBase(url, table, timeout),
+		baseFinder: NewBase(url, table, opts),
 		url:        url,
 		table:      table,
-		timeout:    timeout,
 	}
 }
 

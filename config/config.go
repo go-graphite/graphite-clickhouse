@@ -62,6 +62,7 @@ type ClickHouse struct {
 	TagTable             string    `toml:"tag-table"`
 	RollupConf           string    `toml:"rollup-conf"`
 	ExtraPrefix          string    `toml:"extra-prefix"`
+	ConnectTimeout       *Duration `toml:"connect-timeout"`
 }
 
 type Tags struct {
@@ -132,6 +133,7 @@ func New() *Config {
 			RollupConf:           "/etc/graphite-clickhouse/rollup.xml",
 			TagTable:             "",
 			TaggedAutocompleDays: 7,
+			ConnectTimeout:       &Duration{Duration: time.Second},
 		},
 		Tags: Tags{
 			Date:  "2016-11-01",

@@ -124,7 +124,7 @@ func Make(cfg *config.Config) error {
 					i,
 				),
 				cfg.ClickHouse.TreeTable,
-				cfg.ClickHouse.TreeTimeout.Value(),
+				clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 			)
 		}
 
@@ -347,7 +347,7 @@ func Make(cfg *config.Config) error {
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
 			cfg.ClickHouse.TagTable,
 			outBuf,
-			cfg.ClickHouse.TreeTimeout.Value(),
+			clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 		)
 		if err != nil {
 			return err

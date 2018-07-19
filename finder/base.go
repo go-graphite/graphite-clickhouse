@@ -5,23 +5,22 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type BaseFinder struct {
-	url     string        // clickhouse dsn
-	table   string        // graphite_tree table
-	timeout time.Duration // clickhouse query timeout
-	body    []byte        // clickhouse response body
+	url   string             // clickhouse dsn
+	table string             // graphite_tree table
+	opts  clickhouse.Options // timeout, connectTimeout
+	body  []byte             // clickhouse response body
 }
 
-func NewBase(url string, table string, timeout time.Duration) Finder {
+func NewBase(url string, table string, opts clickhouse.Options) Finder {
 	return &BaseFinder{
-		url:     url,
-		table:   table,
-		timeout: timeout,
+		url:   url,
+		table: table,
+		opts:  opts,
 	}
 }
 
@@ -68,7 +67,7 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", b.table, where),
 		b.table,
-		b.timeout,
+		b.opts,
 	)
 
 	return
