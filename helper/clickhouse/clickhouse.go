@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,6 +23,11 @@ import (
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
 var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
 var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
+
+type Options struct {
+	Timeout        time.Duration
+	ConnectTimeout time.Duration
+}
 
 func formatSQL(q string) string {
 	s := strings.Split(q, "\n")
@@ -38,23 +44,23 @@ func Escape(s string) string {
 	return s
 }
 
-func Query(ctx context.Context, dsn string, query string, table string, timeout time.Duration) ([]byte, error) {
-	return Post(ctx, dsn, query, table, nil, timeout)
+func Query(ctx context.Context, dsn string, query string, table string, opts Options) ([]byte, error) {
+	return Post(ctx, dsn, query, table, nil, opts)
 }
 
-func Post(ctx context.Context, dsn string, query string, table string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
-	return do(ctx, dsn, query, table, postBody, false, timeout)
+func Post(ctx context.Context, dsn string, query string, table string, postBody io.Reader, opts Options) ([]byte, error) {
+	return do(ctx, dsn, query, table, postBody, false, opts)
 }
 
-func PostGzip(ctx context.Context, dsn string, query string, table string, postBody io.Reader, timeout time.Duration) ([]byte, error) {
-	return do(ctx, dsn, query, table, postBody, true, timeout)
+func PostGzip(ctx context.Context, dsn string, query string, table string, postBody io.Reader, opts Options) ([]byte, error) {
+	return do(ctx, dsn, query, table, postBody, true, opts)
 }
 
-func Reader(ctx context.Context, dsn string, query string, table string, timeout time.Duration) (io.ReadCloser, error) {
-	return reader(ctx, dsn, query, table, nil, false, timeout)
+func Reader(ctx context.Context, dsn string, query string, table string, opts Options) (io.ReadCloser, error) {
+	return reader(ctx, dsn, query, table, nil, false, opts)
 }
 
-func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, timeout time.Duration) (bodyReader io.ReadCloser, err error) {
+func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
 	var requestID string
@@ -115,7 +121,15 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 		req.Header.Add("Content-Encoding", "gzip")
 	}
 
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout: opts.Timeout,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: opts.ConnectTimeout,
+			}).Dial,
+			DisableKeepAlives: true,
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return
@@ -132,8 +146,8 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, timeout time.Duration) ([]byte, error) {
-	bodyReader, err := reader(ctx, dsn, query, table, postBody, gzip, timeout)
+func do(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, opts Options) ([]byte, error) {
+	bodyReader, err := reader(ctx, dsn, query, table, postBody, gzip, opts)
 	if err != nil {
 		return nil, err
 	}

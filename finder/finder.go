@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+
 	"github.com/lomik/graphite-clickhouse/config"
 )
 
@@ -19,11 +21,16 @@ type Finder interface {
 }
 
 func Find(config *config.Config, ctx context.Context, query string, from int64, until int64) (Result, error) {
+	opts := clickhouse.Options{
+		Timeout:        config.ClickHouse.TreeTimeout.Value(),
+		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+	}
+
 	fnd := func() Finder {
 		var f Finder
 
 		if config.ClickHouse.TaggedTable != "" && strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
-			f = NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, config.ClickHouse.TreeTimeout.Value())
+			f = NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, opts)
 
 			if len(config.Common.Blacklist) > 0 {
 				f = WrapBlacklist(f, config.Common.Blacklist)
@@ -33,17 +40,17 @@ func Find(config *config.Config, ctx context.Context, query string, from int64, 
 		}
 
 		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
-			f = NewDateFinder(config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, config.ClickHouse.TreeTimeout.Value())
+			f = NewDateFinder(config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
 		} else {
-			f = NewBase(config.ClickHouse.Url, config.ClickHouse.TreeTable, config.ClickHouse.TreeTimeout.Value())
+			f = NewBase(config.ClickHouse.Url, config.ClickHouse.TreeTable, opts)
 		}
 
 		if config.ClickHouse.ReverseTreeTable != "" {
-			f = WrapReverse(f, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, config.ClickHouse.TreeTimeout.Value())
+			f = WrapReverse(f, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, opts)
 		}
 
 		if config.ClickHouse.TagTable != "" {
-			f = WrapTag(f, config.ClickHouse.Url, config.ClickHouse.TagTable, config.ClickHouse.TreeTimeout.Value())
+			f = WrapTag(f, config.ClickHouse.Url, config.ClickHouse.TagTable, opts)
 		}
 
 		if config.ClickHouse.ExtraPrefix != "" {

@@ -127,7 +127,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		queryLimit,
 	)
 
-	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable, h.config.ClickHouse.TreeTimeout.Value())
+	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable,
+		clickhouse.Options{Timeout: h.config.ClickHouse.TreeTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -229,7 +230,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		limit,
 	)
 
-	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable, h.config.ClickHouse.TreeTimeout.Value())
+	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable,
+		clickhouse.Options{Timeout: h.config.ClickHouse.TreeTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

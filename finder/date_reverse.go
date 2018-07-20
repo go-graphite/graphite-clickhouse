@@ -13,11 +13,11 @@ type DateFinderV3 struct {
 }
 
 // Same as v2, but reversed
-func NewDateFinderV3(url string, table string, timeout time.Duration) Finder {
+func NewDateFinderV3(url string, table string, opts clickhouse.Options) Finder {
 	b := &BaseFinder{
-		url:     url,
-		table:   table,
-		timeout: timeout,
+		url:   url,
+		table: table,
+		opts:  opts,
 	}
 
 	return &DateFinderV3{b}
@@ -40,7 +40,7 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
 			f.table, dateWhere.String(), where),
 		f.table,
-		f.timeout,
+		f.opts,
 	)
 
 	return

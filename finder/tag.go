@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
@@ -56,9 +55,9 @@ func (q *TagQ) Where(field string) string {
 
 type TagFinder struct {
 	wrapped     Finder
-	url         string        // clickhouse dsn
-	table       string        // graphite_tag table
-	timeout     time.Duration // clickhouse query timeout
+	url         string             // clickhouse dsn
+	table       string             // graphite_tag table
+	opts        clickhouse.Options // clickhouse timeout, connectTimeout, etc
 	state       TagState
 	tagQuery    []TagQ
 	seriesQuery string
@@ -68,12 +67,12 @@ type TagFinder struct {
 
 var EmptyList [][]byte = [][]byte{}
 
-func WrapTag(f Finder, url string, table string, timeout time.Duration) *TagFinder {
+func WrapTag(f Finder, url string, table string, opts clickhouse.Options) *TagFinder {
 	return &TagFinder{
 		wrapped:  f,
 		url:      url,
 		table:    table,
-		timeout:  timeout,
+		opts:     opts,
 		tagQuery: make([]TagQ, 0),
 	}
 }
@@ -220,7 +219,7 @@ func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until
 	}
 
 	if sql != "" {
-		t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.timeout)
+		t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.opts)
 	}
 
 	return err

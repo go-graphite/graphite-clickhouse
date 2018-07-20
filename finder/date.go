@@ -13,15 +13,15 @@ type DateFinder struct {
 	tableVersion int
 }
 
-func NewDateFinder(url string, table string, tableVersion int, timeout time.Duration) Finder {
+func NewDateFinder(url string, table string, tableVersion int, opts clickhouse.Options) Finder {
 	if tableVersion == 3 {
-		return NewDateFinderV3(url, table, timeout)
+		return NewDateFinderV3(url, table, opts)
 	}
 
 	b := &BaseFinder{
-		url:     url,
-		table:   table,
-		timeout: timeout,
+		url:   url,
+		table: table,
+		opts:  opts,
 	}
 
 	return &DateFinder{b, tableVersion}
@@ -45,7 +45,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 				`SELECT Path FROM %s PREWHERE (%s) WHERE (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
 				b.table, dateWhere.String(), where),
 			b.table,
-			b.timeout,
+			b.opts,
 		)
 	} else {
 		b.body, err = clickhouse.Query(
@@ -53,7 +53,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			b.url,
 			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere.String(), where),
 			b.table,
-			b.timeout,
+			b.opts,
 		)
 	}
 

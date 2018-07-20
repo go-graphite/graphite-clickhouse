@@ -41,17 +41,17 @@ func (s taggedTermList) Less(i, j int) bool {
 }
 
 type TaggedFinder struct {
-	url     string        // clickhouse dsn
-	table   string        // graphite_tag table
-	timeout time.Duration // clickhouse query timeout
-	body    []byte        // clickhouse response
+	url   string             // clickhouse dsn
+	table string             // graphite_tag table
+	opts  clickhouse.Options // clickhouse query timeout
+	body  []byte             // clickhouse response
 }
 
-func NewTagged(url string, table string, timeout time.Duration) *TaggedFinder {
+func NewTagged(url string, table string, opts clickhouse.Options) *TaggedFinder {
 	return &TaggedFinder{
-		url:     url,
-		table:   table,
-		timeout: timeout,
+		url:   url,
+		table: table,
+		opts:  opts,
 	}
 }
 
@@ -216,7 +216,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 	)
 
 	sql := fmt.Sprintf("SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0", t.table, dateWhere.String(), w)
-	t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.timeout)
+	t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.opts)
 	return err
 }
 
