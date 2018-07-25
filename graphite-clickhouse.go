@@ -17,6 +17,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/index"
+	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/tagger"
 	"github.com/lomik/zapwriter"
@@ -156,6 +157,7 @@ func main() {
 	http.Handle("/metrics/find/", Handler(zapwriter.Default(), find.NewHandler(cfg)))
 	http.Handle("/metrics/index.json", Handler(zapwriter.Default(), index.NewHandler(cfg)))
 	http.Handle("/render/", Handler(zapwriter.Default(), render.NewHandler(cfg)))
+	http.Handle("/read", Handler(zapwriter.Default(), prometheus.NewHandler(cfg)))
 	http.Handle("/tags/autoComplete/tags", Handler(zapwriter.Default(), autocomplete.NewTags(cfg)))
 	http.Handle("/tags/autoComplete/values", Handler(zapwriter.Default(), autocomplete.NewValues(cfg)))
 
