@@ -27,6 +27,10 @@ func Q(v string) string {
 	return "'" + clickhouse.Escape(v) + "'"
 }
 
+func Qf(format string, obj ...interface{}) string {
+	return Q(fmt.Sprintf(format, obj...))
+}
+
 type Where struct {
 	where string
 }
