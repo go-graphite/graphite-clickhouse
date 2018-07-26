@@ -56,26 +56,25 @@ func NewTagged(url string, table string, opts clickhouse.Options) *TaggedFinder 
 }
 
 func TaggedTermWhere1(term *TaggedTerm) string {
+	// positive expression check only in Tag1
+	// negative check in all Tags
 	switch term.Op {
 	case TaggedTermEq:
 		return fmt.Sprintf("Tag1=%s", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermNe:
-		return fmt.Sprintf("Tag1!=%s", Qf("%s=%s", term.Key, term.Value))
-		// @TODO: not in Tags
+		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermMatch:
 		return fmt.Sprintf(
 			"(Tag1 LIKE %s) AND (match(Tag1, %s))",
 			Qf("%s=%%", term.Key),
 			Qf("%s=%s", term.Key, term.Value),
 		)
-
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
-			"NOT ((Tag1 LIKE %s) AND (match(Tag1, %s)))",
+			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
 			Qf("%s=%%", term.Key),
 			Qf("%s=%s", term.Key, term.Value),
 		)
-		// @TODO: not in Tags
 	default:
 		return ""
 	}
@@ -94,7 +93,6 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 			Qf("%s=%%", term.Key),
 			Qf("%s=%s", term.Key, term.Value),
 		)
-
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
 			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
