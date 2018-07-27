@@ -37,7 +37,16 @@ func (s TaggedTermList) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 func (s TaggedTermList) Less(i, j int) bool {
-	return s[i].Op < s[j].Op
+	if s[i].Op < s[j].Op {
+		return true
+	}
+	if s[i].Op > s[j].Op {
+		return false
+	}
+	if s[i].Key == "__name__" && s[j].Key != "__name__" {
+		return true
+	}
+	return false
 }
 
 type TaggedFinder struct {
