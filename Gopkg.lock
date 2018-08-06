@@ -2,81 +2,114 @@
 
 
 [[projects]]
+  digest = "1:b16fbfbcc20645cb419f78325bb2e85ec729b338e996a228124d68931a6f2a37"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
+  pruneopts = "UT"
   revision = "b26d9c308763d68093482582cea63d69be07a0f0"
   version = "v0.3.0"
 
 [[projects]]
+  digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
+  pruneopts = "UT"
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:8596cd475bdf80ad48b536902e26e35b094040414261ce1a60c59db19f29dc7d"
   name = "github.com/go-graphite/carbonapi"
   packages = ["pkg/parser"]
+  pruneopts = "UT"
   revision = "9db1310e484a8b3bd067a2b63fb499dc9b9de415"
   version = "0.9.2"
 
 [[projects]]
+  digest = "1:9a688317f3231e0175b3429033f44411906c0ce119361b7b5019d01375f8cff7"
   name = "github.com/gogo/protobuf"
   packages = ["proto"]
+  pruneopts = "UT"
   revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
+  digest = "1:3371f365ee962bfd3aa4f8d919fedc0d8c23a51a66934e44e66b49e8885f1992"
   name = "github.com/lomik/graphite-pickle"
   packages = [
     ".",
-    "framing"
+    "framing",
   ]
+  pruneopts = "UT"
   revision = "614e8df4211913eac825745a4931541f63efa035"
 
 [[projects]]
   branch = "master"
+  digest = "1:57c2cb438edb524e67623c1509d22f3963ee87c5efbc5f8cc1222baddf477a0c"
   name = "github.com/lomik/og-rek"
   packages = ["."]
+  pruneopts = "UT"
   revision = "628eefeb8d8065e3c4300d3556181a255d1ab4ff"
 
 [[projects]]
   branch = "master"
+  digest = "1:4e06aecb60d6cefce405bf1f060028cbb77f2d893b4cafbbf03406b5a3ccb86b"
   name = "github.com/lomik/stop"
   packages = ["."]
+  pruneopts = "UT"
   revision = "188e98d969bd7491ae161b920247588503cfc4a5"
 
 [[projects]]
   branch = "master"
+  digest = "1:3c7a647abbe8cb3dbdaa859b716286813363fad274cf896f9a3cd9045e7083ef"
   name = "github.com/lomik/zapwriter"
   packages = ["."]
+  pruneopts = "UT"
   revision = "d4499a33b5929c4a2e7e169165f594f35b39638c"
 
 [[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
+  pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:f85e109eda8f6080877185d1c39e98dd8795e1780c08beca28304b87fd855a1c"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
+  pruneopts = "UT"
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
 
 [[projects]]
+  digest = "1:9d5cf6f23377cc24f00ba9a7b0c83fe070171c094e42eece262c6252a392ec33"
   name = "go.uber.org/atomic"
   packages = ["."]
+  pruneopts = "UT"
   revision = "8474b86a5a6f79c443ce4b2992817ff32cf208b8"
   version = "v1.3.1"
 
 [[projects]]
+  digest = "1:60bf2a5e347af463c42ed31a493d817f8a72f102543060ed992754e689805d1a"
   name = "go.uber.org/multierr"
   packages = ["."]
+  pruneopts = "UT"
   revision = "3c4937480c32f4c13a875a1829af76c98ca3d40a"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:0d59cfb5fb7d699ef8442a0d049935f6d0034aa001ca8328d048a814e1661035"
   name = "go.uber.org/zap"
   packages = [
     ".",
@@ -84,14 +117,24 @@
     "internal/bufferpool",
     "internal/color",
     "internal/exit",
-    "zapcore"
+    "zapcore",
   ]
+  pruneopts = "UT"
   revision = "35aad584952c3e7020db7b839f6b102de6271f89"
   version = "v1.7.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c7a5bfabd29735bc334d7e401d84001449943e5851832037e5da7db94f99820e"
+  input-imports = [
+    "github.com/BurntSushi/toml",
+    "github.com/go-graphite/carbonapi/pkg/parser",
+    "github.com/gogo/protobuf/proto",
+    "github.com/golang/protobuf/proto",
+    "github.com/lomik/graphite-pickle",
+    "github.com/lomik/zapwriter",
+    "github.com/stretchr/testify/assert",
+    "go.uber.org/zap",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
