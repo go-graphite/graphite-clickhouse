@@ -59,7 +59,7 @@ func parseRows(rows []byte) []string {
 	}
 
 	skip := 0
-	index := make([]string, len(rows))
+	index := make([]string, len(splitted))
 	for i, bytes := range splitted {
 		if len(bytes) == 0 {
 			skip++
