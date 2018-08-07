@@ -1,11 +1,15 @@
 package index
 
 import (
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestParseRowsEmpty(t *testing.T) {
+func TestWriteJSONEmptyRows(t *testing.T) {
 	rows := []string{
 		"",
 		"testing.leaf",
@@ -13,28 +17,69 @@ func TestParseRowsEmpty(t *testing.T) {
 		"testing.leaf.node",
 		"",
 	}
-	rowsBytes := []byte(strings.Join(rows, string('\n')))
-	index := parseRows(rowsBytes)
-	if len(index) != 2 {
-		t.Errorf("Wrong index length = %d: %s", len(index), index)
+	metrics, err := writeRows(rows)
+	if err != nil {
+		t.Fatalf("Error during transform or unmarshal: %s", err)
 	}
-	if index[0] != "testing.leaf" || index[1] != "testing.leaf.node" {
-		t.Errorf("Wrong index contents: %s", index)
+	if len(metrics) != 2 {
+		t.Fatalf("Wrong metrics slice length = %d: %s", len(metrics), metrics)
+	}
+	if metrics[0] != "testing.leaf" || metrics[1] != "testing.leaf.node" {
+		t.Fatalf("Wrong metrics contents: %s", metrics)
 	}
 }
 
-func TestParseRowsNonleaf(t *testing.T) {
+func TestWriteJSONNonleafRows(t *testing.T) {
 	rows := []string{
 		"testing.leaf",
 		"testing.nonleaf.",
 		"testing.leaf.node",
 	}
+	metrics, err := writeRows(rows)
+	if err != nil {
+		t.Fatalf("Error during transform or unmarshal: %s", err)
+	}
+	if len(metrics) != 2 {
+		t.Fatalf("Wrong metrics slice length = %d: %s", len(metrics), metrics)
+	}
+	if metrics[0] != "testing.leaf" || metrics[1] != "testing.leaf.node" {
+		t.Fatalf("Wrong metrics contents: %s", metrics)
+	}
+}
+
+func TestWriteJSONEmptyIndex(t *testing.T) {
+	rows := []string{}
+	metrics, err := writeRows(rows)
+	if err != nil {
+		t.Fatalf("Error during transform or unmarshal: %s", err)
+	}
+	if len(metrics) != 0 {
+		t.Fatalf("Wrong metrics slice length = %d: %s", len(metrics), metrics)
+	}
+}
+
+func indexForBytes(b []byte) *Index {
+	buffer := bytes.NewBuffer(b)
+	return &Index{
+		config:     nil,
+		rowsReader: ioutil.NopCloser(buffer),
+	}
+}
+
+func writeRows(rows []string) ([]string, error) {
 	rowsBytes := []byte(strings.Join(rows, string('\n')))
-	index := parseRows(rowsBytes)
-	if len(index) != 2 {
-		t.Errorf("Wrong index length = %d: %s", len(index), index)
+	index := indexForBytes(rowsBytes)
+	mockResponse := httptest.NewRecorder()
+	err := index.WriteJSON(mockResponse)
+	if err != nil {
+		return nil, err
 	}
-	if index[0] != "testing.leaf" || index[1] != "testing.leaf.node" {
-		t.Errorf("Wrong index contents: %s", index)
+
+	var metrics []string
+	err = json.Unmarshal(mockResponse.Body.Bytes(), &metrics)
+	if err != nil {
+		return nil, err
 	}
+
+	return metrics, nil
 }

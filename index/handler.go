@@ -22,6 +22,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer i.Close()
 
-	i.WriteJson(w)
+	i.WriteJSON(w)
 }
