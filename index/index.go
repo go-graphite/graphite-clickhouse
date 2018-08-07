@@ -14,7 +14,7 @@ import (
 type Index struct {
 	config  *config.Config
 	context context.Context
-	result  []byte
+	result  []string
 }
 
 func New(config *config.Config, ctx context.Context) (*Index, error) {
@@ -37,47 +37,51 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 		return nil, err
 	}
 
+	index := parseRows(result)
+
 	return &Index{
 		config:  config,
 		context: ctx,
-		result:  result,
+		result:  index,
 	}, nil
 }
 
-func (i *Index) WriteJson(w http.ResponseWriter) error {
-	var rows [][]byte
-	if i.result == nil {
-		rows = [][]byte{}
+func parseRows(rows []byte) []string {
+	var splitted [][]byte
+	if rows == nil {
+		splitted = [][]byte{}
 	} else {
-		rows = bytes.Split(i.result, []byte{'\n'})
+		splitted = bytes.Split(rows, []byte{'\n'})
+	}
+
+	if len(rows) == 0 {
+		return []string{}
 	}
 
 	skip := 0
-	for i := 0; i < len(rows); i++ {
-		if len(rows[i]) == 0 {
+	index := make([]string, len(rows))
+	for i, bytes := range splitted {
+		if len(bytes) == 0 {
 			skip++
 			continue
 		}
-		if false && rows[i][len(rows[i])-1] == '.' {
+		if bytes[len(bytes)-1] == '.' {
 			skip++
 			continue
 		}
 		if skip > 0 {
-			rows[i-skip] = rows[i]
+			index[i-skip] = string(bytes)
+		} else {
+			index[i] = string(bytes)
 		}
 	}
-	rows = rows[:len(rows)-skip]
+	index = index[:len(index)-skip]
 
-	if len(rows) == 0 { // empty
-		w.Write([]byte("[]"))
-		return nil
-	}
+	return index
+}
 
-	index := make([]string, len(rows))
-	for i, bytes := range rows {
-		index[i] = string(bytes)
-	}
-	jsonBytes, err := json.Marshal(index)
+func (i *Index) WriteJson(w http.ResponseWriter) error {
+	jsonBytes, err := json.Marshal(i.result)
 	if err != nil {
 		return err
 	}
