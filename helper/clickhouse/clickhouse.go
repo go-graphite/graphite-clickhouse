@@ -29,6 +29,31 @@ type Options struct {
 	ConnectTimeout time.Duration
 }
 
+type loggedReader struct {
+	reader   io.ReadCloser
+	logger   *zap.Logger
+	start    time.Time
+	finished bool
+}
+
+func (r *loggedReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if err != nil && !r.finished {
+		r.finished = true
+		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+	}
+	return n, err
+}
+
+func (r *loggedReader) Close() error {
+	err := r.reader.Close()
+	if !r.finished {
+		r.finished = true
+		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+	}
+	return err
+}
+
 func formatSQL(q string) string {
 	s := strings.Split(q, "\n")
 	for i := 0; i < len(s); i++ {
@@ -75,15 +100,9 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)), zap.String("request_id", requestID))
 
 	defer func() {
-		d := time.Since(start)
-		log := logger.With(
-			zap.Duration("time", d),
-		)
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
 		if err != nil {
-			log.Error("query", zap.Error(err))
-		} else {
-			log.Info("query")
+			logger.Error("query", zap.Error(err), zap.Duration("time", time.Since(start)))
 		}
 	}()
 
@@ -142,7 +161,12 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 		return
 	}
 
-	bodyReader = resp.Body
+	bodyReader = &loggedReader{
+		reader: resp.Body,
+		logger: logger,
+		start:  start,
+	}
+
 	return
 }
 
