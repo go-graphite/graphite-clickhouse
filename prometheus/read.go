@@ -10,8 +10,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/k0kubun/pp"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/lomik/graphite-clickhouse/config"
@@ -195,10 +193,9 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 		for i := 0; i < len(points); i++ {
 			serie.Samples = append(serie.Samples, &prompb.Sample{
 				Value:     points[i].Value,
-				Timestamp: int64(points[i].Time),
+				Timestamp: int64(points[i].Time) * 1000,
 			})
 		}
-
 		result.Timeseries = append(result.Timeseries, serie)
 	}
 
@@ -267,8 +264,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	pp.Println(res)
 
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	w.Header().Set("Content-Encoding", "snappy")
