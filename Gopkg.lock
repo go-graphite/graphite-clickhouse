@@ -21,9 +21,19 @@
 
 [[projects]]
   name = "github.com/gogo/protobuf"
-  packages = ["proto"]
+  packages = [
+    "gogoproto",
+    "proto",
+    "protoc-gen-gogo/descriptor"
+  ]
   revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
   branch = "master"
@@ -92,6 +102,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c7a5bfabd29735bc334d7e401d84001449943e5851832037e5da7db94f99820e"
+  inputs-digest = "3f923998e8d7c4700d1fc6dc7ee8d43ccbb21d5029af73f15d40bdd0b01ad739"
   solver-name = "gps-cdcl"
   solver-version = 1
