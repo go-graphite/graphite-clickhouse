@@ -118,7 +118,7 @@ func Make(cfg *config.Config) error {
 				context.WithValue(context.Background(), "logger", logger),
 				cfg.ClickHouse.Url,
 				fmt.Sprintf(
-					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d == %d GROUP BY Path HAVING argMax(Deleted, Version)==0 FORMAT RowBinary",
+					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d == %d AND Deleted = 0 GROUP BY Path FORMAT RowBinary",
 					cfg.ClickHouse.TreeTable,
 					SelectChunksCount,
 					i,

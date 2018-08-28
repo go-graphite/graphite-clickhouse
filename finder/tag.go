@@ -130,7 +130,7 @@ func (t *TagFinder) seriesSQL() (string, error) {
 	}
 
 	base := &BaseFinder{}
-	w.And(base.where(t.seriesQuery))
+	w.And(base.where(t.seriesQuery).String())
 
 	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, w), nil
 }

@@ -25,6 +25,7 @@ func NewDateFinderV3(url string, table string, opts clickhouse.Options) Finder {
 
 func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	where := f.where(ReverseString(query))
+	where.And("Deleted = 0")
 
 	dateWhere := NewWhere()
 	dateWhere.Andf(
@@ -37,8 +38,8 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 		ctx,
 		f.url,
 		fmt.Sprintf(
-			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0`,
-			f.table, dateWhere.String(), where),
+			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path`,
+			f.table, dateWhere.String(), where.String()),
 		f.table,
 		f.opts,
 	)

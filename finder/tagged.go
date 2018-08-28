@@ -224,7 +224,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 		time.Unix(until, 0).Format("2006-01-02"),
 	)
 
-	sql := fmt.Sprintf("SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path HAVING argMax(Deleted, Version)==0", t.table, dateWhere.String(), w)
+	sql := fmt.Sprintf("SELECT Path FROM %s WHERE (%s) AND (%s) AND (Deleted=0) GROUP BY Path", t.table, dateWhere.String(), w)
 	t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.opts)
 	return err
 }

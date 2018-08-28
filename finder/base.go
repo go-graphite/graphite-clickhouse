@@ -24,7 +24,7 @@ func NewBase(url string, table string, opts clickhouse.Options) Finder {
 	}
 }
 
-func (b *BaseFinder) where(query string) string {
+func (b *BaseFinder) where(query string) *Where {
 	level := strings.Count(query, ".") + 1
 
 	w := NewWhere()
@@ -32,13 +32,13 @@ func (b *BaseFinder) where(query string) string {
 	w.Andf("Level = %d", level)
 
 	if query == "*" {
-		return w.String()
+		return w
 	}
 
 	// simple metric
 	if !HasWildcard(query) {
 		w.Andf("Path = %s OR Path = %s", Q(query), Q(query+"."))
-		return w.String()
+		return w
 	}
 
 	// before any wildcard symbol
@@ -50,22 +50,24 @@ func (b *BaseFinder) where(query string) string {
 
 	// prefix search like "metric.name.xx*"
 	if len(simplePrefix) == len(query)-1 && query[len(query)-1] == '*' {
-		return w.String()
+		return w
 	}
 
 	// Q() replaces \ with \\, so using \. does not work here.
 	// work around with [.]
 	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`[.]?$`))
-	return w.String()
+	return w
 }
 
 func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	where := b.where(query)
 
+	where.And("Deleted = 0")
+
 	b.body, err = clickhouse.Query(
 		ctx,
 		b.url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path HAVING argMax(Deleted, Version)==0", b.table, where),
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, where),
 		b.table,
 		b.opts,
 	)
