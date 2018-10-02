@@ -18,6 +18,11 @@ func unsafeString(b []byte) string {
 }
 
 func reversePath(path string) string {
+	// don't reverse tagged path
+	if strings.IndexByte(path, '?') >= 0 {
+		return path
+	}
+
 	a := strings.Split(path, ".")
 
 	l := len(a)
