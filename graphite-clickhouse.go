@@ -86,7 +86,7 @@ func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 		)
 
 		start := time.Now()
-		handler.ServeHTTP(w, r)
+		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
 		logger.Info("access",
 			zap.Duration("time", d),
