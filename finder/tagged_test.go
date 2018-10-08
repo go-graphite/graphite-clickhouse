@@ -25,6 +25,7 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('key=value')", "(Tag1='key=value')", false},
 		{"seriesByTag('name=rps')", "(Tag1='__name__=rps')", false},
 		{"seriesByTag('name=~cpu.usage')", "((Tag1 LIKE '__name__=cpu%') AND (match(Tag1, '__name__=cpu.usage')))", false},
+		{"seriesByTag('name=rps', 'key=~value')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", false},
 		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> (x LIKE 'key=hello%') AND (match(x, 'key=hello.world')), Tags))", false},
 	}
 

@@ -152,9 +152,17 @@ func MakeTaggedWhere(expr []string) (string, error) {
 		case "!=":
 			terms[i].Op = TaggedTermNe
 		case "=~":
-			terms[i].Op = TaggedTermMatch
+			if NonRegexpPrefix(terms[i].Value) == terms[i].Value {
+				terms[i].Op = TaggedTermEq
+			} else {
+				terms[i].Op = TaggedTermMatch
+			}
 		case "!=~":
-			terms[i].Op = TaggedTermNotMatch
+			if NonRegexpPrefix(terms[i].Value) == terms[i].Value {
+				terms[i].Op = TaggedTermNe
+			} else {
+				terms[i].Op = TaggedTermNotMatch
+			}
 		default:
 			return "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
