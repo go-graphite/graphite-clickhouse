@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -20,6 +21,16 @@ func GlobToRegexp(g string) string {
 
 func HasWildcard(target string) bool {
 	return strings.IndexAny(target, "[]{}*?") > -1
+}
+
+func NonRegexpPrefix(expr string) string {
+	s := regexp.QuoteMeta(expr)
+	for i := 0; i < len(expr); i++ {
+		if expr[i] != s[i] {
+			return expr[:i]
+		}
+	}
+	return expr
 }
 
 // Q quotes string for clickhouse

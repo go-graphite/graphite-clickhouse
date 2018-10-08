@@ -23,3 +23,19 @@ func TestGlobToRegexp(t *testing.T) {
 		assert.Equal(t, test.regexp, regexp, testName)
 	}
 }
+
+func TestNonRegexpPrefix(t *testing.T) {
+	table := []struct {
+		expr   string
+		prefix string
+	}{
+		{`test[.]([^.]*?)[.]foo`, `test`},
+		{`__name__=cpu.load`, `__name__=cpu`},
+	}
+
+	for _, test := range table {
+		testName := fmt.Sprintf("expr: %#v", test.expr)
+		prefix := NonRegexpPrefix(test.expr)
+		assert.Equal(t, test.prefix, prefix, testName)
+	}
+}

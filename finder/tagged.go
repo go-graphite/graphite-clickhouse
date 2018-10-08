@@ -75,13 +75,13 @@ func TaggedTermWhere1(term *TaggedTerm) string {
 	case TaggedTermMatch:
 		return fmt.Sprintf(
 			"(Tag1 LIKE %s) AND (match(Tag1, %s))",
-			Qf("%s=%%", term.Key),
+			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
 			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%%", term.Key),
+			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	default:
@@ -99,13 +99,13 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 	case TaggedTermMatch:
 		return fmt.Sprintf(
 			"arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%%", term.Key),
+			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
 			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%%", term.Key),
+			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	default:
