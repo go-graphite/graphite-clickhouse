@@ -45,7 +45,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) requestExpr(r *http.Request) (string, map[string]bool, error) {
+func (h *Handler) requestExpr(r *http.Request) (string, string, map[string]bool, error) {
 	f := r.Form["expr"]
 	expr := make([]string, 0)
 	for i := 0; i < len(f); i++ {
@@ -57,12 +57,12 @@ func (h *Handler) requestExpr(r *http.Request) (string, map[string]bool, error) 
 	usedTags := make(map[string]bool)
 
 	if len(expr) == 0 {
-		return "", usedTags, nil
+		return "", "", usedTags, nil
 	}
 
-	where, err := finder.MakeTaggedWhere(expr)
+	where, prewhere, err := finder.MakeTaggedWhere(expr)
 	if err != nil {
-		return "", usedTags, err
+		return "", "", usedTags, err
 	}
 
 	for i := 0; i < len(expr); i++ {
@@ -70,7 +70,7 @@ func (h *Handler) requestExpr(r *http.Request) (string, map[string]bool, error) 
 		usedTags[a[0]] = true
 	}
 
-	return where, usedTags, nil
+	return where, prewhere, usedTags, nil
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +90,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exprWhere, usedTags, err := h.requestExpr(r)
+	exprWhere, prewhere, usedTags, err := h.requestExpr(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -120,9 +120,15 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 	where.Andf("Deleted = 0")
 
-	sql := fmt.Sprintf("SELECT %s FROM %s %s GROUP BY value ORDER BY value LIMIT %d",
+	pw := ""
+	if prewhere != "" {
+		pw = fmt.Sprintf("PREWHERE %s", pw)
+	}
+
+	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
+		pw,
 		where.SQL(),
 		queryLimit,
 	)
@@ -199,7 +205,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exprWhere, usedTags, err := h.requestExpr(r)
+	exprWhere, prewhere, usedTags, err := h.requestExpr(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -223,9 +229,15 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 	where.Andf("Deleted = 0")
 
-	sql := fmt.Sprintf("SELECT %s FROM %s %s GROUP BY value ORDER BY value LIMIT %d",
+	pw := ""
+	if prewhere != "" {
+		pw = fmt.Sprintf("PREWHERE %s", prewhere)
+	}
+
+	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
+		pw,
 		where.SQL(),
 		limit,
 	)
