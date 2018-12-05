@@ -103,7 +103,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 
 	if listBuf.Len() == 0 {
 		// Return empty response
-		return nil, nil
+		return &prompb.QueryResult{}, nil
 	}
 
 	preWhere := finder.NewWhere()
