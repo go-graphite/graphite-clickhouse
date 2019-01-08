@@ -187,7 +187,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 
 	where := finder.NewWhere()
-	where.Andf("Path in (%s)", listBuf.String())
+	where.Andf("Path in (SELECT DISTINCT Path FROM %s WHERE Path IN (%s))", h.config.ClickHouse.TreeTable, listBuf.String())
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	where.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
