@@ -83,12 +83,12 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	if h.config.Prometheus.SkipOverlap {
 		now := time.Now()
 		// calculate min data in prometheus storage
-		localStorDate := now.Add(time.Duration(-1) * time.Duration(int64(h.config.Prometheus.Retention.Value().Seconds())) * time.Second)
-		localStorTimestamp := int64(localStorDate.Unix())
+		localStorDate := now.Add(-h.config.Prometheus.Retention.Value() - 2*h.config.Prometheus.MinBlockDuration.Value())
+		localStorTimestamp := localStorDate.Unix()
+		overlapTime := 2*int64(h.config.Prometheus.MinBlockDuration.Value().Seconds()) + 59
 
 		// check for overlap
-		if untilTimestamp < localStorTimestamp {
-			overlapTime := 2*int64(h.config.Prometheus.MinBlockDuration.Value().Seconds()) + 59
+		if untilTimestamp > localStorTimestamp {
 			untilTimestamp = untilTimestamp - overlapTime
 		}
 	}
