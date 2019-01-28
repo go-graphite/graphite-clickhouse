@@ -123,7 +123,7 @@ total-timeout = "500ms"
 # Workaround for https://github.com/prometheus/prometheus/issues/4184
 # If used as prometheus remote read with downsampling set this values to prometheus
 # storage.tsdb.retention and storage.tsdb.max-block-duration parameters
-#[prometheus]
+[prometheus]
 # skip-overlap = true
 # retention = "24h"
 # min-block-duration = "2h"
