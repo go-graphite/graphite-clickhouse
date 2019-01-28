@@ -120,6 +120,14 @@ total-timeout = "500ms"
 # # regexp.Match({target-match-all}, target[0]) && regexp.Match({target-match-all}, target[1]) && ...
 # target-match-all = "regexp"
 
+# Workaround for https://github.com/prometheus/prometheus/issues/4184
+# If used as prometheus remote read with downsampling set this values to prometheus
+# storage.tsdb.retention and storage.tsdb.max-block-duration parameters
+#[prometheus]
+# skip-overlap = true
+# retention = "24h"
+# min-block-duration = "2h"
+
 [[logging]]
 logger = ""
 file = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
