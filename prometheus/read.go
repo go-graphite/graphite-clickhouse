@@ -79,6 +79,20 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
 
+	// workaround about https://github.com/prometheus/prometheus/issues/4184
+	if h.config.Prometheus.SkipOverlap {
+		now := time.Now()
+		// calculate min data in prometheus storage
+		localStorDate := now.Add(time.Duration(-1) * time.Duration(int64(h.config.Prometheus.Retention.Value().Seconds())) * time.Second)
+		localStorTimestamp := int64(localStorDate.Unix())
+
+		// check for overlap
+		if untilTimestamp < localStorTimestamp {
+			overlapTime := 2*int64(h.config.Prometheus.MinBlockDuration.Value().Seconds()) + 59
+			untilTimestamp = untilTimestamp - overlapTime
+		}
+	}
+
 	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{})
 
 	var maxStep uint32

@@ -81,6 +81,12 @@ type Carbonlink struct {
 	TotalTimeout   *Duration `toml:"total-timeout"`
 }
 
+type Prometheus struct {
+	SkipOverlap      bool      `toml:"skip-overlap"`
+	Retention        *Duration `toml:"retention"`
+	MinBlockDuration *Duration `toml:"min-block-duration"`
+}
+
 type DataTable struct {
 	Table                string         `toml:"table"`
 	Reverse              bool           `toml:"reverse"`
@@ -103,6 +109,7 @@ type Config struct {
 	DataTable  []DataTable        `toml:"data-table"`
 	Tags       Tags               `toml:"tags"`
 	Carbonlink Carbonlink         `toml:"carbonlink"`
+	Prometheus Prometheus         `toml:"prometheus"`
 	Logging    []zapwriter.Config `toml:"logging"`
 	Rollup     *rollup.Rollup     `toml:"-"`
 }
