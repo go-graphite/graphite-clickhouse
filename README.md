@@ -10,7 +10,7 @@ Gray components are optional or alternative
 [Preconfigured docker-compose](https://github.com/lomik/graphite-clickhouse-tldr)
 
 ## Compatibility
-- [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web), tags autocomplete not supported
+- [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web)
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
 - [x] [graphite-web 1.0.0](https://github.com/graphite-project/graphite-web)
 - [x] [carbonzipper](https://github.com/go-graphite/carbonzipper)
