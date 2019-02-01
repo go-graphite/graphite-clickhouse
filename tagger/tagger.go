@@ -126,6 +126,9 @@ func Make(cfg *config.Config) error {
 				cfg.ClickHouse.TreeTable,
 				clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 			)
+			if err != nil {
+				return err
+			}
 		}
 
 		if err != nil {
