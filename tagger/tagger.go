@@ -113,15 +113,20 @@ func Make(cfg *config.Config) error {
 		bodies = [][]byte{body}
 	} else {
 		bodies = make([][]byte, SelectChunksCount)
+		extraWhere := ""
+		if cfg.Tags.ExtraWhere != "" {
+			extraWhere = fmt.Sprintf("AND (%s)", cfg.Tags.ExtraWhere)
+		}
 		for i := 0; i < SelectChunksCount; i++ {
 			bodies[i], err = clickhouse.Query(
 				context.WithValue(context.Background(), "logger", logger),
 				cfg.ClickHouse.Url,
 				fmt.Sprintf(
-					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d == %d AND Deleted = 0 GROUP BY Path FORMAT RowBinary",
+					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d == %d AND Deleted = 0 %s GROUP BY Path FORMAT RowBinary",
 					cfg.ClickHouse.TreeTable,
 					SelectChunksCount,
 					i,
+					extraWhere,
 				),
 				cfg.ClickHouse.TreeTable,
 				clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
@@ -129,10 +134,6 @@ func Make(cfg *config.Config) error {
 			if err != nil {
 				return err
 			}
-		}
-
-		if err != nil {
-			return err
 		}
 	}
 

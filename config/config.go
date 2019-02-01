@@ -68,6 +68,7 @@ type ClickHouse struct {
 type Tags struct {
 	Rules      string `toml:"rules"`
 	Date       string `toml:"date"`
+	ExtraWhere string `toml:"extra-where"`
 	InputFile  string `toml:"input-file"`
 	OutputFile string `toml:"output-file"`
 }
