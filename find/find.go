@@ -33,6 +33,11 @@ func New(config *config.Config, ctx context.Context, query string) (*Find, error
 	}, nil
 }
 
+func (f *Find) isResultsLimitExceeded(numResults int) bool {
+	return f.config.Common.MaxMetricsInFindAnswer != 0 &&
+		numResults >= f.config.Common.MaxMetricsInFindAnswer
+}
+
 func (f *Find) WritePickle(w io.Writer) error {
 	rows := f.result.List()
 
@@ -44,6 +49,8 @@ func (f *Find) WritePickle(w io.Writer) error {
 	p := pickle.NewWriter(w)
 
 	p.List()
+
+	var numResults = 0
 
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
@@ -63,6 +70,11 @@ func (f *Find) WritePickle(w io.Writer) error {
 		p.SetItem()
 
 		p.Append()
+
+		numResults++
+		if f.isResultsLimitExceeded(numResults) {
+			break
+		}
 	}
 
 	p.Stop()
@@ -89,6 +101,8 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 	var response carbonzipperpb.GlobResponse
 	response.Name = f.query
 
+	var numResults = 0
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			continue
@@ -100,6 +114,11 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 			Path:   string(path),
 			IsLeaf: isLeaf,
 		})
+
+		numResults++
+		if f.isResultsLimitExceeded(numResults) {
+			break
+		}
 	}
 
 	body, err := proto.Marshal(&response)
