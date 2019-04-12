@@ -13,7 +13,9 @@ docker run -ti --rm -v $ROOT:/root/go/src/github.com/lomik/graphite-clickhouse u
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
     ln -s /usr/local/go/bin/go /usr/local/bin/go
     
-    gem install fpm
+    # newer fpm is broken https://github.com/jordansissel/fpm/issues/1612
+    gem install rake
+    gem install fpm:1.10.2
 
     go get github.com/mitchellh/gox
     ln -s /root/go/bin/gox /usr/local/bin/gox
