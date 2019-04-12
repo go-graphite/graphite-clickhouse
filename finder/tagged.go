@@ -242,7 +242,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 		prewhere = fmt.Sprintf("PREWHERE %s", pw)
 	}
 
-	sql := fmt.Sprintf("SELECT Path FROM %s %s WHERE (%s) AND (%s) AND (Deleted=0) GROUP BY Path", t.table, prewhere, dateWhere.String(), w)
+	sql := fmt.Sprintf("SELECT Path FROM %s %s WHERE (%s) AND (%s) GROUP BY Path", t.table, prewhere, dateWhere.String(), w)
 	t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.opts)
 	return err
 }

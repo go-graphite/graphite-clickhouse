@@ -46,7 +46,6 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error)
 		time.Unix(q.EndTimestampMs/1000, 0).Format("2006-01-02"),
 	)
 	where.And(tagWhere)
-	where.And("Deleted = 0")
 
 	sql := fmt.Sprintf(
 		"SELECT Path FROM %s WHERE %s GROUP BY Path",
