@@ -25,7 +25,7 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 	reader, err := clickhouse.Reader(
 		ctx,
 		config.ClickHouse.Url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE Deleted == 0 GROUP BY Path", config.ClickHouse.TreeTable),
+		fmt.Sprintf("SELECT Path FROM %s GROUP BY Path", config.ClickHouse.TreeTable),
 		config.ClickHouse.TreeTable,
 		opts,
 	)

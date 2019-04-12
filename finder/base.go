@@ -62,8 +62,6 @@ func (b *BaseFinder) where(query string) *Where {
 func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	where := b.where(query)
 
-	where.And("Deleted = 0")
-
 	b.body, err = clickhouse.Query(
 		ctx,
 		b.url,

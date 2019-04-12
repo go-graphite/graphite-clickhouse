@@ -38,7 +38,6 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 	)
 
 	if b.tableVersion == 2 {
-		where.And("Deleted = 0")
 		b.body, err = clickhouse.Query(
 			ctx,
 			b.url,
