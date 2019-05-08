@@ -84,7 +84,8 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	listBuf := bytes.NewBuffer(nil)
 
 	// make Path IN (...), calculate max step
-	for index, m := range metricList {
+	count := 0
+	for _, m := range metricList {
 		if len(m) == 0 {
 			continue
 		}
@@ -93,11 +94,12 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 			maxStep = step
 		}
 
-		if index > 0 {
+		if count > 0 {
 			listBuf.WriteByte(',')
 		}
 
 		listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
+		count++
 	}
 
 	if listBuf.Len() == 0 {
@@ -113,7 +115,11 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	)
 
 	where := finder.NewWhere()
-	where.Andf("Path in (%s)", listBuf.String())
+	if count > 1 {
+		where.Andf("Path in (%s)", listBuf.String())
+	} else {
+		where.Andf("Path = %s", listBuf.String())
+	}
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	where.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
