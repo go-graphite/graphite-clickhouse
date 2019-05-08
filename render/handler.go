@@ -153,16 +153,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	listBuf := bytes.NewBuffer(nil)
 
 	// make Path IN (...), calculate max step
-	for index, m := range metricList {
+	count := 0
+	for _, m := range metricList {
 		if len(m) == 0 {
 			continue
 		}
+
 		step := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
 		if step > maxStep {
 			maxStep = step
 		}
 
-		if index > 0 {
+		if count > 0 {
 			listBuf.WriteByte(',')
 		}
 
@@ -171,6 +173,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
 		}
+
+		count++
 	}
 
 	if listBuf.Len() == 0 {
@@ -187,7 +191,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 
 	where := finder.NewWhere()
-	where.Andf("Path in (%s)", listBuf.String())
+	if count > 1 {
+		where.Andf("Path in (%s)", listBuf.String())
+	} else {
+		where.Andf("Path = %s", listBuf.String())
+	}
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	where.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
