@@ -39,14 +39,26 @@ func Find(config *config.Config, ctx context.Context, query string, from int64, 
 			return f
 		}
 
-		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
-			f = NewDateFinder(config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
+		if config.ClickHouse.IndexTable != "" {
+			f = NewIndex(
+				config.ClickHouse.Url,
+				config.ClickHouse.IndexTable,
+				config.ClickHouse.IndexUseDaily,
+				clickhouse.Options{
+					Timeout:        config.ClickHouse.IndexTimeout.Value(),
+					ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+				},
+			)
 		} else {
-			f = NewBase(config.ClickHouse.Url, config.ClickHouse.TreeTable, opts)
-		}
+			if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
+				f = NewDateFinder(config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
+			} else {
+				f = NewBase(config.ClickHouse.Url, config.ClickHouse.TreeTable, opts)
+			}
 
-		if config.ClickHouse.ReverseTreeTable != "" {
-			f = WrapReverse(f, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, opts)
+			if config.ClickHouse.ReverseTreeTable != "" {
+				f = WrapReverse(f, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, opts)
+			}
 		}
 
 		if config.ClickHouse.TagTable != "" {

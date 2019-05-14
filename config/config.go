@@ -56,6 +56,9 @@ type ClickHouse struct {
 	TreeTable            string    `toml:"tree-table"`
 	DateTreeTable        string    `toml:"date-tree-table"`
 	DateTreeTableVersion int       `toml:"date-tree-table-version"`
+	IndexTable           string    `toml:"index-table"`
+	IndexUseDaily        bool      `toml:"index-use-daily"`
+	IndexTimeout         *Duration `toml:"index-timeout"`
 	TaggedTable          string    `toml:"tagged-table"`
 	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days"`
 	ReverseTreeTable     string    `toml:"reverse-tree-table"`
@@ -123,14 +126,18 @@ func New() *Config {
 			MaxMetricsInFindAnswer: 0,
 		},
 		ClickHouse: ClickHouse{
-			Url: "http://localhost:8123",
-
+			Url:       "http://localhost:8123",
 			DataTable: "graphite",
 			DataTimeout: &Duration{
 				Duration: time.Minute,
 			},
 			TreeTable: "graphite_tree",
 			TreeTimeout: &Duration{
+				Duration: time.Minute,
+			},
+			IndexTable:    "",
+			IndexUseDaily: true,
+			IndexTimeout: &Duration{
 				Duration: time.Minute,
 			},
 			RollupConf:           "/etc/graphite-clickhouse/rollup.xml",
