@@ -110,6 +110,8 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 			time.Unix(from, 0).Format("2006-01-02"),
 			time.Unix(until, 0).Format("2006-01-02"),
 		)
+	} else {
+		where.Andf("Date = '%s'", DefaultTreeDate)
 	}
 
 	idx.body, err = clickhouse.Query(
