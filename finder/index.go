@@ -98,6 +98,10 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		}
 	}
 
+	if idx.useReverse {
+		query = ReverseString(query)
+	}
+
 	where := idx.where(query, levelOffset)
 
 	if idx.useDaily {
