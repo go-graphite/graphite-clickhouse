@@ -122,14 +122,14 @@ func Make(cfg *config.Config) error {
 				context.WithValue(context.Background(), "logger", logger),
 				cfg.ClickHouse.Url,
 				fmt.Sprintf(
-					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d = %d %s GROUP BY Path FORMAT RowBinary",
-					cfg.ClickHouse.TreeTable,
+					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d = %d %s AND Level > 20000 AND Level < 30000 AND Date = '1970-02-12' GROUP BY Path FORMAT RowBinary",
+					cfg.ClickHouse.IndexTable,
 					SelectChunksCount,
 					i,
 					extraWhere,
 				),
-				cfg.ClickHouse.TreeTable,
-				clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+				cfg.ClickHouse.IndexTable,
+				clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 			)
 			if err != nil {
 				return err
@@ -351,7 +351,7 @@ func Make(cfg *config.Config) error {
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
 			cfg.ClickHouse.TagTable,
 			outBuf,
-			clickhouse.Options{Timeout: cfg.ClickHouse.TreeTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+			clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 		)
 		if err != nil {
 			return err
