@@ -47,11 +47,11 @@ type Retention struct {
 }
 
 type Pattern struct {
-	Regexp    string                      `xml:"regexp"`
-	Function  string                      `xml:"function"`
-	Retention []*Retention                `xml:"retention"`
-	aggr      func([]point.Point) float64 `xml:"-"`
-	re        *regexp.Regexp              `xml:"-"`
+	Regexp    string         `xml:"regexp"`
+	Function  string         `xml:"function"`
+	Retention []*Retention   `xml:"retention"`
+	aggr      *Aggr          `xml:"-"`
+	re        *regexp.Regexp `xml:"-"`
 }
 
 type Rollup struct {
@@ -72,21 +72,13 @@ func (rr *Pattern) compile(hasRegexp bool) error {
 		}
 	}
 
-	aggrMap := map[string](func([]point.Point) float64){
-		"avg":     AggrAvg,
-		"max":     AggrMax,
-		"min":     AggrMin,
-		"sum":     AggrSum,
-		"any":     AggrAny,
-		"anyLast": AggrAnyLast,
-		"":        nil,
-	}
+	if rr.Function != "" {
+		var exists bool
+		rr.aggr, exists = AggrMap[rr.Function]
 
-	var exists bool
-	rr.aggr, exists = aggrMap[rr.Function]
-
-	if !exists {
-		return fmt.Errorf("unknown function %#v", rr.Function)
+		if !exists {
+			return fmt.Errorf("unknown function %#v", rr.Function)
+		}
 	}
 
 	return nil
@@ -109,6 +101,14 @@ func (r *Rollup) compile() error {
 		if err := rr.compile(true); err != nil {
 			return err
 		}
+	}
+
+	if r.Default.aggr == nil {
+		return fmt.Errorf("default rollup function not set")
+	}
+
+	if len(r.Default.Retention) == 0 {
+		return fmt.Errorf("default rollup retention not set")
 	}
 
 	return nil
@@ -140,48 +140,48 @@ func ParseXML(body []byte) (*Rollup, error) {
 }
 
 // Match returns rollup rules for metric
-func (r *Rollup) Match(metric string) *Pattern {
-	result := &Pattern{}
+func (r *Rollup) Match(metric string) (*Aggr, []*Retention) {
+	var ag *Aggr
+	var rt []*Retention
+
 	for _, p := range r.Pattern {
 		if p.re.MatchString(metric) {
-			if result.Function == "" && p.Function != "" {
-				result.Function = p.Function
-				result.aggr = p.aggr
+			if ag == nil && p.aggr != nil {
+				ag = p.aggr
 			}
-			if len(result.Retention) == 0 && len(p.Retention) > 0 {
-				result.Retention = p.Retention
+			if len(rt) == 0 && len(p.Retention) > 0 {
+				rt = p.Retention
 			}
 
-			if result.Function != "" && len(result.Retention) > 0 {
-				return result
+			if ag != nil && len(rt) > 0 {
+				return ag, rt
 			}
 		}
 	}
 
-	if result.Function == "" {
-		result.Function = r.Default.Function
-		result.aggr = r.Default.aggr
+	if ag == nil {
+		ag = r.Default.aggr
 	}
-	if len(result.Retention) == 0 {
-		result.Retention = r.Default.Retention
+	if len(rt) == 0 {
+		rt = r.Default.Retention
 	}
 
-	return result
+	return ag, rt
 }
 
 func (r *Rollup) Step(metric string, from uint32) uint32 {
-	pattern := r.Match(metric)
+	_, rt := r.Match(metric)
 	now := uint32(time.Now().Unix())
 
-	for i := range pattern.Retention {
-		if i == len(pattern.Retention)-1 || from+pattern.Retention[i+1].Age > now {
-			return pattern.Retention[i].Precision
+	for i := range rt {
+		if i == len(rt)-1 || from+rt[i+1].Age > now {
+			return rt[i].Precision
 		}
 	}
-	return pattern.Retention[len(pattern.Retention)-1].Precision
+	return rt[len(rt)-1].Precision
 }
 
-func doMetricPrecision(points []point.Point, precision uint32, aggr func([]point.Point) float64) []point.Point {
+func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
 	l := len(points)
 	var i, n int
 	// i - current position of iterator
@@ -205,13 +205,13 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr func([]point
 			points[i].MetricID = 0
 		} else {
 			if i > n+1 {
-				points[n].Value = aggr(points[n:i])
+				points[n].Value = aggr.Do(points[n:i])
 			}
 			n = i
 		}
 	}
 	if i > n+1 {
-		points[n].Value = aggr(points[n:i])
+		points[n].Value = aggr.Do(points[n:i])
 	}
 
 	return point.CleanUp(points)
@@ -228,15 +228,15 @@ func (r *Rollup) RollupMetric(metricName string, fromTimestamp uint32, points []
 	}
 
 	now := uint32(time.Now().Unix())
-	rule := r.Match(metricName)
+	ag, rt := r.Match(metricName)
 	precision := uint32(1)
 
-	for _, retention := range rule.Retention {
+	for _, retention := range rt {
 		if fromTimestamp+retention.Age > now && retention.Age != 0 {
 			break
 		}
 
-		points = doMetricPrecision(points, retention.Precision, rule.aggr)
+		points = doMetricPrecision(points, retention.Precision, ag)
 		precision = retention.Precision
 	}
 
