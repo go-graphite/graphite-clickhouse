@@ -79,6 +79,7 @@ func (rr *Pattern) compile(hasRegexp bool) error {
 		"sum":     AggrSum,
 		"any":     AggrAny,
 		"anyLast": AggrAnyLast,
+		"":        nil,
 	}
 
 	var exists bool
@@ -140,13 +141,32 @@ func ParseXML(body []byte) (*Rollup, error) {
 
 // Match returns rollup rules for metric
 func (r *Rollup) Match(metric string) *Pattern {
-	for _, rr := range r.Pattern {
-		if rr.re.MatchString(metric) {
-			return rr
+	result := &Pattern{}
+	for _, p := range r.Pattern {
+		if p.re.MatchString(metric) {
+			if result.Function == "" && p.Function != "" {
+				result.Function = p.Function
+				result.aggr = p.aggr
+			}
+			if len(result.Retention) == 0 && len(p.Retention) > 0 {
+				result.Retention = p.Retention
+			}
+
+			if result.Function != "" && len(result.Retention) > 0 {
+				return result
+			}
 		}
 	}
 
-	return r.Default
+	if result.Function == "" {
+		result.Function = r.Default.Function
+		result.aggr = r.Default.aggr
+	}
+	if len(result.Retention) == 0 {
+		result.Retention = r.Default.Retention
+	}
+
+	return result
 }
 
 func (r *Rollup) Step(metric string, from uint32) uint32 {
