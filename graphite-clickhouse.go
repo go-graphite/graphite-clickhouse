@@ -109,6 +109,7 @@ func main() {
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	buildTags := flag.Bool("tags", false, "Build tags table")
+	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..)")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -143,6 +144,10 @@ func main() {
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 
 	/* CONFIG end */
+
+	if pprof != nil && *pprof != "" {
+		go log.Fatal(http.ListenAndServe(*pprof, nil))
+	}
 
 	/* CONSOLE COMMANDS start */
 	if *buildTags {
