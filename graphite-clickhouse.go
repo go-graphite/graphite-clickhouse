@@ -146,7 +146,7 @@ func main() {
 	/* CONFIG end */
 
 	if pprof != nil && *pprof != "" {
-		go log.Fatal(http.ListenAndServe(*pprof, nil))
+		go func() { log.Fatal(http.ListenAndServe(*pprof, nil)) }()
 	}
 
 	/* CONSOLE COMMANDS start */
