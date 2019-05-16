@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"net/http"
 
+	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"go.uber.org/zap"
 )
 
 func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
@@ -16,6 +18,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		return
 	}
 
+	logger := log.FromContext(r.Context())
+
 	// var multiResponse carbonzipperpb.MultiFetchResponse
 	writer := bufio.NewWriterSize(w, 1024*1024)
 	defer writer.Flush()
@@ -23,7 +27,11 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	mb := new(bytes.Buffer)
 
 	writeMetric := func(name string, points []point.Point) {
-		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		points, step, err := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		if err != nil {
+			logger.Error("rollup failed", zap.Error(err))
+			return
+		}
 
 		start := from - (from % step)
 		if start < from {

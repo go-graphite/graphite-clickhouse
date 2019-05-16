@@ -178,7 +178,10 @@ func TestMetricStep(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("metric=%v (from=now-%v)", test.name, now-test.from), func(t *testing.T) {
-			step := r.Step(test.name, test.from)
+			step, err := r.Step(test.name, test.from)
+			if err != nil {
+				t.Fatalf("error=%s", err.Error())
+			}
 			if step != test.expectedStep {
 				t.Fatalf("metric=%v (from=now-%v), expected step=%v, actual step=%v", test.name, now-test.from, test.expectedStep, step)
 			}

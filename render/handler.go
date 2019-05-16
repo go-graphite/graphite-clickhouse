@@ -159,7 +159,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		step := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
+		step, err := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
+		if err != nil {
+			logger.Error("rollup failed", zap.Error(err))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		if step > maxStep {
 			maxStep = step
 		}

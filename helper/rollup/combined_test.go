@@ -41,17 +41,13 @@ func TestCombinedRules(t *testing.T) {
 		</pattern>
 		<default>
 			<function>avg</function>
-			<retention>
-				<age>0</age>
-				<precision>60</precision>
-			</retention>
 		</default>
 	</graphite_rollup>
 </yandex>
 `
 
 	table := [][2]string{
-		{"hello.world", "avg;0:60"},
+		{"hello.world", "avg;nil"},
 		{"hourly.rps", "avg;0:3600"},
 		{"hourly.rps_total", "sum;0:3600"},
 		{"live.rps_total", "sum;0:1"},

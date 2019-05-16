@@ -18,12 +18,14 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	points := data.Points.List()
 
+	logger := log.FromContext(r.Context())
+
 	defer func() {
-		log.FromContext(r.Context()).Debug("rollup",
+		logger.Debug("rollup",
 			zap.String("runtime", rollupTime.String()),
 			zap.Duration("runtime_ns", rollupTime),
 		)
-		log.FromContext(r.Context()).Debug("pickle",
+		logger.Debug("pickle",
 			zap.String("runtime", pickleTime.String()),
 			zap.Duration("runtime_ns", pickleTime),
 		)
@@ -42,7 +44,12 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	writeMetric := func(name string, pathExpression string, points []point.Point) {
 		rollupStart := time.Now()
-		points, step := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		points, step, err := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		if err != nil {
+			logger.Error("rollup failed", zap.Error(err))
+			return
+		}
+
 		rollupTime += time.Since(rollupStart)
 
 		pickleStart := time.Now()

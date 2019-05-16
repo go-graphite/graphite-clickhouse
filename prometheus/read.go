@@ -15,10 +15,12 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/prompb"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/render"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
@@ -89,7 +91,11 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 		if len(m) == 0 {
 			continue
 		}
-		step := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
+		step, err := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
+		if err != nil {
+			log.FromContext(ctx).Error("step not found", zap.Error(err))
+			return nil, err
+		}
 		if step > maxStep {
 			maxStep = step
 		}
@@ -182,7 +188,11 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 			return
 		}
 
-		points, _ = rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		points, _, err = rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+		if err != nil {
+			log.FromContext(ctx).Error("rollup failed", zap.Error(err))
+			return
+		}
 
 		serie := &prompb.TimeSeries{
 			Labels:  make([]*prompb.Label, 0, len(u.Query())+1),

@@ -103,14 +103,6 @@ func (r *Rollup) compile() error {
 		}
 	}
 
-	if r.Default.aggr == nil {
-		return fmt.Errorf("default rollup function not set")
-	}
-
-	if len(r.Default.Retention) == 0 {
-		return fmt.Errorf("default rollup retention not set")
-	}
-
 	return nil
 }
 
@@ -169,16 +161,20 @@ func (r *Rollup) Match(metric string) (*Aggr, []*Retention) {
 	return ag, rt
 }
 
-func (r *Rollup) Step(metric string, from uint32) uint32 {
+func (r *Rollup) Step(metric string, from uint32) (uint32, error) {
 	_, rt := r.Match(metric)
 	now := uint32(time.Now().Unix())
 
+	if len(rt) == 0 {
+		return 0, fmt.Errorf("rollup retention not found for metric %#v", metric)
+	}
+
 	for i := range rt {
 		if i == len(rt)-1 || from+rt[i+1].Age > now {
-			return rt[i].Precision
+			return rt[i].Precision, nil
 		}
 	}
-	return rt[len(rt)-1].Precision
+	return rt[len(rt)-1].Precision, nil
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
@@ -219,17 +215,24 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []poi
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rollup) RollupMetric(metricName string, fromTimestamp uint32, points []point.Point) ([]point.Point, uint32) {
+func (r *Rollup) RollupMetric(metricName string, fromTimestamp uint32, points []point.Point) ([]point.Point, uint32, error) {
 	// pp.Println(points)
 
 	l := len(points)
 	if l == 0 {
-		return points, 1
+		return points, 1, nil
 	}
 
 	now := uint32(time.Now().Unix())
 	ag, rt := r.Match(metricName)
 	precision := uint32(1)
+
+	if len(rt) == 0 {
+		return points, 0, fmt.Errorf("rollup retention not found for metric %#v", metricName)
+	}
+	if ag == nil {
+		return points, 0, fmt.Errorf("rollup function not found for metric %#v", metricName)
+	}
 
 	for _, retention := range rt {
 		if fromTimestamp+retention.Age > now && retention.Age != 0 {
@@ -241,5 +244,5 @@ func (r *Rollup) RollupMetric(metricName string, fromTimestamp uint32, points []
 	}
 
 	// pp.Println(points)
-	return points, precision
+	return points, precision, nil
 }
