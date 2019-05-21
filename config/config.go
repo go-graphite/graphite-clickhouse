@@ -225,17 +225,10 @@ func ReadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 
-	rollupConfBody, err := ioutil.ReadFile(cfg.ClickHouse.RollupConf)
+	cfg.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
 	if err != nil {
 		return nil, err
 	}
-
-	r, err := rollup.ParseXML(rollupConfBody)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.Rollup = r
 
 	l := len(cfg.Common.TargetBlacklist)
 	if l > 0 {
@@ -266,17 +259,10 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 
 		if cfg.DataTable[i].RollupConf != "" {
-			rollupConfBody, err := ioutil.ReadFile(cfg.DataTable[i].RollupConf)
+			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
 			if err != nil {
 				return nil, err
 			}
-
-			r, err := rollup.ParseXML(rollupConfBody)
-			if err != nil {
-				return nil, err
-			}
-
-			cfg.DataTable[i].Rollup = r
 		}
 	}
 
