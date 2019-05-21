@@ -42,21 +42,21 @@ import (
 */
 
 type Retention struct {
-	Age       uint32 `xml:"age"`
-	Precision uint32 `xml:"precision"`
+	Age       uint32 `xml:"age" json:"age"`
+	Precision uint32 `xml:"precision" json:"precision"`
 }
 
 type Pattern struct {
-	Regexp    string         `xml:"regexp"`
-	Function  string         `xml:"function"`
-	Retention []*Retention   `xml:"retention"`
+	Regexp    string         `xml:"regexp" json:"regexp"`
+	Function  string         `xml:"function" json:"function"`
+	Retention []*Retention   `xml:"retention" json:"retention"`
 	aggr      *Aggr          `xml:"-"`
 	re        *regexp.Regexp `xml:"-"`
 }
 
 type Rollup struct {
-	Pattern []*Pattern `xml:"pattern"`
-	Default *Pattern   `xml:"default"`
+	Pattern []*Pattern `xml:"pattern" json:"pattern"`
+	Default *Pattern   `xml:"default" json:"default"`
 }
 
 type ClickhouseRollup struct {

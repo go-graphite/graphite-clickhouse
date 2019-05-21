@@ -1,10 +1,22 @@
 package rollup
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func assertJsonEqual(t *testing.T, expected string, actual string) {
+	var e, a interface{}
+
+	assert := assert.New(t)
+	assert.NoError(json.Unmarshal([]byte(expected), &e))
+	assert.NoError(json.Unmarshal([]byte(actual), &a))
+
+	assert.Equal(e, a)
+}
 
 func TestParseJson(t *testing.T) {
 	response := `{
@@ -99,4 +111,51 @@ func TestParseJson(t *testing.T) {
 	r, err := parseJson([]byte(response))
 	assert.NotNil(r)
 	assert.NoError(err)
+
+	b, err := json.Marshal(r)
+	assert.NoError(err)
+	fmt.Println(string(b))
+
+	assertJsonEqual(t, `
+{
+	"pattern": [{
+		"regexp": "^hourly",
+		"function": "",
+		"retention": [{
+			"age": 0,
+			"precision": 3600
+		}, {
+			"age": 3600,
+			"precision": 13600
+		}]
+	}, {
+		"regexp": "^live",
+		"function": "",
+		"retention": [{
+			"age": 0,
+			"precision": 1
+		}]
+	}, {
+		"regexp": "total$",
+		"function": "sum",
+		"retention": []
+	}, {
+		"regexp": "min$",
+		"function": "min",
+		"retention": []
+	}, {
+		"regexp": "max$",
+		"function": "max",
+		"retention": []
+	}],
+	"default": {
+		"regexp": "",
+		"function": "max",
+		"retention": [{
+			"age": 0,
+			"precision": 60
+		}]
+	}
+}
+	`, string(b))
 }
