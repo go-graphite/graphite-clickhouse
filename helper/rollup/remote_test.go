@@ -155,7 +155,8 @@ func TestParseJson(t *testing.T) {
 			"age": 0,
 			"precision": 60
 		}]
-	}
+	},
+	"updated":0
 }
 	`, string(b))
 }

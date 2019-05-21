@@ -141,5 +141,9 @@ func Load(addr string, table string) (*Rollup, error) {
 		return nil, err
 	}
 
-	return parseJson(body)
+	r, err := parseJson(body)
+	if r != nil {
+		r.Updated = time.Now().Unix()
+	}
+	return r, err
 }

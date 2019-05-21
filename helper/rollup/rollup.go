@@ -57,6 +57,7 @@ type Pattern struct {
 type Rollup struct {
 	Pattern []*Pattern `xml:"pattern" json:"pattern"`
 	Default *Pattern   `xml:"default" json:"default"`
+	Updated int64      `xml:"-" json:"updated"`
 }
 
 type ClickhouseRollup struct {
