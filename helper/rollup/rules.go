@@ -54,14 +54,14 @@ type Pattern struct {
 	re        *regexp.Regexp `xml:"-"`
 }
 
-type Rollup struct {
+type Rules struct {
 	Pattern []*Pattern `xml:"pattern" json:"pattern"`
 	Default *Pattern   `xml:"default" json:"default"`
 	Updated int64      `xml:"-" json:"updated"`
 }
 
 type ClickhouseRollup struct {
-	Rollup Rollup `xml:"graphite_rollup"`
+	Rules Rules `xml:"graphite_rollup"`
 }
 
 func (rr *Pattern) compile(hasRegexp bool) error {
@@ -85,7 +85,7 @@ func (rr *Pattern) compile(hasRegexp bool) error {
 	return nil
 }
 
-func (r *Rollup) compile() error {
+func (r *Rules) compile() error {
 	if r.Pattern == nil {
 		r.Pattern = make([]*Pattern, 0)
 	}
@@ -107,8 +107,8 @@ func (r *Rollup) compile() error {
 	return nil
 }
 
-func ParseXML(body []byte) (*Rollup, error) {
-	r := &Rollup{}
+func ParseXML(body []byte) (*Rules, error) {
+	r := &Rules{}
 	err := xml.Unmarshal(body, r)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func ParseXML(body []byte) (*Rollup, error) {
 		if err != nil {
 			return nil, err
 		}
-		r = &y.Rollup
+		r = &y.Rules
 	}
 
 	err = r.compile()
@@ -133,7 +133,7 @@ func ParseXML(body []byte) (*Rollup, error) {
 }
 
 // Match returns rollup rules for metric
-func (r *Rollup) Match(metric string) (*Aggr, []*Retention) {
+func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
 	var ag *Aggr
 	var rt []*Retention
 
@@ -162,7 +162,7 @@ func (r *Rollup) Match(metric string) (*Aggr, []*Retention) {
 	return ag, rt
 }
 
-func (r *Rollup) Step(metric string, from uint32) (uint32, error) {
+func (r *Rules) Step(metric string, from uint32) (uint32, error) {
 	_, rt := r.Match(metric)
 	now := uint32(time.Now().Unix())
 
@@ -216,7 +216,7 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []poi
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rollup) RollupMetric(metricName string, fromTimestamp uint32, points []point.Point) ([]point.Point, uint32, error) {
+func (r *Rules) RollupMetric(metricName string, fromTimestamp uint32, points []point.Point) ([]point.Point, uint32, error) {
 	// pp.Println(points)
 
 	l := len(points)

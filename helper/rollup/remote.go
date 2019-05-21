@@ -23,14 +23,14 @@ type rollupRulesResponse struct {
 	Data []rollupRulesResponseRecord `json:"data"`
 }
 
-func parseJson(body []byte) (*Rollup, error) {
+func parseJson(body []byte) (*Rules, error) {
 	resp := &rollupRulesResponse{}
 	err := json.Unmarshal(body, resp)
 	if err != nil {
 		return nil, err
 	}
 
-	r := &Rollup{
+	r := &Rules{
 		Pattern: make([]*Pattern, 0),
 		Default: &Pattern{Retention: make([]*Retention, 0)},
 	}
@@ -100,7 +100,7 @@ func parseJson(body []byte) (*Rollup, error) {
 	return r, nil
 }
 
-func Load(addr string, table string) (*Rollup, error) {
+func Load(addr string, table string) (*Rules, error) {
 	var db string
 	arr := strings.Split(table, ".")
 	if len(arr) > 2 {

@@ -2,7 +2,6 @@ package rollup
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -114,7 +113,6 @@ func TestParseJson(t *testing.T) {
 
 	b, err := json.Marshal(r)
 	assert.NoError(err)
-	fmt.Println(string(b))
 
 	assertJsonEqual(t, `
 {
