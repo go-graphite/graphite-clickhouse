@@ -225,7 +225,11 @@ func ReadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 
-	cfg.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
+	if cfg.ClickHouse.RollupConf == "auto" {
+		cfg.Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.ClickHouse.DataTable, time.Minute)
+	} else {
+		cfg.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +263,11 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 
 		if cfg.DataTable[i].RollupConf != "" {
-			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
+			if cfg.DataTable[i].RollupConf == "auto" {
+				cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.DataTable[i].Table, time.Minute)
+			} else {
+				cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
+			}
 			if err != nil {
 				return nil, err
 			}

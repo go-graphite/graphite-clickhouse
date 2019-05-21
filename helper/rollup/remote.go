@@ -100,7 +100,7 @@ func parseJson(body []byte) (*Rules, error) {
 	return r, nil
 }
 
-func Load(addr string, table string) (*Rules, error) {
+func remoteLoad(addr string, table string) (*Rules, error) {
 	var db string
 	arr := strings.Split(table, ".")
 	if len(arr) > 2 {
