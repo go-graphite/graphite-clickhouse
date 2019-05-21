@@ -7,7 +7,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool, *rollup.Rollup) {
+func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool, *rollup.Rules) {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -55,11 +55,11 @@ TableLoop:
 		}
 
 		if t.Rollup != nil {
-			return t.Table, t.Reverse, t.Rollup
+			return t.Table, t.Reverse, t.Rollup.Rules()
 		} else {
-			return t.Table, t.Reverse, cfg.Rollup
+			return t.Table, t.Reverse, cfg.Rollup.Rules()
 		}
 	}
 
-	return cfg.ClickHouse.DataTable, false, cfg.Rollup
+	return cfg.ClickHouse.DataTable, false, cfg.Rollup.Rules()
 }

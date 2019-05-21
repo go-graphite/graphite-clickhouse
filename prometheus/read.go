@@ -167,7 +167,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	return h.makeQueryResult(ctx, data, rollupObj, uint32(fromTimestamp), uint32(untilTimestamp))
 }
 
-func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollupObj *rollup.Rollup, from, until uint32) (*prompb.QueryResult, error) {
+func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollupObj *rollup.Rules, from, until uint32) (*prompb.QueryResult, error) {
 	if data == nil {
 		return &prompb.QueryResult{}, nil
 	}
