@@ -60,7 +60,7 @@
   branch = "master"
   name = "github.com/lomik/zapwriter"
   packages = ["."]
-  revision = "d4499a33b5929c4a2e7e169165f594f35b39638c"
+  revision = "2ec2b9a616807f3fe930c075c48fcf32d1f2d250"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"

@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rules) {
 	var rollupTime time.Duration
 	var pickleTime time.Duration
 

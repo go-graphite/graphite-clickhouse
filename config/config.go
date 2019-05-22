@@ -39,77 +39,77 @@ func (d *Duration) Value() time.Duration {
 }
 
 type Common struct {
-	Listen string `toml:"listen"`
+	Listen string `toml:"listen" json:"listen"`
 	// MetricPrefix   string    `toml:"metric-prefix"`
 	// MetricInterval *Duration `toml:"metric-interval"`
 	// MetricEndpoint string    `toml:"metric-endpoint"`
-	MaxCPU                 int              `toml:"max-cpu"`
-	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer"` //zero means infinite
-	TargetBlacklist        []string         `toml:"target-blacklist"`
-	Blacklist              []*regexp.Regexp `toml:"-"` // compiled TargetBlacklist
+	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
+	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer"` //zero means infinite
+	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist"`
+	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 }
 
 type ClickHouse struct {
-	Url                  string    `toml:"url"`
-	DataTable            string    `toml:"data-table"`
-	DataTimeout          *Duration `toml:"data-timeout"`
-	TreeTable            string    `toml:"tree-table"`
-	DateTreeTable        string    `toml:"date-tree-table"`
-	DateTreeTableVersion int       `toml:"date-tree-table-version"`
-	IndexTable           string    `toml:"index-table"`
-	IndexUseDaily        bool      `toml:"index-use-daily"`
-	IndexTimeout         *Duration `toml:"index-timeout"`
-	TaggedTable          string    `toml:"tagged-table"`
-	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days"`
-	ReverseTreeTable     string    `toml:"reverse-tree-table"`
-	TreeTimeout          *Duration `toml:"tree-timeout"`
-	TagTable             string    `toml:"tag-table"`
-	RollupConf           string    `toml:"rollup-conf"`
-	ExtraPrefix          string    `toml:"extra-prefix"`
-	ConnectTimeout       *Duration `toml:"connect-timeout"`
+	Url                  string         `toml:"url" json:"url"`
+	DataTable            string         `toml:"data-table" json:"data-table"`
+	DataTimeout          *Duration      `toml:"data-timeout" json:"data-timeout"`
+	TreeTable            string         `toml:"tree-table" json:"tree-table"`
+	DateTreeTable        string         `toml:"date-tree-table" json:"date-tree-table"`
+	DateTreeTableVersion int            `toml:"date-tree-table-version" json:"date-tree-table-version"`
+	IndexTable           string         `toml:"index-table" json:"index-table"`
+	IndexUseDaily        bool           `toml:"index-use-daily" json:"index-use-daily"`
+	IndexTimeout         *Duration      `toml:"index-timeout" json:"index-timeout"`
+	TaggedTable          string         `toml:"tagged-table" json:"tagged-table"`
+	TaggedAutocompleDays int            `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
+	ReverseTreeTable     string         `toml:"reverse-tree-table" json:"reverse-tree-table"`
+	TreeTimeout          *Duration      `toml:"tree-timeout" json:"tree-timeout"`
+	TagTable             string         `toml:"tag-table" json:"tag-table"`
+	RollupConf           string         `toml:"rollup-conf" json:"-"`
+	ExtraPrefix          string         `toml:"extra-prefix" json:"extra-prefix"`
+	ConnectTimeout       *Duration      `toml:"connect-timeout" json:"connect-timeout"`
+	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
 type Tags struct {
-	Rules      string `toml:"rules"`
-	Date       string `toml:"date"`
-	ExtraWhere string `toml:"extra-where"`
-	InputFile  string `toml:"input-file"`
-	OutputFile string `toml:"output-file"`
+	Rules      string `toml:"rules" json:"rules"`
+	Date       string `toml:"date" json:"date"`
+	ExtraWhere string `toml:"extra-where" json:"extra-where"`
+	InputFile  string `toml:"input-file" json:"input-file"`
+	OutputFile string `toml:"output-file" json:"output-file"`
 }
 
 type Carbonlink struct {
-	Server         string    `toml:"server"`
-	Threads        int       `toml:"threads-per-request"`
-	Retries        int       `toml:"-"`
-	ConnectTimeout *Duration `toml:"connect-timeout"`
-	QueryTimeout   *Duration `toml:"query-timeout"`
-	TotalTimeout   *Duration `toml:"total-timeout"`
+	Server         string    `toml:"server" json:"server"`
+	Threads        int       `toml:"threads-per-request" json:"threads-per-request"`
+	Retries        int       `toml:"-" json:"-"`
+	ConnectTimeout *Duration `toml:"connect-timeout" json:"connect-timeout"`
+	QueryTimeout   *Duration `toml:"query-timeout" json:"query-timeout"`
+	TotalTimeout   *Duration `toml:"total-timeout" json:"total-timeout"`
 }
 
 type DataTable struct {
-	Table                string         `toml:"table"`
-	Reverse              bool           `toml:"reverse"`
-	MaxAge               *Duration      `toml:"max-age"`
-	MinAge               *Duration      `toml:"min-age"`
-	MaxInterval          *Duration      `toml:"max-interval"`
-	MinInterval          *Duration      `toml:"min-interval"`
-	TargetMatchAny       string         `toml:"target-match-any"`
-	TargetMatchAll       string         `toml:"target-match-all"`
-	TargetMatchAnyRegexp *regexp.Regexp `toml:"-"`
-	TargetMatchAllRegexp *regexp.Regexp `toml:"-"`
-	RollupConf           string         `toml:"rollup-conf"`
-	Rollup               *rollup.Rollup `toml:"-"`
+	Table                string         `toml:"table" json:"table"`
+	Reverse              bool           `toml:"reverse" json:"reverse"`
+	MaxAge               *Duration      `toml:"max-age" json:"max-age"`
+	MinAge               *Duration      `toml:"min-age" json:"min-age"`
+	MaxInterval          *Duration      `toml:"max-interval" json:"max-interval"`
+	MinInterval          *Duration      `toml:"min-interval" json:"min-interval"`
+	TargetMatchAny       string         `toml:"target-match-any" json:"target-match-any"`
+	TargetMatchAll       string         `toml:"target-match-all" json:"target-match-all"`
+	TargetMatchAnyRegexp *regexp.Regexp `toml:"-" json:"-"`
+	TargetMatchAllRegexp *regexp.Regexp `toml:"-" json:"-"`
+	RollupConf           string         `toml:"rollup-conf" json:"-"`
+	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
 // Config ...
 type Config struct {
-	Common     Common             `toml:"common"`
-	ClickHouse ClickHouse         `toml:"clickhouse"`
-	DataTable  []DataTable        `toml:"data-table"`
-	Tags       Tags               `toml:"tags"`
-	Carbonlink Carbonlink         `toml:"carbonlink"`
-	Logging    []zapwriter.Config `toml:"logging"`
-	Rollup     *rollup.Rollup     `toml:"-"`
+	Common     Common             `toml:"common" json:"common"`
+	ClickHouse ClickHouse         `toml:"clickhouse" json:"clickhouse"`
+	DataTable  []DataTable        `toml:"data-table" json:"data-table"`
+	Tags       Tags               `toml:"tags" json:"tags"`
+	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
+	Logging    []zapwriter.Config `toml:"logging" json:"logging"`
 }
 
 // NewConfig ...
@@ -225,17 +225,14 @@ func ReadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 
-	rollupConfBody, err := ioutil.ReadFile(cfg.ClickHouse.RollupConf)
+	if cfg.ClickHouse.RollupConf == "auto" {
+		cfg.ClickHouse.Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.ClickHouse.DataTable, time.Minute)
+	} else {
+		cfg.ClickHouse.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	r, err := rollup.ParseXML(rollupConfBody)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.Rollup = r
 
 	l := len(cfg.Common.TargetBlacklist)
 	if l > 0 {
@@ -266,17 +263,14 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 
 		if cfg.DataTable[i].RollupConf != "" {
-			rollupConfBody, err := ioutil.ReadFile(cfg.DataTable[i].RollupConf)
+			if cfg.DataTable[i].RollupConf == "auto" {
+				cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.DataTable[i].Table, time.Minute)
+			} else {
+				cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
+			}
 			if err != nil {
 				return nil, err
 			}
-
-			r, err := rollup.ParseXML(rollupConfBody)
-			if err != nil {
-				return nil, err
-			}
-
-			cfg.DataTable[i].Rollup = r
 		}
 	}
 

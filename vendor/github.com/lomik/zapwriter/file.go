@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -36,24 +35,13 @@ func newFileOutput(path string) (*FileOutput, error) {
 	var timeout time.Duration
 	var interval time.Duration
 
-	s := u.Query().Get("timeout")
-	if s == "" {
-		timeout = time.Second
-	} else {
-		timeout, err = time.ParseDuration(s)
-		if err != nil {
-			return nil, err
-		}
+	params := DSN(u.Query())
+	if timeout, err = params.Duration("timeout", "1s"); err != nil {
+		return nil, err
 	}
 
-	s = u.Query().Get("interval")
-	if s == "" {
-		interval = time.Second
-	} else {
-		interval, err = time.ParseDuration(s)
-		if err != nil {
-			return nil, err
-		}
+	if interval, err = params.Duration("interval", "1s"); err != nil {
+		return nil, err
 	}
 
 	f, err := os.OpenFile(u.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -90,9 +78,7 @@ func (r *FileOutput) reopenChecker(exit chan interface{}) {
 	for {
 		select {
 		case <-ticker.C:
-			r.Lock()
-			r.check()
-			r.Unlock()
+			r.doWithCheck(func() {})
 		case <-exit:
 			return
 		}
@@ -112,60 +98,13 @@ func (r *FileOutput) reopen() *os.File {
 	return r.f
 }
 
-func (r *FileOutput) check() {
-	now := time.Now()
-
-	if now.Before(r.checkNext) {
-		return
-	}
-
-	r.checkNext = time.Now().Add(r.timeout)
-
-	fInfo, err := r.f.Stat()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	fStat, ok := fInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		fmt.Println("Not a syscall.Stat_t")
-		return
-	}
-
-	pInfo, err := os.Stat(r.path)
-	if err != nil {
-		// file deleted (?)
-		r.reopen()
-		return
-	}
-
-	pStat, ok := pInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		fmt.Println("Not a syscall.Stat_t")
-		return
-	}
-
-	if fStat.Ino != pStat.Ino {
-		// file on disk changed
-		r.reopen()
-		return
-	}
-}
-
 func (r *FileOutput) Write(p []byte) (n int, err error) {
-	r.Lock()
-	r.check()
-	n, err = r.f.Write(p)
-	r.Unlock()
+	r.doWithCheck(func() { n, err = r.f.Write(p) })
 	return
 }
 
 func (r *FileOutput) Sync() (err error) {
-	r.Lock()
-	r.check()
-	err = r.f.Sync()
-	r.Unlock()
+	r.doWithCheck(func() { err = r.f.Sync() })
 	return
 }
 
@@ -185,6 +124,10 @@ func PrepareFileForUser(filename string, owner *user.User) error {
 	}
 
 	if u.Path == "" || u.Path == "stderr" || u.Path == "stdout" || u.Path == "none" {
+		return nil
+	}
+
+	if u.Scheme != "" && u.Scheme != "file" {
 		return nil
 	}
 

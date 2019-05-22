@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rollup) {
+func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rules) {
 	points := data.Points.List()
 
 	if len(points) == 0 {
