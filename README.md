@@ -68,7 +68,26 @@ max-metrics-in-find-answer = 0
 # You can add user/password (http://user:password@localhost:8123) and any clickhouse options (GET-parameters) to url
 # It is recommended to create read-only user 
 url = "http://localhost:8123"
+# Add extra prefix (directory in graphite) for all metrics
+extra-prefix = ""
+
+# Default table with points
 data-table = "graphite"
+data-timeout = "1m0s"
+# Rollup rules xml filename. Use `auto` magic word for select rollup rules from ClickHouse
+rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
+
+# Table with series list (daily and full)
+# https://github.com/lomik/graphite-clickhouse/wiki/IndexTable
+index-table = "graphite_index"
+# Use daily data from index table. This is useful for installations with big count of short-lived series but can be slower in other cases
+index-use-daily = true
+index-timeout = "1m"
+
+# `tagged` table from carbon-clickhouse. Required for seriesByTag
+tagged-table = ""
+
+# Old index tables. Deprecated
 tree-table = "graphite_tree"
 # Optional table with daily series list.
 # Useful for installations with big count of short-lived series
@@ -78,12 +97,6 @@ date-tree-table = ""
 # 2: table with Path, Date, Level, Deleted, Version fields. Table type "series" in the carbon-clickhouse
 # 3: same as #2 but with reversed Path. Table type "series-reverse" in the carbon-clickhouse
 date-tree-table-version = 0
-rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
-# `tagged` table from carbon-clickhouse. Required for seriesByTag
-tagged-table = ""
-# Add extra prefix (directory in graphite) for all metrics
-extra-prefix = ""
-data-timeout = "1m0s"
 tree-timeout = "1m0s"
 
 [carbonlink]
@@ -107,7 +120,7 @@ total-timeout = "500ms"
 # table = "table_name"
 # # points in table are stored with reverse path
 # reverse = false
-# # custom rollup.conf for table
+# # custom rollup.conf for table. Or magic word `auto`
 # rollup-conf = ""
 # # from >= now - {max-age}
 # max-age = "240h"
