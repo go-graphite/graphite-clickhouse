@@ -1,6 +1,7 @@
 package rollup
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"sync"
@@ -73,4 +74,8 @@ func (r *Rollup) updateWorker() {
 		time.Sleep(r.interval)
 		r.update()
 	}
+}
+
+func (r *Rollup) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.Rules())
 }
