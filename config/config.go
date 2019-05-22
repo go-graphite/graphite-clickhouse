@@ -50,23 +50,24 @@ type Common struct {
 }
 
 type ClickHouse struct {
-	Url                  string    `toml:"url" json:"url"`
-	DataTable            string    `toml:"data-table" json:"data-table"`
-	DataTimeout          *Duration `toml:"data-timeout" json:"data-timeout"`
-	TreeTable            string    `toml:"tree-table" json:"tree-table"`
-	DateTreeTable        string    `toml:"date-tree-table" json:"date-tree-table"`
-	DateTreeTableVersion int       `toml:"date-tree-table-version" json:"date-tree-table-version"`
-	IndexTable           string    `toml:"index-table" json:"index-table"`
-	IndexUseDaily        bool      `toml:"index-use-daily" json:"index-use-daily"`
-	IndexTimeout         *Duration `toml:"index-timeout" json:"index-timeout"`
-	TaggedTable          string    `toml:"tagged-table" json:"tagged-table"`
-	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
-	ReverseTreeTable     string    `toml:"reverse-tree-table" json:"reverse-tree-table"`
-	TreeTimeout          *Duration `toml:"tree-timeout" json:"tree-timeout"`
-	TagTable             string    `toml:"tag-table" json:"tag-table"`
-	RollupConf           string    `toml:"rollup-conf" json:"rollup-conf"`
-	ExtraPrefix          string    `toml:"extra-prefix" json:"extra-prefix"`
-	ConnectTimeout       *Duration `toml:"connect-timeout" json:"connect-timeout"`
+	Url                  string         `toml:"url" json:"url"`
+	DataTable            string         `toml:"data-table" json:"data-table"`
+	DataTimeout          *Duration      `toml:"data-timeout" json:"data-timeout"`
+	TreeTable            string         `toml:"tree-table" json:"tree-table"`
+	DateTreeTable        string         `toml:"date-tree-table" json:"date-tree-table"`
+	DateTreeTableVersion int            `toml:"date-tree-table-version" json:"date-tree-table-version"`
+	IndexTable           string         `toml:"index-table" json:"index-table"`
+	IndexUseDaily        bool           `toml:"index-use-daily" json:"index-use-daily"`
+	IndexTimeout         *Duration      `toml:"index-timeout" json:"index-timeout"`
+	TaggedTable          string         `toml:"tagged-table" json:"tagged-table"`
+	TaggedAutocompleDays int            `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
+	ReverseTreeTable     string         `toml:"reverse-tree-table" json:"reverse-tree-table"`
+	TreeTimeout          *Duration      `toml:"tree-timeout" json:"tree-timeout"`
+	TagTable             string         `toml:"tag-table" json:"tag-table"`
+	RollupConf           string         `toml:"rollup-conf" json:"-"`
+	ExtraPrefix          string         `toml:"extra-prefix" json:"extra-prefix"`
+	ConnectTimeout       *Duration      `toml:"connect-timeout" json:"connect-timeout"`
+	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
 type Tags struct {
@@ -97,8 +98,8 @@ type DataTable struct {
 	TargetMatchAll       string         `toml:"target-match-all" json:"target-match-all"`
 	TargetMatchAnyRegexp *regexp.Regexp `toml:"-" json:"-"`
 	TargetMatchAllRegexp *regexp.Regexp `toml:"-" json:"-"`
-	RollupConf           string         `toml:"rollup-conf" json:"rollup-conf"`
-	Rollup               *rollup.Rollup `toml:"-" json:"-"`
+	RollupConf           string         `toml:"rollup-conf" json:"-"`
+	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
 // Config ...
@@ -109,7 +110,6 @@ type Config struct {
 	Tags       Tags               `toml:"tags" json:"tags"`
 	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
 	Logging    []zapwriter.Config `toml:"logging" json:"logging"`
-	Rollup     *rollup.Rollup     `toml:"-" json:"-"`
 }
 
 // NewConfig ...
@@ -226,9 +226,9 @@ func ReadConfig(filename string) (*Config, error) {
 	}
 
 	if cfg.ClickHouse.RollupConf == "auto" {
-		cfg.Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.ClickHouse.DataTable, time.Minute)
+		cfg.ClickHouse.Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.ClickHouse.DataTable, time.Minute)
 	} else {
-		cfg.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
+		cfg.ClickHouse.Rollup, err = rollup.ReadFromXMLFile(cfg.ClickHouse.RollupConf)
 	}
 	if err != nil {
 		return nil, err

@@ -57,9 +57,9 @@ TableLoop:
 		if t.Rollup != nil {
 			return t.Table, t.Reverse, t.Rollup.Rules()
 		} else {
-			return t.Table, t.Reverse, cfg.Rollup.Rules()
+			return t.Table, t.Reverse, cfg.ClickHouse.Rollup.Rules()
 		}
 	}
 
-	return cfg.ClickHouse.DataTable, false, cfg.Rollup.Rules()
+	return cfg.ClickHouse.DataTable, false, cfg.ClickHouse.Rollup.Rules()
 }
