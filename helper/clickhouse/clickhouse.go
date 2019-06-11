@@ -151,6 +151,7 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		err = fmt.Errorf("clickhouse request status: %s", err.Error())
 		return
 	}
 
