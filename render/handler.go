@@ -140,6 +140,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if h.config.Common.MaxMetricsInFindAnswer > 0 && h.config.Common.MaxMetricsInFindAnswer < len(aliases) {
+		logger.Info("limit", zap.Int("metric_find", len(aliases)))
+		http.Error(w, fmt.Sprintf("Too much metric: %d", len(aliases)), http.StatusForbidden)
+		return
+	}
+
 	metricList := make([][]byte, len(aliases))
 	index := 0
 	for metric, _ := range aliases {
