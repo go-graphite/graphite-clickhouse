@@ -33,8 +33,8 @@ func NonRegexpPrefix(expr string) string {
 	return expr
 }
 
-func likeEscape(v string) string {
-	return strings.Replace(v, "_", "\\_", -1)
+func LikeEscape(v string) string {
+	return strings.Replace(strings.Replace(v, "_", "\\_", -1), "%", "\\%", -1)
 }
 
 // Q quotes string for clickhouse

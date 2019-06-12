@@ -105,12 +105,12 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[1] AS value"
 		if tagPrefix != "" {
-			where.Andf("Tag1 LIKE %s", finder.Q(tagPrefix+"%"))
+			where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(tagPrefix)+"%"))
 		}
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[1] AS value"
 		if tagPrefix != "" {
-			where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(tagPrefix+"%"))
+			where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(finder.LikeEscape(tagPrefix)+"%"))
 		}
 	}
 
@@ -218,10 +218,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	var valueSQL string
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[2] AS value"
-		where.Andf("Tag1 LIKE %s", finder.Q(tag+"="+valuePrefix+"%"))
+		where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(tag+"="+valuePrefix)+"%"))
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[2] AS value"
-		where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(tag+"="+valuePrefix+"%"))
+		where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(finder.LikeEscape(tag+"="+valuePrefix)+"%"))
 	}
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
@@ -241,7 +241,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	)
 
 	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable,
-		clickhouse.Options{Timeout: h.config.ClickHouse.TreeTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
+		clickhouse.Options{Timeout: h.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

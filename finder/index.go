@@ -56,7 +56,7 @@ func (idx *IndexFinder) where(query string, levelOffset int) *Where {
 	simplePrefix := query[:strings.IndexAny(query, "[]{}*?")]
 
 	if len(simplePrefix) > 0 {
-		w.Andf("Path LIKE %s", Q(likeEscape(simplePrefix)+`%`))
+		w.Andf("Path LIKE %s", Q(LikeEscape(simplePrefix)+`%`))
 	}
 
 	// prefix search like "metric.name.xx*"

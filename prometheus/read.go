@@ -12,7 +12,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
@@ -22,18 +21,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/render"
 	"go.uber.org/zap"
 )
-
-type Handler struct {
-	config *config.Config
-}
-
-func NewHandler(config *config.Config) *Handler {
-	h := &Handler{
-		config: config,
-	}
-
-	return h
-}
 
 func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error) {
 	tagWhere, err := Where(q.Matchers)
@@ -237,7 +224,7 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 	return result, nil
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 	// logger := log.FromContext(r.Context())
 
 	compressed, err := ioutil.ReadAll(r.Body)
