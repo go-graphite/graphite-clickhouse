@@ -23,7 +23,7 @@ import (
 )
 
 func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error) {
-	tagWhere, err := Where(q.Matchers)
+	tagWhere, err := wherePromPB(q.Matchers)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error)
 		sql,
 		h.config.ClickHouse.TaggedTable,
 		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.TreeTimeout.Value(),
+			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
 			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
 		},
 	)

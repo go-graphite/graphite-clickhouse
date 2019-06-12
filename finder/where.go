@@ -65,6 +65,17 @@ func (w *Where) And(exp string) {
 	}
 }
 
+func (w *Where) Or(exp string) {
+	if exp == "" {
+		return
+	}
+	if w.where != "" {
+		w.where = fmt.Sprintf("%s OR (%s)", w.where, exp)
+	} else {
+		w.where = fmt.Sprintf("(%s)", exp)
+	}
+}
+
 func (w *Where) Andf(format string, obj ...interface{}) {
 	w.And(fmt.Sprintf(format, obj...))
 }

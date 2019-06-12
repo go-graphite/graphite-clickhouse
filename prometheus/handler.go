@@ -24,13 +24,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.read(w, r)
 		return
 	}
-	if strings.HasPrefix(r.URL.Path, "/api/v1/label/") && strings.HasSuffix(r.URL.Path, "/values") {
-		h.labelValuesV1(w, r, strings.Split(r.URL.Path, "/")[4])
-		return
-	}
 
 	if r.URL.Path == "/api/v1/labels" {
 		h.labelsV1(w, r)
+		return
+	}
+
+	if r.URL.Path == "/api/v1/series" {
+		h.seriesV1(w, r)
+		return
+	}
+
+	if strings.HasPrefix(r.URL.Path, "/api/v1/label/") && strings.HasSuffix(r.URL.Path, "/values") {
+		h.labelValuesV1(w, r, strings.Split(r.URL.Path, "/")[4])
 		return
 	}
 
