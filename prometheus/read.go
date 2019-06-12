@@ -96,7 +96,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 			listBuf.WriteByte(',')
 		}
 
-		listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
+		listBuf.WriteString(finder.Q(unsafeString(m)))
 		count++
 	}
 
