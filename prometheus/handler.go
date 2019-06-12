@@ -29,5 +29,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path == "/api/v1/labels" {
+		h.labelsV1(w, r)
+		return
+	}
+
 	http.NotFound(w, r)
 }

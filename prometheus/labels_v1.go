@@ -11,15 +11,13 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
-func (h *Handler) labelValuesV1(w http.ResponseWriter, r *http.Request, label string) {
+func (h *Handler) labelsV1(w http.ResponseWriter, r *http.Request) {
 	// logger := log.FromContext(r.Context())
 	where := finder.NewWhere()
-	where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(label)+"=%"))
-
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
 	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
-	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[2] as value FROM %s %s GROUP BY value ORDER BY value",
+	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[1] as value FROM %s %s GROUP BY value ORDER BY value",
 		h.config.ClickHouse.TaggedTable,
 		where.SQL(),
 	)
