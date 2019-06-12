@@ -5,7 +5,7 @@ ROOT=$PWD
 
 docker run -ti --rm -v $ROOT:/root/go/src/github.com/lomik/graphite-clickhouse ubuntu:18.10 bash -c '
     cd /root/
-    export GO_VERSION=1.10.3
+    export GO_VERSION=1.12.6
     apt-get update
     apt-get install -y rpm ruby ruby-dev wget make git gcc
 
