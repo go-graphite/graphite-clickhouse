@@ -81,6 +81,11 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	untilTimestamp := q.EndTimestampMs / 1000
 
 	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{})
+	if pointsTable == "" {
+		err := fmt.Errorf("data table is not specified")
+		log.FromContext(ctx).Error("select data table failed", zap.Error(err))
+		return nil, err
+	}
 
 	var maxStep uint32
 	listBuf := bytes.NewBuffer(nil)

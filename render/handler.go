@@ -148,6 +148,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
+	if pointsTable == "" {
+		logger.Error("data tables is not specified", zap.Error(err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var maxStep uint32
 	listBuf := bytes.NewBuffer(nil)
