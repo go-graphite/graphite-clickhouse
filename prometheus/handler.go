@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -16,9 +17,13 @@ type Handler struct {
 }
 
 func NewHandler(config *config.Config) *Handler {
+	h := &Handler{
+		config: config,
+	}
+
 	apiV1 := v1.NewAPI(
 		nil, // qe *promql.Engine,
-		nil, // q storage.Queryable,
+		h,   // q storage.Queryable,
 		nil, // tr targetRetriever,
 		nil, // ar alertmanagerRetriever,
 		nil, // configFunc func() config.Config,
@@ -37,16 +42,15 @@ func NewHandler(config *config.Config) *Handler {
 
 	apiV1.Register(apiV1Router)
 
-	h := &Handler{
-		config:      config,
-		apiV1:       apiV1,
-		apiV1Router: apiV1Router,
-	}
+	h.apiV1 = apiV1
+	h.apiV1Router = apiV1Router
 
 	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	fmt.Println("request", r.URL)
 
 	http.StripPrefix("/api/v1", h.apiV1Router).ServeHTTP(w, r)
 	return
