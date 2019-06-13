@@ -16,9 +16,9 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/prompb"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/prometheus/prometheus/prompb"
 	"go.uber.org/zap"
 )
 
@@ -187,18 +187,18 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 		}
 
 		serie := &prompb.TimeSeries{
-			Labels:  make([]*prompb.Label, 0, len(u.Query())+1),
-			Samples: make([]*prompb.Sample, 0, len(points)),
+			Labels:  make([]prompb.Label, 0, len(u.Query())+1),
+			Samples: make([]prompb.Sample, 0, len(points)),
 		}
 
-		serie.Labels = append(serie.Labels, &prompb.Label{Name: "__name__", Value: u.Path})
+		serie.Labels = append(serie.Labels, prompb.Label{Name: "__name__", Value: u.Path})
 
 		for k, v := range u.Query() {
-			serie.Labels = append(serie.Labels, &prompb.Label{Name: k, Value: v[0]})
+			serie.Labels = append(serie.Labels, prompb.Label{Name: k, Value: v[0]})
 		}
 
 		for i := 0; i < len(points); i++ {
-			serie.Samples = append(serie.Samples, &prompb.Sample{
+			serie.Samples = append(serie.Samples, prompb.Sample{
 				Value:     points[i].Value,
 				Timestamp: int64(points[i].Time) * 1000,
 			})

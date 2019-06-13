@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/lomik/graphite-clickhouse/finder"
-	"github.com/lomik/graphite-clickhouse/helper/prompb"
 	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 var prompbMatchMap = map[prompb.LabelMatcher_Type]finder.TaggedTermOp{
