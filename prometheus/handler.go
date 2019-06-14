@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/promql"
+	"github.com/prometheus/prometheus/web"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/prometheus/common/route"
@@ -16,7 +17,7 @@ type Handler struct {
 	config      *config.Config
 	apiV1       *v1.API
 	apiV1Router *route.Router
-	// web         *web.Handler
+	web         *web.Handler
 }
 
 func NewHandler(config *config.Config) *Handler {
