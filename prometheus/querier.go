@@ -64,6 +64,25 @@ func (q *Querier) LabelValues(label string) ([]string, error) {
 
 // LabelNames returns all the unique label names present in the block in sorted order.
 func (q *Querier) LabelNames() ([]string, error) {
-	panic("not implemented")
-	return nil, nil
+	where := finder.NewWhere()
+	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+
+	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[1] as value FROM %s %s GROUP BY value ORDER BY value",
+		q.config.ClickHouse.TaggedTable,
+		where.SQL(),
+	)
+
+	body, err := clickhouse.Query(q.ctx, q.config.ClickHouse.Url, sql, q.config.ClickHouse.TaggedTable,
+		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
+	if err != nil {
+		return nil, err
+	}
+
+	rows := strings.Split(string(body), "\n")
+	if len(rows) > 0 && rows[len(rows)-1] == "" {
+		rows = rows[:len(rows)-1]
+	}
+
+	return rows, nil
 }
