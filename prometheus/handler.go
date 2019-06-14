@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/prometheus/prometheus/promql"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/prometheus/common/route"
@@ -22,7 +25,7 @@ func NewHandler(config *config.Config) *Handler {
 	}
 
 	apiV1 := v1.NewAPI(
-		nil, // qe *promql.Engine,
+		promql.NewEngine(promql.EngineOpts{MaxConcurrent: 100, MaxSamples: 1000000, Timeout: time.Minute}), // qe *promql.Engine,
 		h,   // q storage.Queryable,
 		nil, // tr targetRetriever,
 		nil, // ar alertmanagerRetriever,

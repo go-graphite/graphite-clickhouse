@@ -9,7 +9,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
 )
 
@@ -34,12 +33,6 @@ type Querier struct {
 // Close releases the resources of the Querier.
 func (q *Querier) Close() error {
 	return nil
-}
-
-// Select returns a set of series that matches the given label matchers.
-func (q *Querier) Select(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
-	panic("not implemented")
-	return nil, nil, nil
 }
 
 // LabelValues returns all potential values for a label name.
