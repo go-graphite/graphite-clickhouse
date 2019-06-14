@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ type Handler struct {
 	config      *config.Config
 	apiV1       *v1.API
 	apiV1Router *route.Router
+	// web         *web.Handler
 }
 
 func NewHandler(config *config.Config) *Handler {
@@ -47,35 +47,19 @@ func NewHandler(config *config.Config) *Handler {
 
 	h.apiV1 = apiV1
 	h.apiV1Router = apiV1Router
+	// h.web = &web.Handler{}
 
 	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	fmt.Println("request", r.URL)
-
-	http.StripPrefix("/api/v1", h.apiV1Router).ServeHTTP(w, r)
-	return
-
 	if strings.HasSuffix(r.URL.Path, "/read") {
 		h.read(w, r)
 		return
 	}
 
-	if r.URL.Path == "/api/v1/labels" {
-		h.labelsV1(w, r)
-		return
-	}
-
-	if r.URL.Path == "/api/v1/series" {
-		h.seriesV1(w, r)
-		return
-	}
-
-	if strings.HasPrefix(r.URL.Path, "/api/v1/label/") && strings.HasSuffix(r.URL.Path, "/values") {
-		h.labelValuesV1(w, r, strings.Split(r.URL.Path, "/")[4])
-		return
+	if strings.HasPrefix(r.URL.Path, "/api/v1") {
+		http.StripPrefix("/api/v1", h.apiV1Router).ServeHTTP(w, r)
 	}
 
 	http.NotFound(w, r)
