@@ -9,19 +9,6 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-// SeriesSet contains a set of series.
-type SeriesSet interface {
-	Next() bool
-	At() storage.Series
-	Err() error
-}
-
-// Series represents a single time series.
-type Series interface {
-	// Labels returns the complete set of labels identifying the series.
-	Labels() labels.Labels
-}
-
 // SeriesIterator iterates over the data of a time series.
 type seriesIterator struct {
 	data   *render.Data
@@ -108,7 +95,7 @@ func (ss *seriesSet) At() storage.Series {
 func (ss *seriesSet) Next() bool {
 	if ss.offset < 0 {
 		ss.offset = 0
-		return ss.data.Points.Len() > 0
+		return ss.data != nil && ss.data.Points.Len() > 0
 	}
 
 	pp := ss.data.Points.List()

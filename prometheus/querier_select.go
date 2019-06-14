@@ -81,8 +81,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	}
 
 	if len(metrics) == 0 {
-		panic("not implemented")
-		return nil, nil, nil
+		return &seriesSet{offset: -1}, nil, nil
 	}
 
 	listBuf := new(bytes.Buffer)
