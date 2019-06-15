@@ -2,8 +2,8 @@ package prometheus
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/finder"
@@ -13,12 +13,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-type Metric struct {
-	Path string   `json:"Path"`
-	Tags []string `json:"Tags"`
-}
-
-func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) ([]Metric, error) {
+func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) ([]string, error) {
 	matchWhere, err := wherePromQL(labelsMatcher)
 	if err != nil {
 		return nil, err
@@ -33,7 +28,7 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 	where.And(matchWhere)
 
 	sql := fmt.Sprintf(
-		"SELECT Path, any(Tags) as Tags FROM %s WHERE %s GROUP BY Path FORMAT JSON",
+		"SELECT Path FROM %s WHERE %s GROUP BY Path",
 		q.config.ClickHouse.TaggedTable,
 		where.String(),
 	)
@@ -52,16 +47,19 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 		return nil, err
 	}
 
-	resp := struct {
-		Data []Metric `json:"data"`
-	}{}
-
-	err = json.Unmarshal(body, &resp)
-	if err != nil {
-		return nil, err
+	result := strings.Split(string(body), "\n")
+	rm := 0
+	for i := 0; i < len(result); i++ {
+		if result[i] == "" {
+			rm++
+			continue
+		}
+		if rm > 0 {
+			result[i-rm] = result[i]
+		}
 	}
 
-	return resp.Data, nil
+	return result[:len(result)-rm], nil
 }
 
 // Select returns a set of series that matches the given label matchers.
@@ -75,13 +73,32 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		until = time.Unix(selectParams.End/1000, (selectParams.End%1000)*1000000)
 	}
 
+	if from.IsZero() && q.mint > 0 {
+		from = time.Unix(q.mint/1000, (q.mint%1000)*1000000)
+	}
+	if until.IsZero() && q.maxt > 0 {
+		until = time.Unix(q.maxt/1000, (q.maxt%1000)*1000000)
+	}
+
+	if until.IsZero() {
+		until = time.Now()
+	}
+	if from.IsZero() {
+		from = until.AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+	}
+
 	metrics, err := q.lookup(from, until, labelsMatcher...)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if len(metrics) == 0 {
-		return &seriesSet{offset: -1}, nil, nil
+		return newSeriesSet(nil), nil, nil
+	}
+
+	if selectParams == nil {
+		// /api/v1/series?match[]=...
+		return newMetricsSet(metrics), nil, nil
 	}
 
 	listBuf := new(bytes.Buffer)
@@ -90,7 +107,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		if count > 0 {
 			listBuf.WriteByte(',')
 		}
-		listBuf.WriteString(finder.Q(m.Path))
+		listBuf.WriteString(finder.Q(m))
 		count++
 	}
 
@@ -153,5 +170,5 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return nil, nil, nil
 	}
 
-	return &seriesSet{data: data, offset: -1}, nil, nil
+	return newSeriesSet(data), nil, nil
 }

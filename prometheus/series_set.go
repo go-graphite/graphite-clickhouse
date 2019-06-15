@@ -27,6 +27,12 @@ type seriesSet struct {
 	offset int
 }
 
+var _ storage.SeriesSet = &seriesSet{}
+
+func newSeriesSet(data *render.Data) storage.SeriesSet {
+	return &seriesSet{data: data, offset: -1}
+}
+
 // Seek advances the iterator forward to the value at or after
 // the given timestamp.
 func (sit *seriesIterator) Seek(t int64) bool {
@@ -72,9 +78,8 @@ func (sit *seriesIterator) Next() bool {
 // Err returns the current error.
 func (sit *seriesIterator) Err() error { return nil }
 
-func (ss *seriesSet) Err() error {
-	return nil
-}
+// Err returns the current error.
+func (ss *seriesSet) Err() error { return nil }
 
 func urlParse(rawurl string) (*url.URL, error) {
 	p := strings.IndexByte(rawurl, '?')
