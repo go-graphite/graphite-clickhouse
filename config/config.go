@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -86,6 +89,11 @@ type Carbonlink struct {
 	TotalTimeout   *Duration `toml:"total-timeout" json:"total-timeout"`
 }
 
+type Prometheus struct {
+	ExternalURLRaw string   `toml:"external-url" json:"external-url"`
+	ExternalURL    *url.URL `toml:"-" json:"-"`
+}
+
 type DataTable struct {
 	Table                string         `toml:"table" json:"table"`
 	Reverse              bool           `toml:"reverse" json:"reverse"`
@@ -108,6 +116,7 @@ type Config struct {
 	DataTable  []DataTable        `toml:"data-table" json:"data-table"`
 	Tags       Tags               `toml:"tags" json:"tags"`
 	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
+	Prometheus Prometheus         `toml:"prometheus" json:"prometheus"`
 	Logging    []zapwriter.Config `toml:"logging" json:"logging"`
 }
 
@@ -154,6 +163,9 @@ func New() *Config {
 			ConnectTimeout: &Duration{Duration: 50 * time.Millisecond},
 			QueryTimeout:   &Duration{Duration: 50 * time.Millisecond},
 			TotalTimeout:   &Duration{Duration: 500 * time.Millisecond},
+		},
+		Prometheus: Prometheus{
+			ExternalURLRaw: "",
 		},
 		Logging: nil,
 	}
@@ -267,6 +279,27 @@ func ReadConfig(filename string) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// compute prometheus external url
+	rawURL := cfg.Prometheus.ExternalURLRaw
+	if rawURL == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+		_, port, err := net.SplitHostPort(cfg.Common.Listen)
+		if err != nil {
+			return nil, err
+		}
+		rawURL = fmt.Sprintf("http://%s:%s/", hostname, port)
+	}
+	cfg.Prometheus.ExternalURL, err = url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(cfg.Prometheus.ExternalURL.Path) > 1 {
+		cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
 	}
 
 	return cfg, nil
