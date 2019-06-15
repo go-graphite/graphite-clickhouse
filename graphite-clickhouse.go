@@ -160,13 +160,9 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
-	prometheusHandler := prometheus.NewHandler(cfg)
-
 	http.Handle("/metrics/find/", Handler(zapwriter.Default(), find.NewHandler(cfg)))
 	http.Handle("/metrics/index.json", Handler(zapwriter.Default(), index.NewHandler(cfg)))
 	http.Handle("/render/", Handler(zapwriter.Default(), render.NewHandler(cfg)))
-	http.Handle("/read", Handler(zapwriter.Default(), prometheusHandler))
-	http.Handle("/api/v1/", Handler(zapwriter.Default(), prometheusHandler))
 	http.Handle("/tags/autoComplete/tags", Handler(zapwriter.Default(), autocomplete.NewTags(cfg)))
 	http.Handle("/tags/autoComplete/values", Handler(zapwriter.Default(), autocomplete.NewValues(cfg)))
 	http.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +174,7 @@ func main() {
 		w.Write(b)
 	})
 
-	http.Handle("/", Handler(zapwriter.Default(), http.HandlerFunc(http.NotFound)))
+	http.Handle("/", Handler(zapwriter.Default(), prometheus.NewHandler(cfg)))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, nil))
 }
