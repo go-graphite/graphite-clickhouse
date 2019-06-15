@@ -11,8 +11,9 @@ import (
 
 // SeriesIterator iterates over the data of a time series.
 type seriesIterator struct {
-	data   *render.Data
-	offset int
+	data     *render.Data
+	offset   int
+	metricID uint32
 }
 
 // Series represents a single time series.
@@ -42,13 +43,11 @@ func (sit *seriesIterator) Seek(t int64) bool {
 	}
 
 	pp := sit.data.Points.List()
-	for i := sit.offset; i < len(pp); i++ {
-		if pp[i].MetricID != pp[sit.offset].MetricID {
+	for ; sit.offset < len(pp); sit.offset++ {
+		if pp[sit.offset].MetricID != sit.metricID {
 			return false
 		}
-
-		if pp[i].Time >= tt {
-			sit.offset = i
+		if pp[sit.offset].Time >= tt {
 			return true
 		}
 	}
@@ -64,14 +63,14 @@ func (sit *seriesIterator) At() (t int64, v float64) {
 
 // Next advances the iterator by one.
 func (sit *seriesIterator) Next() bool {
-	pp := sit.data.Points.List()
-	if sit.offset >= len(pp)-1 {
-		return false
-	}
-	if pp[sit.offset].MetricID != pp[sit.offset+1].MetricID {
-		return false
-	}
 	sit.offset++
+	pp := sit.data.Points.List()
+	if sit.offset >= len(pp) {
+		return false
+	}
+	if pp[sit.offset].MetricID != sit.metricID {
+		return false
+	}
 	return true
 }
 
@@ -98,15 +97,17 @@ func (ss *seriesSet) At() storage.Series {
 }
 
 func (ss *seriesSet) Next() bool {
+	pp := ss.data.Points.List()
+
 	if ss.offset < 0 {
 		ss.offset = 0
-		return ss.data != nil && ss.data.Points.Len() > 0
+		return ss.data != nil && len(pp) > 0
 	}
 
-	pp := ss.data.Points.List()
-	for i := ss.offset; i < len(pp); i++ {
-		if pp[i].MetricID != pp[ss.offset].MetricID {
-			ss.offset = i
+	metricID := pp[ss.offset].MetricID
+
+	for ss.offset++; ss.offset < len(pp); ss.offset++ {
+		if pp[ss.offset].MetricID != metricID {
 			return true
 		}
 	}
@@ -116,7 +117,7 @@ func (ss *seriesSet) Next() bool {
 
 // Iterator returns a new iterator of the data of the series.
 func (s *series) Iterator() storage.SeriesIterator {
-	return &seriesIterator{data: s.data, offset: s.offset}
+	return &seriesIterator{data: s.data, metricID: s.data.Points.List()[s.offset].MetricID, offset: s.offset - 1}
 }
 
 func (s *series) Labels() labels.Labels {
