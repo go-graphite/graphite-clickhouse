@@ -99,6 +99,13 @@ date-tree-table = ""
 date-tree-table-version = 0
 tree-timeout = "1m0s"
 
+[prometheus]
+# The URL under which Prometheus is externally reachable (for example, if Prometheus is served via a reverse proxy). Used for
+# generating relative and absolute links back to Prometheus itself. If the URL has a path portion, it will be used to prefix all
+# HTTP endpoints served by Prometheus. If omitted, relevant URL components will be derived automatically.
+external-url = ""
+page-title = "Prometheus Time Series Collection and Processing Server"
+
 [carbonlink]
 server = ""
 threads-per-request = 10
