@@ -80,12 +80,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path == "/" {
-		// http.Redirect(w, r, path.Join(o.ExternalURL.Path, "/graph"), http.StatusFound)
-		http.Redirect(w, r, "/graph", http.StatusFound)
-		return
-	}
-
 	if r.URL.Path == "/graph" {
 		h.graph(w, r)
 		return
@@ -97,7 +91,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.NotFound(w, r)
+	http.Redirect(w, r, path.Join(h.config.Prometheus.ExternalURL.Path, "/graph"), http.StatusFound)
 }
 
 func (h *Handler) graph(w http.ResponseWriter, r *http.Request) {
@@ -139,8 +133,6 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	u, _ := url.Parse("http://localhost:8080/")
-
 	tmpl := template.NewTemplateExpander(
 		context.Background(),
 		text,
@@ -148,9 +140,9 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 		data,
 		model.Time(time.Now().UnixNano()/1000000),
 		template.QueryFunc(rules.EngineQueryFunc(h.queryEngine, nil)),
-		u, // h.options.ExternalURL,
+		h.config.Prometheus.ExternalURL,
 	)
-	tmpl.Funcs(tmplFuncs("/consoles/index.html"))
+	tmpl.Funcs(tmplFuncs(h, h.config.Prometheus.ExternalURL.Path+"/consoles/index.html"))
 
 	result, err := tmpl.ExpandHTML(nil)
 	if err != nil {
@@ -160,14 +152,14 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 	io.WriteString(w, result)
 }
 
-func tmplFuncs(consolesPath string) template_text.FuncMap {
+func tmplFuncs(h *Handler, consolesPath string) template_text.FuncMap {
 	return template_text.FuncMap{
 		"since": func(t time.Time) time.Duration {
 			return time.Since(t) / time.Millisecond * time.Millisecond
 		},
 		"consolesPath": func() string { return consolesPath },
-		"pathPrefix":   func() string { return "" },
-		"pageTitle":    func() string { return "graphite-clickhouse" },
+		"pathPrefix":   func() string { return h.config.Prometheus.ExternalURL.Path },
+		"pageTitle":    func() string { return h.config.Prometheus.PageTitle },
 		"buildVersion": func() string { return fmt.Sprint(time.Now().Unix()) },
 		"globalURL": func(u *url.URL) *url.URL {
 			return u

@@ -92,6 +92,7 @@ type Carbonlink struct {
 type Prometheus struct {
 	ExternalURLRaw string   `toml:"external-url" json:"external-url"`
 	ExternalURL    *url.URL `toml:"-" json:"-"`
+	PageTitle      string   `toml:"page-title" json:"page-title"`
 }
 
 type DataTable struct {
@@ -166,6 +167,7 @@ func New() *Config {
 		},
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
+			PageTitle:      "Prometheus Time Series Collection and Processing Server",
 		},
 		Logging: nil,
 	}
@@ -298,9 +300,7 @@ func ReadConfig(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(cfg.Prometheus.ExternalURL.Path) > 1 {
-		cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
-	}
+	cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
 
 	return cfg, nil
 }
