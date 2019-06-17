@@ -18,8 +18,8 @@ var prompbMatchMap = map[prompb.LabelMatcher_Type]finder.TaggedTermOp{
 
 var promqlMatchMap = map[labels.MatchType]finder.TaggedTermOp{
 	labels.MatchEqual:     finder.TaggedTermEq,
-	labels.MatchNotEqual:  finder.TaggedTermMatch,
-	labels.MatchRegexp:    finder.TaggedTermNe,
+	labels.MatchNotEqual:  finder.TaggedTermNe,
+	labels.MatchRegexp:    finder.TaggedTermMatch,
 	labels.MatchNotRegexp: finder.TaggedTermNotMatch,
 }
 
