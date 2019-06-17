@@ -74,7 +74,7 @@ func TaggedTermWhere1(term *TaggedTerm) string {
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("Tag1 LIKE %s", Qlike("%s=_%", term.Key))
+			return fmt.Sprintf("Tag1 LIKE %s", Qlike("%s=_%%", term.Key))
 		}
 		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermMatch:
@@ -103,7 +103,7 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", Qlike("%s=_%", term.Key))
+			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", Qlike("%s=_%%", term.Key))
 		}
 		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermMatch:
