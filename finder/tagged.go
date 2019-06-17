@@ -71,17 +71,22 @@ func TaggedTermWhere1(term *TaggedTerm) string {
 	case TaggedTermEq:
 		return fmt.Sprintf("Tag1=%s", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermNe:
+		if term.Value == "" {
+			// special case
+			// container_name!=""  ==> container_name exists and it is not empty
+			return fmt.Sprintf("Tag1 LIKE %s", Qlike("%s=_%", term.Key))
+		}
 		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermMatch:
 		return fmt.Sprintf(
 			"(Tag1 LIKE %s) AND (match(Tag1, %s))",
-			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
+			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
 			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
+			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	default:
@@ -95,17 +100,22 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 	case TaggedTermEq:
 		return fmt.Sprintf("arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermNe:
+		if term.Value == "" {
+			// special case
+			// container_name!=""  ==> container_name exists and it is not empty
+			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", Qlike("%s=_%", term.Key))
+		}
 		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
 	case TaggedTermMatch:
 		return fmt.Sprintf(
 			"arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
+			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	case TaggedTermNotMatch:
 		return fmt.Sprintf(
 			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qf("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
+			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
 			Qf("%s=%s", term.Key, term.Value),
 		)
 	default:

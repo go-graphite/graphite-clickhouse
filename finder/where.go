@@ -46,6 +46,19 @@ func Qf(format string, obj ...interface{}) string {
 	return Q(fmt.Sprintf(format, obj...))
 }
 
+func Qlike(format string, obj ...interface{}) string {
+	n := make([]interface{}, 0, len(obj))
+	for i := 0; i < len(obj); i++ {
+		if v, ok := obj[i].(string); ok {
+			n = append(n, LikeEscape(v))
+		} else {
+			n = append(n, obj[i])
+		}
+	}
+
+	return Qf(format, n...)
+}
+
 type Where struct {
 	where string
 }

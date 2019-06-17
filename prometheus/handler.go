@@ -142,7 +142,7 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 		template.QueryFunc(rules.EngineQueryFunc(h.queryEngine, nil)),
 		h.config.Prometheus.ExternalURL,
 	)
-	tmpl.Funcs(tmplFuncs(h, h.config.Prometheus.ExternalURL.Path+"/consoles/index.html"))
+	tmpl.Funcs(h.tmplFuncs())
 
 	result, err := tmpl.ExpandHTML(nil)
 	if err != nil {
@@ -152,12 +152,12 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 	io.WriteString(w, result)
 }
 
-func tmplFuncs(h *Handler, consolesPath string) template_text.FuncMap {
+func (h *Handler) tmplFuncs() template_text.FuncMap {
 	return template_text.FuncMap{
 		"since": func(t time.Time) time.Duration {
 			return time.Since(t) / time.Millisecond * time.Millisecond
 		},
-		"consolesPath": func() string { return consolesPath },
+		"consolesPath": func() string { return "" },
 		"pathPrefix":   func() string { return h.config.Prometheus.ExternalURL.Path },
 		"pageTitle":    func() string { return h.config.Prometheus.PageTitle },
 		"buildVersion": func() string { return fmt.Sprint(time.Now().Unix()) },
