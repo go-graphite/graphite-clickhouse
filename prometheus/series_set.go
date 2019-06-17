@@ -97,6 +97,10 @@ func (ss *seriesSet) At() storage.Series {
 }
 
 func (ss *seriesSet) Next() bool {
+	if ss.data == nil {
+		return false
+	}
+
 	pp := ss.data.Points.List()
 
 	if ss.offset < 0 {
