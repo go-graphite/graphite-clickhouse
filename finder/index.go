@@ -73,7 +73,7 @@ func (idx *IndexFinder) where(query string, levelOffset int) *Where {
 func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	p := strings.LastIndexByte(query, '.')
 
-	if p < 0 || p >= len(query)-1 || HasWildcard(query[p+1:]) {
+	if !HasWildcard(query) || p < 0 || p >= len(query)-1 || HasWildcard(query[p+1:]) {
 		idx.useReverse = false
 	} else {
 		idx.useReverse = true
