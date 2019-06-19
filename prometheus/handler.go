@@ -165,46 +165,16 @@ func (h *Handler) tmplFuncs() template_text.FuncMap {
 			return u
 		},
 		"numHealthy": func(pool []*scrape.Target) int {
-			alive := len(pool)
-			for _, p := range pool {
-				if p.Health() != scrape.HealthGood {
-					alive--
-				}
-			}
-
-			return alive
+			return 0
 		},
 		"targetHealthToClass": func(th scrape.TargetHealth) string {
-			switch th {
-			case scrape.HealthUnknown:
-				return "warning"
-			case scrape.HealthGood:
-				return "success"
-			default:
-				return "danger"
-			}
+			return "success"
 		},
 		"ruleHealthToClass": func(rh rules.RuleHealth) string {
-			switch rh {
-			case rules.HealthUnknown:
-				return "warning"
-			case rules.HealthGood:
-				return "success"
-			default:
-				return "danger"
-			}
+			return "success"
 		},
 		"alertStateToClass": func(as rules.AlertState) string {
-			switch as {
-			case rules.StateInactive:
-				return "success"
-			case rules.StatePending:
-				return "warning"
-			case rules.StateFiring:
-				return "danger"
-			default:
-				panic("unknown alert state")
-			}
+			return "success"
 		},
 	}
 }
