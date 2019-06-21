@@ -15,6 +15,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 	points := data.Points.List()
 
 	if len(points) == 0 {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
