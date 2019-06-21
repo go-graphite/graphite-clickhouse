@@ -107,6 +107,7 @@ type DataTable struct {
 	TargetMatchAnyRegexp *regexp.Regexp `toml:"-" json:"-"`
 	TargetMatchAllRegexp *regexp.Regexp `toml:"-" json:"-"`
 	RollupConf           string         `toml:"rollup-conf" json:"-"`
+	RollupAutoTable      string         `toml:"rollup-auto-table" json:"-"`
 	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
@@ -265,6 +266,7 @@ func ReadConfig(filename string) (*Config, error) {
 			}
 			cfg.DataTable[i].TargetMatchAnyRegexp = r
 		}
+
 		if cfg.DataTable[i].TargetMatchAll != "" {
 			r, err := regexp.Compile(cfg.DataTable[i].TargetMatchAll)
 			if err != nil {
@@ -274,10 +276,16 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 
 		if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
-			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, cfg.DataTable[i].Table, time.Minute)
+			table := cfg.DataTable[i].Table
+			if cfg.DataTable[i].RollupAutoTable != "" {
+				table = cfg.DataTable[i].RollupAutoTable
+			}
+
+			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, table, time.Minute)
 		} else {
 			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
 		}
+
 		if err != nil {
 			return nil, err
 		}

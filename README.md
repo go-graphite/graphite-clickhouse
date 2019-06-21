@@ -129,6 +129,10 @@ total-timeout = "500ms"
 # reverse = false
 # # custom rollup.conf for table. Or magic word `auto`
 # rollup-conf = ""
+# # Which table to discover rollup-rules from. If not specified - will use what specified in "table" parameter.
+# # Useful when reading from distributed table, but the rollup parameters are on the shard tables.
+# # Can be in "database.table" form.
+# rollup-auto-table = ""
 # # from >= now - {max-age}
 # max-age = "240h"
 # # until <= now - {min-age}
