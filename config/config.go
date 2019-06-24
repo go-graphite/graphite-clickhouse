@@ -96,19 +96,20 @@ type Prometheus struct {
 }
 
 type DataTable struct {
-	Table                string         `toml:"table" json:"table"`
-	Reverse              bool           `toml:"reverse" json:"reverse"`
-	MaxAge               *Duration      `toml:"max-age" json:"max-age"`
-	MinAge               *Duration      `toml:"min-age" json:"min-age"`
-	MaxInterval          *Duration      `toml:"max-interval" json:"max-interval"`
-	MinInterval          *Duration      `toml:"min-interval" json:"min-interval"`
-	TargetMatchAny       string         `toml:"target-match-any" json:"target-match-any"`
-	TargetMatchAll       string         `toml:"target-match-all" json:"target-match-all"`
-	TargetMatchAnyRegexp *regexp.Regexp `toml:"-" json:"-"`
-	TargetMatchAllRegexp *regexp.Regexp `toml:"-" json:"-"`
-	RollupConf           string         `toml:"rollup-conf" json:"-"`
-	RollupAutoTable      string         `toml:"rollup-auto-table" json:"-"`
-	Rollup               *rollup.Rollup `toml:"-" json:"rollup-conf"`
+	Table                  string         `toml:"table" json:"table"`
+	Reverse                bool           `toml:"reverse" json:"reverse"`
+	MaxAge                 *Duration      `toml:"max-age" json:"max-age"`
+	MinAge                 *Duration      `toml:"min-age" json:"min-age"`
+	MaxInterval            *Duration      `toml:"max-interval" json:"max-interval"`
+	MinInterval            *Duration      `toml:"min-interval" json:"min-interval"`
+	TargetMatchAny         string         `toml:"target-match-any" json:"target-match-any"`
+	TargetMatchAll         string         `toml:"target-match-all" json:"target-match-all"`
+	TargetMatchAnyRegexp   *regexp.Regexp `toml:"-" json:"-"`
+	TargetMatchAllRegexp   *regexp.Regexp `toml:"-" json:"-"`
+	RollupConf             string         `toml:"rollup-conf" json:"-"`
+	RollupAutoTable        string         `toml:"rollup-auto-table" json:"-"`
+	RollupDefaultPrecision uint32         `toml:"rollup-default-precision" json:"-"`
+	Rollup                 *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
 // Config ...
@@ -275,15 +276,16 @@ func ReadConfig(filename string) (*Config, error) {
 			cfg.DataTable[i].TargetMatchAllRegexp = r
 		}
 
+		rdp := cfg.DataTable[i].RollupDefaultPrecision
 		if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
 			table := cfg.DataTable[i].Table
 			if cfg.DataTable[i].RollupAutoTable != "" {
 				table = cfg.DataTable[i].RollupAutoTable
 			}
 
-			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, table, time.Minute)
+			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, table, time.Minute, rdp)
 		} else {
-			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf)
+			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf, rdp)
 		}
 
 		if err != nil {

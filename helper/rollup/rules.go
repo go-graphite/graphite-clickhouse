@@ -107,6 +107,21 @@ func (r *Rules) compile() error {
 	return nil
 }
 
+func (r *Rules) addDefaultPrecision(p uint32) {
+	for _, pt := range append(r.Pattern, r.Default) {
+		hasZeroAge := false
+		for _, rt := range pt.Retention {
+			if rt.Age == 0 {
+				hasZeroAge = true
+			}
+		}
+
+		if !hasZeroAge {
+			pt.Retention = append([]*Retention{&Retention{0, p}}, pt.Retention...)
+		}
+	}
+}
+
 func ParseXML(body []byte) (*Rules, error) {
 	r := &Rules{}
 	err := xml.Unmarshal(body, r)
