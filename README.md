@@ -133,6 +133,11 @@ total-timeout = "500ms"
 # # Useful when reading from distributed table, but the rollup parameters are on the shard tables.
 # # Can be in "database.table" form.
 # rollup-auto-table = ""
+# # Sets the default precision for rollup patterns which don't have age=0 retention defined.
+# # If age=0 retention is defined in the rollup config then it takes precedence.
+# # If left at the default value of 0 then no rollup is performed when the requested interval 
+# # is not covered by any rollup rule. In this case the points will be served with 1 second precision.
+# rollup-default-precision = 0
 # # from >= now - {max-age}
 # max-age = "240h"
 # # until <= now - {min-age}
