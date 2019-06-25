@@ -3,7 +3,6 @@ package rollup
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"sync"
 	"time"
 
@@ -17,33 +16,17 @@ type Rollup struct {
 	addr             string
 	table            string
 	defaultPrecision uint32
+	defaultFunction  string
 	interval         time.Duration
 }
 
-func ReadFromXMLFile(filename string, defaultPrecision uint32) (*Rollup, error) {
-	rollupConfBody, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	rules, err := ParseXML(rollupConfBody)
-	if err != nil {
-		return nil, err
-	}
-
-	if defaultPrecision > 0 {
-		rules.addDefaultPrecision(defaultPrecision)
-	}
-
-	return &Rollup{rules: rules}, nil
-}
-
-func Auto(addr string, table string, interval time.Duration, defaultPrecision uint32) (*Rollup, error) {
+func Auto(addr string, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
 	r := &Rollup{
 		addr:             addr,
 		table:            table,
 		interval:         interval,
 		defaultPrecision: defaultPrecision,
+		defaultFunction:  defaultFunction,
 	}
 
 	err := r.update()

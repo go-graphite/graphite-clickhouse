@@ -1,7 +1,6 @@
 package rollup
 
 import (
-	"encoding/xml"
 	"fmt"
 	"regexp"
 	"time"
@@ -9,60 +8,29 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
-/*
-<graphite_rollup>
- 	<pattern>
- 		<regexp>click_cost</regexp>
- 		<function>any</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>3600</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>60</precision>
- 		</retention>
- 	</pattern>
- 	<default>
- 		<function>max</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>60</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>300</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>3600</precision>
- 		</retention>
- 	</default>
-</graphite_rollup>
-*/
-
 type Retention struct {
-	Age       uint32 `xml:"age" json:"age"`
-	Precision uint32 `xml:"precision" json:"precision"`
+	Age       uint32 `json:"age"`
+	Precision uint32 `json:"precision"`
 }
 
 type Pattern struct {
-	Regexp    string         `xml:"regexp" json:"regexp"`
-	Function  string         `xml:"function" json:"function"`
-	Retention []*Retention   `xml:"retention" json:"retention"`
-	aggr      *Aggr          `xml:"-"`
-	re        *regexp.Regexp `xml:"-"`
+	Regexp    string         `json:"regexp"`
+	Function  string         `json:"function"`
+	Retention []*Retention   `json:"retention"`
+	aggr      *Aggr          `json:"-"`
+	re        *regexp.Regexp `json:"-"`
 }
 
 type Rules struct {
-	Pattern []*Pattern `xml:"pattern" json:"pattern"`
-	Default *Pattern   `xml:"default" json:"default"`
-	Updated int64      `xml:"-" json:"updated"`
+	Pattern []*Pattern `json:"pattern"`
+	Updated int64      `json:"updated"`
 }
 
-type ClickhouseRollup struct {
-	Rules Rules `xml:"graphite_rollup"`
+// should never be used in real conditions
+superDefaultRetention := []*Retention {
+	&Retention{Age: 0, Precision: 60},
 }
+superDefaultFunction := "avg"
 
 func (rr *Pattern) compile(hasRegexp bool) error {
 	var err error
@@ -122,38 +90,13 @@ func (r *Rules) addDefaultPrecision(p uint32) {
 	}
 }
 
-func ParseXML(body []byte) (*Rules, error) {
-	r := &Rules{}
-	err := xml.Unmarshal(body, r)
-	if err != nil {
-		return nil, err
-	}
-
-	// Maybe we've got Clickhouse's graphite.xml?
-	if r.Default == nil && r.Pattern == nil {
-		y := &ClickhouseRollup{}
-		err = xml.Unmarshal(body, y)
-		if err != nil {
-			return nil, err
-		}
-		r = &y.Rules
-	}
-
-	err = r.compile()
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
-
 // Match returns rollup rules for metric
 func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
 	var ag *Aggr
 	var rt []*Retention
 
 	for _, p := range r.Pattern {
-		if p.re.MatchString(metric) {
+		if p.re == nil || p.re.MatchString(metric) {
 			if ag == nil && p.aggr != nil {
 				ag = p.aggr
 			}
@@ -168,10 +111,10 @@ func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
 	}
 
 	if ag == nil {
-		ag = r.Default.aggr
+		ag = AggrAvg
 	}
 	if len(rt) == 0 {
-		rt = r.Default.Retention
+		rt = superDefaultRetention
 	}
 
 	return ag, rt
