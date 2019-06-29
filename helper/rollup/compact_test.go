@@ -9,8 +9,7 @@ import (
 func TestParseCompact(t *testing.T) {
 	config := `
 	click_cost;any;0:3600,86400:60
-	;max;0:60,3600:300,86400:3600
-`
+	;max;0:60,3600:300,86400:3600`
 
 	expected, _ := (&Rules{
 		Pattern: []Pattern{
