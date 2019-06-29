@@ -3,6 +3,7 @@ package rollup
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
@@ -51,21 +52,25 @@ func (p *Pattern) compile() error {
 		}
 	}
 
+	if len(p.Retention) > 0 {
+		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[i].Age < p.Retention[j].Age })
+	}
+
 	return nil
 }
 
-func (r *Rules) compile() error {
+func (r *Rules) compile() (*Rules, error) {
 	if r.Pattern == nil {
 		r.Pattern = make([]Pattern, 0)
 	}
 
-	for _, p := range r.Pattern {
-		if err := p.compile(); err != nil {
-			return err
+	for i := range r.Pattern {
+		if err := r.Pattern[i].compile(); err != nil {
+			return r, err
 		}
 	}
 
-	return nil
+	return r, nil
 }
 
 // func (r *Rules) addDefaultPrecision(p uint32) {

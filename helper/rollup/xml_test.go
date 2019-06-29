@@ -63,7 +63,7 @@ func TestParseXML(t *testing.T) {
 	;max;0:60,3600:300,86400:3600
 	`
 
-	expected := &Rules{
+	expected, _ := (&Rules{
 		Pattern: []Pattern{
 			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
 				Retention{Age: 0, Precision: 3600},
@@ -80,7 +80,7 @@ func TestParseXML(t *testing.T) {
 				Retention{Age: 86400, Precision: 3600},
 			}},
 		},
-	}
+	}).compile()
 
 	t.Run("default", func(t *testing.T) {
 		assert := assert.New(t)
@@ -109,37 +109,10 @@ func TestParseXML(t *testing.T) {
 
 func TestMetricStep(t *testing.T) {
 	config := `
-<graphite_rollup>
- 	<pattern>
- 		<regexp>^metric\.</regexp>
- 		<function>any</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>1</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>10</precision>
- 		</retention>
- 	</pattern>
- 	<default>
- 		<function>max</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>60</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>300</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>3600</precision>
- 		</retention>
- 	</default>
-</graphite_rollup>
+	^metric\.;any;0:1,3600:10
+	;max;0:60,3600:300,86400:3600
 `
-	r, err := parseXML([]byte(config))
+	r, err := parseCompact(config)
 	if err != nil {
 		t.Fatal(err)
 	}

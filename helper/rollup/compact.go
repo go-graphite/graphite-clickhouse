@@ -62,5 +62,5 @@ func parseCompact(body string) (*Rules, error) {
 		patterns = append(patterns, Pattern{Regexp: regexp, Function: function, Retention: retention})
 	}
 
-	return &Rules{Pattern: patterns}, nil
+	return (&Rules{Pattern: patterns}).compile()
 }

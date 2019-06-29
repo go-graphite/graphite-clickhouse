@@ -126,5 +126,5 @@ func parseXML(body []byte) (*Rules, error) {
 	// 	Retention: superDefaultRetention,
 	// })
 
-	return &Rules{Pattern: patterns}, nil
+	return (&Rules{Pattern: patterns}).compile()
 }

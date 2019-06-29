@@ -12,7 +12,7 @@ func TestParseCompact(t *testing.T) {
 	;max;0:60,3600:300,86400:3600
 `
 
-	expected := &Rules{
+	expected, _ := (&Rules{
 		Pattern: []Pattern{
 			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
 				Retention{Age: 0, Precision: 3600},
@@ -24,7 +24,7 @@ func TestParseCompact(t *testing.T) {
 				Retention{Age: 86400, Precision: 3600},
 			}},
 		},
-	}
+	}).compile()
 
 	assert := assert.New(t)
 	r, err := parseCompact(config)
