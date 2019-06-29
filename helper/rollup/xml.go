@@ -122,15 +122,5 @@ func parseXML(body []byte) (*Rules, error) {
 	// 	Retention: superDefaultRetention,
 	// })
 
-	result := &Rules{
-		Pattern: patterns,
-		// Updated: time.Now().Unix(),
-	}
-
-	// err = result.compile()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return result, nil
+	return &Rules{Pattern: patterns}, nil
 }
