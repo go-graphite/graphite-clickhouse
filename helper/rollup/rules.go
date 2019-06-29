@@ -38,11 +38,13 @@ var superDefaultRetention = []Retention{
 
 func (p *Pattern) compile() error {
 	var err error
-	if p.Regexp != "" {
+	if p.Regexp != "" && p.Regexp != ".*" {
 		p.re, err = regexp.Compile(p.Regexp)
 		if err != nil {
 			return err
 		}
+	} else {
+		p.Regexp = ".*"
 	}
 
 	if p.Function != "" {
