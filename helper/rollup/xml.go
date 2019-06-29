@@ -2,8 +2,6 @@ package rollup
 
 import (
 	"encoding/xml"
-	"io/ioutil"
-	"time"
 )
 
 /*
@@ -76,7 +74,7 @@ func (p *PatternXML) pattern() Pattern {
 	return result
 }
 
-func ParseXML(body []byte, defaultPrecision uint32, defaultFunction string) (*Rules, error) {
+func parseXML(body []byte) (*Rules, error) {
 	r := &RulesXML{}
 	err := xml.Unmarshal(body, r)
 	if err != nil {
@@ -102,55 +100,37 @@ func ParseXML(body []byte, defaultPrecision uint32, defaultFunction string) (*Ru
 		patterns = append(patterns, r.Default.pattern())
 	}
 
-	if defaultFunction != "" {
-		patterns = append(patterns, Pattern{
-			Regexp:   "",
-			Function: defaultFunction,
-		})
-	}
+	// if defaultFunction != "" {
+	// 	patterns = append(patterns, Pattern{
+	// 		Regexp:   "",
+	// 		Function: defaultFunction,
+	// 	})
+	// }
 
-	if defaultPrecision != 0 {
-		patterns = append(patterns, Pattern{
-			Regexp: "",
-			Retention: []Retention{
-				Retention{Age: 0, Precision: defaultPrecision},
-			},
-		})
-	}
+	// if defaultPrecision != 0 {
+	// 	patterns = append(patterns, Pattern{
+	// 		Regexp: "",
+	// 		Retention: []Retention{
+	// 			Retention{Age: 0, Precision: defaultPrecision},
+	// 		},
+	// 	})
+	// }
 
-	patterns = append(patterns, Pattern{
-		Regexp:    "",
-		Function:  superDefaultFunction,
-		Retention: superDefaultRetention,
-	})
+	// patterns = append(patterns, Pattern{
+	// 	Regexp:    "",
+	// 	Function:  superDefaultFunction,
+	// 	Retention: superDefaultRetention,
+	// })
 
 	result := &Rules{
 		Pattern: patterns,
-		Updated: time.Now().Unix(),
+		// Updated: time.Now().Unix(),
 	}
 
-	err = result.compile()
-	if err != nil {
-		return nil, err
-	}
+	// err = result.compile()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return result, nil
-}
-
-func ReadFromXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
-	rollupConfBody, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	rules, err := ParseXML(rollupConfBody, defaultPrecision, defaultFunction)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Rollup{
-		rules:            rules,
-		defaultPrecision: defaultPrecision,
-		defaultFunction:  defaultFunction,
-	}, nil
 }

@@ -53,11 +53,11 @@ func TestCombinedRules(t *testing.T) {
 		{"live.rps_total", "sum;0:1"},
 	}
 
-	r, err := ParseXML([]byte(config))
+	r, err := parseXML([]byte(config))
 	assert.NoError(err)
 
 	match := func(metric string) string {
-		ag, rt := r.Match(metric)
+		ag, rt := r.match(metric)
 		var ret string
 		if ag != nil {
 			ret = ag.Name() + ";"

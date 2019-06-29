@@ -36,18 +36,18 @@ const superDefaultFunction = "avg"
 func (p *Pattern) compile() error {
 	var err error
 	if p.Regexp != "" {
-		rr.re, err = regexp.Compile(rr.Regexp)
+		p.re, err = regexp.Compile(p.Regexp)
 		if err != nil {
 			return err
 		}
 	}
 
-	if rr.Function != "" {
+	if p.Function != "" {
 		var exists bool
-		rr.aggr, exists = AggrMap[rr.Function]
+		p.aggr, exists = AggrMap[p.Function]
 
 		if !exists {
-			return fmt.Errorf("unknown function %#v", rr.Function)
+			return fmt.Errorf("unknown function %#v", p.Function)
 		}
 	}
 
@@ -68,25 +68,25 @@ func (r *Rules) compile() error {
 	return nil
 }
 
-func (r *Rules) addDefaultPrecision(p uint32) {
-	for _, pt := range append(r.Pattern, r.Default) {
-		hasZeroAge := false
-		for _, rt := range pt.Retention {
-			if rt.Age == 0 {
-				hasZeroAge = true
-			}
-		}
+// func (r *Rules) addDefaultPrecision(p uint32) {
+// 	for _, pt := range append(r.Pattern, r.Default) {
+// 		hasZeroAge := false
+// 		for _, rt := range pt.Retention {
+// 			if rt.Age == 0 {
+// 				hasZeroAge = true
+// 			}
+// 		}
 
-		if !hasZeroAge {
-			pt.Retention = append([]*Retention{&Retention{0, p}}, pt.Retention...)
-		}
-	}
-}
+// 		if !hasZeroAge {
+// 			pt.Retention = append([]*Retention{&Retention{0, p}}, pt.Retention...)
+// 		}
+// 	}
+// }
 
 // Match returns rollup rules for metric
-func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
+func (r *Rules) match(metric string) (*Aggr, []Retention) {
 	var ag *Aggr
-	var rt []*Retention
+	var rt []Retention
 
 	for _, p := range r.Pattern {
 		if p.re == nil || p.re.MatchString(metric) {
@@ -104,7 +104,7 @@ func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
 	}
 
 	if ag == nil {
-		ag = AggrAvg
+		ag = AggrMap["avg"]
 	}
 	if len(rt) == 0 {
 		rt = superDefaultRetention
@@ -114,7 +114,7 @@ func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
 }
 
 func (r *Rules) Step(metric string, from uint32) (uint32, error) {
-	_, rt := r.Match(metric)
+	_, rt := r.match(metric)
 	now := uint32(time.Now().Unix())
 
 	if len(rt) == 0 {
@@ -176,7 +176,7 @@ func (r *Rules) RollupMetric(metricName string, fromTimestamp uint32, points []p
 	}
 
 	now := uint32(time.Now().Unix())
-	ag, rt := r.Match(metricName)
+	ag, rt := r.match(metricName)
 	precision := uint32(1)
 
 	if len(rt) == 0 {

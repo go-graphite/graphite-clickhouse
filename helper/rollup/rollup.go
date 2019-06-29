@@ -3,6 +3,7 @@ package rollup
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ type Rollup struct {
 	interval         time.Duration
 }
 
-func Auto(addr string, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+func NewAuto(addr string, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
 	r := &Rollup{
 		addr:             addr,
 		table:            table,
@@ -39,6 +40,24 @@ func Auto(addr string, table string, interval time.Duration, defaultPrecision ui
 	return r, nil
 }
 
+func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+	rollupConfBody, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := parseXML(rollupConfBody)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Rollup{
+		rules:            rules,
+		defaultPrecision: defaultPrecision,
+		defaultFunction:  defaultFunction,
+	}, nil
+}
+
 func (r *Rollup) Rules() *Rules {
 	r.mu.RLock()
 	rules := r.rules
@@ -53,9 +72,9 @@ func (r *Rollup) update() error {
 		return err
 	}
 
-	if r.defaultPrecision > 0 {
-		rules.addDefaultPrecision(r.defaultPrecision)
-	}
+	// if r.defaultPrecision > 0 {
+	// 	rules.addDefaultPrecision(r.defaultPrecision)
+	// }
 
 	r.mu.Lock()
 	r.rules = rules

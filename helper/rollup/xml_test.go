@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseXML(t *testing.T) {
@@ -39,68 +41,30 @@ func TestParseXML(t *testing.T) {
 </graphite_rollup>
 `
 
-	r, err := ParseXML([]byte(config))
-	if err != nil {
-		t.Fatal(err)
+	expected := &Rules{
+		Pattern: []Pattern{
+			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
+				Retention{Age: 0, Precision: 3600},
+				Retention{Age: 86400, Precision: 60},
+			}},
+			Pattern{Regexp: "", Function: "max", Retention: []Retention{
+				Retention{Age: 0, Precision: 60},
+				Retention{Age: 3600, Precision: 300},
+				Retention{Age: 86400, Precision: 3600},
+			}},
+		},
 	}
 
-	if r.Pattern[0].Retention[1].Age != 86400 {
-		t.FailNow()
-	}
+	assert := assert.New(t)
+	r, err := parseXML([]byte(config))
+	assert.NoError(err)
+	assert.Equal(expected, r)
 
-	if r.Default.Retention[2].Precision != 3600 {
-		t.FailNow()
-	}
-}
-
-func TestParseClickhouseXML(t *testing.T) {
-	config := `
-<yandex>
-	<graphite_rollup>
-		<pattern>
-			<regexp>click_cost</regexp>
-			<function>any</function>
-			<retention>
-				<age>0</age>
-				<precision>3600</precision>
-			</retention>
-			<retention>
-				<age>86400</age>
-				<precision>60</precision>
-			</retention>
-		</pattern>
-		<default>
-			<function>max</function>
-			<retention>
-				<age>0</age>
-				<precision>60</precision>
-			</retention>
-			<retention>
-				<age>3600</age>
-				<precision>300</precision>
-			</retention>
-			<retention>
-				<age>86400</age>
-				<precision>3600</precision>
-			</retention>
-		</default>
-	</graphite_rollup>
-</yandex>
-`
-
-	r, err := ParseXML([]byte(config))
-	t.Logf("%+v", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Pattern[0].Retention[1].Age != 86400 {
-		t.FailNow()
-	}
-
-	if r.Default.Retention[2].Precision != 3600 {
-		t.FailNow()
-	}
+	// Check
+	// <yandex><graphite_rollup>...</graphite_rollup></yandex>
+	r, err = parseXML([]byte(fmt.Sprintf("<yandex>%s</yandex>", config)))
+	assert.NoError(err)
+	assert.Equal(expected, r)
 }
 
 func TestMetricStep(t *testing.T) {
@@ -135,7 +99,7 @@ func TestMetricStep(t *testing.T) {
  	</default>
 </graphite_rollup>
 `
-	r, err := ParseXML([]byte(config))
+	r, err := parseXML([]byte(config))
 	if err != nil {
 		t.Fatal(err)
 	}
