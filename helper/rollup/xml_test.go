@@ -87,6 +87,10 @@ func TestParseXML(t *testing.T) {
 		r, err := parseXML([]byte(config))
 		assert.NoError(err)
 		assert.Equal(expected, r)
+
+		// check reverse sorting
+		assert.Equal(uint32(86400), r.Pattern[0].Retention[0].Age)
+		assert.Equal(uint32(60), r.Pattern[0].Retention[0].Precision)
 	})
 
 	t.Run("inside yandex tag", func(t *testing.T) {

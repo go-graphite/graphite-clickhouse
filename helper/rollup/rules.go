@@ -28,11 +28,12 @@ type Rules struct {
 }
 
 // should never be used in real conditions
-var superDefaultRetention = []Retention{
-	Retention{Age: 0, Precision: 60},
-}
-
 const superDefaultFunction = "avg"
+const superDefaultPrecision = uint32(60)
+
+var superDefaultRetention = []Retention{
+	Retention{Age: 0, Precision: superDefaultPrecision},
+}
 
 func (p *Pattern) compile() error {
 	var err error
@@ -53,7 +54,8 @@ func (p *Pattern) compile() error {
 	}
 
 	if len(p.Retention) > 0 {
-		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[i].Age < p.Retention[j].Age })
+		// reverse sort by age
+		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[j].Age < p.Retention[i].Age })
 	} else {
 		p.Retention = nil
 	}
@@ -134,6 +136,30 @@ func (r *Rules) Step(metric string, from uint32) (uint32, error) {
 		}
 	}
 	return rt[len(rt)-1].Precision, nil
+}
+
+// Lookup returns precision and aggregate function for metric name and age
+func (r *Rules) Lookup(metric string, age uint32) (uint32, *Aggr) {
+	var ag *Aggr
+	var precision uint32
+	// precisionFound := false
+
+	// for _, p := range r.Pattern {
+	// 	if p.re == nil || p.re.MatchString(metric) {
+	// 		if ag == nil && p.aggr != nil {
+	// 			ag = p.aggr
+	// 		}
+	// 		if len(rt) == 0 && len(p.Retention) > 0 {
+	// 			rt = p.Retention
+	// 		}
+
+	// 		if ag != nil && len(rt) > 0 {
+	// 			return ag, rt
+	// 		}
+	// 	}
+	// }
+
+	return precision, ag
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
