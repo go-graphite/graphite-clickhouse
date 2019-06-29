@@ -51,11 +51,17 @@ func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string
 		return nil, err
 	}
 
-	return &Rollup{
+	defaultAggr := AggrMap[defaultFunction]
+	if defaultFunction != "" && defaultAggr == nil {
+		return nil, fmt.Errorf("unknown function %#v", defaultFunction)
+	}
+	rules = rules.withDefault(defaultPrecision, defaultAggr).withSuperDefault().setUpdated()
+
+	return (&Rollup{
 		rules:            rules,
 		defaultPrecision: defaultPrecision,
 		defaultFunction:  defaultFunction,
-	}, nil
+	}), nil
 }
 
 func (r *Rollup) Rules() *Rules {
@@ -72,9 +78,12 @@ func (r *Rollup) update() error {
 		return err
 	}
 
-	// if r.defaultPrecision > 0 {
-	// 	rules.addDefaultPrecision(r.defaultPrecision)
-	// }
+	defaultAggr := AggrMap[r.defaultFunction]
+	if r.defaultFunction != "" && defaultAggr == nil {
+		return fmt.Errorf("unknown function %#v", r.defaultFunction)
+	}
+
+	rules = rules.withDefault(r.defaultPrecision, defaultAggr).withSuperDefault().setUpdated()
 
 	r.mu.Lock()
 	r.rules = rules

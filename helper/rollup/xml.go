@@ -100,27 +100,5 @@ func parseXML(body []byte) (*Rules, error) {
 		patterns = append(patterns, r.Default.pattern())
 	}
 
-	// if defaultFunction != "" {
-	// 	patterns = append(patterns, Pattern{
-	// 		Regexp:   "",
-	// 		Function: defaultFunction,
-	// 	})
-	// }
-
-	// if defaultPrecision != 0 {
-	// 	patterns = append(patterns, Pattern{
-	// 		Regexp: "",
-	// 		Retention: []Retention{
-	// 			Retention{Age: 0, Precision: defaultPrecision},
-	// 		},
-	// 	})
-	// }
-
-	// patterns = append(patterns, Pattern{
-	// 	Regexp:    "",
-	// 	Function:  superDefaultFunction,
-	// 	Retention: superDefaultRetention,
-	// })
-
 	return (&Rules{Pattern: patterns}).compile()
 }
