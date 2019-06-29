@@ -11,40 +11,12 @@ func TestCombinedRules(t *testing.T) {
 	assert := assert.New(t)
 
 	config := `
-<yandex>
-	<graphite_rollup>
-		<pattern>
-			<regexp>^hourly</regexp>
-			<retention>
-				<age>0</age>
-				<precision>3600</precision>
-			</retention>
-		</pattern>
-		<pattern>
-			<regexp>^live</regexp>
-			<retention>
-				<age>0</age>
-				<precision>1</precision>
-			</retention>
-		</pattern>
-		<pattern>
-			<regexp>total$</regexp>
-			<function>sum</function>
-		</pattern>
-		<pattern>
-			<regexp>min$</regexp>
-			<function>min</function>
-		</pattern>
-		<pattern>
-			<regexp>max$</regexp>
-			<function>max</function>
-		</pattern>
-		<default>
-			<function>avg</function>
-		</default>
-	</graphite_rollup>
-</yandex>
-`
+	^hourly;;0:3600
+	^live;;0:1
+	total$;sum;
+	min$;min;
+	max$;max;
+	;avg;`
 
 	table := [][2]string{
 		{"hello.world", "avg;nil"},
@@ -53,7 +25,7 @@ func TestCombinedRules(t *testing.T) {
 		{"live.rps_total", "sum;0:1"},
 	}
 
-	r, err := parseXML([]byte(config))
+	r, err := parseCompact(config)
 	assert.NoError(err)
 
 	match := func(metric string) string {

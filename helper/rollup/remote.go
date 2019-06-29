@@ -32,7 +32,6 @@ func parseJson(body []byte) (*Rules, error) {
 
 	r := &Rules{
 		Pattern: make([]Pattern, 0),
-		Updated: time.Now().Unix(),
 	}
 
 	makeRetention := func(d *rollupRulesResponseRecord) (Retention, error) {
@@ -98,7 +97,7 @@ func parseJson(body []byte) (*Rules, error) {
 		})
 	}
 
-	return r, nil
+	return r.compile()
 }
 
 func remoteLoad(addr string, table string) (*Rules, error) {

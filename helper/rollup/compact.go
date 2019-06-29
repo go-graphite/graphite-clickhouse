@@ -55,10 +55,6 @@ func parseCompact(body string) (*Rules, error) {
 			}
 		}
 
-		if len(retention) == 0 {
-			retention = nil
-		}
-
 		patterns = append(patterns, Pattern{Regexp: regexp, Function: function, Retention: retention})
 	}
 

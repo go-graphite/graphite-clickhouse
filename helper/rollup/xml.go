@@ -71,10 +71,6 @@ func (p *PatternXML) pattern() Pattern {
 		result.Retention = append(result.Retention, r.retention())
 	}
 
-	if len(result.Retention) == 0 {
-		result.Retention = nil
-	}
-
 	return result
 }
 
