@@ -55,7 +55,7 @@ func (p *Pattern) compile() error {
 
 	if len(p.Retention) > 0 {
 		// reverse sort by age
-		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[j].Age < p.Retention[i].Age })
+		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[i].Age < p.Retention[j].Age })
 	} else {
 		p.Retention = nil
 	}

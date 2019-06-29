@@ -66,8 +66,8 @@ func TestParseXML(t *testing.T) {
 	expected, _ := (&Rules{
 		Pattern: []Pattern{
 			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
-				Retention{Age: 0, Precision: 3600},
 				Retention{Age: 86400, Precision: 60},
+				Retention{Age: 0, Precision: 3600},
 			}},
 			Pattern{Regexp: "without_function", Function: "", Retention: []Retention{
 				Retention{Age: 0, Precision: 3600},
@@ -88,9 +88,9 @@ func TestParseXML(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(expected, r)
 
-		// check reverse sorting
-		assert.Equal(uint32(86400), r.Pattern[0].Retention[0].Age)
-		assert.Equal(uint32(60), r.Pattern[0].Retention[0].Precision)
+		// check  sorting
+		assert.Equal(uint32(0), r.Pattern[0].Retention[0].Age)
+		assert.Equal(uint32(3600), r.Pattern[0].Retention[0].Precision)
 	})
 
 	t.Run("inside yandex tag", func(t *testing.T) {
