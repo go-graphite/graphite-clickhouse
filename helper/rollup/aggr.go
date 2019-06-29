@@ -25,6 +25,13 @@ func (ag *Aggr) Name() string {
 	return ag.name
 }
 
+func (ag *Aggr) String() string {
+	if ag == nil {
+		return ""
+	}
+	return ag.name
+}
+
 func (ag *Aggr) Do(points []point.Point) (r float64) {
 	if ag == nil || ag.f == nil {
 		return 0
