@@ -3,6 +3,7 @@ package rollup
 import (
 	"encoding/xml"
 	"io/ioutil"
+	"time"
 )
 
 /*
@@ -38,7 +39,7 @@ import (
 */
 
 type ClickhouseRollupXML struct {
-	Rules Rules `xml:"graphite_rollup"`
+	Rules RulesXML `xml:"graphite_rollup"`
 }
 
 type RetentionXML struct {
@@ -57,6 +58,24 @@ type RulesXML struct {
 	Default *PatternXML   `xml:"default"`
 }
 
+func (r *RetentionXML) retention() Retention {
+	return Retention{Age: r.Age, Precision: r.Precision}
+}
+
+func (p *PatternXML) pattern() Pattern {
+	result := Pattern{
+		Regexp:    p.Regexp,
+		Function:  p.Function,
+		Retention: make([]Retention, 0, len(p.Retention)),
+	}
+
+	for _, r := range p.Retention {
+		result.Retention = append(result.Retention, r.retention())
+	}
+
+	return result
+}
+
 func ParseXML(body []byte, defaultPrecision uint32, defaultFunction string) (*Rules, error) {
 	r := &RulesXML{}
 	err := xml.Unmarshal(body, r)
@@ -66,7 +85,7 @@ func ParseXML(body []byte, defaultPrecision uint32, defaultFunction string) (*Ru
 
 	// Maybe we've got Clickhouse's graphite.xml?
 	if r.Default == nil && r.Pattern == nil {
-		y := &ClickhouseRollup{}
+		y := &ClickhouseRollupXML{}
 		err = xml.Unmarshal(body, y)
 		if err != nil {
 			return nil, err
@@ -74,12 +93,48 @@ func ParseXML(body []byte, defaultPrecision uint32, defaultFunction string) (*Ru
 		r = &y.Rules
 	}
 
-	err = r.compile()
+	patterns := make([]Pattern, 0, len(r.Pattern)+4)
+	for _, p := range r.Pattern {
+		patterns = append(patterns, p.pattern())
+	}
+
+	if r.Default != nil {
+		patterns = append(patterns, r.Default.pattern())
+	}
+
+	if defaultFunction != "" {
+		patterns = append(patterns, Pattern{
+			Regexp:   "",
+			Function: defaultFunction,
+		})
+	}
+
+	if defaultPrecision != 0 {
+		patterns = append(patterns, Pattern{
+			Regexp: "",
+			Retention: []Retention{
+				Retention{Age: 0, Precision: defaultPrecision},
+			},
+		})
+	}
+
+	patterns = append(patterns, Pattern{
+		Regexp:    "",
+		Function:  superDefaultFunction,
+		Retention: superDefaultRetention,
+	})
+
+	result := &Rules{
+		Pattern: patterns,
+		Updated: time.Now().Unix(),
+	}
+
+	err = result.compile()
 	if err != nil {
 		return nil, err
 	}
 
-	return r, nil
+	return result, nil
 }
 
 func ReadFromXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {

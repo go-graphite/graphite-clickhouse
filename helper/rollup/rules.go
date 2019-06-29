@@ -16,25 +16,26 @@ type Retention struct {
 type Pattern struct {
 	Regexp    string         `json:"regexp"`
 	Function  string         `json:"function"`
-	Retention []*Retention   `json:"retention"`
+	Retention []Retention    `json:"retention"`
 	aggr      *Aggr          `json:"-"`
 	re        *regexp.Regexp `json:"-"`
 }
 
 type Rules struct {
-	Pattern []*Pattern `json:"pattern"`
-	Updated int64      `json:"updated"`
+	Pattern []Pattern `json:"pattern"`
+	Updated int64     `json:"updated"`
 }
 
 // should never be used in real conditions
-superDefaultRetention := []*Retention {
-	&Retention{Age: 0, Precision: 60},
+var superDefaultRetention = []Retention{
+	Retention{Age: 0, Precision: 60},
 }
-superDefaultFunction := "avg"
 
-func (rr *Pattern) compile(hasRegexp bool) error {
+const superDefaultFunction = "avg"
+
+func (p *Pattern) compile() error {
 	var err error
-	if hasRegexp {
+	if p.Regexp != "" {
 		rr.re, err = regexp.Compile(rr.Regexp)
 		if err != nil {
 			return err
@@ -55,19 +56,11 @@ func (rr *Pattern) compile(hasRegexp bool) error {
 
 func (r *Rules) compile() error {
 	if r.Pattern == nil {
-		r.Pattern = make([]*Pattern, 0)
+		r.Pattern = make([]Pattern, 0)
 	}
 
-	if r.Default == nil {
-		return fmt.Errorf("default rollup rule not set")
-	}
-
-	if err := r.Default.compile(false); err != nil {
-		return err
-	}
-
-	for _, rr := range r.Pattern {
-		if err := rr.compile(true); err != nil {
+	for _, p := range r.Pattern {
+		if err := p.compile(); err != nil {
 			return err
 		}
 	}
