@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"sort"
 	"time"
-	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -20,10 +19,6 @@ import (
 )
 
 const SelectChunksCount = 10
-
-func unsafeString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
 
 func countMetrics(body []byte) (int, error) {
 	var namelen uint64

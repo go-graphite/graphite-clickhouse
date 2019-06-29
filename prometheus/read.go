@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-	"unsafe"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
@@ -59,10 +59,6 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error)
 	return bytes.Split(body, []byte{'\n'}), nil
 }
 
-func unsafeString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
 func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][]byte) (*prompb.QueryResult, error) {
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
@@ -77,17 +73,16 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	var maxStep uint32
 	listBuf := bytes.NewBuffer(nil)
 
+	now := time.Now().Unix()
+	age := uint32(dry.Max(0, now-fromTimestamp))
+
 	// make Path IN (...), calculate max step
 	count := 0
 	for _, m := range metricList {
 		if len(m) == 0 {
 			continue
 		}
-		step, err := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
-		if err != nil {
-			log.FromContext(ctx).Error("step not found", zap.Error(err))
-			return nil, err
-		}
+		step, _ := rollupObj.LookupBytes(m, age)
 		if step > maxStep {
 			maxStep = step
 		}
@@ -96,7 +91,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 			listBuf.WriteByte(',')
 		}
 
-		listBuf.WriteString(finder.Q(unsafeString(m)))
+		listBuf.WriteString(finder.Q(dry.UnsafeString(m)))
 		count++
 	}
 

@@ -3,6 +3,8 @@ package tagger
 import (
 	"bytes"
 	"encoding/json"
+
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 )
 
 type Metric struct {
@@ -40,7 +42,7 @@ func (m *Metric) IsLeaf() uint8 {
 
 func (m *Metric) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"Path":   unsafeString(m.Path),
+		"Path":   dry.UnsafeString(m.Path),
 		"Level":  m.Level,
 		"Tags":   m.Tags,
 		"IsLeaf": m.IsLeaf(),

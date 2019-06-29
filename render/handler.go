@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 
 	"go.uber.org/zap"
@@ -51,7 +52,7 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 
 	metrics := make([]string, len(merticsList))
 	for i := 0; i < len(metrics); i++ {
-		metrics[i] = unsafeString(merticsList[i])
+		metrics[i] = dry.UnsafeString(merticsList[i])
 	}
 
 	carbonlinkResponseChan := make(chan *point.Points, 1)
@@ -142,7 +143,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	metricList := make([][]byte, len(aliases))
 	index := 0
-	for metric, _ := range aliases {
+	for metric := range aliases {
 		metricList[index] = []byte(metric)
 		index++
 	}
@@ -157,6 +158,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var maxStep uint32
 	listBuf := bytes.NewBuffer(nil)
 
+	now := time.Now().Unix()
+	age := uint32(dry.Max(0, now-fromTimestamp))
+
 	// make Path IN (...), calculate max step
 	count := 0
 	for _, m := range metricList {
@@ -164,12 +168,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		step, err := rollupObj.Step(unsafeString(m), uint32(fromTimestamp))
-		if err != nil {
-			logger.Error("rollup failed", zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		step, _ := rollupObj.LookupBytes(m, age)
 
 		if step > maxStep {
 			maxStep = step
@@ -180,9 +179,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isReverse {
-			listBuf.WriteString("'" + clickhouse.Escape(reversePath(unsafeString(m))) + "'")
+			listBuf.WriteString("'" + clickhouse.Escape(reversePath(dry.UnsafeString(m))) + "'")
 		} else {
-			listBuf.WriteString("'" + clickhouse.Escape(unsafeString(m)) + "'")
+			listBuf.WriteString("'" + clickhouse.Escape(dry.UnsafeString(m)) + "'")
 		}
 
 		count++

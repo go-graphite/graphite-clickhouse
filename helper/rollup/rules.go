@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/dry"
+
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
@@ -157,6 +159,11 @@ func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
 	}
 
 	return
+}
+
+// LookupBytes returns precision and aggregate function for metric name and age
+func (r *Rules) LookupBytes(metric []byte, age uint32) (precision uint32, ag *Aggr) {
+	return r.Lookup(dry.UnsafeString(metric), age)
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {

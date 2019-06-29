@@ -285,11 +285,11 @@ func ReadConfig(filename string) (*Config, error) {
 				table = cfg.DataTable[i].RollupAutoTable
 			}
 
-			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, table, time.Minute, rdp, rdf)
+			cfg.DataTable[i].Rollup, err = rollup.NewAuto(cfg.ClickHouse.Url, table, time.Minute, rdp, rdf)
 		} else if cfg.DataTable[i].RollupConf == "none" {
-			cfg.DataTable[i].Rollup, err = rollup.Default(rdp, rdf)
+			cfg.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
-			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf, rdp, rdf)
+			cfg.DataTable[i].Rollup, err = rollup.NewXMLFile(cfg.DataTable[i].RollupConf, rdp, rdf)
 		}
 
 		if err != nil {
