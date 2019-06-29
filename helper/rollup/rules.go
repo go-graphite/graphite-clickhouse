@@ -45,6 +45,7 @@ func (p *Pattern) compile() error {
 		}
 	} else {
 		p.Regexp = ".*"
+		p.re = nil
 	}
 
 	if p.Function != "" {
