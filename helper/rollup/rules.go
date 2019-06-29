@@ -15,11 +15,11 @@ type Retention struct {
 }
 
 type Pattern struct {
-	Regexp    string         `json:"regexp"`
-	Function  string         `json:"function"`
-	Retention []Retention    `json:"retention"`
-	aggr      *Aggr          `json:"-"`
-	re        *regexp.Regexp `json:"-"`
+	Regexp    string      `json:"regexp"`
+	Function  string      `json:"function"`
+	Retention []Retention `json:"retention"`
+	aggr      *Aggr
+	re        *regexp.Regexp
 }
 
 type Rules struct {
@@ -28,7 +28,8 @@ type Rules struct {
 }
 
 // should never be used in real conditions
-const superDefaultFunction = "avg"
+var superDefaultFunction = AggrMap["avg"]
+
 const superDefaultPrecision = uint32(60)
 
 var superDefaultRetention = []Retention{
@@ -139,27 +140,56 @@ func (r *Rules) Step(metric string, from uint32) (uint32, error) {
 }
 
 // Lookup returns precision and aggregate function for metric name and age
-func (r *Rules) Lookup(metric string, age uint32) (uint32, *Aggr) {
-	var ag *Aggr
-	var precision uint32
-	// precisionFound := false
+func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
+	precisionFound := false
 
-	// for _, p := range r.Pattern {
-	// 	if p.re == nil || p.re.MatchString(metric) {
-	// 		if ag == nil && p.aggr != nil {
-	// 			ag = p.aggr
-	// 		}
-	// 		if len(rt) == 0 && len(p.Retention) > 0 {
-	// 			rt = p.Retention
-	// 		}
+	for _, p := range r.Pattern {
+		// pattern hasn't interested data
+		if (ag != nil || p.aggr == nil) && (precisionFound || len(p.Retention) == 0) {
+			continue
+		}
 
-	// 		if ag != nil && len(rt) > 0 {
-	// 			return ag, rt
-	// 		}
-	// 	}
-	// }
+		// metric not matched regexp
+		if p.re != nil && !p.re.MatchString(metric) {
+			continue
+		}
 
-	return precision, ag
+		if ag == nil && p.aggr != nil {
+			ag = p.aggr
+		}
+
+		if !precisionFound && len(p.Retention) > 0 {
+			for i, r := range p.Retention {
+				if age < r.Age {
+					if i > 0 {
+						precision = p.Retention[i-1].Precision
+						precisionFound = true
+					}
+					break
+				}
+				if i == len(p.Retention)-1 {
+					precision = r.Precision
+					precisionFound = true
+					break
+				}
+			}
+		}
+
+		// all found
+		if ag != nil && precisionFound {
+			return
+		}
+	}
+
+	if ag == nil {
+		ag = superDefaultFunction
+	}
+
+	if !precisionFound {
+		precision = superDefaultPrecision
+	}
+
+	return
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
