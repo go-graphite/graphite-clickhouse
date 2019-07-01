@@ -123,7 +123,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Search in small index table first
 		fndResult, err := finder.Find(h.config, r.Context(), target, fromTimestamp, untilTimestamp)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			clickhouse.HandleError(w, err)
 			return
 		}
 
@@ -152,6 +152,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		metricList[index] = []byte(metric)
 		index++
 	}
+
+	logger.Info("finder", zap.Int("metrics", len(aliases)))
 
 	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets)
 	if pointsTable == "" {
@@ -243,7 +245,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		clickhouse.HandleError(w, err)
 		return
 	}
 
@@ -256,9 +258,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data, err := DataParse(body, carbonlinkData, isReverse)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
+		clickhouse.HandleError(w, err)
 		return
 	}
+	logger.Info("render", zap.Int("read_bytes", data.length), zap.Int("read_points", data.Points.Len()))
 
 	d := time.Since(parseStart)
 	logger.Debug("parse", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))

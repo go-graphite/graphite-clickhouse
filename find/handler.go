@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 type Handler struct {
@@ -21,7 +22,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	f, err := New(h.config, r.Context(), r.FormValue("query"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		clickhouse.HandleError(w, err)
 		return
 	}
 
