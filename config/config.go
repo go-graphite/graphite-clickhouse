@@ -107,8 +107,9 @@ type DataTable struct {
 	TargetMatchAnyRegexp   *regexp.Regexp `toml:"-" json:"-"`
 	TargetMatchAllRegexp   *regexp.Regexp `toml:"-" json:"-"`
 	RollupConf             string         `toml:"rollup-conf" json:"-"`
-	RollupAutoTable        string         `toml:"rollup-auto-table" json:"-"`
-	RollupDefaultPrecision uint32         `toml:"rollup-default-precision" json:"-"`
+	RollupAutoTable        string         `toml:"rollup-auto-table" json:"rollup-auto-table"`
+	RollupDefaultPrecision uint32         `toml:"rollup-default-precision" json:"rollup-default-precision"`
+	RollupDefaultFunction  string         `toml:"rollup-default-function" json:"rollup-default-function"`
 	Rollup                 *rollup.Rollup `toml:"-" json:"rollup-conf"`
 }
 
@@ -277,15 +278,18 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 
 		rdp := cfg.DataTable[i].RollupDefaultPrecision
+		rdf := cfg.DataTable[i].RollupDefaultFunction
 		if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
 			table := cfg.DataTable[i].Table
 			if cfg.DataTable[i].RollupAutoTable != "" {
 				table = cfg.DataTable[i].RollupAutoTable
 			}
 
-			cfg.DataTable[i].Rollup, err = rollup.Auto(cfg.ClickHouse.Url, table, time.Minute, rdp)
+			cfg.DataTable[i].Rollup, err = rollup.NewAuto(cfg.ClickHouse.Url, table, time.Minute, rdp, rdf)
+		} else if cfg.DataTable[i].RollupConf == "none" {
+			cfg.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
-			cfg.DataTable[i].Rollup, err = rollup.ReadFromXMLFile(cfg.DataTable[i].RollupConf, rdp)
+			cfg.DataTable[i].Rollup, err = rollup.NewXMLFile(cfg.DataTable[i].RollupConf, rdp, rdf)
 		}
 
 		if err != nil {

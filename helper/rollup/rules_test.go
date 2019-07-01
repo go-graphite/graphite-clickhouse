@@ -2,108 +2,12 @@ package rollup
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/stretchr/testify/assert"
 )
-
-func TestParseXML(t *testing.T) {
-	config := `
-<graphite_rollup>
- 	<pattern>
- 		<regexp>click_cost</regexp>
- 		<function>any</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>3600</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>60</precision>
- 		</retention>
- 	</pattern>
- 	<default>
- 		<function>max</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>60</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>300</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>3600</precision>
- 		</retention>
- 	</default>
-</graphite_rollup>
-`
-
-	r, err := ParseXML([]byte(config))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Pattern[0].Retention[1].Age != 86400 {
-		t.FailNow()
-	}
-
-	if r.Default.Retention[2].Precision != 3600 {
-		t.FailNow()
-	}
-}
-
-func TestParseClickhouseXML(t *testing.T) {
-	config := `
-<yandex>
-	<graphite_rollup>
-		<pattern>
-			<regexp>click_cost</regexp>
-			<function>any</function>
-			<retention>
-				<age>0</age>
-				<precision>3600</precision>
-			</retention>
-			<retention>
-				<age>86400</age>
-				<precision>60</precision>
-			</retention>
-		</pattern>
-		<default>
-			<function>max</function>
-			<retention>
-				<age>0</age>
-				<precision>60</precision>
-			</retention>
-			<retention>
-				<age>3600</age>
-				<precision>300</precision>
-			</retention>
-			<retention>
-				<age>86400</age>
-				<precision>3600</precision>
-			</retention>
-		</default>
-	</graphite_rollup>
-</yandex>
-`
-
-	r, err := ParseXML([]byte(config))
-	t.Logf("%+v", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if r.Pattern[0].Retention[1].Age != 86400 {
-		t.FailNow()
-	}
-
-	if r.Default.Retention[2].Precision != 3600 {
-		t.FailNow()
-	}
-}
 
 func TestMetricPrecision(t *testing.T) {
 	tests := [][2][]point.Point{
@@ -126,65 +30,47 @@ func TestMetricPrecision(t *testing.T) {
 	}
 }
 
-func TestMetricStep(t *testing.T) {
+func TestLookup(t *testing.T) {
 	config := `
-<graphite_rollup>
- 	<pattern>
- 		<regexp>^metric\.</regexp>
- 		<function>any</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>1</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>10</precision>
- 		</retention>
- 	</pattern>
- 	<default>
- 		<function>max</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>60</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>300</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>3600</precision>
- 		</retention>
- 	</default>
-</graphite_rollup>
-`
-	r, err := ParseXML([]byte(config))
-	if err != nil {
-		t.Fatal(err)
-	}
-	now := uint32(time.Now().Unix())
+	^hourly;;3600:60,86400:3600
+	^live;;0:1
+	total$;sum;
+	min$;min;
+	max$;max;
+	;avg;
+	;;60:10
+	;;0:42`
 
-	tests := []struct {
-		name         string
-		from         uint32
-		expectedStep uint32
-	}{
-		{"metric.foo.first-retention", now - 500, 1},
-		{"metric.foo.second-retention", now - 3600, 10},
-		{"foo.bar.default-first-retention", now - 500, 60},
-		{"foo.bar.default-second-retention", now - 3700, 300},
-		{"foo.bar.default-last-retention", now - 87000, 3600},
+	table := [][4]string{
+		{"hello.world", "0", "avg", "42"},
+		{"hourly.rps", "0", "avg", "42"},
+		{"hourly.rps_total", "0", "sum", "42"},
+		{"live.rps_total", "0", "sum", "1"},
+		{"hourly.rps_min", "0", "min", "42"},
+		{"hourly.rps_min", "1", "min", "42"},
+		{"hourly.rps_min", "59", "min", "42"},
+		{"hourly.rps_min", "60", "min", "10"},
+		{"hourly.rps_min", "61", "min", "10"},
+		{"hourly.rps_min", "3599", "min", "10"},
+		{"hourly.rps_min", "3600", "min", "60"},
+		{"hourly.rps_min", "3601", "min", "60"},
+		{"hourly.rps_min", "86399", "min", "60"},
+		{"hourly.rps_min", "86400", "min", "3600"},
+		{"hourly.rps_min", "86401", "min", "3600"},
 	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("metric=%v (from=now-%v)", test.name, now-test.from), func(t *testing.T) {
-			step, err := r.Step(test.name, test.from)
-			if err != nil {
-				t.Fatalf("error=%s", err.Error())
-			}
-			if step != test.expectedStep {
-				t.Fatalf("metric=%v (from=now-%v), expected step=%v, actual step=%v", test.name, now-test.from, test.expectedStep, step)
-			}
+	r, err := parseCompact(config)
+	assert.NoError(t, err)
+
+	for _, c := range table {
+		t.Run(fmt.Sprintf("%#v", c[:]), func(t *testing.T) {
+			assert := assert.New(t)
+			age, err := strconv.Atoi(c[1])
+			assert.NoError(err)
+
+			precision, ag := r.Lookup(c[0], uint32(age))
+			assert.Equal(c[2], ag.String())
+			assert.Equal(c[3], fmt.Sprintf("%d", precision))
 		})
 	}
 }

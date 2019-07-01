@@ -31,48 +31,50 @@ func parseJson(body []byte) (*Rules, error) {
 	}
 
 	r := &Rules{
-		Pattern: make([]*Pattern, 0),
-		Default: &Pattern{Retention: make([]*Retention, 0)},
+		Pattern: make([]Pattern, 0),
 	}
 
-	makeRetention := func(d *rollupRulesResponseRecord) (*Retention, error) {
+	makeRetention := func(d *rollupRulesResponseRecord) (Retention, error) {
 		age, err := strconv.ParseInt(d.Age, 10, 32)
 		if err != nil {
-			return nil, err
+			return Retention{}, err
 		}
 
 		prec, err := strconv.ParseInt(d.Precision, 10, 32)
 		if err != nil {
-			return nil, err
+			return Retention{}, err
 		}
 
-		return &Retention{Age: uint32(age), Precision: uint32(prec)}, nil
+		return Retention{Age: uint32(age), Precision: uint32(prec)}, nil
 	}
 
 	last := func() *Pattern {
 		if len(r.Pattern) == 0 {
 			return nil
 		}
-		return r.Pattern[len(r.Pattern)-1]
+		return &r.Pattern[len(r.Pattern)-1]
 	}
+
+	defaultFunction := ""
+	defaultRetention := make([]Retention, 0)
 
 	// var last *Pattern
 	for _, d := range resp.Data {
 		if d.IsDefault == 1 {
 			if d.Function != "" {
-				r.Default.Function = d.Function
+				defaultFunction = d.Function
 			}
 			if d.Age != "" && d.Precision != "" && d.Precision != "0" {
 				rt, err := makeRetention(&d)
 				if err != nil {
 					return nil, err
 				}
-				r.Default.Retention = append(r.Default.Retention, rt)
+				defaultRetention = append(defaultRetention, rt)
 			}
 		} else {
 			if last() == nil || last().Regexp != d.Regexp || last().Function != d.Function {
-				r.Pattern = append(r.Pattern, &Pattern{
-					Retention: make([]*Retention, 0),
+				r.Pattern = append(r.Pattern, Pattern{
+					Retention: make([]Retention, 0),
 					Regexp:    d.Regexp,
 					Function:  d.Function,
 				})
@@ -87,17 +89,15 @@ func parseJson(body []byte) (*Rules, error) {
 		}
 	}
 
-	if err := r.Default.compile(false); err != nil {
-		return nil, err
+	if defaultFunction != "" || len(defaultRetention) != 0 {
+		r.Pattern = append(r.Pattern, Pattern{
+			Regexp:    "",
+			Function:  defaultFunction,
+			Retention: defaultRetention,
+		})
 	}
 
-	for _, rr := range r.Pattern {
-		if err := rr.compile(true); err != nil {
-			return nil, err
-		}
-	}
-
-	return r, nil
+	return r.compile()
 }
 
 func remoteLoad(addr string, table string) (*Rules, error) {

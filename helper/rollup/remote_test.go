@@ -106,55 +106,21 @@ func TestParseJson(t *testing.T) {
 	}
 }`
 
+	compact := `
+	^hourly;;0:3600,3600:13600
+	^live;;0:1
+	total$;sum;
+	min$;min;
+	max$;max;
+	;max;0:60
+	`
+
 	assert := assert.New(t)
+	expected, err := parseCompact(compact)
+	assert.NoError(err)
+
 	r, err := parseJson([]byte(response))
 	assert.NotNil(r)
 	assert.NoError(err)
-
-	b, err := json.Marshal(r)
-	assert.NoError(err)
-
-	assertJsonEqual(t, `
-{
-	"pattern": [{
-		"regexp": "^hourly",
-		"function": "",
-		"retention": [{
-			"age": 0,
-			"precision": 3600
-		}, {
-			"age": 3600,
-			"precision": 13600
-		}]
-	}, {
-		"regexp": "^live",
-		"function": "",
-		"retention": [{
-			"age": 0,
-			"precision": 1
-		}]
-	}, {
-		"regexp": "total$",
-		"function": "sum",
-		"retention": []
-	}, {
-		"regexp": "min$",
-		"function": "min",
-		"retention": []
-	}, {
-		"regexp": "max$",
-		"function": "max",
-		"retention": []
-	}],
-	"default": {
-		"regexp": "",
-		"function": "max",
-		"retention": [{
-			"age": 0,
-			"precision": 60
-		}]
-	},
-	"updated":0
-}
-	`, string(b))
+	assert.Equal(expected, r)
 }

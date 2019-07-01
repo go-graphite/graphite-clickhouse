@@ -8,14 +8,9 @@ import (
 	"io"
 	"math"
 	"strings"
-	"unsafe"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
-
-func unsafeString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
 
 func reversePath(path string) string {
 	// don't reverse tagged path

@@ -17,33 +17,17 @@ type Rollup struct {
 	addr             string
 	table            string
 	defaultPrecision uint32
+	defaultFunction  string
 	interval         time.Duration
 }
 
-func ReadFromXMLFile(filename string, defaultPrecision uint32) (*Rollup, error) {
-	rollupConfBody, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	rules, err := ParseXML(rollupConfBody)
-	if err != nil {
-		return nil, err
-	}
-
-	if defaultPrecision > 0 {
-		rules.addDefaultPrecision(defaultPrecision)
-	}
-
-	return &Rollup{rules: rules}, nil
-}
-
-func Auto(addr string, table string, interval time.Duration, defaultPrecision uint32) (*Rollup, error) {
+func NewAuto(addr string, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
 	r := &Rollup{
 		addr:             addr,
 		table:            table,
 		interval:         interval,
 		defaultPrecision: defaultPrecision,
+		defaultFunction:  defaultFunction,
 	}
 
 	err := r.update()
@@ -54,6 +38,50 @@ func Auto(addr string, table string, interval time.Duration, defaultPrecision ui
 	go r.updateWorker()
 
 	return r, nil
+}
+
+func prepareRules(rules *Rules, defaultPrecision uint32, defaultFunction string) (*Rules, error) {
+	defaultAggr := AggrMap[defaultFunction]
+	if defaultFunction != "" && defaultAggr == nil {
+		return rules, fmt.Errorf("unknown function %#v", defaultFunction)
+	}
+	return rules.withDefault(defaultPrecision, defaultAggr).withSuperDefault().setUpdated(), nil
+}
+
+func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+	rollupConfBody, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := parseXML(rollupConfBody)
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err = prepareRules(rules, defaultPrecision, defaultFunction)
+	if err != nil {
+		return nil, err
+	}
+
+	return (&Rollup{
+		rules:            rules,
+		defaultPrecision: defaultPrecision,
+		defaultFunction:  defaultFunction,
+	}), nil
+}
+
+func NewDefault(defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+	rules, err := prepareRules(&Rules{Pattern: []Pattern{}}, defaultPrecision, defaultFunction)
+	if err != nil {
+		return nil, err
+	}
+
+	return (&Rollup{
+		rules:            rules,
+		defaultPrecision: defaultPrecision,
+		defaultFunction:  defaultFunction,
+	}), nil
 }
 
 func (r *Rollup) Rules() *Rules {
@@ -70,8 +98,10 @@ func (r *Rollup) update() error {
 		return err
 	}
 
-	if r.defaultPrecision > 0 {
-		rules.addDefaultPrecision(r.defaultPrecision)
+	rules, err = prepareRules(rules, r.defaultPrecision, r.defaultFunction)
+	if err != nil {
+		zapwriter.Logger("rollup").Error(fmt.Sprintf("rollup rules update failed for table %#v", r.table), zap.Error(err))
+		return err
 	}
 
 	r.mu.Lock()

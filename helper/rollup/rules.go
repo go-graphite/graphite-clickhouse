@@ -1,196 +1,169 @@
 package rollup
 
 import (
-	"encoding/xml"
 	"fmt"
 	"regexp"
+	"sort"
 	"time"
+
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
-/*
-<graphite_rollup>
- 	<pattern>
- 		<regexp>click_cost</regexp>
- 		<function>any</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>3600</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>60</precision>
- 		</retention>
- 	</pattern>
- 	<default>
- 		<function>max</function>
- 		<retention>
- 			<age>0</age>
- 			<precision>60</precision>
- 		</retention>
- 		<retention>
- 			<age>3600</age>
- 			<precision>300</precision>
- 		</retention>
- 		<retention>
- 			<age>86400</age>
- 			<precision>3600</precision>
- 		</retention>
- 	</default>
-</graphite_rollup>
-*/
-
 type Retention struct {
-	Age       uint32 `xml:"age" json:"age"`
-	Precision uint32 `xml:"precision" json:"precision"`
+	Age       uint32 `json:"age"`
+	Precision uint32 `json:"precision"`
 }
 
 type Pattern struct {
-	Regexp    string         `xml:"regexp" json:"regexp"`
-	Function  string         `xml:"function" json:"function"`
-	Retention []*Retention   `xml:"retention" json:"retention"`
-	aggr      *Aggr          `xml:"-"`
-	re        *regexp.Regexp `xml:"-"`
+	Regexp    string      `json:"regexp"`
+	Function  string      `json:"function"`
+	Retention []Retention `json:"retention"`
+	aggr      *Aggr
+	re        *regexp.Regexp
 }
 
 type Rules struct {
-	Pattern []*Pattern `xml:"pattern" json:"pattern"`
-	Default *Pattern   `xml:"default" json:"default"`
-	Updated int64      `xml:"-" json:"updated"`
+	Pattern []Pattern `json:"pattern"`
+	Updated int64     `json:"updated"`
 }
 
-type ClickhouseRollup struct {
-	Rules Rules `xml:"graphite_rollup"`
-}
+// should never be used in real conditions
+var superDefaultFunction = AggrMap["avg"]
 
-func (rr *Pattern) compile(hasRegexp bool) error {
+const superDefaultPrecision = uint32(60)
+
+func (p *Pattern) compile() error {
 	var err error
-	if hasRegexp {
-		rr.re, err = regexp.Compile(rr.Regexp)
+	if p.Regexp != "" && p.Regexp != ".*" {
+		p.re, err = regexp.Compile(p.Regexp)
 		if err != nil {
 			return err
 		}
+	} else {
+		p.Regexp = ".*"
+		p.re = nil
 	}
 
-	if rr.Function != "" {
+	if p.Function != "" {
 		var exists bool
-		rr.aggr, exists = AggrMap[rr.Function]
+		p.aggr, exists = AggrMap[p.Function]
 
 		if !exists {
-			return fmt.Errorf("unknown function %#v", rr.Function)
+			return fmt.Errorf("unknown function %#v", p.Function)
 		}
+	}
+
+	if len(p.Retention) > 0 {
+		// reverse sort by age
+		sort.Slice(p.Retention, func(i, j int) bool { return p.Retention[i].Age < p.Retention[j].Age })
+	} else {
+		p.Retention = nil
 	}
 
 	return nil
 }
 
-func (r *Rules) compile() error {
+func (r *Rules) compile() (*Rules, error) {
 	if r.Pattern == nil {
-		r.Pattern = make([]*Pattern, 0)
+		r.Pattern = make([]Pattern, 0)
 	}
 
-	if r.Default == nil {
-		return fmt.Errorf("default rollup rule not set")
-	}
-
-	if err := r.Default.compile(false); err != nil {
-		return err
-	}
-
-	for _, rr := range r.Pattern {
-		if err := rr.compile(true); err != nil {
-			return err
+	for i := range r.Pattern {
+		if err := r.Pattern[i].compile(); err != nil {
+			return r, err
 		}
-	}
-
-	return nil
-}
-
-func (r *Rules) addDefaultPrecision(p uint32) {
-	for _, pt := range append(r.Pattern, r.Default) {
-		hasZeroAge := false
-		for _, rt := range pt.Retention {
-			if rt.Age == 0 {
-				hasZeroAge = true
-			}
-		}
-
-		if !hasZeroAge {
-			pt.Retention = append([]*Retention{&Retention{0, p}}, pt.Retention...)
-		}
-	}
-}
-
-func ParseXML(body []byte) (*Rules, error) {
-	r := &Rules{}
-	err := xml.Unmarshal(body, r)
-	if err != nil {
-		return nil, err
-	}
-
-	// Maybe we've got Clickhouse's graphite.xml?
-	if r.Default == nil && r.Pattern == nil {
-		y := &ClickhouseRollup{}
-		err = xml.Unmarshal(body, y)
-		if err != nil {
-			return nil, err
-		}
-		r = &y.Rules
-	}
-
-	err = r.compile()
-	if err != nil {
-		return nil, err
 	}
 
 	return r, nil
 }
 
-// Match returns rollup rules for metric
-func (r *Rules) Match(metric string) (*Aggr, []*Retention) {
-	var ag *Aggr
-	var rt []*Retention
+func (r *Rules) withDefault(defaultPrecision uint32, defaultFunction *Aggr) *Rules {
+	patterns := make([]Pattern, len(r.Pattern)+1)
+	copy(patterns, r.Pattern)
+
+	var retention []Retention
+	if defaultPrecision != 0 {
+		retention = []Retention{
+			Retention{Age: 0, Precision: defaultPrecision},
+		}
+	}
+
+	patterns = append(patterns, Pattern{
+		Regexp:    ".*",
+		Function:  defaultFunction.Name(),
+		Retention: retention,
+	})
+	n, _ := (&Rules{Pattern: patterns, Updated: r.Updated}).compile()
+	return n
+}
+
+func (r *Rules) setUpdated() *Rules {
+	r.Updated = time.Now().Unix()
+	return r
+}
+
+func (r *Rules) withSuperDefault() *Rules {
+	return r.withDefault(superDefaultPrecision, superDefaultFunction)
+}
+
+// Lookup returns precision and aggregate function for metric name and age
+func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
+	precisionFound := false
 
 	for _, p := range r.Pattern {
-		if p.re.MatchString(metric) {
-			if ag == nil && p.aggr != nil {
-				ag = p.aggr
-			}
-			if len(rt) == 0 && len(p.Retention) > 0 {
-				rt = p.Retention
-			}
+		// pattern hasn't interested data
+		if (ag != nil || p.aggr == nil) && (precisionFound || len(p.Retention) == 0) {
+			continue
+		}
 
-			if ag != nil && len(rt) > 0 {
-				return ag, rt
+		// metric not matched regexp
+		if p.re != nil && !p.re.MatchString(metric) {
+			continue
+		}
+
+		if ag == nil && p.aggr != nil {
+			ag = p.aggr
+		}
+
+		if !precisionFound && len(p.Retention) > 0 {
+			for i, r := range p.Retention {
+				if age < r.Age {
+					if i > 0 {
+						precision = p.Retention[i-1].Precision
+						precisionFound = true
+					}
+					break
+				}
+				if i == len(p.Retention)-1 {
+					precision = r.Precision
+					precisionFound = true
+					break
+				}
 			}
+		}
+
+		// all found
+		if ag != nil && precisionFound {
+			return
 		}
 	}
 
 	if ag == nil {
-		ag = r.Default.aggr
-	}
-	if len(rt) == 0 {
-		rt = r.Default.Retention
+		ag = superDefaultFunction
 	}
 
-	return ag, rt
+	if !precisionFound {
+		precision = superDefaultPrecision
+	}
+
+	return
 }
 
-func (r *Rules) Step(metric string, from uint32) (uint32, error) {
-	_, rt := r.Match(metric)
-	now := uint32(time.Now().Unix())
-
-	if len(rt) == 0 {
-		return 0, fmt.Errorf("rollup retention not found for metric %#v", metric)
-	}
-
-	for i := range rt {
-		if i == len(rt)-1 || from+rt[i+1].Age > now {
-			return rt[i].Precision, nil
-		}
-	}
-	return rt[len(rt)-1].Precision, nil
+// LookupBytes returns precision and aggregate function for metric name and age
+func (r *Rules) LookupBytes(metric []byte, age uint32) (precision uint32, ag *Aggr) {
+	return r.Lookup(dry.UnsafeString(metric), age)
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
@@ -231,34 +204,14 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []poi
 
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rules) RollupMetric(metricName string, fromTimestamp uint32, points []point.Point) ([]point.Point, uint32, error) {
-	// pp.Println(points)
-
+func (r *Rules) RollupMetric(metricName string, age uint32, points []point.Point) ([]point.Point, uint32, error) {
 	l := len(points)
 	if l == 0 {
 		return points, 1, nil
 	}
 
-	now := uint32(time.Now().Unix())
-	ag, rt := r.Match(metricName)
-	precision := uint32(1)
+	precision, ag := r.Lookup(metricName, age)
+	points = doMetricPrecision(points, precision, ag)
 
-	if len(rt) == 0 {
-		return points, 0, fmt.Errorf("rollup retention not found for metric %#v", metricName)
-	}
-	if ag == nil {
-		return points, 0, fmt.Errorf("rollup function not found for metric %#v", metricName)
-	}
-
-	for _, retention := range rt {
-		if fromTimestamp+retention.Age > now && retention.Age != 0 {
-			break
-		}
-
-		points = doMetricPrecision(points, retention.Precision, ag)
-		precision = retention.Precision
-	}
-
-	// pp.Println(points)
 	return points, precision, nil
 }
