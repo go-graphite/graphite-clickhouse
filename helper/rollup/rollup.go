@@ -30,13 +30,7 @@ func NewAuto(addr string, table string, interval time.Duration, defaultPrecision
 		defaultFunction:  defaultFunction,
 	}
 
-	err := r.update()
-	if err != nil {
-		return nil, err
-	}
-
 	go r.updateWorker()
-
 	return r, nil
 }
 
@@ -112,8 +106,14 @@ func (r *Rollup) update() error {
 
 func (r *Rollup) updateWorker() {
 	for {
-		time.Sleep(r.interval)
 		r.update()
+
+		// If we still have no rules - try every second to fetch them
+		if r.rules == nil {
+			time.Sleep(1 * time.Second)
+		} else {
+			time.Sleep(r.interval)
+		}
 	}
 }
 
