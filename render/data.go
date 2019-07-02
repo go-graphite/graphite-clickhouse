@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
@@ -52,7 +53,8 @@ func ReadUvarint(array []byte) (uint64, int, error) {
 }
 
 type Data struct {
-	body    []byte // raw RowBinary from clickhouse
+	//body    []byte // raw RowBinary from clickhouse
+	length  int // readed bytes count
 	Points  *point.Points
 	nameMap map[string]string
 	Aliases map[string][]string
@@ -78,21 +80,21 @@ func DataSplitFunc(data []byte, atEOF bool) (advance int, token []byte, err erro
 	namelen, readBytes, err := ReadUvarint(data)
 	if err == errUvarintRead {
 		if atEOF {
-			return 0, nil, errClickHouseResponse
+			return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(data))
 		}
 		// signal for read more
 		return 0, nil, nil
 	}
 
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(data))
 	}
 
 	tokenLen := int(readBytes) + int(namelen) + 16
 
 	if len(data) < tokenLen {
 		if atEOF {
-			return 0, nil, errClickHouseResponse
+			return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(data))
 		}
 		// signal for read more
 		return 0, nil, nil
@@ -129,14 +131,19 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 	scanner.Buffer(make([]byte, 1048576), 1048576)
 	scanner.Split(DataSplitFunc)
 
-	for scanner.Scan() {
-		row := scanner.Bytes()
+	var row_start []byte
 
-		namelen, readBytes, err := ReadUvarint(row)
+	for scanner.Scan() {
+		row_start = scanner.Bytes()
+
+		d.length += len(row_start)
+
+		namelen, readBytes, err := ReadUvarint(row_start)
 		if err != nil {
 			return nil, errClickHouseResponse
 		}
-		row = row[int(readBytes):]
+
+		row := row_start[int(readBytes):]
 
 		newName := row[:int(namelen)]
 		row = row[int(namelen):]
@@ -167,9 +174,13 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 		pp.AppendPoint(metricID, value, time, timestamp)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	err := scanner.Err()
+	if err != nil {
+		dataErr, ok := err.(*clickhouse.ErrDataParse)
+		if ok {
+			// format full error string
+			dataErr.PrependDescription(string(row_start))
+		}
 	}
-
-	return d, nil
+	return d, err
 }
