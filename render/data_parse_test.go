@@ -92,8 +92,9 @@ func TestDataParse(t *testing.T) {
 			r := bytes.NewReader(body[:i])
 
 			d, err := DataParse(r, nil, false)
+			fmt.Printf("%s %#v\n", err.Error(), d)
 			assert.Error(t, err)
-			assert.Nil(t, d)
+			assert.Equal(t, d.length, 0)
 		}
 	})
 
