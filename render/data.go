@@ -131,19 +131,19 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 	scanner.Buffer(make([]byte, 1048576), 1048576)
 	scanner.Split(DataSplitFunc)
 
-	var row_start []byte
+	var rowStart []byte
 
 	for scanner.Scan() {
-		row_start = scanner.Bytes()
+		rowStart = scanner.Bytes()
 
-		d.length += len(row_start)
+		d.length += len(rowStart)
 
-		namelen, readBytes, err := ReadUvarint(row_start)
+		namelen, readBytes, err := ReadUvarint(rowStart)
 		if err != nil {
 			return nil, errClickHouseResponse
 		}
 
-		row := row_start[int(readBytes):]
+		row := rowStart[int(readBytes):]
 
 		newName := row[:int(namelen)]
 		row = row[int(namelen):]
@@ -179,7 +179,7 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 		dataErr, ok := err.(*clickhouse.ErrDataParse)
 		if ok {
 			// format full error string
-			dataErr.PrependDescription(string(row_start))
+			dataErr.PrependDescription(string(rowStart))
 		}
 	}
 	return d, err
