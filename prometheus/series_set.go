@@ -7,6 +7,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
+	"go.uber.org/zap"
 )
 
 // SeriesIterator iterates over the data of a time series.
@@ -45,19 +46,23 @@ func (sit *seriesIterator) Seek(t int64) bool {
 	pp := sit.data.Points.List()
 	for ; sit.offset < len(pp); sit.offset++ {
 		if pp[sit.offset].MetricID != sit.metricID {
+			zap.L().Debug("seriesIterator.Seek", zap.Int64("t", t), zap.Bool("ret", false), zap.Uint32("metricID", sit.metricID))
 			return false
 		}
 		if pp[sit.offset].Time >= tt {
+			zap.L().Debug("seriesIterator.Seek", zap.Int64("t", t), zap.Bool("ret", true), zap.Uint32("metricID", sit.metricID))
 			return true
 		}
 	}
 
+	zap.L().Debug("seriesIterator.Seek", zap.Int64("t", t), zap.Bool("ret", false), zap.Uint32("metricID", sit.metricID))
 	return false
 }
 
 // At returns the current timestamp/value pair.
 func (sit *seriesIterator) At() (t int64, v float64) {
 	p := sit.data.Points.List()[sit.offset]
+	zap.L().Debug("seriesIterator.At", zap.Int64("t", int64(p.Time)*1000), zap.Float64("v", p.Value), zap.Uint32("metricID", sit.metricID))
 	return int64(p.Time) * 1000, p.Value
 }
 
@@ -66,11 +71,14 @@ func (sit *seriesIterator) Next() bool {
 	sit.offset++
 	pp := sit.data.Points.List()
 	if sit.offset >= len(pp) {
+		zap.L().Debug("seriesIterator.Next", zap.Bool("ret", false), zap.Uint32("metricID", sit.metricID))
 		return false
 	}
 	if pp[sit.offset].MetricID != sit.metricID {
+		zap.L().Debug("seriesIterator.Next", zap.Bool("ret", false), zap.Uint32("metricID", sit.metricID))
 		return false
 	}
+	zap.L().Debug("seriesIterator.Next", zap.Bool("ret", true), zap.Uint32("metricID", sit.metricID))
 	return true
 }
 
