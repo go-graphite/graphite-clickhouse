@@ -93,7 +93,8 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	}
 
 	if len(metrics) == 0 {
-		return newSeriesSet(nil), nil, nil
+		ss, _ := makeSeriesSet(nil, nil)
+		return ss, nil, nil
 	}
 
 	if selectParams == nil {
@@ -127,7 +128,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	where.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
 
-	pointsTable, _, _ := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{})
+	pointsTable, _, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{})
 	if pointsTable == "" {
 		return nil, nil, fmt.Errorf("data table is not specified")
 	}
@@ -170,5 +171,10 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return nil, nil, nil
 	}
 
-	return newSeriesSet(data), nil, nil
+	ss, err := makeSeriesSet(data, rollupRules)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ss, nil, nil
 }
