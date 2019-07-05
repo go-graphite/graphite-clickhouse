@@ -95,22 +95,32 @@ type Prometheus struct {
 	PageTitle      string   `toml:"page-title" json:"page-title"`
 }
 
+const ContextGraphite = "graphite"
+const ContextPrometheus = "prometheus"
+
+var knownDataTableContext = map[string]bool{
+	ContextGraphite:   true,
+	ContextPrometheus: true,
+}
+
 type DataTable struct {
-	Table                  string         `toml:"table" json:"table"`
-	Reverse                bool           `toml:"reverse" json:"reverse"`
-	MaxAge                 *Duration      `toml:"max-age" json:"max-age"`
-	MinAge                 *Duration      `toml:"min-age" json:"min-age"`
-	MaxInterval            *Duration      `toml:"max-interval" json:"max-interval"`
-	MinInterval            *Duration      `toml:"min-interval" json:"min-interval"`
-	TargetMatchAny         string         `toml:"target-match-any" json:"target-match-any"`
-	TargetMatchAll         string         `toml:"target-match-all" json:"target-match-all"`
-	TargetMatchAnyRegexp   *regexp.Regexp `toml:"-" json:"-"`
-	TargetMatchAllRegexp   *regexp.Regexp `toml:"-" json:"-"`
-	RollupConf             string         `toml:"rollup-conf" json:"-"`
-	RollupAutoTable        string         `toml:"rollup-auto-table" json:"rollup-auto-table"`
-	RollupDefaultPrecision uint32         `toml:"rollup-default-precision" json:"rollup-default-precision"`
-	RollupDefaultFunction  string         `toml:"rollup-default-function" json:"rollup-default-function"`
-	Rollup                 *rollup.Rollup `toml:"-" json:"rollup-conf"`
+	Table                  string          `toml:"table" json:"table"`
+	Reverse                bool            `toml:"reverse" json:"reverse"`
+	MaxAge                 *Duration       `toml:"max-age" json:"max-age"`
+	MinAge                 *Duration       `toml:"min-age" json:"min-age"`
+	MaxInterval            *Duration       `toml:"max-interval" json:"max-interval"`
+	MinInterval            *Duration       `toml:"min-interval" json:"min-interval"`
+	TargetMatchAny         string          `toml:"target-match-any" json:"target-match-any"`
+	TargetMatchAll         string          `toml:"target-match-all" json:"target-match-all"`
+	TargetMatchAnyRegexp   *regexp.Regexp  `toml:"-" json:"-"`
+	TargetMatchAllRegexp   *regexp.Regexp  `toml:"-" json:"-"`
+	RollupConf             string          `toml:"rollup-conf" json:"-"`
+	RollupAutoTable        string          `toml:"rollup-auto-table" json:"rollup-auto-table"`
+	RollupDefaultPrecision uint32          `toml:"rollup-default-precision" json:"rollup-default-precision"`
+	RollupDefaultFunction  string          `toml:"rollup-default-function" json:"rollup-default-function"`
+	Context                []string        `toml:"context" json:"context"`
+	ContextMap             map[string]bool `toml:"-" json:"-"`
+	Rollup                 *rollup.Rollup  `toml:"-" json:"rollup-conf"`
 }
 
 // Config ...
@@ -294,6 +304,18 @@ func ReadConfig(filename string) (*Config, error) {
 
 		if err != nil {
 			return nil, err
+		}
+
+		if len(cfg.DataTable[i].Context) == 0 {
+			cfg.DataTable[i].ContextMap = knownDataTableContext
+		} else {
+			cfg.DataTable[i].ContextMap = make(map[string]bool)
+			for _, c := range cfg.DataTable[i].Context {
+				if !knownDataTableContext[c] {
+					return nil, fmt.Errorf("unknown context %#v", c)
+				}
+				cfg.DataTable[i].ContextMap[c] = true
+			}
 		}
 	}
 

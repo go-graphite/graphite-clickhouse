@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/dry"
@@ -63,7 +64,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
 
-	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{})
+	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{}, config.ContextPrometheus)
 	if pointsTable == "" {
 		err := fmt.Errorf("data table is not specified")
 		log.FromContext(ctx).Error("select data table failed", zap.Error(err))

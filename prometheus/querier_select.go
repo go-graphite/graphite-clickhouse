@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/render"
@@ -128,7 +129,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	where.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
 
-	pointsTable, _, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{})
+	pointsTable, _, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
 	if pointsTable == "" {
 		return nil, nil, fmt.Errorf("data table is not specified")
 	}

@@ -7,12 +7,16 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string) (string, bool, *rollup.Rules) {
+func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string, context string) (string, bool, *rollup.Rules) {
 	now := time.Now().Unix()
 
 TableLoop:
 	for i := 0; i < len(cfg.DataTable); i++ {
 		t := &cfg.DataTable[i]
+
+		if !t.ContextMap[context] {
+			continue TableLoop
+		}
 
 		if t.MaxInterval != nil && (until-from) > int64(t.MaxInterval.Value().Seconds()) {
 			continue TableLoop
