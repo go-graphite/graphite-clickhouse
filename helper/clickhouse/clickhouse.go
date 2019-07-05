@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/zapwriter"
 
@@ -115,6 +116,21 @@ func Escape(s string) string {
 	s = strings.Replace(s, `\`, `\\`, -1)
 	s = strings.Replace(s, `'`, `\'`, -1)
 	return s
+}
+
+func QueryString(s string) string {
+	// @TODO: optimize?
+	s = strings.Replace(s, `\`, `\\`, -1)
+	s = strings.Replace(s, `'`, `\'`, -1)
+	return "'" + s + "'"
+}
+
+func QueryBytes(b []byte) string {
+	// @TODO: optimize?
+	s := dry.UnsafeString(b)
+	s = strings.Replace(s, `\`, `\\`, -1)
+	s = strings.Replace(s, `'`, `\'`, -1)
+	return "'" + s + "'"
 }
 
 func Query(ctx context.Context, dsn string, query string, table string, opts Options) ([]byte, error) {

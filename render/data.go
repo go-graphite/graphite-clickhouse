@@ -7,27 +7,11 @@ import (
 	"errors"
 	"io"
 	"math"
-	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
-
-func reversePath(path string) string {
-	// don't reverse tagged path
-	if strings.IndexByte(path, '?') >= 0 {
-		return path
-	}
-
-	a := strings.Split(path, ".")
-
-	l := len(a)
-	for i := 0; i < l/2; i++ {
-		a[i], a[l-i-1] = a[l-i-1], a[i]
-	}
-
-	return strings.Join(a, ".")
-}
 
 var errUvarintRead = errors.New("ReadUvarint: Malformed array")
 var errUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
@@ -157,9 +141,9 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 				name = nameBuf[:len(newName)]
 			}
 			if isReverse {
-				metricID = pp.MetricID(reversePath(string(name)))
+				metricID = pp.MetricIDBytes(dry.ReversePathBytes(name))
 			} else {
-				metricID = pp.MetricID(string(name))
+				metricID = pp.MetricIDBytes(name)
 			}
 		}
 

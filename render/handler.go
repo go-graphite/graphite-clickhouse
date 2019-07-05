@@ -181,9 +181,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isReverse {
-			listBuf.WriteString("'" + clickhouse.Escape(reversePath(dry.UnsafeString(m))) + "'")
+			listBuf.WriteString(clickhouse.QueryBytes(dry.ReversePathBytes(m)))
 		} else {
-			listBuf.WriteString("'" + clickhouse.Escape(dry.UnsafeString(m)) + "'")
+			listBuf.WriteString(clickhouse.QueryBytes(m))
 		}
 
 		count++

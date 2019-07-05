@@ -35,6 +35,11 @@ func (pp *Points) MetricID(metricName string) uint32 {
 	return id
 }
 
+func (pp *Points) MetricIDBytes(metricNameBytes []byte) uint32 {
+	// @TODO: optimize?
+	return pp.MetricID(string(metricNameBytes))
+}
+
 func (pp *Points) MetricName(metricID uint32) string {
 	i := int(metricID)
 	if i > len(pp.metrics) || i < 1 {
