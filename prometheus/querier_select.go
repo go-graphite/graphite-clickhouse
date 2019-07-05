@@ -168,7 +168,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	data.Points.Uniq()
 
 	if data.Points.Len() == 0 {
-		return nil, nil, nil
+		return emptySeriesSet(), nil, nil
 	}
 
 	ss, err := makeSeriesSet(data, rollupRules)

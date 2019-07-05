@@ -80,6 +80,10 @@ func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules) (storage.Series
 	return ss, nil
 }
 
+func emptySeriesSet() storage.SeriesSet {
+	return &seriesSet{series: make([]series, 0), current: -1}
+}
+
 // func (sit *seriesIterator) logger() *zap.Logger {
 // 	return zap.L() //.With(zap.String("metric", sit.metricName))
 // }

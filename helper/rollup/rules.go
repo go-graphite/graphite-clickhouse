@@ -202,9 +202,9 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []poi
 	return point.CleanUp(points)
 }
 
-// RollupMetric rolling up list of points of ONE metric sorted by key "time"
+// RollupMetricAge rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
-func (r *Rules) RollupMetric(metricName string, age uint32, points []point.Point) ([]point.Point, uint32, error) {
+func (r *Rules) RollupMetricAge(metricName string, age uint32, points []point.Point) ([]point.Point, uint32, error) {
 	l := len(points)
 	if l == 0 {
 		return points, 1, nil
@@ -214,4 +214,15 @@ func (r *Rules) RollupMetric(metricName string, age uint32, points []point.Point
 	points = doMetricPrecision(points, precision, ag)
 
 	return points, precision, nil
+}
+
+// RollupMetric rolling up list of points of ONE metric sorted by key "time"
+// returns (new points slice, precision)
+func (r *Rules) RollupMetric(metricName string, from uint32, points []point.Point) ([]point.Point, uint32, error) {
+	now := uint32(time.Now().Unix())
+	age := uint32(0)
+	if now > from {
+		age = now - from
+	}
+	return r.RollupMetricAge(metricName, age, points)
 }
