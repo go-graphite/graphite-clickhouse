@@ -8,11 +8,13 @@ import (
 // SeriesSet contains a set of series.
 type metricsSet struct {
 	metrics []string
-	offset  int
+	current int
+	labeler Labeler
 }
 
 type metric struct {
-	name string
+	name    string
+	labeler Labeler
 }
 
 type dummyIterator struct{}
@@ -21,7 +23,7 @@ var _ storage.SeriesSet = &metricsSet{}
 var _ storage.SeriesIterator = &dummyIterator{}
 
 func (ms *metricsSet) At() storage.Series {
-	return &metric{name: ms.metrics[ms.offset]}
+	return &metric{name: ms.metrics[ms.current], labeler: ms.labeler}
 }
 
 // Seek advances the iterator forward to the value at or after
@@ -43,39 +45,25 @@ func (s *metric) Iterator() storage.SeriesIterator {
 }
 
 func (s *metric) Labels() labels.Labels {
-	u, err := urlParse(s.name)
-	if err != nil {
-		return labels.Labels{labels.Label{Name: "__name__", Value: s.name}}
+	if s.labeler != nil {
+		s.labeler.Labels(s.name)
 	}
-
-	q := u.Query()
-	lb := make(labels.Labels, len(q)+1)
-	lb[0].Name = "__name__"
-	lb[0].Value = u.Path
-
-	i := 0
-	for k, v := range q {
-		i++
-		lb[i].Name = k
-		lb[i].Value = v[0]
-	}
-
-	return lb
+	return DefaultLabeler.Labels(s.name)
 }
 
 // Err returns the current error.
 func (ms *metricsSet) Err() error { return nil }
 
 func (ms *metricsSet) Next() bool {
-	if ms.offset < 0 {
-		ms.offset = 0
+	if ms.current < 0 {
+		ms.current = 0
 	} else {
-		ms.offset++
+		ms.current++
 	}
 
-	return ms.offset < len(ms.metrics)
+	return ms.current < len(ms.metrics)
 }
 
-func newMetricsSet(metrics []string) storage.SeriesSet {
-	return &metricsSet{metrics: metrics, offset: -1}
+func newMetricsSet(metrics []string, labeler Labeler) storage.SeriesSet {
+	return &metricsSet{metrics: metrics, current: -1, labeler: labeler}
 }

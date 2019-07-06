@@ -1,9 +1,6 @@
 package prometheus
 
 import (
-	"net/url"
-	"strings"
-
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 
@@ -23,26 +20,28 @@ type seriesIterator struct {
 type series struct {
 	metricName string
 	points     []point.Point
+	labeler    Labeler
 }
 
 // SeriesSet contains a set of series.
 type seriesSet struct {
 	series  []series
 	current int
+	labeler Labeler
 }
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeries(metricName string, points []point.Point, rollupRules *rollup.Rules) (series, error) {
+func makeSeries(metricName string, points []point.Point, rollupRules *rollup.Rules, labeler Labeler) (series, error) {
 	points, _, err := rollupRules.RollupMetric(metricName, points[0].Time, points)
 	if err != nil {
 		return series{}, err
 	}
 
-	return series{metricName: metricName, points: points}, nil
+	return series{metricName: metricName, points: points, labeler: labeler}, nil
 }
 
-func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules) (storage.SeriesSet, error) {
+func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules, labeler Labeler) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -61,7 +60,7 @@ func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules) (storage.Series
 
 	for i = 1; i < len(points); i++ {
 		if points[i].MetricID != points[n].MetricID {
-			s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules)
+			s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules, labeler)
 			if err != nil {
 				return ss, err
 			}
@@ -71,7 +70,7 @@ func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules) (storage.Series
 		}
 	}
 
-	s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules)
+	s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules, labeler)
 	if err != nil {
 		return ss, err
 	}
@@ -135,18 +134,6 @@ func (sit *seriesIterator) Err() error { return nil }
 // Err returns the current error.
 func (ss *seriesSet) Err() error { return nil }
 
-func urlParse(rawurl string) (*url.URL, error) {
-	p := strings.IndexByte(rawurl, '?')
-	if p < 0 {
-		return url.Parse(rawurl)
-	}
-	m, err := url.Parse(rawurl[p:])
-	if m != nil {
-		m.Path = rawurl[:p]
-	}
-	return m, err
-}
-
 func (ss *seriesSet) At() storage.Series {
 	if ss == nil || ss.current < 0 || ss.current >= len(ss.series) {
 		// zap.L().Debug("seriesSet.At", zap.String("metricName", "nil"))
@@ -178,24 +165,8 @@ func (s *series) name() string {
 }
 
 func (s *series) Labels() labels.Labels {
-	metricName := s.name()
-
-	u, err := urlParse(metricName)
-	if err != nil {
-		return labels.Labels{labels.Label{Name: "__name__", Value: metricName}}
+	if s.labeler != nil {
+		s.labeler.Labels(s.name())
 	}
-
-	q := u.Query()
-	lb := make(labels.Labels, len(q)+1)
-	lb[0].Name = "__name__"
-	lb[0].Value = u.Path
-
-	i := 0
-	for k, v := range q {
-		i++
-		lb[i].Name = k
-		lb[i].Value = v[0]
-	}
-
-	return lb
+	return DefaultLabeler.Labels(s.name())
 }

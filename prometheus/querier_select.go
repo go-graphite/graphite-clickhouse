@@ -94,13 +94,12 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	}
 
 	if len(metrics) == 0 {
-		ss, _ := makeSeriesSet(nil, nil)
-		return ss, nil, nil
+		return emptySeriesSet(), nil, nil
 	}
 
 	if selectParams == nil {
 		// /api/v1/series?match[]=...
-		return newMetricsSet(metrics), nil, nil
+		return newMetricsSet(metrics, nil), nil, nil
 	}
 
 	listBuf := new(bytes.Buffer)
@@ -172,7 +171,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return emptySeriesSet(), nil, nil
 	}
 
-	ss, err := makeSeriesSet(data, rollupRules)
+	ss, err := makeSeriesSet(data, rollupRules, nil)
 	if err != nil {
 		return nil, nil, err
 	}
