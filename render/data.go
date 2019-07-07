@@ -9,8 +9,8 @@ import (
 	"math"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 )
 
 var errUvarintRead = errors.New("ReadUvarint: Malformed array")
@@ -141,7 +141,7 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 				name = nameBuf[:len(newName)]
 			}
 			if isReverse {
-				metricID = pp.MetricIDBytes(dry.ReversePathBytes(name))
+				metricID = pp.MetricIDBytes(reverse.Bytes(name))
 			} else {
 				metricID = pp.MetricIDBytes(name)
 			}

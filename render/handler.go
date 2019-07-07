@@ -1,7 +1,6 @@
 package render
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 
 	graphitePickle "github.com/lomik/graphite-pickle"
@@ -46,14 +46,9 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 // returns callable result fetcher
-func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, merticsList [][]byte) func() *point.Points {
+func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, metrics []string) func() *point.Points {
 	if h.carbonlink == nil {
 		return func() *point.Points { return nil }
-	}
-
-	metrics := make([]string, len(merticsList))
-	for i := 0; i < len(metrics); i++ {
-		metrics[i] = dry.UnsafeString(merticsList[i])
 	}
 
 	carbonlinkResponseChan := make(chan *point.Points, 1)
@@ -142,13 +137,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	metricList := make([][]byte, len(aliases))
-	index := 0
-	for metric := range aliases {
-		metricList[index] = []byte(metric)
-		index++
-	}
-
 	logger.Info("finder", zap.Int("metrics", len(aliases)))
 
 	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets, config.ContextGraphite)
@@ -159,38 +147,30 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var maxStep uint32
-	listBuf := bytes.NewBuffer(nil)
 
 	now := time.Now().Unix()
 	age := uint32(dry.Max(0, now-fromTimestamp))
 
 	// make Path IN (...), calculate max step
-	count := 0
-	for _, m := range metricList {
+	metricList := make([]string, 0, len(aliases))
+	for m := range aliases {
 		if len(m) == 0 {
 			continue
 		}
 
-		step, _ := rollupObj.LookupBytes(m, age)
-
+		step, _ := rollupObj.Lookup(m, age)
 		if step > maxStep {
 			maxStep = step
 		}
 
-		if count > 0 {
-			listBuf.WriteByte(',')
-		}
-
 		if isReverse {
-			listBuf.WriteString(clickhouse.QueryBytes(dry.ReversePathBytes(m)))
+			metricList = append(metricList, reverse.String(m))
 		} else {
-			listBuf.WriteString(clickhouse.QueryBytes(m))
+			metricList = append(metricList, m)
 		}
-
-		count++
 	}
 
-	if listBuf.Len() == 0 {
+	if len(metricList) == 0 {
 		// Return empty response
 		h.Reply(w, r, EmptyData, 0, 0, "", nil)
 		return
@@ -203,28 +183,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
 	)
 
-	where := where.New()
-	if count > 1 {
-		where.Andf("Path in (%s)", listBuf.String())
-	} else {
-		where.Andf("Path = %s", listBuf.String())
-	}
+	wr := where.New()
+	wr.And(where.In("Path", metricList))
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
-	where.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
+	wr.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
 
-	query := fmt.Sprintf(
-		`
-		SELECT
-			Path, Time, Value, Timestamp
-		FROM %s
-		PREWHERE (%s)
-		WHERE (%s)
-		FORMAT RowBinary
-		`,
-		pointsTable,
-		preWhere.String(),
-		where.String(),
+	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s FORMAT RowBinary`,
+		pointsTable, preWhere.PreWhereSQL(), wr.SQL(),
 	)
 
 	// start carbonlink request
