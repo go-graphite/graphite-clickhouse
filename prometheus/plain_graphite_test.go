@@ -16,7 +16,7 @@ func TestPlainGraphiteQuery(t *testing.T) {
 
 	q := makePlainGraphiteQuery(
 		eq("__name__", "graphite"),
-		eq("metric", "cpu_usage"),
+		eq("rename", "cpu_usage"),
 		eq("target", "telegraf.*.cpu.usage"),
 		eq("node1", "host"),
 	)

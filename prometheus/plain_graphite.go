@@ -35,7 +35,7 @@ func makePlainGraphiteQuery(matchers ...*labels.Matcher) *plainGraphiteQuery {
 	// fill additional params
 
 	for _, m := range matchers {
-		if m.Name == "metric" && m.Type == labels.MatchEqual && m.Value != "" {
+		if m.Name == "rename" && m.Type == labels.MatchEqual && m.Value != "" {
 			q.metricName = m.Value
 		}
 
