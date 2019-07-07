@@ -181,7 +181,7 @@ func Make(cfg *config.Config) error {
 
 	begin("sort")
 	start = time.Now()
-	sort.Sort(ByPath(metricList))
+	sort.Slice(metricList, func(i, j int) bool { return bytes.Compare(metricList[i].Path, metricList[j].Path) < 0 })
 	end()
 
 	begin("make map")

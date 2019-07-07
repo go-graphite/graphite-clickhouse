@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/helper/dry"
+	"github.com/lomik/graphite-clickhouse/pkg/dry"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )

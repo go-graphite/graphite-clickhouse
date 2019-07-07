@@ -7,9 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/helper/dry"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
-
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -17,6 +14,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 

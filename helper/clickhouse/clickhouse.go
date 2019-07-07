@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/version"
+	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/zapwriter"
 
 	"go.uber.org/zap"
