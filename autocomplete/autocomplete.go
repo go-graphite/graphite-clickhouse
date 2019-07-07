@@ -12,7 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	// "github.com/lomik/graphite-clickhouse/helper/log"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type Handler struct {
@@ -96,28 +96,28 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	where := where.New()
+	wr := where.New()
 	if exprWhere != "" {
-		where.And(exprWhere)
+		wr.And(exprWhere)
 	}
 
 	var valueSQL string
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[1] AS value"
 		if tagPrefix != "" {
-			where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(tagPrefix)+"%"))
+			wr.Andf(where.HasPrefix("Tag1", tagPrefix))
 		}
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[1] AS value"
 		if tagPrefix != "" {
-			where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(finder.LikeEscape(tagPrefix)+"%"))
+			wr.Andf(where.HasPrefix("arrayJoin(Tags)", tagPrefix))
 		}
 	}
 
 	queryLimit := limit + len(usedTags)
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
-	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	pw := ""
 	if prewhere != "" {
@@ -128,7 +128,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
 		pw,
-		where.SQL(),
+		wr.SQL(),
 		queryLimit,
 	)
 
@@ -210,22 +210,22 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	where := finder.NewWhere()
+	wr := where.New()
 	if exprWhere != "" {
-		where.And(exprWhere)
+		wr.And(exprWhere)
 	}
 
 	var valueSQL string
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[2] AS value"
-		where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(tag+"="+valuePrefix)+"%"))
+		wr.Andf(where.HasPrefix("Tag1", tag+"="+valuePrefix))
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[2] AS value"
-		where.Andf("arrayJoin(Tags) LIKE %s", finder.Q(finder.LikeEscape(tag+"="+valuePrefix)+"%"))
+		wr.Andf(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
 	}
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
-	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	pw := ""
 	if prewhere != "" {
@@ -236,7 +236,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
 		pw,
-		where.SQL(),
+		wr.SQL(),
 		limit,
 	)
 

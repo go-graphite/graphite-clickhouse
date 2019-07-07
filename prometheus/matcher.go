@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/lomik/graphite-clickhouse/finder"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/prompb"
 )
@@ -46,7 +47,7 @@ func wherePromPB(matchers []*prompb.LabelMatcher) (string, error) {
 
 	sort.Sort(finder.TaggedTermList(terms))
 
-	w := finder.NewWhere()
+	w := where.New()
 	w.And(finder.TaggedTermWhere1(&terms[0]))
 
 	for i := 1; i < len(terms); i++ {
@@ -79,7 +80,7 @@ func wherePromQL(matchers []*labels.Matcher) (string, error) {
 
 	sort.Sort(finder.TaggedTermList(terms))
 
-	w := finder.NewWhere()
+	w := where.New()
 	w.And(finder.TaggedTermWhere1(&terms[0]))
 
 	for i := 1; i < len(terms); i++ {

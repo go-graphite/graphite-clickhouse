@@ -12,12 +12,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/dry"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/prompb"
 	"go.uber.org/zap"
@@ -29,18 +29,18 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error)
 		return nil, err
 	}
 
-	where := finder.NewWhere()
-	where.Andf(
+	w := where.New()
+	w.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(q.StartTimestampMs/1000, 0).Format("2006-01-02"),
 		time.Unix(q.EndTimestampMs/1000, 0).Format("2006-01-02"),
 	)
-	where.And(tagWhere)
+	w.And(tagWhere)
 
 	sql := fmt.Sprintf(
-		"SELECT Path FROM %s WHERE %s GROUP BY Path",
+		"SELECT Path FROM %s %s GROUP BY Path",
 		h.config.ClickHouse.TaggedTable,
-		where.String(),
+		w.SQL(),
 	)
 	body, err := clickhouse.Query(
 		ctx,
@@ -92,7 +92,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 			listBuf.WriteByte(',')
 		}
 
-		listBuf.WriteString(finder.Q(dry.UnsafeString(m)))
+		listBuf.WriteString(clickhouse.QueryBytes(m))
 		count++
 	}
 
@@ -101,22 +101,22 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 		return &prompb.QueryResult{}, nil
 	}
 
-	preWhere := finder.NewWhere()
+	preWhere := where.New()
 	preWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
 	)
 
-	where := finder.NewWhere()
+	w := where.New()
 	if count > 1 {
-		where.Andf("Path in (%s)", listBuf.String())
+		w.Andf("Path in (%s)", listBuf.String())
 	} else {
-		where.Andf("Path = %s", listBuf.String())
+		w.Andf("Path = %s", listBuf.String())
 	}
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
-	where.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
+	w.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
 
 	query := fmt.Sprintf(
 		`
@@ -124,12 +124,12 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 			Path, Time, Value, Timestamp
 		FROM %s
 		PREWHERE (%s)
-		WHERE (%s)
+		%s
 		FORMAT RowBinary
 		`,
 		pointsTable,
 		preWhere.String(),
-		where.String(),
+		w.SQL(),
 	)
 
 	body, err := clickhouse.Reader(
