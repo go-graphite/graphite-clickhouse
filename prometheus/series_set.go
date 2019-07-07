@@ -41,7 +41,7 @@ func makeSeries(metricName string, points []point.Point, rollupRules *rollup.Rul
 	return series{metricName: metricName, points: points, labeler: labeler}, nil
 }
 
-func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules, labeler Labeler) (storage.SeriesSet, error) {
+func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *rollup.Rules, labeler Labeler) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -60,21 +60,25 @@ func makeSeriesSet(data *render.Data, rollupRules *rollup.Rules, labeler Labeler
 
 	for i = 1; i < len(points); i++ {
 		if points[i].MetricID != points[n].MetricID {
-			s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules, labeler)
-			if err != nil {
-				return ss, err
+			for _, metricAlias := range aliases[data.Points.MetricName(points[n].MetricID)] {
+				s, err := makeSeries(metricAlias, points[n:i], rollupRules, labeler)
+				if err != nil {
+					return ss, err
+				}
+				ss.series = append(ss.series, s)
 			}
-			ss.series = append(ss.series, s)
 			n = i
 			continue
 		}
 	}
 
-	s, err := makeSeries(data.Points.MetricName(points[n].MetricID), points[n:i], rollupRules, labeler)
-	if err != nil {
-		return ss, err
+	for _, metricAlias := range aliases[data.Points.MetricName(points[n].MetricID)] {
+		s, err := makeSeries(metricAlias, points[n:i], rollupRules, labeler)
+		if err != nil {
+			return ss, err
+		}
+		ss.series = append(ss.series, s)
 	}
-	ss.series = append(ss.series, s)
 
 	return ss, nil
 }

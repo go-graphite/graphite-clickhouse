@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) ([]string, error) {
+func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) (map[string][]string, error) {
 	matchWhere, err := wherePromQL(labelsMatcher)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,37 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 		return nil, err
 	}
 
-	return dry.RemoveEmptyStrings(strings.Split(string(body), "\n")), nil
+	aliases := make(map[string][]string)
+	for _, m := range strings.Split(string(body), "\n") {
+		if m == "" {
+			continue
+		}
+		aliases[m] = []string{m}
+	}
+
+	return aliases, nil
+}
+
+func (q *Querier) lookupPlainGraphite(from, until time.Time, target string) (map[string][]string, error) {
+	aliases := make(map[string][]string)
+
+	// Search in small index table first
+	fndResult, err := finder.Find(q.config, q.ctx, target, from.Unix(), until.Unix())
+	return nil, err
+
+	fndSeries := fndResult.Series()
+
+	for i := 0; i < len(fndSeries); i++ {
+		key := string(fndSeries[i])
+		abs := string(fndResult.Abs(fndSeries[i]))
+		if x, ok := aliases[key]; ok {
+			aliases[key] = append(x, abs, target)
+		} else {
+			aliases[key] = []string{abs, target}
+		}
+	}
+
+	return aliases, nil
 }
 
 // Select returns a set of series that matches the given label matchers.
@@ -77,18 +107,36 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		from = until.AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	}
 
-	metrics, err := q.lookup(from, until, labelsMatcher...)
+	var labeler Labeler
+
+	plainGraphite := makePlainGraphiteQuery(labelsMatcher...)
+
+	var aliases map[string][]string
+	var err error
+
+	if plainGraphite != nil {
+		labeler = plainGraphite
+		aliases, err = q.lookupPlainGraphite(from, until, plainGraphite.Target())
+	} else {
+		aliases, err = q.lookup(from, until, labelsMatcher...)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if len(metrics) == 0 {
+	if len(aliases) == 0 {
 		return emptySeriesSet(), nil, nil
 	}
 
 	if selectParams == nil {
 		// /api/v1/series?match[]=...
-		return newMetricsSet(metrics, nil), nil, nil
+		resultMetrics := make([]string, 0, len(aliases))
+		for _, v := range aliases {
+			for _, a := range v {
+				resultMetrics = append(resultMetrics, a)
+			}
+		}
+		return newMetricsSet(resultMetrics, labeler), nil, nil
 	}
 
 	pointsTable, isReverse, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
@@ -96,14 +144,17 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return nil, nil, fmt.Errorf("data table is not specified")
 	}
 
-	if isReverse {
-		for i := 0; i < len(metrics); i++ {
-			metrics[i] = reverse.String(metrics[i])
+	selectMetrics := make([]string, 0, len(aliases))
+	for m := range aliases {
+		if isReverse {
+			selectMetrics = append(selectMetrics, reverse.String(m))
+		} else {
+			selectMetrics = append(selectMetrics, m)
 		}
 	}
 
 	w := where.New()
-	w.And(where.In("Path", metrics))
+	w.And(where.In("Path", selectMetrics))
 	w.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
 
 	preWhere := where.New()
@@ -141,7 +192,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return emptySeriesSet(), nil, nil
 	}
 
-	ss, err := makeSeriesSet(data, rollupRules, nil)
+	ss, err := makeSeriesSet(data, aliases, rollupRules, labeler)
 	if err != nil {
 		return nil, nil, err
 	}
