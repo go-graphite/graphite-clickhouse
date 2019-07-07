@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type ReverseFinder struct {
@@ -53,7 +54,7 @@ func (r *ReverseFinder) Execute(ctx context.Context, query string, from int64, u
 		return r.wrapped.Execute(ctx, query, from, until)
 	}
 
-	if HasWildcard(query[p+1:]) {
+	if where.HasWildcard(query[p+1:]) {
 		return r.wrapped.Execute(ctx, query, from, until)
 	}
 

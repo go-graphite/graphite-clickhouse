@@ -18,6 +18,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 
 	graphitePickle "github.com/lomik/graphite-pickle"
 )
@@ -195,14 +196,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	preWhere := finder.NewWhere()
+	preWhere := where.New()
 	preWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
 	)
 
-	where := finder.NewWhere()
+	where := where.New()
 	if count > 1 {
 		where.Andf("Path in (%s)", listBuf.String())
 	} else {

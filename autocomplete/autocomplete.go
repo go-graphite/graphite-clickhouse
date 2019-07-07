@@ -96,7 +96,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	where := finder.NewWhere()
+	where := where.New()
 	if exprWhere != "" {
 		where.And(exprWhere)
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type PrefixMatchResult int
@@ -43,7 +45,7 @@ func (p *PrefixFinder) Execute(ctx context.Context, query string, from int64, un
 
 	// check regexp
 	for _, queryPart := range qs {
-		if _, err := regexp.Compile(GlobToRegexp(queryPart)); err != nil {
+		if _, err := regexp.Compile(where.GlobToRegexp(queryPart)); err != nil {
 			return err
 		}
 	}
@@ -52,7 +54,7 @@ func (p *PrefixFinder) Execute(ctx context.Context, query string, from int64, un
 
 	var i int
 	for i = 0; i < len(qs) && i < len(ps); i++ {
-		m, err := regexp.MatchString("^"+GlobToRegexp(qs[i])+"$", ps[i])
+		m, err := regexp.MatchString("^"+where.GlobToRegexp(qs[i])+"$", ps[i])
 		if err != nil {
 			return err
 		}
