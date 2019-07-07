@@ -7,6 +7,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
@@ -48,19 +49,7 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 		return nil, err
 	}
 
-	result := strings.Split(string(body), "\n")
-	rm := 0
-	for i := 0; i < len(result); i++ {
-		if result[i] == "" {
-			rm++
-			continue
-		}
-		if rm > 0 {
-			result[i-rm] = result[i]
-		}
-	}
-
-	return result[:len(result)-rm], nil
+	return dry.RemoveEmptyStrings(strings.Split(string(body), "\n")), nil
 }
 
 // Select returns a set of series that matches the given label matchers.
