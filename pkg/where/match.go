@@ -29,7 +29,7 @@ func glob(field string, query string, optionalDotAtEnd bool) string {
 
 	// prefix search like "metric.name.xx*"
 	if len(simplePrefix) == len(query)-1 && query[len(query)-1] == '*' {
-		return w.String()
+		return HasPrefix(field, simplePrefix)
 	}
 
 	// Q() replaces \ with \\, so using \. does not work here.
@@ -38,8 +38,15 @@ func glob(field string, query string, optionalDotAtEnd bool) string {
 	if optionalDotAtEnd {
 		postfix = `[.]?$`
 	}
-	w.Andf("match(%s, %s)", field, quote(`^`+GlobToRegexp(query)+postfix))
-	return w.String()
+
+	if simplePrefix == "" {
+		return fmt.Sprintf("match(%s, %s)", field, quote(`^`+GlobToRegexp(query)+postfix))
+	}
+
+	return fmt.Sprintf("%s AND match(%s, %s)",
+		HasPrefix(field, simplePrefix),
+		field, quote(`^`+GlobToRegexp(query)+postfix),
+	)
 }
 
 // Glob ...
@@ -62,5 +69,5 @@ func Match(field string, expr string) string {
 		return fmt.Sprintf("match(%s, %s)", field, quote(expr))
 	}
 
-	return fmt.Sprintf("(%s) AND (match(%s, %s))", HasPrefix(field, simplePrefix), field, quote(expr))
+	return fmt.Sprintf("%s AND match(%s, %s)", HasPrefix(field, simplePrefix), field, quote(expr))
 }

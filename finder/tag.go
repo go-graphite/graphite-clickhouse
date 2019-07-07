@@ -85,8 +85,6 @@ func (t *TagFinder) tagListSQL() (string, error) {
 
 	w := where.New()
 
-	w.Andf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table)
-
 	// first
 	w.And(t.tagQuery[0].Where("Tag1"))
 

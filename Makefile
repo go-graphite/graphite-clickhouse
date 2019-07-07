@@ -25,7 +25,9 @@ test:
 	$(GO) test $(MODULE)/helper/pickle
 	$(GO) test $(MODULE)/helper/point
 	$(GO) test $(MODULE)/helper/rollup
-	$(GO) test $(MODULE)/helper/dry
+	$(GO) test $(MODULE)/pkg/dry
+	$(GO) test $(MODULE)/pkg/reverse
+	$(GO) test $(MODULE)/pkg/where
 	$(GO) test $(MODULE)/config
 	$(GO) test $(MODULE)/find
 	$(GO) test $(MODULE)/render

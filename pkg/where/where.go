@@ -112,9 +112,9 @@ func (w *Where) And(exp string) {
 		return
 	}
 	if w.where != "" {
-		w.where = fmt.Sprintf("%s AND (%s)", w.where, exp)
+		w.where = fmt.Sprintf("(%s) AND (%s)", w.where, exp)
 	} else {
-		w.where = fmt.Sprintf("(%s)", exp)
+		w.where = exp
 	}
 }
 
@@ -123,9 +123,9 @@ func (w *Where) Or(exp string) {
 		return
 	}
 	if w.where != "" {
-		w.where = fmt.Sprintf("%s OR (%s)", w.where, exp)
+		w.where = fmt.Sprintf("(%s) OR (%s)", w.where, exp)
 	} else {
-		w.where = fmt.Sprintf("(%s)", exp)
+		w.where = exp
 	}
 }
 
