@@ -38,7 +38,7 @@ func (q *Querier) Close() error {
 // LabelValues returns all potential values for a label name.
 func (q *Querier) LabelValues(label string) ([]string, error) {
 	w := where.New()
-	w.Andf(where.HasPrefix("Tag1", label+"="))
+	w.And(where.HasPrefix("Tag1", label+"="))
 
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))

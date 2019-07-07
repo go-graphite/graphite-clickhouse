@@ -32,15 +32,6 @@ type seriesSet struct {
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeries(metricName string, points []point.Point, rollupRules *rollup.Rules, labeler Labeler) (series, error) {
-	points, _, err := rollupRules.RollupMetric(metricName, points[0].Time, points)
-	if err != nil {
-		return series{}, err
-	}
-
-	return series{metricName: metricName, points: points, labeler: labeler}, nil
-}
-
 func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *rollup.Rules, labeler Labeler) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
@@ -53,6 +44,21 @@ func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *
 		return ss, nil
 	}
 
+	appendSeries := func(metricID uint32, points []point.Point) error {
+		metricName := data.Points.MetricName(metricID)
+
+		points, _, err := rollupRules.RollupMetric(metricName, points[0].Time, points)
+		if err != nil {
+			return err
+		}
+
+		for _, metricAlias := range aliases[metricName] {
+			ss.series = append(ss.series, series{metricName: metricAlias, points: points, labeler: labeler})
+		}
+
+		return nil
+	}
+
 	// group by Metric
 	var i, n int
 	// i - current position of iterator
@@ -60,24 +66,16 @@ func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *
 
 	for i = 1; i < len(points); i++ {
 		if points[i].MetricID != points[n].MetricID {
-			for _, metricAlias := range aliases[data.Points.MetricName(points[n].MetricID)] {
-				s, err := makeSeries(metricAlias, points[n:i], rollupRules, labeler)
-				if err != nil {
-					return ss, err
-				}
-				ss.series = append(ss.series, s)
+			if err := appendSeries(points[n].MetricID, points[n:i]); err != nil {
+				return ss, err
 			}
 			n = i
 			continue
 		}
 	}
 
-	for _, metricAlias := range aliases[data.Points.MetricName(points[n].MetricID)] {
-		s, err := makeSeries(metricAlias, points[n:i], rollupRules, labeler)
-		if err != nil {
-			return ss, err
-		}
-		ss.series = append(ss.series, s)
+	if err := appendSeries(points[n].MetricID, points[n:i]); err != nil {
+		return ss, err
 	}
 
 	return ss, nil
@@ -170,7 +168,7 @@ func (s *series) name() string {
 
 func (s *series) Labels() labels.Labels {
 	if s.labeler != nil {
-		s.labeler.Labels(s.name())
+		return s.labeler.Labels(s.name())
 	}
 	return DefaultLabeler.Labels(s.name())
 }

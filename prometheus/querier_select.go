@@ -65,7 +65,9 @@ func (q *Querier) lookupPlainGraphite(from, until time.Time, target string) (map
 
 	// Search in small index table first
 	fndResult, err := finder.Find(q.config, q.ctx, target, from.Unix(), until.Unix())
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
 
 	fndSeries := fndResult.Series()
 
@@ -73,9 +75,9 @@ func (q *Querier) lookupPlainGraphite(from, until time.Time, target string) (map
 		key := string(fndSeries[i])
 		abs := string(fndResult.Abs(fndSeries[i]))
 		if x, ok := aliases[key]; ok {
-			aliases[key] = append(x, abs, target)
+			aliases[key] = append(x, abs)
 		} else {
-			aliases[key] = []string{abs, target}
+			aliases[key] = []string{abs}
 		}
 	}
 
@@ -180,7 +182,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return nil, nil, err
 	}
 
-	data, err := render.DataParse(body, nil, false)
+	data, err := render.DataParse(body, nil, isReverse)
 	if err != nil {
 		return nil, nil, err
 	}
