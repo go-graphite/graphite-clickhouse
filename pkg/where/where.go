@@ -43,8 +43,8 @@ func escape(s string) string {
 }
 
 func likeEscape(s string) string {
-        s = strings.Replace(s, `_`, `\_`, -1)
-        s = strings.Replace(s, `%`, `\%`, -1)
+	s = strings.Replace(s, `_`, `\_`, -1)
+	s = strings.Replace(s, `%`, `\%`, -1)
 	s = strings.Replace(s, `\`, `\\`, -1)
 	s = strings.Replace(s, `'`, `\'`, -1)
 	return s
@@ -142,4 +142,11 @@ func (w *Where) SQL() string {
 		return ""
 	}
 	return "WHERE " + w.where
+}
+
+func (w *Where) PreWhereSQL() string {
+	if w.where == "" {
+		return ""
+	}
+	return "PREWHERE " + w.where
 }
