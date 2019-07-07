@@ -16,10 +16,22 @@ func TestPlainGraphiteQuery(t *testing.T) {
 
 	q := makePlainGraphiteQuery(
 		eq("__name__", "graphite"),
-		eq("metric", "test_metric"),
-		eq("target", "test.*.metric"),
+		eq("metric", "cpu_usage"),
+		eq("target", "telegraf.*.cpu.usage"),
 		eq("node1", "host"),
 	)
 
 	assert.NotNil(q)
+
+	table := [][2]string{
+		{
+			"telegraf.localhost.cpu.usage",
+			`{__name__="cpu_usage", host="localhost", metric="telegraf.localhost.cpu.usage"}`,
+		},
+	}
+
+	for _, c := range table {
+		assert.Equal(c[1], q.Labels(c[0]).String())
+	}
+
 }
