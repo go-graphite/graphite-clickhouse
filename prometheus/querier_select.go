@@ -1,13 +1,13 @@
 package prometheus
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -102,15 +102,20 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return newMetricsSet(metrics, nil), nil, nil
 	}
 
-	listBuf := new(bytes.Buffer)
-	count := 0
-	for _, m := range metrics {
-		if count > 0 {
-			listBuf.WriteByte(',')
-		}
-		listBuf.WriteString(clickhouse.QueryString(m))
-		count++
+	pointsTable, isReverse, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
+	if pointsTable == "" {
+		return nil, nil, fmt.Errorf("data table is not specified")
 	}
+
+	if isReverse {
+		for i := 0; i < len(metrics); i++ {
+			metrics[i] = reverse.String(metrics[i])
+		}
+	}
+
+	w := where.New()
+	w.And(where.In("Path", metrics))
+	w.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
 
 	preWhere := where.New()
 	preWhere.Andf(
@@ -119,32 +124,8 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		until.Format("2006-01-02"),
 	)
 
-	w := where.New()
-	if count > 1 {
-		w.Andf("Path in (%s)", listBuf.String())
-	} else {
-		w.Andf("Path = %s", listBuf.String())
-	}
-
-	w.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
-
-	pointsTable, _, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
-	if pointsTable == "" {
-		return nil, nil, fmt.Errorf("data table is not specified")
-	}
-
-	query := fmt.Sprintf(
-		`
-		SELECT
-			Path, Time, Value, Timestamp
-		FROM %s
-		PREWHERE (%s)
-		%s
-		FORMAT RowBinary
-		`,
-		pointsTable,
-		preWhere.String(),
-		w.SQL(),
+	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s FORMAT RowBinary`,
+		pointsTable, preWhere.PreWhereSQL(), w.SQL(),
 	)
 
 	body, err := clickhouse.Reader(
