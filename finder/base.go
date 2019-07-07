@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type BaseFinder struct {
@@ -24,48 +25,22 @@ func NewBase(url string, table string, opts clickhouse.Options) Finder {
 	}
 }
 
-func (b *BaseFinder) where(query string) *Where {
+func (b *BaseFinder) where(query string) *where.Where {
 	level := strings.Count(query, ".") + 1
 
-	w := NewWhere()
-
-	w.Andf("Level = %d", level)
-
-	if query == "*" {
-		return w
-	}
-
-	// simple metric
-	if !HasWildcard(query) {
-		w.Andf("Path = %s OR Path = %s", Q(query), Q(query+"."))
-		return w
-	}
-
-	// before any wildcard symbol
-	simplePrefix := query[:strings.IndexAny(query, "[]{}*?")]
-
-	if len(simplePrefix) > 0 {
-		w.Andf("Path LIKE %s", Q(LikeEscape(simplePrefix)+`%`))
-	}
-
-	// prefix search like "metric.name.xx*"
-	if len(simplePrefix) == len(query)-1 && query[len(query)-1] == '*' {
-		return w
-	}
-
-	// Q() replaces \ with \\, so using \. does not work here.
-	// work around with [.]
-	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`[.]?$`))
+	w := where.New()
+	w.And(where.Eq("Level", level))
+	w.And(where.TreeGlob("Path", query))
 	return w
 }
 
 func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
-	where := b.where(query)
+	w := b.where(query)
 
 	b.body, err = clickhouse.Query(
 		ctx,
 		b.url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, where),
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, w),
 		b.table,
 		b.opts,
 	)

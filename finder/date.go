@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type DateFinder struct {
@@ -28,9 +29,9 @@ func NewDateFinder(url string, table string, tableVersion int, opts clickhouse.O
 }
 
 func (b *DateFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
-	where := b.where(query)
+	w := b.where(query)
 
-	dateWhere := NewWhere()
+	dateWhere := where.New()
 	dateWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(from, 0).Format("2006-01-02"),
@@ -43,7 +44,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			b.url,
 			fmt.Sprintf(
 				`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path`,
-				b.table, dateWhere.String(), where.String()),
+				b.table, dateWhere, w),
 			b.table,
 			b.opts,
 		)
@@ -51,7 +52,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.body, err = clickhouse.Query(
 			ctx,
 			b.url,
-			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere.String(), where),
+			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere, w),
 			b.table,
 			b.opts,
 		)

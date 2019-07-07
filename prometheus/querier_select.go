@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -20,18 +20,18 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 		return nil, err
 	}
 
-	where := finder.NewWhere()
-	where.Andf(
+	w := where.New()
+	w.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		from.Format("2006-01-02"),
 		until.Format("2006-01-02"),
 	)
-	where.And(matchWhere)
+	w.And(matchWhere)
 
 	sql := fmt.Sprintf(
-		"SELECT Path FROM %s WHERE %s GROUP BY Path",
+		"SELECT Path FROM %s %s GROUP BY Path",
 		q.config.ClickHouse.TaggedTable,
-		where.String(),
+		w.SQL(),
 	)
 	body, err := clickhouse.Query(
 		q.ctx,
@@ -108,25 +108,25 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		if count > 0 {
 			listBuf.WriteByte(',')
 		}
-		listBuf.WriteString(finder.Q(m))
+		listBuf.WriteString(clickhouse.QueryString(m))
 		count++
 	}
 
-	preWhere := finder.NewWhere()
+	preWhere := where.New()
 	preWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		from.Format("2006-01-02"),
 		until.Format("2006-01-02"),
 	)
 
-	where := finder.NewWhere()
+	w := where.New()
 	if count > 1 {
-		where.Andf("Path in (%s)", listBuf.String())
+		w.Andf("Path in (%s)", listBuf.String())
 	} else {
-		where.Andf("Path = %s", listBuf.String())
+		w.Andf("Path = %s", listBuf.String())
 	}
 
-	where.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
+	w.Andf("Time >= %d AND Time <= %d", from.Unix(), until.Unix()+1)
 
 	pointsTable, _, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
 	if pointsTable == "" {
@@ -139,12 +139,12 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 			Path, Time, Value, Timestamp
 		FROM %s
 		PREWHERE (%s)
-		WHERE (%s)
+		%s
 		FORMAT RowBinary
 		`,
 		pointsTable,
 		preWhere.String(),
-		where.String(),
+		w.SQL(),
 	)
 
 	body, err := clickhouse.Reader(

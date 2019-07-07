@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type TagState int
@@ -41,13 +42,13 @@ func (q TagQ) String() string {
 
 func (q *TagQ) Where(field string) string {
 	if q.Param != nil && q.Value != nil && *q.Value != "*" {
-		return fmt.Sprintf("%s=%s", field, Q(*q.Param+*q.Value))
+		return where.Eq(field, *q.Param+*q.Value)
 	}
 	if q.Param != nil {
-		return fmt.Sprintf("%s LIKE %s", field, Q(*q.Param+`%`))
+		return where.HasPrefix(field, *q.Param)
 	}
 	if q.Value != nil && *q.Value != "*" {
-		return fmt.Sprintf("%s=%s", field, Q(*q.Value))
+		return where.Eq(field, *q.Value)
 	}
 
 	return ""
@@ -82,7 +83,7 @@ func (t *TagFinder) tagListSQL() (string, error) {
 		return "", nil
 	}
 
-	w := NewWhere()
+	w := where.New()
 
 	w.Andf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table)
 
@@ -90,7 +91,7 @@ func (t *TagFinder) tagListSQL() (string, error) {
 	w.And(t.tagQuery[0].Where("Tag1"))
 
 	if len(t.tagQuery) == 1 {
-		w.And("Level=1")
+		w.And(where.Eq("Level", 1))
 		return fmt.Sprintf("SELECT Tag1 FROM %s WHERE %s GROUP BY Tag1", t.table, w), nil
 	}
 
@@ -105,7 +106,7 @@ func (t *TagFinder) tagListSQL() (string, error) {
 	// last
 	w.And(t.tagQuery[len(t.tagQuery)-1].Where("TagN"))
 
-	w.And("IsLeaf=1")
+	w.And(where.Eq("IsLeaf", 1))
 
 	return fmt.Sprintf("SELECT TagN FROM %s ARRAY JOIN Tags AS TagN WHERE %s GROUP BY TagN", t.table, w), nil
 }
@@ -115,7 +116,7 @@ func (t *TagFinder) seriesSQL() (string, error) {
 		return "", nil
 	}
 
-	w := NewWhere()
+	w := where.New()
 
 	w.Andf("Version>=(SELECT Max(Version) FROM %s WHERE Tag1='' AND Level=0 AND Path='')", t.table)
 	// first

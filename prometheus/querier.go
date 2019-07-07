@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/prometheus/prometheus/storage"
 )
 
@@ -37,15 +37,15 @@ func (q *Querier) Close() error {
 
 // LabelValues returns all potential values for a label name.
 func (q *Querier) LabelValues(label string) ([]string, error) {
-	where := finder.NewWhere()
-	where.Andf("Tag1 LIKE %s", finder.Q(finder.LikeEscape(label)+"=%"))
+	w := where.New()
+	w.Andf(where.HasPrefix("Tag1", label+"="))
 
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
-	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[2] as value FROM %s %s GROUP BY value ORDER BY value",
 		q.config.ClickHouse.TaggedTable,
-		where.SQL(),
+		w.SQL(),
 	)
 
 	body, err := clickhouse.Query(q.ctx, q.config.ClickHouse.Url, sql, q.config.ClickHouse.TaggedTable,
@@ -64,13 +64,13 @@ func (q *Querier) LabelValues(label string) ([]string, error) {
 
 // LabelNames returns all the unique label names present in the block in sorted order.
 func (q *Querier) LabelNames() ([]string, error) {
-	where := finder.NewWhere()
+	w := where.New()
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
-	where.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
+	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[1] as value FROM %s %s GROUP BY value ORDER BY value",
 		q.config.ClickHouse.TaggedTable,
-		where.SQL(),
+		w.SQL(),
 	)
 
 	body, err := clickhouse.Query(q.ctx, q.config.ClickHouse.Url, sql, q.config.ClickHouse.TaggedTable,

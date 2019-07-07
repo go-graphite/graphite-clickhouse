@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 type TaggedTermOp int
@@ -64,31 +65,27 @@ func NewTagged(url string, table string, opts clickhouse.Options) *TaggedFinder 
 	}
 }
 
+func (term *TaggedTerm) concat() string {
+	return fmt.Sprintf("%s=%s", term.Key, term.Value)
+}
+
 func TaggedTermWhere1(term *TaggedTerm) string {
 	// positive expression check only in Tag1
 	// negative check in all Tags
 	switch term.Op {
 	case TaggedTermEq:
-		return fmt.Sprintf("Tag1=%s", Qf("%s=%s", term.Key, term.Value))
+		return where.Eq("Tag1", term.concat())
 	case TaggedTermNe:
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("Tag1 LIKE %s", Qlike("%s=_%%", term.Key))
+			return where.HasPrefixAndNotEq("Tag1", term.Key+"=")
 		}
-		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
+		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
 	case TaggedTermMatch:
-		return fmt.Sprintf(
-			"(Tag1 LIKE %s) AND (match(Tag1, %s))",
-			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
-			Qf("%s=%s", term.Key, term.Value),
-		)
+		return where.Match("Tag1", term.concat())
 	case TaggedTermNotMatch:
-		return fmt.Sprintf(
-			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
-			Qf("%s=%s", term.Key, term.Value),
-		)
+		return fmt.Sprintf("NOT arrayExists((x) -> %s), Tags)", where.Match("x", term.concat()))
 	default:
 		return ""
 	}
@@ -98,26 +95,18 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 	// arrayExists((x) -> %s, Tags)
 	switch term.Op {
 	case TaggedTermEq:
-		return fmt.Sprintf("arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
+		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
 	case TaggedTermNe:
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", Qlike("%s=_%%", term.Key))
+			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"="))
 		}
-		return fmt.Sprintf("NOT arrayExists((x) -> x=%s, Tags)", Qf("%s=%s", term.Key, term.Value))
+		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
 	case TaggedTermMatch:
-		return fmt.Sprintf(
-			"arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
-			Qf("%s=%s", term.Key, term.Value),
-		)
+		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
 	case TaggedTermNotMatch:
-		return fmt.Sprintf(
-			"NOT arrayExists((x) -> (x LIKE %s) AND (match(x, %s)), Tags)",
-			Qlike("%s=%s%%", term.Key, NonRegexpPrefix(term.Value)),
-			Qf("%s=%s", term.Key, term.Value),
-		)
+		return fmt.Sprintf("NOT arrayExists((x) -> %s), Tags)", where.Match("x", term.concat()))
 	default:
 		return ""
 	}
@@ -162,17 +151,9 @@ func MakeTaggedWhere(expr []string) (string, string, error) {
 		case "!=":
 			terms[i].Op = TaggedTermNe
 		case "=~":
-			if NonRegexpPrefix(terms[i].Value) == terms[i].Value {
-				terms[i].Op = TaggedTermEq
-			} else {
-				terms[i].Op = TaggedTermMatch
-			}
+			terms[i].Op = TaggedTermMatch
 		case "!=~":
-			if NonRegexpPrefix(terms[i].Value) == terms[i].Value {
-				terms[i].Op = TaggedTermNe
-			} else {
-				terms[i].Op = TaggedTermNotMatch
-			}
+			terms[i].Op = TaggedTermNotMatch
 		default:
 			return "", "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
@@ -180,7 +161,7 @@ func MakeTaggedWhere(expr []string) (string, string, error) {
 
 	sort.Sort(TaggedTermList(terms))
 
-	w := NewWhere()
+	w := where.New()
 	prewhere := ""
 	x := TaggedTermWhere1(&terms[0])
 	if terms[0].Op == TaggedTermMatch {
@@ -240,7 +221,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 		return err
 	}
 
-	dateWhere := NewWhere()
+	dateWhere := where.New()
 	dateWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(from, 0).Format("2006-01-02"),

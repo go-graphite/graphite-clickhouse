@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 const ReverseLevelOffset = 10000
@@ -35,45 +36,21 @@ func NewIndex(url string, table string, dailyEnabled bool, opts clickhouse.Optio
 	}
 }
 
-func (idx *IndexFinder) where(query string, levelOffset int) *Where {
+func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 	level := strings.Count(query, ".") + 1
 
-	w := NewWhere()
+	w := where.New()
 
-	w.Andf("Level = %d", level+levelOffset)
+	w.Andf(where.Eq("Level", level+levelOffset))
+	w.And(where.TreeGlob("Path", query))
 
-	if query == "*" {
-		return w
-	}
-
-	// simple metric
-	if !HasWildcard(query) {
-		w.Andf("Path = %s OR Path = %s", Q(query), Q(query+"."))
-		return w
-	}
-
-	// before any wildcard symbol
-	simplePrefix := query[:strings.IndexAny(query, "[]{}*?")]
-
-	if len(simplePrefix) > 0 {
-		w.Andf("Path LIKE %s", Q(LikeEscape(simplePrefix)+`%`))
-	}
-
-	// prefix search like "metric.name.xx*"
-	if len(simplePrefix) == len(query)-1 && query[len(query)-1] == '*' {
-		return w
-	}
-
-	// Q() replaces \ with \\, so using \. does not work here.
-	// work around with [.]
-	w.Andf("match(Path, %s)", Q(`^`+GlobToRegexp(query)+`[.]?$`))
 	return w
 }
 
 func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
 	p := strings.LastIndexByte(query, '.')
 
-	if !HasWildcard(query) || p < 0 || p >= len(query)-1 || HasWildcard(query[p+1:]) {
+	if !where.HasWildcard(query) || p < 0 || p >= len(query)-1 || where.HasWildcard(query[p+1:]) {
 		idx.useReverse = false
 	} else {
 		idx.useReverse = true
@@ -102,22 +79,22 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		query = ReverseString(query)
 	}
 
-	where := idx.where(query, levelOffset)
+	w := idx.where(query, levelOffset)
 
 	if idx.useDaily {
-		where.Andf(
+		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
 			time.Unix(from, 0).Format("2006-01-02"),
 			time.Unix(until, 0).Format("2006-01-02"),
 		)
 	} else {
-		where.Andf("Date = '%s'", DefaultTreeDate)
+		w.Andf(where.Eq("Date", DefaultTreeDate))
 	}
 
 	idx.body, err = clickhouse.Query(
 		ctx,
 		idx.url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", idx.table, where),
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", idx.table, w),
 		idx.table,
 		idx.opts,
 	)
