@@ -100,7 +100,7 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("arrayExists((x) -> x LIKE %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"="))
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"="))
 		}
 		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
 	case TaggedTermMatch:
