@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -35,12 +36,11 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 	)
 
 	f.body, err = clickhouse.Query(
-		ctx,
+		scope.WithTable(ctx, f.table),
 		f.url,
 		fmt.Sprintf(
 			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path`,
 			f.table, dateWhere, w),
-		f.table,
 		f.opts,
 	)
 

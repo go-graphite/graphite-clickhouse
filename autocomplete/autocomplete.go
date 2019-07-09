@@ -12,6 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -132,7 +133,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		queryLimit,
 	)
 
-	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable,
+	body, err := clickhouse.Query(scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable), h.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: h.config.ClickHouse.TreeTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -240,7 +241,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		limit,
 	)
 
-	body, err := clickhouse.Query(r.Context(), h.config.ClickHouse.Url, sql, h.config.ClickHouse.TaggedTable,
+	body, err := clickhouse.Query(scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable), h.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: h.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

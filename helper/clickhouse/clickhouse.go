@@ -134,26 +134,26 @@ func QueryBytes(b []byte) string {
 	return "'" + s + "'"
 }
 
-func Query(ctx context.Context, dsn string, query string, table string, opts Options) ([]byte, error) {
-	return Post(ctx, dsn, query, table, nil, opts)
+func Query(ctx context.Context, dsn string, query string, opts Options) ([]byte, error) {
+	return Post(ctx, dsn, query, nil, opts)
 }
 
-func Post(ctx context.Context, dsn string, query string, table string, postBody io.Reader, opts Options) ([]byte, error) {
-	return do(ctx, dsn, query, table, postBody, false, opts)
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, false, opts)
 }
 
-func PostGzip(ctx context.Context, dsn string, query string, table string, postBody io.Reader, opts Options) ([]byte, error) {
-	return do(ctx, dsn, query, table, postBody, true, opts)
+func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, true, opts)
 }
 
-func Reader(ctx context.Context, dsn string, query string, table string, opts Options) (io.ReadCloser, error) {
-	return reader(ctx, dsn, query, table, nil, false, opts)
+func Reader(ctx context.Context, dsn string, query string, opts Options) (io.ReadCloser, error) {
+	return reader(ctx, dsn, query, nil, false, opts)
 }
 
-func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
+func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
-	requestID := scope.String(ctx, "requestID")
+	requestID := scope.RequestID(ctx)
 
 	queryForLogger := query
 	if len(queryForLogger) > 500 {
@@ -196,7 +196,7 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 		return
 	}
 
-	req.Header.Add("User-Agent", fmt.Sprintf("graphite-clickhouse/%s (table:%s)", version.Version, table))
+	req.Header.Add("User-Agent", fmt.Sprintf("graphite-clickhouse/%s (table:%s)", version.Version, scope.Table(ctx)))
 
 	if gzip {
 		req.Header.Add("Content-Encoding", "gzip")
@@ -232,8 +232,8 @@ func reader(ctx context.Context, dsn string, query string, table string, postBod
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, opts Options) ([]byte, error) {
-	bodyReader, err := reader(ctx, dsn, query, table, postBody, gzip, opts)
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) ([]byte, error) {
+	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, opts)
 	if err != nil {
 		return nil, err
 	}

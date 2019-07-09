@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -92,10 +93,9 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 	}
 
 	idx.body, err = clickhouse.Query(
-		ctx,
+		scope.WithTable(ctx, idx.table),
 		idx.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", idx.table, w),
-		idx.table,
 		idx.opts,
 	)
 

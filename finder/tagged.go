@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -234,7 +235,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 	}
 
 	sql := fmt.Sprintf("SELECT Path FROM %s %s WHERE (%s) AND (%s) GROUP BY Path", t.table, prewhere, dateWhere.String(), w)
-	t.body, err = clickhouse.Query(ctx, t.url, sql, t.table, t.opts)
+	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts)
 	return err
 }
 

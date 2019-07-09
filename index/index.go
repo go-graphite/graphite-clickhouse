@@ -10,6 +10,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
 type Index struct {
@@ -23,10 +24,9 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
 	}
 	reader, err := clickhouse.Reader(
-		ctx,
+		scope.WithTable(ctx, config.ClickHouse.TreeTable),
 		config.ClickHouse.Url,
 		fmt.Sprintf("SELECT Path FROM %s GROUP BY Path", config.ClickHouse.TreeTable),
-		config.ClickHouse.TreeTable,
 		opts,
 	)
 	if err != nil {

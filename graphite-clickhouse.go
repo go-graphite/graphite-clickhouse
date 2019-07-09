@@ -80,8 +80,8 @@ func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 		logger := logger.With(zap.String("request_id", requestID))
 
 		ctx := r.Context()
-		ctx = scope.With(ctx, "logger", logger)
-		ctx = scope.With(ctx, "requestID", requestID)
+		ctx = scope.WithLogger(ctx, logger)
+		ctx = scope.WithRequestID(ctx, requestID)
 
 		for _, h := range passHeaders {
 			hv := r.Header.Get(h)

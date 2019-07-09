@@ -43,10 +43,9 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error)
 		w.SQL(),
 	)
 	body, err := clickhouse.Query(
-		ctx,
+		scope.WithTable(ctx, h.config.ClickHouse.TaggedTable),
 		h.config.ClickHouse.Url,
 		sql,
-		h.config.ClickHouse.TaggedTable,
 		clickhouse.Options{
 			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
 			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
@@ -133,10 +132,9 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	)
 
 	body, err := clickhouse.Reader(
-		ctx,
+		scope.WithTable(ctx, pointsTable),
 		h.config.ClickHouse.Url,
 		query,
-		pointsTable,
 		clickhouse.Options{Timeout: h.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()},
 	)
 

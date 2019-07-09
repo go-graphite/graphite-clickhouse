@@ -21,7 +21,6 @@ $(NAME):
 
 test:
 	$(GO) test $(MODULE)/helper/clickhouse
-	$(GO) test $(MODULE)/helper/log
 	$(GO) test $(MODULE)/helper/pickle
 	$(GO) test $(MODULE)/helper/point
 	$(GO) test $(MODULE)/helper/rollup

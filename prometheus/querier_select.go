@@ -9,6 +9,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -35,10 +36,9 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 		w.SQL(),
 	)
 	body, err := clickhouse.Query(
-		q.ctx,
+		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
 		q.config.ClickHouse.Url,
 		sql,
-		q.config.ClickHouse.TaggedTable,
 		clickhouse.Options{
 			Timeout:        q.config.ClickHouse.IndexTimeout.Value(),
 			ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value(),
@@ -171,10 +171,9 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	)
 
 	body, err := clickhouse.Reader(
-		q.ctx,
+		scope.WithTable(q.ctx, pointsTable),
 		q.config.ClickHouse.Url,
 		query,
-		pointsTable,
 		clickhouse.Options{Timeout: q.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()},
 	)
 

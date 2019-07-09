@@ -17,3 +17,23 @@ func String(ctx context.Context, key string) string {
 	}
 	return ""
 }
+
+// WithRequestID ...
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	return With(ctx, "requestID", requestID)
+}
+
+// RequestID ...
+func RequestID(ctx context.Context) string {
+	return String(ctx, "requestID")
+}
+
+// WithTable ...
+func WithTable(ctx context.Context, table string) context.Context {
+	return With(ctx, "table", table)
+}
+
+// Table ...
+func Table(ctx context.Context) string {
+	return String(ctx, "table")
+}

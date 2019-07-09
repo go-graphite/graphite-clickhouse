@@ -196,10 +196,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	carbonlinkResponseRead := h.queryCarbonlink(r.Context(), logger, metricList)
 
 	body, err := clickhouse.Reader(
-		r.Context(),
+		scope.WithTable(r.Context(), pointsTable),
 		h.config.ClickHouse.Url,
 		query,
-		pointsTable,
 		clickhouse.Options{Timeout: h.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()},
 	)
 

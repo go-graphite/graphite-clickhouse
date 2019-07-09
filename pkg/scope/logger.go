@@ -18,3 +18,8 @@ func Logger(ctx context.Context) *zap.Logger {
 
 	return zap.NewNop()
 }
+
+// WithLogger ...
+func WithLogger(ctx context.Context, logger *zap.Logger) context.Context {
+	return With(ctx, "logger", logger)
+}

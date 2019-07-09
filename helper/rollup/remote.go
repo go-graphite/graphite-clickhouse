@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/zapwriter"
 )
 
@@ -131,10 +132,9 @@ func remoteLoad(addr string, table string) (*Rules, error) {
 	`, db, table)
 
 	body, err := clickhouse.Query(
-		context.WithValue(context.Background(), "logger", zapwriter.Logger("rollup")),
+		scope.New(context.Background()).WithLogger(zapwriter.Logger("rollup")).WithTable("system.graphite_retentions"),
 		addr,
 		query,
-		"system.graphite_retentions",
 		clickhouse.Options{Timeout: 10 * time.Second, ConnectTimeout: 10 * time.Second},
 	)
 	if err != nil {

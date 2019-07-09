@@ -8,6 +8,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/prometheus/prometheus/storage"
 )
@@ -48,7 +49,7 @@ func (q *Querier) LabelValues(label string) ([]string, error) {
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(q.ctx, q.config.ClickHouse.Url, sql, q.config.ClickHouse.TaggedTable,
+	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (q *Querier) LabelNames() ([]string, error) {
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(q.ctx, q.config.ClickHouse.Url, sql, q.config.ClickHouse.TaggedTable,
+	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
 		return nil, err

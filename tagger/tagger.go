@@ -15,6 +15,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/RowBinary"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/zapwriter"
 )
 
@@ -114,7 +115,7 @@ func Make(cfg *config.Config) error {
 		}
 		for i := 0; i < SelectChunksCount; i++ {
 			bodies[i], err = clickhouse.Query(
-				context.WithValue(context.Background(), "logger", logger),
+				scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.IndexTable),
 				cfg.ClickHouse.Url,
 				fmt.Sprintf(
 					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d = %d %s AND Level > 20000 AND Level < 30000 AND Date = '1970-02-12' GROUP BY Path FORMAT RowBinary",
@@ -123,7 +124,6 @@ func Make(cfg *config.Config) error {
 					i,
 					extraWhere,
 				),
-				cfg.ClickHouse.IndexTable,
 				clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 			)
 			if err != nil {
@@ -341,10 +341,9 @@ func Make(cfg *config.Config) error {
 	} else {
 		begin("upload to clickhouse")
 		_, err = clickhouse.PostGzip(
-			context.WithValue(context.Background(), "logger", logger),
+			scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.TagTable),
 			cfg.ClickHouse.Url,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
-			cfg.ClickHouse.TagTable,
 			outBuf,
 			clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
 		)

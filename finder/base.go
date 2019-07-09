@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -38,10 +39,9 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 	w := b.where(query)
 
 	b.body, err = clickhouse.Query(
-		ctx,
+		scope.WithTable(ctx, b.table),
 		b.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, w),
-		b.table,
 		b.opts,
 	)
 

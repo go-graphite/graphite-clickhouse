@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -40,20 +41,18 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 
 	if b.tableVersion == 2 {
 		b.body, err = clickhouse.Query(
-			ctx,
+			scope.WithTable(ctx, b.table),
 			b.url,
 			fmt.Sprintf(
 				`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path`,
 				b.table, dateWhere, w),
-			b.table,
 			b.opts,
 		)
 	} else {
 		b.body, err = clickhouse.Query(
-			ctx,
+			scope.WithTable(ctx, b.table),
 			b.url,
 			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere, w),
-			b.table,
 			b.opts,
 		)
 	}
