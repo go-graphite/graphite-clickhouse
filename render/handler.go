@@ -12,11 +12,11 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 
 	graphitePickle "github.com/lomik/graphite-pickle"
@@ -87,7 +87,7 @@ func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger,
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := log.FromContext(r.Context())
+	logger := scope.Logger(r.Context())
 
 	var prefix string
 	var err error
@@ -247,5 +247,5 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from
 		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj)
 	}
 	d := time.Since(start)
-	log.FromContext(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
+	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

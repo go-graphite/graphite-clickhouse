@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	pickle "github.com/lomik/graphite-pickle"
 	"go.uber.org/zap"
 )
@@ -18,7 +18,7 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	points := data.Points.List()
 
-	logger := log.FromContext(r.Context())
+	logger := scope.Logger(r.Context())
 
 	defer func() {
 		logger.Debug("rollup",

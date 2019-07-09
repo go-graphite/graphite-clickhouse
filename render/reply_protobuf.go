@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"net/http"
 
-	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +19,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		return
 	}
 
-	logger := log.FromContext(r.Context())
+	logger := scope.Logger(r.Context())
 
 	// var multiResponse carbonzipperpb.MultiFetchResponse
 	writer := bufio.NewWriterSize(w, 1024*1024)

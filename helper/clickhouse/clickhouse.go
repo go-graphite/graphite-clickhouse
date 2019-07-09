@@ -16,6 +16,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/zapwriter"
 
 	"go.uber.org/zap"
@@ -152,10 +153,7 @@ func Reader(ctx context.Context, dsn string, query string, table string, opts Op
 func reader(ctx context.Context, dsn string, query string, table string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
 	start := time.Now()
 
-	var requestID string
-	if value, ok := ctx.Value("requestID").(string); ok {
-		requestID = value
-	}
+	requestID := scope.String(ctx, "requestID")
 
 	queryForLogger := query
 	if len(queryForLogger) > 500 {

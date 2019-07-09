@@ -29,7 +29,7 @@ func HasWildcard(target string) bool {
 func NonRegexpPrefix(expr string) string {
 	s := regexp.QuoteMeta(expr)
 	for i := 0; i < len(expr); i++ {
-		if expr[i] != s[i] {
+		if expr[i] != s[i] || expr[i] == '\\' {
 			return expr[:i]
 		}
 	}

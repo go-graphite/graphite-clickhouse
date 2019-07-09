@@ -28,6 +28,7 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=~cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '__name__=cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '__name__=cpu.usage')", false},
 		{"seriesByTag('name=rps', 'key=~value')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
 		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=hello%' AND match(x, 'key=hello.world'), Tags))", "", false},
+		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=Vladimirs-MacBook-Pro%' AND match(x, 'host=Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
 	}
 
 	for _, test := range table {

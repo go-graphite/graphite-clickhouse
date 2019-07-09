@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/json"
 	"flag"
@@ -18,6 +17,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/index"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/tagger"
@@ -59,6 +59,11 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 }
 
 var requestIdRegexp *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
+var passHeaders = []string{
+	"X-Dashboard-Id",
+	"X-Grafana-Org-Id",
+	"X-Panel-Id",
+}
 
 func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,17 +79,18 @@ func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
 
 		logger := logger.With(zap.String("request_id", requestID))
 
-		r = r.WithContext(
-			context.WithValue(
-				context.WithValue(
-					r.Context(),
-					"logger",
-					logger,
-				),
-				"requestID",
-				requestID,
-			),
-		)
+		ctx := r.Context()
+		ctx = scope.With(ctx, "logger", logger)
+		ctx = scope.With(ctx, "requestID", requestID)
+
+		for _, h := range passHeaders {
+			hv := r.Header.Get(h)
+			if hv != "" {
+				ctx = scope.With(ctx, h, hv)
+			}
+		}
+
+		r = r.WithContext(ctx)
 
 		start := time.Now()
 		handler.ServeHTTP(writer, r)

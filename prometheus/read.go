@@ -13,10 +13,10 @@ import (
 	"github.com/golang/snappy"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/log"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/prompb"
@@ -67,7 +67,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{}, config.ContextPrometheus)
 	if pointsTable == "" {
 		err := fmt.Errorf("data table is not specified")
-		log.FromContext(ctx).Error("select data table failed", zap.Error(err))
+		scope.Logger(ctx).Error("select data table failed", zap.Error(err))
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 
 		points, _, err = rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
 		if err != nil {
-			log.FromContext(ctx).Error("rollup failed", zap.Error(err))
+			scope.Logger(ctx).Error("rollup failed", zap.Error(err))
 			return
 		}
 
