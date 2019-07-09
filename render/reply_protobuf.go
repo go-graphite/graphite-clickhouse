@@ -27,13 +27,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 
 	mb := new(bytes.Buffer)
 
-	writeMetric := func(name string, points []point.Point) {
-		points, step, err := rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
-		if err != nil {
-			logger.Error("rollup failed", zap.Error(err))
-			return
-		}
-
+	writeAlias := func(name string, points []point.Point, step uint32) {
 		start := from - (from % step)
 		if start < from {
 			start += step
@@ -122,24 +116,32 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		}
 	}
 
+	writeMetric := func(points []point.Point) {
+		metricName := data.Points.MetricName(points[0].MetricID)
+		points, step, err := rollupObj.RollupMetric(metricName, from, points)
+		if err != nil {
+			logger.Error("rollup failed", zap.Error(err))
+			return
+		}
+
+		a := data.Aliases[metricName]
+		for k := 0; k < len(a); k += 2 {
+			writeAlias(a[k], points, step)
+		}
+	}
+
 	// group by Metric
-	var i, n, k int
+	var i, n int
 	// i - current position of iterator
 	// n - position of the first record with current metric
 	l := len(points)
 
 	for i = 1; i < l; i++ {
 		if points[i].MetricID != points[n].MetricID {
-			a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
-			for k = 0; k < len(a); k += 2 {
-				writeMetric(a[k], points[n:i])
-			}
+			writeMetric(points[n:i])
 			n = i
 			continue
 		}
 	}
-	a := data.Aliases[data.Points.MetricName(points[n].MetricID)]
-	for k = 0; k < len(a); k += 2 {
-		writeMetric(a[k], points[n:i])
-	}
+	writeMetric(points[n:i])
 }
