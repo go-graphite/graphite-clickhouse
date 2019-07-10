@@ -3,18 +3,12 @@ package finder
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 func TestTaggedWhere(t *testing.T) {
 	assert := assert.New(t)
-
-	// until := time.Now().Unix()
-	// from := until - 5*24*60*60
 
 	table := []struct {
 		query    string
@@ -34,16 +28,53 @@ func TestTaggedWhere(t *testing.T) {
 	for _, test := range table {
 		testName := fmt.Sprintf("query: %#v", test.query)
 
-		srv := clickhouse.NewTestServer()
+		terms, err := ParseSeriesByTag(test.query)
 
-		f := NewTagged(srv.URL, "tbl", clickhouse.Options{Timeout: time.Second, ConnectTimeout: time.Second})
+		if test.isErr {
+			assert.Error(err, testName+", err")
+		} else {
+			assert.NoError(err, testName+", err")
+		}
 
-		w, pw, err := f.makeWhere(test.query)
+		w, pw := TaggedWhere(terms)
 
-		assert.Equal(test.where, w, testName+", where")
-		assert.Equal(test.prewhere, pw, testName+", prewhere")
-		assert.Equal(test.isErr, err != nil, testName+", where")
-
-		srv.Close()
+		assert.Equal(test.where, w.String(), testName+", where")
+		assert.Equal(test.prewhere, pw.String(), testName+", prewhere")
 	}
+}
+
+func TestParseSeriesByTag(t *testing.T) {
+	assert := assert.New(t)
+
+	ok := func(query string, expected []TaggedTerm) {
+		p, err := ParseSeriesByTag(query)
+		assert.NoError(err)
+		assert.Equal(expected, p)
+	}
+
+	ok(`seriesByTag('key=value')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermEq, Key: "key", Value: "value"},
+	})
+
+	ok(`seriesByTag('name=rps')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermEq, Key: "__name__", Value: "rps"},
+	})
+
+	ok(`seriesByTag('name=~cpu.usage')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermMatch, Key: "__name__", Value: "cpu.usage"},
+	})
+
+	ok(`seriesByTag('name!=cpu.usage')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermNe, Key: "__name__", Value: "cpu.usage"},
+	})
+
+	ok(`seriesByTag('name!=~cpu.usage')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermNotMatch, Key: "__name__", Value: "cpu.usage"},
+	})
+
+	ok(`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, []TaggedTerm{
+		TaggedTerm{Op: TaggedTermEq, Key: "cpu", Value: "cpu-total"},
+		TaggedTerm{Op: TaggedTermMatch, Key: "host", Value: `Vladimirs-MacBook-Pro\.local`},
+	})
+
 }

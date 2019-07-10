@@ -46,7 +46,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) requestExpr(r *http.Request) (string, string, map[string]bool, error) {
+func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[string]bool, error) {
 	f := r.Form["expr"]
 	expr := make([]string, 0)
 	for i := 0; i < len(f); i++ {
@@ -58,20 +58,22 @@ func (h *Handler) requestExpr(r *http.Request) (string, string, map[string]bool,
 	usedTags := make(map[string]bool)
 
 	if len(expr) == 0 {
-		return "", "", usedTags, nil
+		return nil, nil, usedTags, nil
 	}
 
-	where, prewhere, err := finder.MakeTaggedWhere(expr)
+	terms, err := finder.ParseTaggedConditions(expr)
 	if err != nil {
-		return "", "", usedTags, err
+		return nil, nil, usedTags, err
 	}
+
+	w, pw := finder.TaggedWhere(terms)
 
 	for i := 0; i < len(expr); i++ {
 		a := strings.Split(expr[i], "=")
 		usedTags[a[0]] = true
 	}
 
-	return where, prewhere, usedTags, nil
+	return w, pw, usedTags, nil
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
@@ -91,15 +93,10 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exprWhere, prewhere, usedTags, err := h.requestExpr(r)
+	wr, pw, usedTags, err := h.requestExpr(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	wr := where.New()
-	if exprWhere != "" {
-		wr.And(exprWhere)
 	}
 
 	var valueSQL string
@@ -120,15 +117,10 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
 	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
-	pw := ""
-	if prewhere != "" {
-		pw = fmt.Sprintf("PREWHERE %s", pw)
-	}
-
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
-		pw,
+		pw.PreWhereSQL(),
 		wr.SQL(),
 		queryLimit,
 	)
@@ -205,15 +197,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exprWhere, prewhere, usedTags, err := h.requestExpr(r)
+	wr, pw, usedTags, err := h.requestExpr(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	wr := where.New()
-	if exprWhere != "" {
-		wr.And(exprWhere)
 	}
 
 	var valueSQL string
@@ -228,15 +215,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
 	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
-	pw := ""
-	if prewhere != "" {
-		pw = fmt.Sprintf("PREWHERE %s", prewhere)
-	}
-
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
 		valueSQL,
 		h.config.ClickHouse.TaggedTable,
-		pw,
+		pw.PreWhereSQL(),
 		wr.SQL(),
 		limit,
 	)

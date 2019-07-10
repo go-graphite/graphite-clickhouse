@@ -113,15 +113,15 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 	}
 }
 
-func MakeTaggedWhere(expr []string) (string, string, error) {
-	terms := make([]TaggedTerm, len(expr))
+func ParseTaggedConditions(conditions []string) ([]TaggedTerm, error) {
+	terms := make([]TaggedTerm, len(conditions))
 
-	for i := 0; i < len(expr); i++ {
-		s := expr[i]
+	for i := 0; i < len(conditions); i++ {
+		s := conditions[i]
 
 		a := strings.SplitN(s, "=", 2)
 		if len(a) != 2 {
-			return "", "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
+			return nil, fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
 
 		a[0] = strings.TrimSpace(a[0])
@@ -156,51 +156,39 @@ func MakeTaggedWhere(expr []string) (string, string, error) {
 		case "!=~":
 			terms[i].Op = TaggedTermNotMatch
 		default:
-			return "", "", fmt.Errorf("wrong seriesByTag expr: %#v", s)
+			return nil, fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
 	}
 
 	sort.Sort(TaggedTermList(terms))
 
-	w := where.New()
-	prewhere := ""
-	x := TaggedTermWhere1(&terms[0])
-	if terms[0].Op == TaggedTermMatch {
-		prewhere = x
-	}
-	w.And(x)
-
-	for i := 1; i < len(terms); i++ {
-		w.And(TaggedTermWhereN(&terms[i]))
-	}
-
-	return w.String(), prewhere, nil
+	return terms, nil
 }
 
-func (t *TaggedFinder) makeWhere(query string) (string, string, error) {
+func ParseSeriesByTag(query string) ([]TaggedTerm, error) {
 	expr, _, err := parser.ParseExpr(query)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	validationError := fmt.Errorf("wrong seriesByTag call: %#v", query)
 
 	// check
 	if !expr.IsFunc() {
-		return "", "", validationError
+		return nil, validationError
 	}
 	if expr.Target() != "seriesByTag" {
-		return "", "", validationError
+		return nil, validationError
 	}
 
 	args := expr.Args()
 	if len(args) < 1 {
-		return "", "", validationError
+		return nil, validationError
 	}
 
 	for i := 0; i < len(args); i++ {
 		if !args[i].IsString() {
-			return "", "", validationError
+			return nil, validationError
 		}
 	}
 
@@ -213,28 +201,40 @@ func (t *TaggedFinder) makeWhere(query string) (string, string, error) {
 		conditions = append(conditions, s)
 	}
 
-	return MakeTaggedWhere(conditions)
+	return ParseTaggedConditions(conditions)
+}
+
+func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where) {
+	w := where.New()
+	pw := where.New()
+	x := TaggedTermWhere1(&terms[0])
+	if terms[0].Op == TaggedTermMatch {
+		pw.And(x)
+	}
+	w.And(x)
+
+	for i := 1; i < len(terms); i++ {
+		w.And(TaggedTermWhereN(&terms[i]))
+	}
+
+	return w, pw
 }
 
 func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
-	w, pw, err := t.makeWhere(query)
+	terms, err := ParseSeriesByTag(query)
 	if err != nil {
 		return err
 	}
 
-	dateWhere := where.New()
-	dateWhere.Andf(
+	w, pw := TaggedWhere(terms)
+
+	w.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(from, 0).Format("2006-01-02"),
 		time.Unix(until, 0).Format("2006-01-02"),
 	)
 
-	prewhere := ""
-	if pw != "" {
-		prewhere = fmt.Sprintf("PREWHERE %s", pw)
-	}
-
-	sql := fmt.Sprintf("SELECT Path FROM %s %s WHERE (%s) AND (%s) GROUP BY Path", t.table, prewhere, dateWhere.String(), w)
+	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path", t.table, pw.PreWhereSQL(), w.SQL())
 	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts)
 	return err
 }
