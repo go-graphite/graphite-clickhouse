@@ -103,12 +103,12 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[1] AS value"
 		if tagPrefix != "" {
-			wr.Andf(where.HasPrefix("Tag1", tagPrefix))
+			wr.And(where.HasPrefix("Tag1", tagPrefix))
 		}
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[1] AS value"
 		if tagPrefix != "" {
-			wr.Andf(where.HasPrefix("arrayJoin(Tags)", tagPrefix))
+			wr.And(where.HasPrefix("arrayJoin(Tags)", tagPrefix))
 		}
 	}
 
@@ -206,10 +206,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	var valueSQL string
 	if len(usedTags) == 0 {
 		valueSQL = "splitByChar('=', Tag1)[2] AS value"
-		wr.Andf(where.HasPrefix("Tag1", tag+"="+valuePrefix))
+		wr.And(where.HasPrefix("Tag1", tag+"="+valuePrefix))
 	} else {
 		valueSQL = "splitByChar('=', arrayJoin(Tags))[2] AS value"
-		wr.Andf(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
+		wr.And(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
 	}
 
 	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)

@@ -42,7 +42,7 @@ func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 
 	w := where.New()
 
-	w.Andf(where.Eq("Level", level+levelOffset))
+	w.And(where.Eq("Level", level+levelOffset))
 	w.And(where.TreeGlob("Path", query))
 
 	return w
@@ -89,7 +89,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 			time.Unix(until, 0).Format("2006-01-02"),
 		)
 	} else {
-		w.Andf(where.Eq("Date", DefaultTreeDate))
+		w.And(where.Eq("Date", DefaultTreeDate))
 	}
 
 	idx.body, err = clickhouse.Query(
