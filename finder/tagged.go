@@ -226,6 +226,11 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 		return err
 	}
 
+	return t.ExecutePrepared(ctx, terms, from, until)
+}
+
+func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
+	var err error
 	w, pw := TaggedWhere(terms)
 
 	w.Andf(

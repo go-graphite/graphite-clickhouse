@@ -93,3 +93,19 @@ func Leaf(value []byte) ([]byte, bool) {
 
 	return value, true
 }
+
+func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64) (Result, error) {
+	opts := clickhouse.Options{
+		Timeout:        config.ClickHouse.TreeTimeout.Value(),
+		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+	}
+
+	fnd := NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, opts)
+
+	err := fnd.ExecutePrepared(ctx, terms, from, until)
+	if err != nil {
+		return nil, err
+	}
+
+	return Finder(fnd).(Result), err
+}
