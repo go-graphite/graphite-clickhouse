@@ -14,8 +14,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
-	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 
@@ -106,16 +106,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aliases := make(map[string][]string)
-	targets := make([]string, 0)
+	am := alias.New()
+	targets := dry.RemoveEmptyStrings(r.Form["target"])
 
-	for t := 0; t < len(r.Form["target"]); t++ {
-		target := r.Form["target"][t]
-		if len(target) == 0 {
-			continue
-		}
-		targets = append(targets, target)
-
+	for _, target := range targets {
 		// Search in small index table first
 		fndResult, err := finder.Find(h.config, r.Context(), target, fromTimestamp, untilTimestamp)
 		if err != nil {
@@ -123,20 +117,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fndSeries := fndResult.Series()
-
-		for i := 0; i < len(fndSeries); i++ {
-			key := string(fndSeries[i])
-			abs := string(fndResult.Abs(fndSeries[i]))
-			if x, ok := aliases[key]; ok {
-				aliases[key] = append(x, abs, target)
-			} else {
-				aliases[key] = []string{abs, target}
-			}
-		}
+		am.MergeTarget(fndResult, target)
 	}
 
-	logger.Info("finder", zap.Int("metrics", len(aliases)))
+	logger.Info("finder", zap.Int("metrics", am.Len()))
 
 	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets, config.ContextGraphite)
 	if pointsTable == "" {
@@ -150,24 +134,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().Unix()
 	age := uint32(dry.Max(0, now-fromTimestamp))
 
-	// make Path IN (...), calculate max step
-	metricList := make([]string, 0, len(aliases))
-	for m := range aliases {
-		if len(m) == 0 {
-			continue
-		}
-
-		step, _ := rollupObj.Lookup(m, age)
-		if step > maxStep {
-			maxStep = step
-		}
-
-		if isReverse {
-			metricList = append(metricList, reverse.String(m))
-		} else {
-			metricList = append(metricList, m)
-		}
-	}
+	metricList := am.Series(isReverse)
 
 	if len(metricList) == 0 {
 		// Return empty response
@@ -175,21 +142,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	preWhere := where.New()
-	preWhere.Andf(
-		"Date >='%s' AND Date <= '%s'",
-		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
-		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
-	)
+	// calculate max step
+	for _, m := range metricList {
+		step, _ := rollupObj.Lookup(m, age)
+		if step > maxStep {
+			maxStep = step
+		}
+	}
+
+	pw := where.New()
+	pw.And(where.DateBetween("Date", time.Unix(fromTimestamp, 0), time.Unix(untilTimestamp, 0)))
 
 	wr := where.New()
 	wr.And(where.In("Path", metricList))
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
-	wr.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
+	wr.And(where.TimestampBetween("Time", fromTimestamp, until))
 
 	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s FORMAT RowBinary`,
-		pointsTable, preWhere.PreWhereSQL(), wr.SQL(),
+		pointsTable, pw.PreWhereSQL(), wr.SQL(),
 	)
 
 	// start carbonlink request
@@ -231,7 +202,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
 	data.Points.Uniq()
-	data.Aliases = aliases
+	data.Aliases = am
 
 	// pp.Println(points)
 	h.Reply(w, r, data, uint32(fromTimestamp), uint32(untilTimestamp), prefix, rollupObj)

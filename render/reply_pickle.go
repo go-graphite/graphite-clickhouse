@@ -108,9 +108,8 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		}
 		rollupTime += time.Since(rollupStart)
 
-		a := data.Aliases[metricName]
-		for k := 0; k < len(a); k += 2 {
-			writeAlias(a[k], a[k+1], points, step)
+		for _, a := range data.Aliases.Get(metricName) {
+			writeAlias(a.DisplayName, a.Target, points, step)
 		}
 	}
 	// group by Metric

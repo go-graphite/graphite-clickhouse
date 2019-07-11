@@ -10,6 +10,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 )
 
@@ -41,7 +42,7 @@ type Data struct {
 	length  int // readed bytes count
 	Points  *point.Points
 	nameMap map[string]string
-	Aliases map[string][]string
+	Aliases *alias.Map
 }
 
 var EmptyData *Data = &Data{Points: point.NewPoints()}

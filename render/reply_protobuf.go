@@ -124,9 +124,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 			return
 		}
 
-		a := data.Aliases[metricName]
-		for k := 0; k < len(a); k += 2 {
-			writeAlias(a[k], points, step)
+		for _, a := range data.Aliases.Get(metricName) {
+			writeAlias(a.DisplayName, points, step)
 		}
 	}
 
