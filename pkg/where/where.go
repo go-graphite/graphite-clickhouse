@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -97,6 +98,17 @@ func In(field string, list []string) string {
 	}
 	buf.WriteByte(')')
 	return buf.String()
+}
+
+func DateBetween(field string, from time.Time, until time.Time) string {
+	return fmt.Sprintf(
+		"%s >='%s' AND %s <= '%s'",
+		field, from.Format("2006-01-02"), field, until.Format("2006-01-02"),
+	)
+}
+
+func TimestampBetween(field string, from int64, until int64) string {
+	return fmt.Sprintf("%s >= %d AND %s <= %d", field, from, field, until)
 }
 
 type Where struct {

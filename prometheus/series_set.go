@@ -3,6 +3,7 @@ package prometheus
 import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -20,19 +21,17 @@ type seriesIterator struct {
 type series struct {
 	metricName string
 	points     []point.Point
-	labeler    Labeler
 }
 
 // SeriesSet contains a set of series.
 type seriesSet struct {
 	series  []series
 	current int
-	labeler Labeler
 }
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *rollup.Rules, labeler Labeler) (storage.SeriesSet, error) {
+func makeSeriesSet(data *render.Data, am *alias.Map, rollupRules *rollup.Rules) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -52,8 +51,8 @@ func makeSeriesSet(data *render.Data, aliases map[string][]string, rollupRules *
 			return err
 		}
 
-		for _, metricAlias := range aliases[metricName] {
-			ss.series = append(ss.series, series{metricName: metricAlias, points: points, labeler: labeler})
+		for _, v := range am.Get(metricName) {
+			ss.series = append(ss.series, series{metricName: v.DisplayName, points: points})
 		}
 
 		return nil
@@ -167,8 +166,5 @@ func (s *series) name() string {
 }
 
 func (s *series) Labels() labels.Labels {
-	if s.labeler != nil {
-		return s.labeler.Labels(s.name())
-	}
-	return DefaultLabeler.Labels(s.name())
+	return Labels(s.name())
 }

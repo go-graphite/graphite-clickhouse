@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTaggedLabeler(t *testing.T) {
+func TestLabels(t *testing.T) {
 	assert := assert.New(t)
 
 	table := [][2]string{
@@ -24,9 +24,7 @@ func TestTaggedLabeler(t *testing.T) {
 		},
 	}
 
-	labeler := &TaggedLabeler{}
-
 	for _, c := range table {
-		assert.Equal(c[1], labeler.Labels(c[0]).String())
+		assert.Equal(c[1], Labels(c[0]).String())
 	}
 }

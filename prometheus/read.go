@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -12,9 +11,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -23,47 +24,32 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *Handler) series(ctx context.Context, q *prompb.Query) ([][]byte, error) {
-	tagWhere, err := wherePromPB(q.Matchers)
+func (h *Handler) series(ctx context.Context, q *prompb.Query) (*alias.Map, error) {
+	terms, err := makeTaggedFromPromPB(q.Matchers)
 	if err != nil {
 		return nil, err
 	}
-
-	w := where.New()
-	w.Andf(
-		"Date >='%s' AND Date <= '%s'",
-		time.Unix(q.StartTimestampMs/1000, 0).Format("2006-01-02"),
-		time.Unix(q.EndTimestampMs/1000, 0).Format("2006-01-02"),
-	)
-	w.And(tagWhere)
-
-	sql := fmt.Sprintf(
-		"SELECT Path FROM %s %s GROUP BY Path",
-		h.config.ClickHouse.TaggedTable,
-		w.SQL(),
-	)
-	body, err := clickhouse.Query(
-		scope.WithTable(ctx, h.config.ClickHouse.TaggedTable),
-		h.config.ClickHouse.Url,
-		sql,
-		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
-		},
-	)
+	fndResult, err := finder.FindTagged(h.config, ctx, terms, q.StartTimestampMs/1000, q.EndTimestampMs/1000)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return bytes.Split(body, []byte{'\n'}), nil
+	am := alias.New()
+	am.Merge(fndResult)
+	return am, nil
 }
 
-func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][]byte) (*prompb.QueryResult, error) {
+func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map) (*prompb.QueryResult, error) {
+	if am.Len() == 0 {
+		// Return empty response
+		return &prompb.QueryResult{}, nil
+	}
+
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
 
-	pointsTable, _, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{}, config.ContextPrometheus)
+	pointsTable, isReverse, rollupObj := render.SelectDataTable(h.config, fromTimestamp, untilTimestamp, []string{}, config.ContextPrometheus)
 	if pointsTable == "" {
 		err := fmt.Errorf("data table is not specified")
 		scope.Logger(ctx).Error("select data table failed", zap.Error(err))
@@ -71,64 +57,32 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	}
 
 	var maxStep uint32
-	listBuf := bytes.NewBuffer(nil)
 
 	now := time.Now().Unix()
 	age := uint32(dry.Max(0, now-fromTimestamp))
+	series := am.Series(isReverse)
 
-	// make Path IN (...), calculate max step
-	count := 0
-	for _, m := range metricList {
-		if len(m) == 0 {
-			continue
-		}
-		step, _ := rollupObj.LookupBytes(m, age)
+	for _, m := range series {
+		step, _ := rollupObj.Lookup(m, age)
 		if step > maxStep {
 			maxStep = step
 		}
-
-		if count > 0 {
-			listBuf.WriteByte(',')
-		}
-
-		listBuf.WriteString(clickhouse.QueryBytes(m))
-		count++
 	}
-
-	if listBuf.Len() == 0 {
-		// Return empty response
-		return &prompb.QueryResult{}, nil
-	}
-
-	preWhere := where.New()
-	preWhere.Andf(
+	pw := where.New()
+	pw.Andf(
 		"Date >='%s' AND Date <= '%s'",
 		time.Unix(fromTimestamp, 0).Format("2006-01-02"),
 		time.Unix(untilTimestamp, 0).Format("2006-01-02"),
 	)
 
-	w := where.New()
-	if count > 1 {
-		w.Andf("Path in (%s)", listBuf.String())
-	} else {
-		w.Andf("Path = %s", listBuf.String())
-	}
+	wr := where.New()
+	wr.And(where.In("Path", series))
 
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
-	w.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
+	wr.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
 
-	query := fmt.Sprintf(
-		`
-		SELECT
-			Path, Time, Value, Timestamp
-		FROM %s
-		PREWHERE (%s)
-		%s
-		FORMAT RowBinary
-		`,
-		pointsTable,
-		preWhere.String(),
-		w.SQL(),
+	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s	FORMAT RowBinary`,
+		pointsTable, pw.PreWhereSQL(), wr.SQL(),
 	)
 
 	body, err := clickhouse.Reader(
@@ -150,10 +104,10 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, metricList [][
 	data.Points.Sort()
 	data.Points.Uniq()
 
-	return h.makeQueryResult(ctx, data, rollupObj, uint32(fromTimestamp), uint32(untilTimestamp))
+	return h.makeQueryResult(ctx, data, rollupObj, am, uint32(fromTimestamp), uint32(untilTimestamp))
 }
 
-func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollupObj *rollup.Rules, from, until uint32) (*prompb.QueryResult, error) {
+func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollupObj *rollup.Rules, am *alias.Map, from, until uint32) (*prompb.QueryResult, error) {
 	if data == nil {
 		return &prompb.QueryResult{}, nil
 	}
@@ -168,36 +122,39 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 		Timeseries: make([]*prompb.TimeSeries, 0),
 	}
 
-	writeMetric := func(name string, points []point.Point) {
-		u, err := url.Parse(name)
-		if err != nil {
-			return
-		}
-
-		points, _, err = rollupObj.RollupMetric(data.Points.MetricName(points[0].MetricID), from, points)
+	writeMetric := func(points []point.Point) {
+		metricName := data.Points.MetricName(points[0].MetricID)
+		points, _, err := rollupObj.RollupMetric(metricName, from, points)
 		if err != nil {
 			scope.Logger(ctx).Error("rollup failed", zap.Error(err))
 			return
 		}
 
-		serie := &prompb.TimeSeries{
-			Labels:  make([]prompb.Label, 0, len(u.Query())+1),
-			Samples: make([]prompb.Sample, 0, len(points)),
-		}
+		for _, dn := range am.Get(metricName) {
+			u, err := url.Parse(dn.DisplayName)
+			if err != nil {
+				return
+			}
 
-		serie.Labels = append(serie.Labels, prompb.Label{Name: "__name__", Value: u.Path})
+			serie := &prompb.TimeSeries{
+				Labels:  make([]prompb.Label, 0, len(u.Query())+1),
+				Samples: make([]prompb.Sample, 0, len(points)),
+			}
 
-		for k, v := range u.Query() {
-			serie.Labels = append(serie.Labels, prompb.Label{Name: k, Value: v[0]})
-		}
+			serie.Labels = append(serie.Labels, prompb.Label{Name: "__name__", Value: u.Path})
 
-		for i := 0; i < len(points); i++ {
-			serie.Samples = append(serie.Samples, prompb.Sample{
-				Value:     points[i].Value,
-				Timestamp: int64(points[i].Time) * 1000,
-			})
+			for k, v := range u.Query() {
+				serie.Labels = append(serie.Labels, prompb.Label{Name: k, Value: v[0]})
+			}
+
+			for i := 0; i < len(points); i++ {
+				serie.Samples = append(serie.Samples, prompb.Sample{
+					Value:     points[i].Value,
+					Timestamp: int64(points[i].Time) * 1000,
+				})
+			}
+			result.Timeseries = append(result.Timeseries, serie)
 		}
-		result.Timeseries = append(result.Timeseries, serie)
 	}
 
 	// group by Metric
@@ -208,12 +165,12 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, rollup
 
 	for i = 1; i < l; i++ {
 		if points[i].MetricID != points[n].MetricID {
-			writeMetric(data.Points.MetricName(points[n].MetricID), points[n:i])
+			writeMetric(points[n:i])
 			n = i
 		}
 	}
 
-	writeMetric(data.Points.MetricName(points[n].MetricID), points[n:i])
+	writeMetric(points[n:i])
 
 	return result, nil
 }
@@ -245,13 +202,13 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < len(req.Queries); i++ {
 		q := req.Queries[i]
-		series, err := h.series(r.Context(), q)
+		aliases, err := h.series(r.Context(), q)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		queryResult, err := h.queryData(r.Context(), q, series)
+		queryResult, err := h.queryData(r.Context(), q, aliases)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

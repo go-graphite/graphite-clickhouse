@@ -9,12 +9,10 @@ import (
 type metricsSet struct {
 	metrics []string
 	current int
-	labeler Labeler
 }
 
 type metric struct {
-	name    string
-	labeler Labeler
+	name string
 }
 
 type dummyIterator struct{}
@@ -23,7 +21,7 @@ var _ storage.SeriesSet = &metricsSet{}
 var _ storage.SeriesIterator = &dummyIterator{}
 
 func (ms *metricsSet) At() storage.Series {
-	return &metric{name: ms.metrics[ms.current], labeler: ms.labeler}
+	return &metric{name: ms.metrics[ms.current]}
 }
 
 // Seek advances the iterator forward to the value at or after
@@ -45,10 +43,7 @@ func (s *metric) Iterator() storage.SeriesIterator {
 }
 
 func (s *metric) Labels() labels.Labels {
-	if s.labeler != nil {
-		s.labeler.Labels(s.name)
-	}
-	return DefaultLabeler.Labels(s.name)
+	return Labels(s.name)
 }
 
 // Err returns the current error.
@@ -64,6 +59,6 @@ func (ms *metricsSet) Next() bool {
 	return ms.current < len(ms.metrics)
 }
 
-func newMetricsSet(metrics []string, labeler Labeler) storage.SeriesSet {
-	return &metricsSet{metrics: metrics, current: -1, labeler: labeler}
+func newMetricsSet(metrics []string) storage.SeriesSet {
+	return &metricsSet{metrics: metrics, current: -1}
 }

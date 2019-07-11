@@ -8,15 +8,6 @@ import (
 	"github.com/prometheus/prometheus/pkg/labels"
 )
 
-type Labeler interface {
-	Labels(path string) labels.Labels
-}
-
-type TaggedLabeler struct {
-}
-
-var DefaultLabeler Labeler = &TaggedLabeler{}
-
 func urlParse(rawurl string) (*url.URL, error) {
 	p := strings.IndexByte(rawurl, '?')
 	if p < 0 {
@@ -29,7 +20,7 @@ func urlParse(rawurl string) (*url.URL, error) {
 	return m, err
 }
 
-func (*TaggedLabeler) Labels(path string) labels.Labels {
+func Labels(path string) labels.Labels {
 	u, err := urlParse(path)
 	if err != nil {
 		return labels.Labels{labels.Label{Name: "__name__", Value: path}}
