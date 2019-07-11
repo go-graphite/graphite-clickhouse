@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -16,61 +15,30 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) (map[string][]string, error) {
-	matchWhere, err := wherePromQL(labelsMatcher)
-	if err != nil {
-		return nil, err
-	}
+func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) (map[string][]string, Labeler, error) {
+	var labeler Labeler
+	var err error
+	var fndResult finder.Result
 
-	w := where.New()
-	w.Andf(
-		"Date >='%s' AND Date <= '%s'",
-		from.Format("2006-01-02"),
-		until.Format("2006-01-02"),
-	)
-	w.And(matchWhere)
+	plainGraphite := makePlainGraphiteQuery(labelsMatcher...)
 
-	sql := fmt.Sprintf(
-		"SELECT Path FROM %s %s GROUP BY Path",
-		q.config.ClickHouse.TaggedTable,
-		w.SQL(),
-	)
-	body, err := clickhouse.Query(
-		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
-		q.config.ClickHouse.Url,
-		sql,
-		clickhouse.Options{
-			Timeout:        q.config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value(),
-		},
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	aliases := make(map[string][]string)
-	for _, m := range strings.Split(string(body), "\n") {
-		if m == "" {
-			continue
+	if plainGraphite != nil {
+		labeler = plainGraphite
+		fndResult, err = finder.Find(q.config, q.ctx, plainGraphite.Target(), from.Unix(), until.Unix())
+	} else {
+		terms, err := makeTaggedFromPromQL(labelsMatcher)
+		if err != nil {
+			return nil, nil, err
 		}
-		aliases[m] = []string{m}
+		fndResult, err = finder.FindTagged(q.config, q.ctx, terms, from.Unix(), until.Unix())
 	}
-
-	return aliases, nil
-}
-
-func (q *Querier) lookupPlainGraphite(from, until time.Time, target string) (map[string][]string, error) {
-	aliases := make(map[string][]string)
-
-	// Search in small index table first
-	fndResult, err := finder.Find(q.config, q.ctx, target, from.Unix(), until.Unix())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	aliases := make(map[string][]string)
 
 	fndSeries := fndResult.Series()
-
 	for i := 0; i < len(fndSeries); i++ {
 		key := string(fndSeries[i])
 		abs := string(fndResult.Abs(fndSeries[i]))
@@ -81,7 +49,7 @@ func (q *Querier) lookupPlainGraphite(from, until time.Time, target string) (map
 		}
 	}
 
-	return aliases, nil
+	return aliases, labeler, nil
 }
 
 // Select returns a set of series that matches the given label matchers.
@@ -109,19 +77,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		from = until.AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	}
 
-	var labeler Labeler
-
-	plainGraphite := makePlainGraphiteQuery(labelsMatcher...)
-
-	var aliases map[string][]string
-	var err error
-
-	if plainGraphite != nil {
-		labeler = plainGraphite
-		aliases, err = q.lookupPlainGraphite(from, until, plainGraphite.Target())
-	} else {
-		aliases, err = q.lookup(from, until, labelsMatcher...)
-	}
+	aliases, labeler, err := q.lookup(from, until, labelsMatcher...)
 	if err != nil {
 		return nil, nil, err
 	}
