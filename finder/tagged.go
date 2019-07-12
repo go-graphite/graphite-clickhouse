@@ -109,7 +109,7 @@ func TaggedTermWhereN(term *TaggedTerm) string {
 	case TaggedTermMatch:
 		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s), Tags)", where.Match("x", term.concat()))
+		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
 	default:
 		return ""
 	}
