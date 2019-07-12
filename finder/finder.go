@@ -29,7 +29,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 	var f Finder
 
 	if config.ClickHouse.TaggedTable != "" && strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
-		f = NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, opts)
+		f = NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, false, opts)
 
 		if len(config.Common.Blacklist) > 0 {
 			f = WrapBlacklist(f, config.Common.Blacklist)
@@ -110,7 +110,7 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 		return Result(plain), nil
 	}
 
-	fnd := NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, opts)
+	fnd := NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, true, opts)
 
 	err := fnd.ExecutePrepared(ctx, terms, from, until)
 	if err != nil {

@@ -52,17 +52,19 @@ func (s TaggedTermList) Less(i, j int) bool {
 }
 
 type TaggedFinder struct {
-	url   string             // clickhouse dsn
-	table string             // graphite_tag table
-	opts  clickhouse.Options // clickhouse query timeout
-	body  []byte             // clickhouse response
+	url            string             // clickhouse dsn
+	table          string             // graphite_tag table
+	absKeepEncoded bool               // Abs returns url encoded value. For queries from prometheus
+	opts           clickhouse.Options // clickhouse query timeout
+	body           []byte             // clickhouse response
 }
 
-func NewTagged(url string, table string, opts clickhouse.Options) *TaggedFinder {
+func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Options) *TaggedFinder {
 	return &TaggedFinder{
-		url:   url,
-		table: table,
-		opts:  opts,
+		url:            url,
+		table:          table,
+		absKeepEncoded: absKeepEncoded,
+		opts:           opts,
 	}
 }
 
@@ -272,6 +274,10 @@ func (t *TaggedFinder) Series() [][]byte {
 }
 
 func (t *TaggedFinder) Abs(v []byte) []byte {
+	if t.absKeepEncoded {
+		return v
+	}
+
 	u, err := url.Parse(string(v))
 	if err != nil {
 		return v

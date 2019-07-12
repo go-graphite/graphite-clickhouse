@@ -2,6 +2,8 @@ package finder
 
 import (
 	"context"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -54,7 +56,6 @@ func makePlainFromTagged(matchers []TaggedTerm) *plainFromTaggedFinder {
 	}
 
 	return q
-
 }
 
 func (f *plainFromTaggedFinder) Target() string {
@@ -70,9 +71,47 @@ func (f *plainFromTaggedFinder) Series() [][]byte {
 	return f.wrappedPlain.Series()
 }
 
+type taggedLabel struct {
+	name  string
+	value string
+}
+
 func (f *plainFromTaggedFinder) Abs(value []byte) []byte {
-	// @TODO
-	return value
+	name := "graphite"
+	path := string(value)
+	lb := []taggedLabel{
+		taggedLabel{"metric", path},
+	}
+	if f.metricName != "" {
+		name = f.metricName
+	}
+
+	if len(f.nodeLabel) > 0 {
+		a := strings.Split(path, ".")
+		for n, v := range a {
+			l := f.nodeLabel[n]
+			if l != "" {
+				lb = append(lb, taggedLabel{l, v})
+			}
+		}
+	}
+
+	sort.Slice(lb, func(i, j int) bool { return lb[i].name < lb[j].name })
+
+	var buf strings.Builder
+
+	buf.WriteString(name)
+	buf.WriteByte('?')
+	for i, l := range lb {
+		if i > 0 {
+			buf.WriteByte('&')
+		}
+		buf.WriteString(url.QueryEscape(l.name))
+		buf.WriteByte('=')
+		buf.WriteString(url.QueryEscape(l.value))
+	}
+
+	return []byte(buf.String())
 }
 
 func (f *plainFromTaggedFinder) List() [][]byte {
