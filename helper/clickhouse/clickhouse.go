@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/zapwriter"
@@ -196,7 +195,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	req.Header.Add("User-Agent", fmt.Sprintf("graphite-clickhouse/%s (table:%s)", version.Version, scope.Table(ctx)))
+	req.Header.Add("User-Agent", scope.ClickhouseUserAgent(ctx))
 
 	if gzip {
 		req.Header.Add("Content-Encoding", "gzip")

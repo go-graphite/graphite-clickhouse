@@ -1,6 +1,9 @@
 package scope
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // key is type for context.Value keys
 type scopeKey string
@@ -36,4 +39,13 @@ func WithTable(ctx context.Context, table string) context.Context {
 // Table ...
 func Table(ctx context.Context) string {
 	return String(ctx, "table")
+}
+
+// ClickhouseUserAgent ...
+func ClickhouseUserAgent(ctx context.Context) string {
+	grafana := Grafana(ctx)
+	if grafana != "" {
+		return fmt.Sprintf("Graphite-Clickhouse/%s (table:%s) Grafana(%s)", Version, Table(ctx), grafana)
+	}
+	return fmt.Sprintf("Graphite-Clickhouse/%s (table:%s)", Version, Table(ctx))
 }

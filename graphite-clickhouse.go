@@ -1,21 +1,18 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
-	"regexp"
 	"runtime"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/autocomplete"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
-	"github.com/lomik/graphite-clickhouse/helper/version"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
@@ -31,7 +28,7 @@ import (
 const Version = "0.11.5"
 
 func init() {
-	version.Version = Version
+	scope.Version = Version
 }
 
 type LogResponseWriter struct {
@@ -58,43 +55,23 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
-var requestIdRegexp *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
-var passHeaders = []string{
-	"X-Dashboard-Id",
-	"X-Grafana-Org-Id",
-	"X-Panel-Id",
-}
-
-func Handler(logger *zap.Logger, handler http.Handler) http.Handler {
+func Handler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
-		requestID := r.Header.Get("X-Request-Id")
-		if requestID == "" || !requestIdRegexp.MatchString(requestID) {
-			var b [16]byte
-			binary.LittleEndian.PutUint64(b[:], rand.Uint64())
-			binary.LittleEndian.PutUint64(b[8:], rand.Uint64())
-			requestID = fmt.Sprintf("%x", b)
-		}
-
-		logger := logger.With(zap.String("request_id", requestID))
-
-		ctx := r.Context()
-		ctx = scope.WithLogger(ctx, logger)
-		ctx = scope.WithRequestID(ctx, requestID)
-
-		for _, h := range passHeaders {
-			hv := r.Header.Get(h)
-			if hv != "" {
-				ctx = scope.With(ctx, h, hv)
-			}
-		}
-
-		r = r.WithContext(ctx)
+		r = scope.HttpRequest(r)
 
 		start := time.Now()
 		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
+
+		logger := scope.Logger(r.Context())
+
+		grafana := scope.Grafana(r.Context())
+		if grafana != "" {
+			logger = logger.With(zap.String("grafana", grafana))
+		}
+
 		logger.Info("access",
 			zap.Duration("time", d),
 			zap.String("method", r.Method),
@@ -166,11 +143,11 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
-	http.Handle("/metrics/find/", Handler(zapwriter.Default(), find.NewHandler(cfg)))
-	http.Handle("/metrics/index.json", Handler(zapwriter.Default(), index.NewHandler(cfg)))
-	http.Handle("/render/", Handler(zapwriter.Default(), render.NewHandler(cfg)))
-	http.Handle("/tags/autoComplete/tags", Handler(zapwriter.Default(), autocomplete.NewTags(cfg)))
-	http.Handle("/tags/autoComplete/values", Handler(zapwriter.Default(), autocomplete.NewValues(cfg)))
+	http.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
+	http.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
+	http.Handle("/render/", Handler(render.NewHandler(cfg)))
+	http.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
+	http.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
 	http.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
@@ -180,7 +157,7 @@ func main() {
 		w.Write(b)
 	})
 
-	http.Handle("/", Handler(zapwriter.Default(), prometheus.NewHandler(cfg)))
+	http.Handle("/", Handler(prometheus.NewHandler(cfg)))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, nil))
 }

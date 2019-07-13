@@ -3,20 +3,29 @@ package scope
 import (
 	"context"
 
+	"github.com/lomik/zapwriter"
 	"go.uber.org/zap"
 )
 
 // Logger returns zap.Logger instance
 func Logger(ctx context.Context) *zap.Logger {
 	logger := ctx.Value(scopeKey("logger"))
-	if logger == nil {
-		return zap.NewNop()
+	var zapLogger *zap.Logger
+	if logger != nil {
+		if zl, ok := logger.(*zap.Logger); ok {
+			zapLogger = zl
+		}
 	}
-	if zapLogger, ok := logger.(*zap.Logger); ok {
-		return zapLogger
+	if zapLogger == nil {
+		zapLogger = zapwriter.Default()
 	}
 
-	return zap.NewNop()
+	requestId := RequestID(ctx)
+	if requestId != "" {
+		zapLogger = zapLogger.With(zap.String("request_id", requestId))
+	}
+
+	return zapLogger
 }
 
 // WithLogger ...
