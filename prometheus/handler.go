@@ -38,7 +38,7 @@ type Handler struct {
 func NewHandler(config *config.Config) *Handler {
 	h := &Handler{
 		config:      config,
-		queryEngine: promql.NewEngine(promql.EngineOpts{MaxConcurrent: 100, MaxSamples: 1000000, Timeout: time.Minute}),
+		queryEngine: promql.NewEngine(promql.EngineOpts{MaxConcurrent: 100, MaxSamples: 50000000, Timeout: time.Minute}),
 	}
 
 	apiV1 := v1.NewAPI(
