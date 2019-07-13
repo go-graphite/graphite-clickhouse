@@ -18,7 +18,7 @@ You can use `promtool` to test your rules.
 ## Test file format
 
 ```yaml
-# This is a list of rule files to consider for testing.
+# This is a list of rule files to consider for testing. Globs are supported.
 rule_files:
   [ - <file_name> ]
 
@@ -53,6 +53,10 @@ alert_rule_test:
 # Unit tests PromQL expressions.
 promql_expr_test:
   [ - <promql_test_case> ]
+
+# External labels accessible to the alert template.
+external_labels:
+  [ <labelname>: <string> ... ]
 ```
 
 ### `<series>`

@@ -3,7 +3,7 @@
 cd `dirname $0`
 ROOT=`pwd`
 
-PROMETHEUS_VERSION="v2.10.0"
+PROMETHEUS_VERSION="v2.11.1"
 
 rm -rf vendor
 rm -rf vendor_tmp

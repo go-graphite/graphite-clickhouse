@@ -37,7 +37,7 @@ func (q *Querier) Close() error {
 }
 
 // LabelValues returns all potential values for a label name.
-func (q *Querier) LabelValues(label string) ([]string, error) {
+func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) {
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
 
@@ -52,7 +52,7 @@ func (q *Querier) LabelValues(label string) ([]string, error) {
 	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rows := strings.Split(string(body), "\n")
@@ -60,11 +60,11 @@ func (q *Querier) LabelValues(label string) ([]string, error) {
 		rows = rows[:len(rows)-1]
 	}
 
-	return rows, nil
+	return rows, nil, nil
 }
 
 // LabelNames returns all the unique label names present in the block in sorted order.
-func (q *Querier) LabelNames() ([]string, error) {
+func (q *Querier) LabelNames() ([]string, storage.Warnings, error) {
 	w := where.New()
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
@@ -77,7 +77,7 @@ func (q *Querier) LabelNames() ([]string, error) {
 	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
 		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rows := strings.Split(string(body), "\n")
@@ -85,5 +85,5 @@ func (q *Querier) LabelNames() ([]string, error) {
 		rows = rows[:len(rows)-1]
 	}
 
-	return rows, nil
+	return rows, nil, nil
 }

@@ -29,6 +29,7 @@ require (
 	github.com/go-kit/kit v0.8.0
 	github.com/go-logfmt/logfmt v0.4.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-openapi/strfmt v0.19.0
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/groupcache v0.0.0-20180924190550-6f2cf27854a4 // indirect
@@ -42,13 +43,12 @@ require (
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/hashicorp/go-msgpack v0.5.4 // indirect
-	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/influxdata/influxdb v0.0.0-20170331210902-15e594fc09f1
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgx v3.2.0+incompatible // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20160803190731-bd40a432e4c7 // indirect
-	github.com/json-iterator/go v1.1.5
+	github.com/json-iterator/go v1.1.6
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/knz/strtime v0.0.0-20181018220328-af2256ee352c // indirect
 	github.com/lib/pq v1.0.0 // indirect
@@ -56,8 +56,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/miekg/dns v1.1.10
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/montanaflynn/stats v0.0.0-20180911141734-db72e6cae808 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223
 	github.com/oklog/run v1.0.0
@@ -68,10 +66,11 @@ require (
 	github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea // indirect
 	github.com/petermattis/goid v0.0.0-20170504144140-0ded85884ba5 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v0.9.3
+	github.com/prometheus/alertmanager v0.17.0
+	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
-	github.com/prometheus/common v0.4.0
-	github.com/prometheus/tsdb v0.8.0
+	github.com/prometheus/common v0.4.1
+	github.com/prometheus/tsdb v0.9.1
 	github.com/rlmcpherson/s3gof3r v0.5.0 // indirect
 	github.com/rubyist/circuitbreaker v2.2.1+incompatible // indirect
 	github.com/samuel/go-zookeeper v0.0.0-20161028232340-1d7be4effb13
@@ -79,7 +78,7 @@ require (
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20171119174359-809beceb2371
-	github.com/shurcooL/vfsgen v0.0.0-20180711163814-62bca832be04
+	github.com/shurcooL/vfsgen v0.0.0-20180825020608-02ddb050ef6b
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20180222194500-ef6db91d284a // indirect
 	github.com/soheilhy/cmux v0.1.4
