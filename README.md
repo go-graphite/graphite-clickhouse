@@ -127,17 +127,20 @@ total-timeout = "500ms"
 # table = "table_name"
 # # points in table are stored with reverse path
 # reverse = false
-# # custom rollup.conf for table. Or magic word `auto`
+# # Custom rollup.xml for table. 
+# # Magic word `auto` can be used for load rules from ClickHouse
+# # With value `none` only rollup-default-precision and rollup-default-function will be used for rollup
 # rollup-conf = ""
 # # Which table to discover rollup-rules from. If not specified - will use what specified in "table" parameter.
 # # Useful when reading from distributed table, but the rollup parameters are on the shard tables.
 # # Can be in "database.table" form.
 # rollup-auto-table = ""
-# # Sets the default precision for rollup patterns which don't have age=0 retention defined.
+# # Sets the default precision and function for rollup patterns which don't have age=0 retention defined.
 # # If age=0 retention is defined in the rollup config then it takes precedence.
 # # If left at the default value of 0 then no rollup is performed when the requested interval 
-# # is not covered by any rollup rule. In this case the points will be served with 1 second precision.
-# rollup-default-precision = 0
+# # is not covered by any rollup rule. In this case the points will be served with 60 second precision.
+# rollup-default-precision = 60
+# rollup-default-function = "avg"
 # # from >= now - {max-age}
 # max-age = "240h"
 # # until <= now - {min-age}
