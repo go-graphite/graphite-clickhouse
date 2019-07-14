@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
@@ -19,18 +20,35 @@ type Index struct {
 }
 
 func New(config *config.Config, ctx context.Context) (*Index, error) {
-	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.TreeTimeout.Value(),
-		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+	var reader io.ReadCloser
+	var err error
+
+	if config.ClickHouse.IndexTable != "" {
+		opts := clickhouse.Options{
+			Timeout:        config.ClickHouse.IndexTimeout.Value(),
+			ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		}
+		reader, err = clickhouse.Reader(
+			scope.WithTable(ctx, config.ClickHouse.IndexTable),
+			config.ClickHouse.Url,
+			fmt.Sprintf("SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
+				config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset),
+			opts,
+		)
+	} else {
+		opts := clickhouse.Options{
+			Timeout:        config.ClickHouse.TreeTimeout.Value(),
+			ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		}
+		reader, err = clickhouse.Reader(
+			scope.WithTable(ctx, config.ClickHouse.TreeTable),
+			config.ClickHouse.Url,
+			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path", config.ClickHouse.TreeTable),
+			opts,
+		)
 	}
-	reader, err := clickhouse.Reader(
-		scope.WithTable(ctx, config.ClickHouse.TreeTable),
-		config.ClickHouse.Url,
-		fmt.Sprintf("SELECT Path FROM %s GROUP BY Path", config.ClickHouse.TreeTable),
-		opts,
-	)
+
 	if err != nil {
-		reader.Close()
 		return nil, err
 	}
 
