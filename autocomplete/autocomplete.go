@@ -57,23 +57,26 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 
 	usedTags := make(map[string]bool)
 
+	wr := where.New()
+	pw := where.New()
+
 	if len(expr) == 0 {
-		return nil, nil, usedTags, nil
+		return wr, pw, usedTags, nil
 	}
 
 	terms, err := finder.ParseTaggedConditions(expr)
 	if err != nil {
-		return nil, nil, usedTags, err
+		return wr, pw, usedTags, err
 	}
 
-	w, pw := finder.TaggedWhere(terms)
+	wr, pw = finder.TaggedWhere(terms)
 
 	for i := 0; i < len(expr); i++ {
 		a := strings.Split(expr[i], "=")
 		usedTags[a[0]] = true
 	}
 
-	return w, pw, usedTags, nil
+	return wr, pw, usedTags, nil
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
