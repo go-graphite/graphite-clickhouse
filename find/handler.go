@@ -39,6 +39,7 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) {
 	case "pickle":
 		f.WritePickle(w)
 	case "protobuf":
+		w.Header().Set("Content-Type", "application/x-protobuf")
 		f.WriteProtobuf(w)
 	}
 }
