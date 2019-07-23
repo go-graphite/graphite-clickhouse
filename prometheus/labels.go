@@ -38,8 +38,8 @@ func Labels(path string) labels.Labels {
 		lb[i].Value = v[0]
 	}
 
-	if len(lb) > 2 {
-		sort.Slice(lb[1:], func(i, j int) bool { return lb[i+1].Name < lb[j+1].Name })
+	if len(lb) > 1 {
+		sort.Slice(lb, func(i, j int) bool { return lb[i].Name < lb[j].Name })
 	}
 
 	return lb
