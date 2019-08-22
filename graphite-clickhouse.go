@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/autocomplete"
@@ -126,6 +127,17 @@ func main() {
 	}
 
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
+
+	if cfg.Common.MemoryReturnInterval.Duration > 0 {
+		go func() {
+			t := time.NewTicker(cfg.Common.MemoryReturnInterval.Duration)
+
+			for {
+				<-t.C
+				debug.FreeOSMemory()
+			}
+		}()
+	}
 
 	/* CONFIG end */
 

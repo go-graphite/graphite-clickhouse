@@ -59,6 +59,9 @@ Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 [common]
 listen = ":9090"
 max-cpu = 1
+# How frequently to call debug.FreeOSMemory() to return memory back to OS
+# Setting it to zero disables this functionality
+memory-return-interval = "0s"
 # Limit number of results from find query. Zero = unlimited
 max-metrics-in-find-answer = 0
 # Daemon returns empty response if query matches any of regular expressions
