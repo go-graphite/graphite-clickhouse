@@ -60,14 +60,14 @@ func (d *Data) finalName(name string) string {
 }
 
 // Error handler for DataSplitFunc
-func splitErrorHandler(data *[]byte, atEOF bool, err error) (int, []byte, error) {
+func splitErrorHandler(data *[]byte, atEOF bool, tokenLen int, err error) (int, []byte, error) {
 	if err == errUvarintRead {
 		if atEOF {
 			return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(*data))
 		}
 		// signal for read more
 		return 0, nil, nil
-	} else if err != nil {
+	} else if err != nil || len(*data) < tokenLen {
 		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(*data))
 	}
 	// signal for read more
@@ -84,29 +84,29 @@ func DataSplitFunc(data []byte, atEOF bool) (advance int, token []byte, err erro
 	nameLen, readBytes, err := ReadUvarint(data)
 	tokenLen := int(readBytes) + int(nameLen)
 	if err != nil || len(data) < tokenLen {
-		return splitErrorHandler(&data, atEOF, err)
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += int(readBytes) + int(timeLen)*4
 	if err != nil || len(data) < tokenLen {
-		return splitErrorHandler(&data, atEOF, err)
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += int(readBytes) + int(valueLen)*8
 	if err != nil || len(data) < tokenLen {
-		return splitErrorHandler(&data, atEOF, err)
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timestampLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += int(readBytes) + int(timestampLen)*4
 	if err != nil || len(data) < tokenLen {
-		return splitErrorHandler(&data, atEOF, err)
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	if !(timeLen == valueLen && timeLen == timestampLen) {
-		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(data))
+		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error()+": Different amount of Values, Times and Timestamps", string(data))
 	}
 
 	return tokenLen, data[:tokenLen], nil

@@ -85,3 +85,37 @@ func (w *Encoder) StringList(value []string) error {
 
 	return nil
 }
+
+func (w *Encoder) Uint32List(value []uint32) error {
+	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+	_, err := w.wrapped.Write(w.buffer[:n])
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(value); i++ {
+		err = w.Uint32(value[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *Encoder) Float64List(value []float64) error {
+	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+	_, err := w.wrapped.Write(w.buffer[:n])
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(value); i++ {
+		err = w.Float64(value[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
