@@ -159,7 +159,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	wr.And(where.TimestampBetween("Time", fromTimestamp, until))
 
-	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s FORMAT RowBinary`,
+	query := fmt.Sprintf(QUERY,
 		pointsTable, pw.PreWhereSQL(), wr.SQL(),
 	)
 

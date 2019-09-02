@@ -81,7 +81,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
 	wr.Andf("Time >= %d AND Time <= %d", fromTimestamp, until)
 
-	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s	FORMAT RowBinary`,
+	query := fmt.Sprintf(render.QUERY,
 		pointsTable, pw.PreWhereSQL(), wr.SQL(),
 	)
 

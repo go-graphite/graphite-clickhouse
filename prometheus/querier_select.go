@@ -82,7 +82,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	pw := where.New()
 	pw.And(where.DateBetween("Date", from, until))
 
-	query := fmt.Sprintf(`SELECT Path, Time, Value, Timestamp FROM %s %s %s FORMAT RowBinary`,
+	query := fmt.Sprintf(render.QUERY,
 		pointsTable, pw.PreWhereSQL(), wr.SQL(),
 	)
 
