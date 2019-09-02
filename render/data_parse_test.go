@@ -9,11 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type pointValues struct {
+	Values     []float64
+	Times      []uint32
+	Timestamps []uint32
+}
+
 type testPoint struct {
-	Metric    string
-	Value     float64
-	Time      uint32
-	Timestamp uint32
+	Metric      string
+	PointValues *pointValues
 }
 
 func makeData(points []testPoint) []byte {
@@ -22,9 +26,9 @@ func makeData(points []testPoint) []byte {
 
 	for i := 0; i < len(points); i++ {
 		w.String(points[i].Metric)
-		w.Uint32(uint32(points[i].Time))
-		w.Float64(points[i].Value)
-		w.Uint32(uint32(points[i].Timestamp))
+		w.Uint32List(points[i].PointValues.Times)
+		w.Float64List(points[i].PointValues.Values)
+		w.Uint32List(points[i].PointValues.Timestamps)
 	}
 
 	return buf.Bytes()
@@ -43,20 +47,20 @@ func TestDataParse(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		table := [][]testPoint{
 			{
-				{"hello.world", 42.1, 1520056686, 1520056706},
+				{"hello.world", &pointValues{[]float64{42.1}, []uint32{1520056686}, []uint32{1520056706}}},
 			},
 			{
-				{"hello.world", 42.1, 1520056686, 1520056706},
-				{"foobar", 42.2, 1520056687, 1520056707},
+				{"hello.world", &pointValues{[]float64{42.1}, []uint32{1520056686}, []uint32{1520056706}}},
+				{"foobar", &pointValues{[]float64{42.2}, []uint32{1520056687}, []uint32{1520056707}}},
 			},
 			{
-				{"samelen1", 42.1, 1520056686, 1520056706},
-				{"samelen2", 42.2, 1520056687, 1520056707},
+				{"samelen1", &pointValues{[]float64{42.1}, []uint32{1520056686}, []uint32{1520056706}}},
+				{"samelen2", &pointValues{[]float64{42.2}, []uint32{1520056687}, []uint32{1520056707}}},
 			},
 			{
-				{"key1", 42.1, 1520056686, 1520056706},
-				{"key2", 42.2, 1520056687, 1520056707},
-				{"key1", 42.2, 1520056687, 1520056707},
+				{"key1", &pointValues{[]float64{42.1, 42.2},
+					[]uint32{1520056686, 1520056687}, []uint32{1520056706, 1520056687}}},
+				{"key2", &pointValues{[]float64{42.2}, []uint32{1520056687}, []uint32{1520056707}}},
 			},
 		}
 
@@ -67,24 +71,48 @@ func TestDataParse(t *testing.T) {
 				r := bytes.NewReader(body)
 
 				d, err := DataParse(r, nil, false)
+				// point number
+				p := 0
 				assert.NoError(t, err)
 				for j := 0; j < len(table[i]); j++ {
-					assert.Equal(t, table[i][j].Metric, d.Points.MetricName(d.Points.List()[j].MetricID))
-					assert.Equal(t, table[i][j].Time, d.Points.List()[j].Time)
-					assert.Equal(t, table[i][j].Value, d.Points.List()[j].Value)
-					assert.Equal(t, table[i][j].Timestamp, d.Points.List()[j].Timestamp)
+					for m := 0; m < len(table[i][j].PointValues.Times); m++ {
+						assert.Equal(t, table[i][j].Metric, d.Points.MetricName(d.Points.List()[p].MetricID))
+						assert.Equal(t, table[i][j].PointValues.Times[m], d.Points.List()[p].Time)
+						assert.Equal(t, table[i][j].PointValues.Values[m], d.Points.List()[p].Value)
+						assert.Equal(t, table[i][j].PointValues.Timestamps[m], d.Points.List()[p].Timestamp)
+						p++
+					}
 				}
 			})
 		}
 	})
 
+	t.Run("malformed ClickHouse body", func(t *testing.T) {
+		body := makeData([]testPoint{
+			{
+				Metric: "hello.world",
+				PointValues: &pointValues{
+					Values:     []float64{42.1},
+					Times:      []uint32{1520056686},
+					Timestamps: []uint32{1520056706, 1520056707},
+				},
+			},
+		})
+		r := bytes.NewReader(body)
+
+		_, err := DataParse(r, nil, false)
+		assert.Error(t, err)
+	})
+
 	t.Run("incomplete response", func(t *testing.T) {
 		body := makeData([]testPoint{
 			{
-				Metric:    "hello.world",
-				Value:     42.1,
-				Time:      1520056686,
-				Timestamp: 1520056706,
+				Metric: "hello.world",
+				PointValues: &pointValues{
+					Values:     []float64{42.1},
+					Times:      []uint32{1520056686},
+					Timestamps: []uint32{1520056706},
+				},
 			},
 		})
 
