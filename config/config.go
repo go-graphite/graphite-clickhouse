@@ -147,6 +147,7 @@ func New() *Config {
 			// MetricEndpoint: MetricEndpointLocal,
 			MaxCPU:                 1,
 			MaxMetricsInFindAnswer: 0,
+			MemoryReturnInterval:   &Duration{},
 		},
 		ClickHouse: ClickHouse{
 			Url:             "http://localhost:8123",
