@@ -67,7 +67,7 @@ func splitErrorHandler(data *[]byte, atEOF bool, tokenLen int, err error) (int, 
 		}
 		// signal for read more
 		return 0, nil, nil
-	} else if err != nil || len(*data) < tokenLen {
+	} else if err != nil || (len(*data) < tokenLen && atEOF) {
 		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(*data))
 	}
 	// signal for read more
