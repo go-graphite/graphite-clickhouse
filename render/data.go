@@ -137,7 +137,7 @@ func DataParse(bodyReader io.Reader, extraPoints *point.Points, isReverse bool) 
 	var metricID uint32
 
 	scanner := bufio.NewScanner(bodyReader)
-	scanner.Buffer(make([]byte, 1048576), 1048576)
+	scanner.Buffer(make([]byte, 10485760), 10485760)
 	scanner.Split(DataSplitFunc)
 
 	var rowStart []byte
