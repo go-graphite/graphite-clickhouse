@@ -1,3 +1,5 @@
+// +build !noprom
+
 package prometheus
 
 import (
