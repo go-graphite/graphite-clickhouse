@@ -37,6 +37,17 @@ func (e *ErrDataParse) PrependDescription(test string) {
 	e.data = test + e.data
 }
 
+type ErrorWithCode struct {
+	err  string
+	Code int // error code
+}
+
+func NewErrorWithCode(err string, code int) error {
+	return &ErrorWithCode{err, code}
+}
+
+func (e *ErrorWithCode) Error() string { return e.err }
+
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
 var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
 var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
@@ -51,6 +62,15 @@ func HandleError(w http.ResponseWriter, err error) {
 			strings.HasSuffix(err.Error(), ": connection reset by peer") ||
 			strings.HasPrefix(err.Error(), "dial tcp: lookup ") { // DNS lookup
 			http.Error(w, "Storage error", http.StatusServiceUnavailable)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	errCode, ok := err.(*ErrorWithCode)
+	if ok {
+		if errCode.Code > 500 && errCode.Code < 512 {
+			http.Error(w, errCode.Error(), errCode.Code)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -110,7 +130,6 @@ func formatSQL(q string) string {
 
 	return strings.Join(s, " ")
 }
-
 
 func Query(ctx context.Context, dsn string, query string, opts Options) ([]byte, error) {
 	return Post(ctx, dsn, query, nil, opts)
@@ -194,7 +213,13 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	if resp.StatusCode != 200 {
+	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
+	if resp.StatusCode > 500 && resp.StatusCode < 512 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		err = NewErrorWithCode(string(body), resp.StatusCode)
+		return
+	} else if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
