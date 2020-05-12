@@ -103,10 +103,7 @@ func parseJson(body []byte) (*Rules, error) {
 
 func remoteLoad(addr string, table string) (*Rules, error) {
 	var db string
-	arr := strings.Split(table, ".")
-	if len(arr) > 2 {
-		return nil, fmt.Errorf("wrong table name %#v", table)
-	}
+	arr := strings.SplitN(table, ".", 2)
 	if len(arr) == 1 {
 		db = "default"
 	} else {
