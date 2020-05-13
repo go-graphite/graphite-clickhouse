@@ -51,7 +51,6 @@ fpm-build-deb:
 	fpm -s dir -t deb -n $(NAME) -v $(VERSION) \
 		--deb-priority optional --category admin \
 		--force \
-		--deb-compression bzip2 \
 		--url https://github.com/lomik/$(NAME) \
 		--description $(DESCRIPTION) \
 		-m $(MAINTAINER) \
