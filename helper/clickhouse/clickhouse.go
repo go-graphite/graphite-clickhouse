@@ -102,13 +102,14 @@ type loggedReader struct {
 	logger   *zap.Logger
 	start    time.Time
 	finished bool
+	queryID  string
 }
 
 func (r *loggedReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err != nil && !r.finished {
 		r.finished = true
-		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
 	return n, err
 }
@@ -117,7 +118,7 @@ func (r *loggedReader) Close() error {
 	err := r.reader.Close()
 	if !r.finished {
 		r.finished = true
-		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
 	return err
 }
@@ -148,6 +149,8 @@ func Reader(ctx context.Context, dsn string, query string, opts Options) (io.Rea
 }
 
 func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
+	var chQueryID string
+
 	start := time.Now()
 
 	requestID := scope.RequestID(ctx)
@@ -213,6 +216,9 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
+	// chproxy overwrite our query id. So read it again
+	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
+
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
 	if resp.StatusCode > 500 && resp.StatusCode < 512 {
 		body, _ := ioutil.ReadAll(resp.Body)
@@ -227,9 +233,10 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	}
 
 	bodyReader = &loggedReader{
-		reader: resp.Body,
-		logger: logger,
-		start:  start,
+		reader:  resp.Body,
+		logger:  logger,
+		start:   start,
+		queryID: chQueryID,
 	}
 
 	return
