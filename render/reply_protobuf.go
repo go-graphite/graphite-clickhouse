@@ -32,8 +32,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 		if start < from {
 			start += step
 		}
-		stop := until - (until % step)
-		count := ((stop - start) / step) + 1
+		stop := until - (until % step) + step
+		count := ((stop - start) / step)
 
 		mb.Reset()
 
@@ -75,7 +75,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 
 		last := start - step
 		for _, point := range points {
-			if point.Time < start || point.Time > stop {
+			if point.Time < start || point.Time >= stop {
 				continue
 			}
 
@@ -88,8 +88,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 			last = point.Time
 		}
 
-		if stop > last {
-			ProtobufWriteDoubleN(writer, 0, int((stop-last)/step))
+		if stop-step > last {
+			ProtobufWriteDoubleN(writer, 0, int(((stop-last)/step)-1))
 		}
 
 		// Write isAbsent
@@ -98,7 +98,7 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 
 		last = start - step
 		for _, point := range points {
-			if point.Time < start || point.Time > stop {
+			if point.Time < start || point.Time >= stop {
 				continue
 			}
 
@@ -111,8 +111,8 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, data *Da
 			last = point.Time
 		}
 
-		if stop > last {
-			WriteByteN(writer, '\x01', int((stop-last)/step))
+		if stop-step > last {
+			WriteByteN(writer, '\x01', int(((stop-last)/step)-1))
 		}
 	}
 
