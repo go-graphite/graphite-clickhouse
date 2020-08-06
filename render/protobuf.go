@@ -79,6 +79,19 @@ func Fixed64Encode(x uint64) []byte {
 	}
 }
 
+func Fixed32Encode(x uint32) []byte {
+	return []byte{
+		uint8(x),
+		uint8(x >> 8),
+		uint8(x >> 16),
+		uint8(x >> 24),
+	}
+}
+
+func ProtobufWriteSingle(w io.Writer, value float32) {
+	w.Write(Fixed32Encode(math.Float32bits(value)))
+}
+
 func ProtobufWriteDouble(w io.Writer, value float64) {
 	w.Write(Fixed64Encode(math.Float64bits(value)))
 }

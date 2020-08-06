@@ -3,12 +3,14 @@ package render
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
 
 	"go.uber.org/zap"
 
+	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -91,23 +93,53 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var prefix string
 	var err error
+	var fromTimestamp, untilTimestamp int64
+	var targets []string
 
 	r.ParseMultipartForm(1024 * 1024)
 
-	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
+	if r.FormValue("format") == "carbonapi_v3_pb" {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
+			return
+		}
 
-	untilTimestamp, err := strconv.ParseInt(r.FormValue("until"), 10, 32)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
+		var pv3Request v3pb.MultiFetchRequest
+		if err := pv3Request.Unmarshal(body); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), http.StatusBadRequest)
+			return
+		}
 
+		if len(pv3Request.Metrics) > 0 {
+			fromTimestamp = pv3Request.Metrics[0].StartTime
+			untilTimestamp = pv3Request.Metrics[0].StopTime
+
+			targets = make([]string, len(pv3Request.Metrics))
+			for _, m := range pv3Request.Metrics {
+				targets = append(targets, m.PathExpression)
+				if fromTimestamp != m.StartTime || untilTimestamp != m.StopTime {
+					http.Error(w, fmt.Sprintf("mixed start-stop time is not supported: %v", err), http.StatusBadRequest)
+					return
+				}
+			}
+		}
+	} else {
+		fromTimestamp, err = strconv.ParseInt(r.FormValue("from"), 10, 32)
+		if err != nil {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		untilTimestamp, err = strconv.ParseInt(r.FormValue("until"), 10, 32)
+		if err != nil {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		targets = dry.RemoveEmptyStrings(r.Form["target"])
+	}
 	am := alias.New()
-	targets := dry.RemoveEmptyStrings(r.Form["target"])
 
 	for _, target := range targets {
 		// Search in small index table first
@@ -214,7 +246,9 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from
 	case "pickle":
 		h.ReplyPickle(w, r, data, from, until, prefix, rollupObj)
 	case "protobuf":
-		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj)
+		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj, false)
+	case "carbonapi_v3_pb":
+		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj, true)
 	}
 	d := time.Since(start)
 	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
