@@ -62,13 +62,13 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		if start < from {
 			start += step
 		}
-		end := until - (until % step)
+		end := until - (until % step) + step
 		last := start - step
 
 		p.String("values")
 		p.List()
 		for _, point := range points {
-			if point.Time < start || point.Time > end {
+			if point.Time < start || point.Time >= end {
 				continue
 			}
 
@@ -81,8 +81,8 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 			last = point.Time
 		}
 
-		if end > last {
-			p.AppendNulls(int((end - last) / step))
+		if end-step > last {
+			p.AppendNulls(int(((end - last) / step) - 1))
 		}
 		p.SetItem()
 
