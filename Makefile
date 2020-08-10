@@ -16,6 +16,7 @@ endif
 
 all: $(NAME)
 
+.PHONY: $(NAME)
 $(NAME):
 	$(GO) build $(MODULE)
 
