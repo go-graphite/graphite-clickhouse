@@ -4,7 +4,8 @@ DESCRIPTION:="Graphite cluster backend with ClickHouse support"
 MODULE:=github.com/lomik/graphite-clickhouse
 
 GO ?= go
-export GOPATH := $(CURDIR)/_vendor
+export GOFLAGS +=  -mod=vendor
+export GO111MODULE := on
 TEMPDIR:=$(shell mktemp -d)
 
 DEVEL ?= 0
