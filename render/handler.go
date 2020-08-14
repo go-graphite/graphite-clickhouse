@@ -111,19 +111,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		q := r.URL.Query()
+
 		if len(pv3Request.Metrics) > 0 {
 			fromTimestamp = pv3Request.Metrics[0].StartTime
 			untilTimestamp = pv3Request.Metrics[0].StopTime
+			q.Set("from", fmt.Sprintf("%d", fromTimestamp))
+			q.Set("until", fmt.Sprintf("%d", fromTimestamp))
 
 			targets = make([]string, len(pv3Request.Metrics))
 			for _, m := range pv3Request.Metrics {
 				targets = append(targets, m.PathExpression)
+				q.Add("target", m.PathExpression)
 				if fromTimestamp != m.StartTime || untilTimestamp != m.StopTime {
 					http.Error(w, fmt.Sprintf("mixed start-stop time is not supported: %v", err), http.StatusBadRequest)
 					return
 				}
 			}
 		}
+
+
+		r.URL.RawQuery = q.Encode()
 	} else {
 		fromTimestamp, err = strconv.ParseInt(r.FormValue("from"), 10, 32)
 		if err != nil {

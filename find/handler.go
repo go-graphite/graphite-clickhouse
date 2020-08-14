@@ -44,6 +44,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		query = pv3Request.Metrics[0]
+		q := r.URL.Query()
+		q.Set("query", query)
+		r.URL.RawQuery = q.Encode()
 	} else {
 		query = r.FormValue("query")
 	}
