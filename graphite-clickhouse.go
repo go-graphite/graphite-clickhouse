@@ -7,11 +7,16 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"runtime"
 	"runtime/debug"
 	"time"
 
+	"github.com/lomik/zapwriter"
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/autocomplete"
+	"github.com/lomik/graphite-clickhouse/capabilities"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/index"
@@ -19,10 +24,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/tagger"
-	"github.com/lomik/zapwriter"
-	"go.uber.org/zap"
-
-	_ "net/http/pprof"
 )
 
 // Version of graphite-clickhouse
@@ -155,6 +156,7 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
+	http.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
 	http.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
 	http.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
 	http.Handle("/render/", Handler(render.NewHandler(cfg)))
