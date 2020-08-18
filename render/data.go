@@ -49,6 +49,7 @@ type Data struct {
 }
 
 var EmptyData *Data = &Data{Points: point.NewPoints()}
+var EmptyResponse []chResponse = []chResponse{{EmptyData, nil, 0, 0}}
 
 func (d *Data) finalName(name string) string {
 	s, ok := d.nameMap[name]
