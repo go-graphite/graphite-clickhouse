@@ -1,6 +1,8 @@
 package alias
 
 import (
+	"sync"
+
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 )
@@ -14,11 +16,15 @@ type Value struct {
 // Map from real metric name to display name and target
 type Map struct {
 	data map[string][]Value
+	lock sync.RWMutex
 }
 
 // New returns new Map
 func New() *Map {
-	return &Map{data: make(map[string][]Value)}
+	return &Map{
+		data: make(map[string][]Value),
+		lock: sync.RWMutex{},
+	}
 }
 
 // Merge data from finder.Result into aliases map
@@ -35,16 +41,20 @@ func (m *Map) MergeTarget(r finder.Result, target string) {
 			continue
 		}
 		abs := string(r.Abs(series[i]))
+		m.lock.Lock()
 		if x, ok := m.data[key]; ok {
 			m.data[key] = append(x, Value{Target: target, DisplayName: abs})
 		} else {
 			m.data[key] = []Value{Value{Target: target, DisplayName: abs}}
 		}
+		m.lock.Unlock()
 	}
 }
 
 // Len returns count of keys
 func (m *Map) Len() int {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return len(m.data)
 }
 

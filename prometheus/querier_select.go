@@ -3,15 +3,11 @@
 package prometheus
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
-	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
-	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -72,46 +68,25 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return newMetricsSet(am.DisplayNames()), nil, nil
 	}
 
-	pointsTable, isReverse, rollupRules := render.SelectDataTable(q.config, from.Unix(), until.Unix(), []string{}, config.ContextPrometheus)
-	if pointsTable == "" {
-		return nil, nil, fmt.Errorf("data table is not specified")
+	maxDataPoints := (until.Unix() - from.Unix()) / (selectParams.Step / 1000)
+
+	fetchRequests := render.MultiFetchRequest{
+		render.TimeFrame{
+			From:          from.Unix(),
+			Until:         until.Unix(),
+			MaxDataPoints: maxDataPoints,
+		}: &render.Targets{List: []string{}, AM: am},
 	}
-
-	wr := where.New()
-	wr.And(where.In("Path", am.Series(isReverse)))
-	wr.And(where.TimestampBetween("Time", from.Unix(), until.Unix()+1))
-
-	pw := where.New()
-	pw.And(where.DateBetween("Date", from, until))
-
-	query := fmt.Sprintf(render.QUERY,
-		pointsTable, pw.PreWhereSQL(), wr.SQL(),
-	)
-
-	body, err := clickhouse.Reader(
-		scope.WithTable(q.ctx, pointsTable),
-		q.config.ClickHouse.Url,
-		query,
-		clickhouse.Options{Timeout: q.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()},
-	)
-
+	reply, err := render.FetchDataPoints(q.ctx, q.config, fetchRequests, config.ContextPrometheus)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	data, err := render.DataParse(body, nil, isReverse)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	data.Points.Sort()
-	data.Points.Uniq()
-
-	if data.Points.Len() == 0 {
+	if len(reply.CHResponses) == 0 {
 		return emptySeriesSet(), nil, nil
 	}
 
-	ss, err := makeSeriesSet(data, am, rollupRules)
+	ss, err := makeSeriesSet(reply.CHResponses[0].Data, am)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -226,3 +226,44 @@ func (r *Rules) RollupMetric(metricName string, from uint32, points []point.Poin
 	}
 	return r.RollupMetricAge(metricName, age, points)
 }
+
+// RollupPoints groups sorted Points by metric name and apply rollup one by one
+func (r *Rules) RollupPoints(pp *point.Points, from uint32) error {
+	var i, n int
+	// i - current position of iterator
+	// n - position of the first record with current metric
+	l := pp.Len()
+	if l == 0 {
+		return nil
+	}
+	oldPoints := pp.List()
+	newPoints := make([]point.Point, 0)
+	rollup := func(p []point.Point) ([]point.Point, error) {
+		metricName := pp.MetricName(p[0].MetricID)
+		p, _, err := r.RollupMetric(metricName, from, p)
+		for i := range p {
+			p[i].MetricID = p[0].MetricID
+		}
+		return p, err
+	}
+
+	for i = 1; i < l; i++ {
+		if oldPoints[i].MetricID != oldPoints[n].MetricID {
+			points, err := rollup(oldPoints[n:i])
+			if err != nil {
+				return err
+			}
+			newPoints = append(newPoints, points...)
+			n = i
+			continue
+		}
+	}
+
+	points, err := rollup(oldPoints[n:i])
+	if err != nil {
+		return err
+	}
+	newPoints = append(newPoints, points...)
+	pp.ReplaceList(newPoints)
+	return nil
+}

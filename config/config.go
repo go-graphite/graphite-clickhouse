@@ -42,10 +42,10 @@ func (d *Duration) Value() time.Duration {
 }
 
 type Common struct {
-	Listen string `toml:"listen" json:"listen"`
 	// MetricPrefix   string    `toml:"metric-prefix"`
 	// MetricInterval *Duration `toml:"metric-interval"`
 	// MetricEndpoint string    `toml:"metric-endpoint"`
+	Listen                 string           `toml:"listen" json:"listen"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
 	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer"` //zero means infinite
 	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist"`
@@ -71,6 +71,8 @@ type ClickHouse struct {
 	ConnectTimeout       *Duration `toml:"connect-timeout" json:"connect-timeout"`
 	DataTableLegacy      string    `toml:"data-table" json:"data-table"`
 	RollupConfLegacy     string    `toml:"rollup-conf" json:"-"`
+	// Sets the maximum for maxDataPoints parameter.
+	MaxDataPoints int `toml:"max-data-points" json:"max-data-points"`
 }
 
 type Tags struct {
@@ -168,6 +170,7 @@ func New() *Config {
 			TagTable:             "",
 			TaggedAutocompleDays: 7,
 			ConnectTimeout:       &Duration{Duration: time.Second},
+			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
 		},
 		Tags: Tags{
 			Date:  "2016-11-01",

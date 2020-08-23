@@ -39,7 +39,7 @@ func TestDataParse(t *testing.T) {
 		body := []byte{}
 		r := bytes.NewReader(body)
 
-		d, err := DataParse(r, nil, false)
+		d, err := parseUnaggregatedResponse(r, nil, false)
 		assert.NoError(t, err)
 		assert.Empty(t, d.Points.List())
 	})
@@ -70,7 +70,7 @@ func TestDataParse(t *testing.T) {
 
 				r := bytes.NewReader(body)
 
-				d, err := DataParse(r, nil, false)
+				d, err := parseUnaggregatedResponse(r, nil, false)
 				// point number
 				p := 0
 				assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestDataParse(t *testing.T) {
 		})
 		r := bytes.NewReader(body)
 
-		_, err := DataParse(r, nil, false)
+		_, err := parseUnaggregatedResponse(r, nil, false)
 		assert.Error(t, err)
 	})
 
@@ -119,7 +119,7 @@ func TestDataParse(t *testing.T) {
 		for i := 1; i < len(body)-1; i++ {
 			r := bytes.NewReader(body[:i])
 
-			d, err := DataParse(r, nil, false)
+			d, err := parseUnaggregatedResponse(r, nil, false)
 			fmt.Printf("%s %#v\n", err.Error(), d)
 			assert.Error(t, err)
 			assert.Equal(t, d.length, 0)

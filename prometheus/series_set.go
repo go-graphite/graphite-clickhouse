@@ -4,7 +4,6 @@ package prometheus
 
 import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 
 	"github.com/lomik/graphite-clickhouse/render"
@@ -33,7 +32,7 @@ type seriesSet struct {
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeriesSet(data *render.Data, am *alias.Map, rollupRules *rollup.Rules) (storage.SeriesSet, error) {
+func makeSeriesSet(data *render.Data, am *alias.Map) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -47,11 +46,6 @@ func makeSeriesSet(data *render.Data, am *alias.Map, rollupRules *rollup.Rules) 
 
 	appendSeries := func(metricID uint32, points []point.Point) error {
 		metricName := data.Points.MetricName(metricID)
-
-		points, _, err := rollupRules.RollupMetric(metricName, points[0].Time, points)
-		if err != nil {
-			return err
-		}
 
 		for _, v := range am.Get(metricName) {
 			ss.series = append(ss.series, series{metricName: v.DisplayName, points: points})
