@@ -1,6 +1,8 @@
 language: go
 go:
-- 1.12.6
+- '1.13'
+- '1.14'
+- '1.15'
 script:
 - make
 - make test
@@ -21,3 +23,4 @@ deploy:
   on:
     repo: lomik/graphite-clickhouse
     tags: true
+    go: '1.15'
