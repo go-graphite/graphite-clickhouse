@@ -14,6 +14,14 @@ func TestMax(t *testing.T) {
 	assert.Equal(int64(3), Max(3, 3))
 }
 
+func TestMin(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(int64(-1), Min(1, -1))
+	assert.Equal(int64(1), Min(1, 2))
+	assert.Equal(int64(3), Min(3, 3))
+}
+
 func TestCeilToMultiplier(t *testing.T) {
 	assert := assert.New(t)
 

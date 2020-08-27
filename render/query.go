@@ -3,6 +3,7 @@ package render
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -15,6 +16,20 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"go.uber.org/zap"
 )
+
+// from, until, step, function, table, prewhere, where
+// arrayFilter(x->isNotNull(x)) - do not pass nulls to client
+// -Resample - group time and values by time intervals and apply aggregation function
+// -OrNull - if there aren't points in an interval, null will be returned
+// intDiv(Time, x)*x - round Time down to step multiplier
+const queryAggregated = `SELECT Path,
+	arrayFilter(x->isNotNull(x), anyOrNullResample(%[1]d, %[2]d, %[3]d)(toUInt32(intDiv(Time, %[3]d)*%[3]d), Time)),
+	arrayFilter(x->isNotNull(x), %[4]sOrNullResample(%[1]d, %[2]d, %[3]d)(Value, Time))
+FROM %[5]s
+%[6]s
+%[7]s
+GROUP BY Path
+FORMAT RowBinary`
 
 // table, prewhere, where
 const queryUnaggregated = `SELECT Path, groupArray(Time), groupArray(Value), groupArray(Timestamp) FROM %s %s %s GROUP BY Path FORMAT RowBinary`
@@ -46,6 +61,11 @@ type CHResponse struct {
 type Reply struct {
 	CHResponses []CHResponse
 	lock        sync.RWMutex
+}
+
+type metricRollup struct {
+	step int64
+	aggr *rollup.Aggr
 }
 
 func (r *Reply) Append(chr CHResponse) {
@@ -117,7 +137,11 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 		}
 	}()
 
-	data, err = r.getDataUnaggregated(ctx, cfg, tf, targets)
+	if cfg.ClickHouse.InternalAggregation {
+		data, err = r.getDataAggregated(ctx, cfg, tf, targets)
+	} else {
+		data, err = r.getDataUnaggregated(ctx, cfg, tf, targets)
+	}
 
 	if err != nil {
 		return nil
@@ -125,19 +149,23 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 	logger.Info("data", zap.Int("read_bytes", data.length), zap.Int("read_points", data.Points.Len()))
 
-	sortStart := time.Now()
-	data.Points.Sort()
-	d := time.Since(sortStart)
-	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
+	// ClickHouse returns sorted and uniq values, when internal aggregation is used
+	// But if carbonlink is used, we still need to sort, filter and rollup points
+	if !cfg.ClickHouse.InternalAggregation || carbonlinkClient(cfg) != nil {
+		sortStart := time.Now()
+		data.Points.Sort()
+		d := time.Since(sortStart)
+		logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
-	data.Points.Uniq()
-	rollupStart := time.Now()
-	err = data.rollupObj.RollupPoints(data.Points, uint32(tf.From))
-	if err != nil {
-		logger.Error("rollup failed", zap.Error(err))
-		return err
+		data.Points.Uniq()
+		rollupStart := time.Now()
+		err = data.rollupObj.RollupPoints(data.Points, uint32(tf.From))
+		if err != nil {
+			logger.Error("rollup failed", zap.Error(err))
+			return err
+		}
+		rollupTime += time.Since(rollupStart)
 	}
-	rollupTime += time.Since(rollupStart)
 
 	data.Aliases = targets.AM
 
@@ -147,6 +175,105 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 		Until: tf.Until,
 	})
 	return nil
+}
+
+func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf TimeFrame, targets *Targets) (data *Data, err error) {
+	// Generic prepare part
+	logger := scope.Logger(ctx)
+	data = EmptyData
+
+	metricList := targets.AM.Series(targets.isReverse)
+
+	if len(metricList) == 0 {
+		return
+	}
+
+	// from carbonlink request
+	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricList)
+
+	now := time.Now().Unix()
+	age := dry.Max(0, now-tf.From)
+
+	// end of generic prepare
+
+	agg := metricRollup{}
+	maxDataPoints := dry.Min(tf.MaxDataPoints, int64(cfg.ClickHouse.MaxDataPoints))
+	metricsAggregation := make(map[metricRollup][]string)
+
+	// Grouping metrics by aggregation steps and functions
+	var step uint32
+	for _, m := range metricList {
+		step, agg.aggr = targets.rollupObj.Lookup(m, uint32(age))
+		newStep := dry.Max(int64(step), (tf.Until-tf.From)/maxDataPoints)
+		agg.step = dry.CeilToMultiplier(newStep, int64(step))
+		if mm, ok := metricsAggregation[agg]; ok {
+			metricsAggregation[agg] = append(mm, m)
+		} else {
+			metricsAggregation[agg] = []string{m}
+		}
+	}
+
+	b := make(chan io.ReadCloser, len(metricsAggregation))
+	e := make(chan error)
+	queryWg := sync.WaitGroup{}
+	queryContext, cancel := context.WithCancel(ctx)
+
+	defer func() {
+		cancel()
+		queryWg.Wait()
+		close(e)
+		close(b)
+	}()
+
+	for agg, metricList := range metricsAggregation {
+		from := dry.CeilToMultiplier(tf.From, agg.step)
+		until := dry.CeilToMultiplier(tf.Until, agg.step) - 1
+		pw := where.New()
+		pw.And(where.DateBetween("Date", time.Unix(from, 0), time.Unix(until, 0)))
+
+		wr := where.New()
+		wr.And(where.In("Path", metricList))
+
+		wr.And(where.TimestampBetween("Time", from, until))
+		query := fmt.Sprintf(
+			queryAggregated,
+			from, until, agg.step, agg.aggr.Name(),
+			targets.pointsTable, pw.PreWhereSQL(), wr.SQL(),
+		)
+		queryWg.Add(1)
+		go func(query string) {
+			defer queryWg.Done()
+			body, err := clickhouse.Reader(
+				scope.WithTable(ctx, targets.pointsTable),
+				cfg.ClickHouse.Url,
+				query,
+				clickhouse.Options{Timeout: cfg.ClickHouse.DataTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+			)
+			if err != nil {
+				logger.Error("reader", zap.Error(err))
+				select {
+				case <-queryContext.Done():
+					return
+				case e <- err:
+					return
+				}
+			}
+			select {
+			case <-queryContext.Done():
+				return
+			case b <- body:
+				return
+			}
+		}(query)
+	}
+
+	carbonlinkData := carbonlinkResponseRead()
+	data, err = parseAggregatedResponse(b, e, carbonlinkData, targets.isReverse)
+	if err != nil {
+		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
+		return nil, err
+	}
+	return
 }
 
 func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf TimeFrame, targets *Targets) (data *Data, err error) {

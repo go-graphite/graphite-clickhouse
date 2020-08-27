@@ -68,6 +68,127 @@ func splitErrorHandler(data *[]byte, atEOF bool, tokenLen int, err error) (int, 
 	return 0, nil, nil
 }
 
+// dataSplitAggregated is a split function for bufio.Scanner for read row binary response for queries of aggregated data
+func dataSplitAggregated(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if len(data) == 0 && atEOF {
+		// stop
+		return 0, nil, nil
+	}
+
+	nameLen, readBytes, err := ReadUvarint(data)
+	tokenLen := int(readBytes) + int(nameLen)
+	if err != nil || len(data) < tokenLen {
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
+	}
+
+	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
+	tokenLen += int(readBytes) + int(timeLen)*5
+	if err != nil || len(data) < tokenLen {
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
+	}
+
+	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
+	tokenLen += int(readBytes) + int(valueLen)*9
+	if err != nil || len(data) < tokenLen {
+		return splitErrorHandler(&data, atEOF, tokenLen, err)
+	}
+
+	if !(timeLen == valueLen) {
+		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error()+": Different amount of Times and Values", string(data))
+	}
+
+	return tokenLen, data[:tokenLen], nil
+}
+
+// parseAggregatedResponse reads the ClickHouse body into *Data and merges with extraPoints
+func parseAggregatedResponse(b chan io.ReadCloser, e chan error, extraPoints *point.Points, isReverse bool) (*Data, error) {
+	d := prepare(extraPoints)
+	pp := d.Points
+
+	nameBuf := make([]byte, 65536)
+	name := []byte{}
+	var metricID uint32
+
+	for r := 1; r <= cap(b); r++ {
+		select {
+		case err := <-e:
+			return d, err
+		case bodyReader := <-b:
+			scanner := bufio.NewScanner(bodyReader)
+			scanner.Buffer(make([]byte, 10485760), 10485760)
+			scanner.Split(dataSplitAggregated)
+
+			var rowStart []byte
+			for scanner.Scan() {
+				rowStart = scanner.Bytes()
+
+				d.length += len(rowStart)
+
+				nameLen, readBytes, err := ReadUvarint(rowStart)
+				if err != nil {
+					return d, errClickHouseResponse
+				}
+
+				row := rowStart[int(readBytes):]
+
+				newName := row[:int(nameLen)]
+				row = row[int(nameLen):]
+
+				if bytes.Compare(newName, name) != 0 {
+					if len(newName) > len(nameBuf) {
+						name = make([]byte, len(newName))
+						copy(name, newName)
+					} else {
+						copy(nameBuf, newName)
+						name = nameBuf[:len(newName)]
+					}
+					if isReverse {
+						metricID = pp.MetricIDBytes(reverse.Bytes(name))
+					} else {
+						metricID = pp.MetricIDBytes(name)
+					}
+				}
+
+				arrayLen, readBytes, err := ReadUvarint(row)
+				if err != nil {
+					return d, errClickHouseResponse
+				}
+
+				times := make([]uint32, 0, arrayLen)
+				values := make([]float64, 0, arrayLen)
+
+				row = row[int(readBytes):]
+				for i := uint64(0); i < arrayLen; i++ {
+					times = append(times, binary.LittleEndian.Uint32(row[1:5]))
+					row = row[5:]
+				}
+
+				row = row[int(readBytes):]
+				for i := uint64(0); i < arrayLen; i++ {
+					values = append(values, math.Float64frombits(binary.LittleEndian.Uint64(row[1:9])))
+					row = row[9:]
+				}
+
+				for i := range times {
+					pp.AppendPoint(metricID, values[i], times[i], times[i])
+				}
+			}
+			err := scanner.Err()
+			if err != nil {
+				dataErr, ok := err.(*clickhouse.ErrDataParse)
+				if ok {
+					// format full error string
+					dataErr.PrependDescription(string(rowStart))
+				}
+				bodyReader.Close()
+				return d, err
+			}
+		}
+	}
+
+	return d, nil
+}
+
 // dataSplitUnaggregated is a split function for bufio.Scanner for read row binary response for queries of unaggregated data
 func dataSplitUnaggregated(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if len(data) == 0 && atEOF {

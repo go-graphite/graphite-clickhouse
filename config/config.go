@@ -73,6 +73,8 @@ type ClickHouse struct {
 	RollupConfLegacy     string    `toml:"rollup-conf" json:"-"`
 	// Sets the maximum for maxDataPoints parameter.
 	MaxDataPoints int `toml:"max-data-points" json:"max-data-points"`
+	// InternalAggregation controls if ClickHouse itself or graphite-clickhouse aggregates points to proper retention
+	InternalAggregation bool `toml:"internal-aggregation" json:"internal-aggregation"`
 }
 
 type Tags struct {
@@ -171,6 +173,7 @@ func New() *Config {
 			TaggedAutocompleDays: 7,
 			ConnectTimeout:       &Duration{Duration: time.Second},
 			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
+			InternalAggregation:  false,
 		},
 		Tags: Tags{
 			Date:  "2016-11-01",
