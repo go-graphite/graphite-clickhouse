@@ -61,6 +61,8 @@ func (m *Map) Len() int {
 // Size returns count of values
 func (m *Map) Size() int {
 	s := 0
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	for _, v := range m.data {
 		s += len(v)
 	}

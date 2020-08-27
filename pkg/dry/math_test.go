@@ -30,3 +30,25 @@ func TestCeilToMultiplier(t *testing.T) {
 	assert.Equal(int64(6), CeilToMultiplier(4, 3))
 	assert.Equal(int64(6), CeilToMultiplier(6, 3))
 }
+
+func TestGCD(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(int64(1), GCD(1, -1))
+	assert.Equal(int64(1), GCD(-1, 1))
+	assert.Equal(int64(1), GCD(-1, -1))
+	assert.Equal(int64(1), GCD(1, 2))
+	assert.Equal(int64(1), GCD(4, 3))
+	assert.Equal(int64(3), GCD(6, 3))
+}
+
+func TestLCM(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(int64(1), LCM(1, -1))
+	assert.Equal(int64(1), LCM(-1, 1))
+	assert.Equal(int64(1), LCM(-1, -1))
+	assert.Equal(int64(2), LCM(1, 2))
+	assert.Equal(int64(6), LCM(6, 3))
+	assert.Equal(int64(12), LCM(4, 3))
+}

@@ -227,8 +227,12 @@ func (r *Rules) RollupMetric(metricName string, from uint32, points []point.Poin
 	return r.RollupMetricAge(metricName, age, points)
 }
 
-// RollupPoints groups sorted Points by metric name and apply rollup one by one
-func (r *Rules) RollupPoints(pp *point.Points, from uint32) error {
+// RollupPoints groups sorted Points by metric name and apply rollup one by one.
+// If the `step` parameter is 0, it will be got from the current *Rules, otherwise it will be used directly.
+func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
+	if from < 0 || step < 0 {
+		return fmt.Errorf("from and step must be >= 0: %v, %v", from, step)
+	}
 	var i, n int
 	// i - current position of iterator
 	// n - position of the first record with current metric
@@ -237,10 +241,16 @@ func (r *Rules) RollupPoints(pp *point.Points, from uint32) error {
 		return nil
 	}
 	oldPoints := pp.List()
-	newPoints := make([]point.Point, 0)
+	newPoints := make([]point.Point, 0, pp.Len())
 	rollup := func(p []point.Point) ([]point.Point, error) {
 		metricName := pp.MetricName(p[0].MetricID)
-		p, _, err := r.RollupMetric(metricName, from, p)
+		var err error
+		if step == 0 {
+			p, _, err = r.RollupMetric(metricName, uint32(from), p)
+		} else {
+			_, agg := r.Lookup(metricName, uint32(from))
+			p = doMetricPrecision(p, uint32(step), agg)
+		}
 		for i := range p {
 			p[i].MetricID = p[0].MetricID
 		}

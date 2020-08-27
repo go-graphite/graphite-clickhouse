@@ -24,3 +24,24 @@ func CeilToMultiplier(x, m int64) int64 {
 	}
 	return ((x + m - 1) / m) * m
 }
+
+// GCD returns the absolute greatest common divisor calculated via Euclidean algorithm
+func GCD(a, b int64) int64 {
+	if b < 0 {
+		b = -b
+	}
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+// LCM returns the absolute least common multiple of 2 integers via GDB
+func LCM(a, b int64) int64 {
+	if a*b < 0 {
+		return -a / GCD(a, b) * b
+	}
+	return a / GCD(a, b) * b
+}

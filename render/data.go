@@ -20,10 +20,11 @@ var errClickHouseResponse = errors.New("Malformed response from clickhouse")
 var ReadUvarint = clickhouse.ReadUvarint
 
 type Data struct {
-	length    int // readed bytes count
-	Points    *point.Points
-	Aliases   *alias.Map
-	rollupObj *rollup.Rules
+	length     int // readed bytes count
+	Points     *point.Points
+	Aliases    *alias.Map
+	rollupObj  *rollup.Rules
+	commonStep int64
 }
 
 var EmptyData *Data = &Data{Points: point.NewPoints()}
@@ -50,6 +51,9 @@ func prepare(extraPoints *point.Points) *Data {
 
 // GetStep returns the step for metric ID i
 func (d *Data) GetStep(id uint32) (uint32, error) {
+	if 0 < d.commonStep {
+		return uint32(d.commonStep), nil
+	}
 	return d.Points.GetStep(id)
 }
 

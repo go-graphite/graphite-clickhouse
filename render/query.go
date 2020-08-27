@@ -61,11 +61,7 @@ type CHResponse struct {
 type Reply struct {
 	CHResponses []CHResponse
 	lock        sync.RWMutex
-}
-
-type metricRollup struct {
-	step int64
-	aggr *rollup.Aggr
+	cStep       *commonStep
 }
 
 func (r *Reply) Append(chr CHResponse) {
@@ -78,15 +74,28 @@ func (r *Reply) Append(chr CHResponse) {
 var EmptyResponse []CHResponse = []CHResponse{{EmptyData, 0, 0}}
 
 // EmptyReply is used when no metrics/data points are read
-var EmptyReply *Reply = &Reply{EmptyResponse, sync.RWMutex{}}
+var EmptyReply *Reply = &Reply{EmptyResponse, sync.RWMutex{}, nil}
 
 // FetchDataPoints fetches the data from ClickHouse and parses it into []CHResponse
 func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests MultiFetchRequest, chContext string) (*Reply, error) {
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)
+	cStep := &commonStep{
+		result: 0,
+		wg:     sync.WaitGroup{},
+		lock:   sync.RWMutex{},
+	}
 
-	reply := &Reply{make([]CHResponse, 0, len(fetchRequests)), sync.RWMutex{}}
+	if cfg.ClickHouse.InternalAggregation {
+		cStep.addTargets(len(fetchRequests))
+	}
+
+	reply := &Reply{
+		CHResponses: make([]CHResponse, 0, len(fetchRequests)),
+		lock:        sync.RWMutex{},
+		cStep:       cStep,
+	}
 	errors := make([]error, 0, len(fetchRequests))
 
 	for tf, targets := range fetchRequests {
@@ -159,7 +168,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 		data.Points.Uniq()
 		rollupStart := time.Now()
-		err = data.rollupObj.RollupPoints(data.Points, uint32(tf.From))
+		err = data.rollupObj.RollupPoints(data.Points, tf.From, data.commonStep)
 		if err != nil {
 			logger.Error("rollup failed", zap.Error(err))
 			return err
@@ -196,22 +205,23 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 
 	// end of generic prepare
 
-	agg := metricRollup{}
 	maxDataPoints := dry.Min(tf.MaxDataPoints, int64(cfg.ClickHouse.MaxDataPoints))
-	metricsAggregation := make(map[metricRollup][]string)
+	metricsAggregation := make(map[string][]string)
 
 	// Grouping metrics by aggregation steps and functions
-	var step uint32
+	var step int64
 	for _, m := range metricList {
-		step, agg.aggr = targets.rollupObj.Lookup(m, uint32(age))
-		newStep := dry.Max(int64(step), (tf.Until-tf.From)/maxDataPoints)
-		agg.step = dry.CeilToMultiplier(newStep, int64(step))
-		if mm, ok := metricsAggregation[agg]; ok {
-			metricsAggregation[agg] = append(mm, m)
+		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
+		step = r.cStep.calculateUnsafe(step, int64(newStep))
+		if mm, ok := metricsAggregation[agg.Name()]; ok {
+			metricsAggregation[agg.Name()] = append(mm, m)
 		} else {
-			metricsAggregation[agg] = []string{m}
+			metricsAggregation[agg.Name()] = []string{m}
 		}
 	}
+	r.cStep.calculate(step)
+	step = dry.Max(r.cStep.getResult(), (tf.Until-tf.From)/maxDataPoints)
+	step = dry.CeilToMultiplier(step, r.cStep.getResult())
 
 	b := make(chan io.ReadCloser, len(metricsAggregation))
 	e := make(chan error)
@@ -226,8 +236,8 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}()
 
 	for agg, metricList := range metricsAggregation {
-		from := dry.CeilToMultiplier(tf.From, agg.step)
-		until := dry.CeilToMultiplier(tf.Until, agg.step) - 1
+		from := dry.CeilToMultiplier(tf.From, step)
+		until := dry.CeilToMultiplier(tf.Until, step) - 1
 		pw := where.New()
 		pw.And(where.DateBetween("Date", time.Unix(from, 0), time.Unix(until, 0)))
 
@@ -237,7 +247,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		wr.And(where.TimestampBetween("Time", from, until))
 		query := fmt.Sprintf(
 			queryAggregated,
-			from, until, agg.step, agg.aggr.Name(),
+			from, until, step, agg,
 			targets.pointsTable, pw.PreWhereSQL(), wr.SQL(),
 		)
 		queryWg.Add(1)
@@ -273,6 +283,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
 	}
+	data.commonStep = step
 	return
 }
 
