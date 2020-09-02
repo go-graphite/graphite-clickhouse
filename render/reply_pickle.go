@@ -2,6 +2,7 @@ package render
 
 import (
 	"bufio"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -92,16 +93,18 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		pickleTime += time.Since(pickleStart)
 	}
 
-	writeMetric := func(points []point.Point) {
+	writeMetric := func(points []point.Point) error {
 		metricName := data.Points.MetricName(points[0].MetricID)
 		step, err := data.GetStep(points[0].MetricID)
 		if err != nil {
 			logger.Error("fail to get step", zap.Error(err))
-			return
+			http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+			return err
 		}
 		for _, a := range data.Aliases.Get(metricName) {
 			writeAlias(a.DisplayName, a.Target, points, step)
 		}
+		return nil
 	}
 	// group by Metric
 	var i, n int
@@ -111,13 +114,17 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	for i = 1; i < l; i++ {
 		if points[i].MetricID != points[n].MetricID {
-			writeMetric(points[n:i])
+			if err := writeMetric(points[n:i]); err != nil {
+				return
+			}
 			n = i
 			continue
 		}
 	}
 
-	writeMetric(points[n:i])
+	if err := writeMetric(points[n:i]); err != nil {
+		return
+	}
 
 	p.Stop()
 }

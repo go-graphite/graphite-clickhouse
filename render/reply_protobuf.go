@@ -3,6 +3,7 @@ package render
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -38,17 +39,19 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, perfix s
 		}
 		totalWritten++
 
-		writeMetric := func(points []point.Point) {
+		writeMetric := func(points []point.Point) error {
 			metricName := data.Points.MetricName(points[0].MetricID)
 			step, err := data.GetStep(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get step", zap.Error(err))
-				return
+				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				return err
 			}
 
 			for _, a := range data.Aliases.Get(metricName) {
 				writeAlias(mb, mb2, writer, a.Target, a.DisplayName, from, until, step, points)
 			}
+			return nil
 		}
 
 		// group by Metric
@@ -59,12 +62,16 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, perfix s
 
 		for i = 1; i < l; i++ {
 			if points[i].MetricID != points[n].MetricID {
-				writeMetric(points[n:i])
+				if err := writeMetric(points[n:i]); err != nil {
+					return
+				}
 				n = i
 				continue
 			}
 		}
-		writeMetric(points[n:i])
+		if err := writeMetric(points[n:i]); err != nil {
+			return
+		}
 	}
 
 	if totalWritten == 0 {

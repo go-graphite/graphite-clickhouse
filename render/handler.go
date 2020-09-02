@@ -37,6 +37,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var prefix string
 	var err error
 
+	defer func() {
+		if rec := recover(); rec != nil {
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, http.StatusInternalServerError)
+		}
+	}()
 	fetchRequests := make(MultiFetchRequest)
 
 	r.ParseMultipartForm(1024 * 1024)
