@@ -3,11 +3,13 @@
 cd `dirname $0`
 ROOT=$PWD
 
-docker run -ti --rm -v $ROOT:/root/go/src/github.com/lomik/graphite-clickhouse ubuntu:18.10 bash -c '
+docker run -ti --rm -v $ROOT:/root/go/src/github.com/lomik/graphite-clickhouse ubuntu:20.04 bash -c '
     cd /root/
-    export GO_VERSION=1.12.6
-    apt-get update
-    apt-get install -y rpm ruby ruby-dev wget make git gcc
+    export GO_VERSION=1.15.1
+    export TZ=Europe/Moscow
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+    apt update
+    DEBIAN_FRONTEND=noninteractive apt install -y rpm ruby ruby-dev wget make git gcc
 
     wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
