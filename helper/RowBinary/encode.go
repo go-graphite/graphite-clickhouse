@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const NullUint32 = ^uint32(0)
+
 func DateToUint16(t time.Time) uint16 {
 	return uint16(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix() / 86400)
 }
@@ -44,6 +46,18 @@ func (w *Encoder) Uint32(value uint32) error {
 	return err
 }
 
+func (w *Encoder) NullableUint32(value uint32) error {
+	if value == NullUint32 {
+		_, err := w.wrapped.Write([]byte{1})
+		return err
+	}
+	_, err := w.wrapped.Write([]byte{0})
+	if err != nil {
+		return err
+	}
+	return w.Uint32(value)
+}
+
 func (w *Encoder) Uint64(value uint64) error {
 	binary.LittleEndian.PutUint64(w.buffer, value)
 	_, err := w.wrapped.Write(w.buffer[:8])
@@ -52,6 +66,18 @@ func (w *Encoder) Uint64(value uint64) error {
 
 func (w *Encoder) Float64(value float64) error {
 	return w.Uint64(math.Float64bits(value))
+}
+
+func (w *Encoder) NullableFloat64(value float64) error {
+	if math.IsNaN(value) {
+		_, err := w.wrapped.Write([]byte{1})
+		return err
+	}
+	_, err := w.wrapped.Write([]byte{0})
+	if err != nil {
+		return err
+	}
+	return w.Float64(value)
 }
 
 func (w *Encoder) Bytes(value []byte) error {
@@ -103,6 +129,23 @@ func (w *Encoder) Uint32List(value []uint32) error {
 	return nil
 }
 
+func (w *Encoder) NullableUint32List(value []uint32) error {
+	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+	_, err := w.wrapped.Write(w.buffer[:n])
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(value); i++ {
+		err = w.NullableUint32(value[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (w *Encoder) Float64List(value []float64) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
 	_, err := w.wrapped.Write(w.buffer[:n])
@@ -112,6 +155,23 @@ func (w *Encoder) Float64List(value []float64) error {
 
 	for i := 0; i < len(value); i++ {
 		err = w.Float64(value[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *Encoder) NullableFloat64List(value []float64) error {
+	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+	_, err := w.wrapped.Write(w.buffer[:n])
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(value); i++ {
+		err = w.NullableFloat64(value[i])
 		if err != nil {
 			return err
 		}

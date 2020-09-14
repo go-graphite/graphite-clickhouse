@@ -2,18 +2,17 @@ package render
 
 import (
 	"bufio"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	pickle "github.com/lomik/graphite-pickle"
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rules) {
-	var rollupTime time.Duration
+func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string) {
 	var pickleTime time.Duration
 
 	points := data.Points.List()
@@ -21,10 +20,6 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	logger := scope.Logger(r.Context())
 
 	defer func() {
-		logger.Debug("rollup",
-			zap.String("runtime", rollupTime.String()),
-			zap.Duration("runtime_ns", rollupTime),
-		)
 		logger.Debug("pickle",
 			zap.String("runtime", pickleTime.String()),
 			zap.Duration("runtime_ns", pickleTime),
@@ -98,19 +93,18 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 		pickleTime += time.Since(pickleStart)
 	}
 
-	writeMetric := func(points []point.Point) {
+	writeMetric := func(points []point.Point) error {
 		metricName := data.Points.MetricName(points[0].MetricID)
-		rollupStart := time.Now()
-		points, step, err := rollupObj.RollupMetric(metricName, from, points)
+		step, err := data.GetStep(points[0].MetricID)
 		if err != nil {
-			logger.Error("rollup failed", zap.Error(err))
-			return
+			logger.Error("fail to get step", zap.Error(err))
+			http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+			return err
 		}
-		rollupTime += time.Since(rollupStart)
-
 		for _, a := range data.Aliases.Get(metricName) {
 			writeAlias(a.DisplayName, a.Target, points, step)
 		}
+		return nil
 	}
 	// group by Metric
 	var i, n int
@@ -120,13 +114,17 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 
 	for i = 1; i < l; i++ {
 		if points[i].MetricID != points[n].MetricID {
-			writeMetric(points[n:i])
+			if err := writeMetric(points[n:i]); err != nil {
+				return
+			}
 			n = i
 			continue
 		}
 	}
 
-	writeMetric(points[n:i])
+	if err := writeMetric(points[n:i]); err != nil {
+		return
+	}
 
 	p.Stop()
 }

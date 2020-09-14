@@ -111,7 +111,6 @@ func formatSQL(q string) string {
 	return strings.Join(s, " ")
 }
 
-
 func Query(ctx context.Context, dsn string, query string, opts Options) ([]byte, error) {
 	return Post(ctx, dsn, query, nil, opts)
 }

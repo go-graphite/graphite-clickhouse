@@ -1,30 +1,26 @@
 package render
 
 import (
-	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
+	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"github.com/lomik/graphite-clickhouse/pkg/where"
-
-	graphitePickle "github.com/lomik/graphite-pickle"
 )
 
 type Handler struct {
-	config     *config.Config
-	carbonlink *graphitePickle.CarbonlinkClient
+	config *config.Config
 }
 
 func NewHandler(config *config.Config) *Handler {
@@ -32,58 +28,7 @@ func NewHandler(config *config.Config) *Handler {
 		config: config,
 	}
 
-	if config.Carbonlink.Server != "" {
-		h.carbonlink = graphitePickle.NewCarbonlinkClient(
-			config.Carbonlink.Server,
-			config.Carbonlink.Retries,
-			config.Carbonlink.Threads,
-			config.Carbonlink.ConnectTimeout.Value(),
-			config.Carbonlink.QueryTimeout.Value(),
-		)
-	}
 	return h
-}
-
-// returns callable result fetcher
-func (h *Handler) queryCarbonlink(parentCtx context.Context, logger *zap.Logger, metrics []string) func() *point.Points {
-	if h.carbonlink == nil {
-		return func() *point.Points { return nil }
-	}
-
-	carbonlinkResponseChan := make(chan *point.Points, 1)
-
-	fetchResult := func() *point.Points {
-		result := <-carbonlinkResponseChan
-		return result
-	}
-
-	go func() {
-		ctx, cancel := context.WithTimeout(parentCtx, h.config.Carbonlink.TotalTimeout.Value())
-		defer cancel()
-
-		res, err := h.carbonlink.CacheQueryMulti(ctx, metrics)
-
-		if err != nil {
-			logger.Info("carbonlink failed", zap.Error(err))
-		}
-
-		result := point.NewPoints()
-
-		if res != nil && len(res) > 0 {
-			tm := uint32(time.Now().Unix())
-
-			for metric, points := range res {
-				metricID := result.MetricID(metric)
-				for _, p := range points {
-					result.AppendPoint(metricID, p.Value, uint32(p.Timestamp), tm)
-				}
-			}
-		}
-
-		carbonlinkResponseChan <- result
-	}()
-
-	return fetchResult
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -92,129 +37,151 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var prefix string
 	var err error
 
+	defer func() {
+		if rec := recover(); rec != nil {
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, http.StatusInternalServerError)
+		}
+	}()
+	fetchRequests := make(MultiFetchRequest)
+
 	r.ParseMultipartForm(1024 * 1024)
 
-	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	untilTimestamp, err := strconv.ParseInt(r.FormValue("until"), 10, 32)
-	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	am := alias.New()
-	targets := dry.RemoveEmptyStrings(r.Form["target"])
-
-	for _, target := range targets {
-		// Search in small index table first
-		fndResult, err := finder.Find(h.config, r.Context(), target, fromTimestamp, untilTimestamp)
+	if r.FormValue("format") == "carbonapi_v3_pb" {
+		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			clickhouse.HandleError(w, err)
+			logger.Error("failed to read request", zap.Error(err))
+			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		am.MergeTarget(fndResult, target)
+		var pv3Request v3pb.MultiFetchRequest
+		if err := pv3Request.Unmarshal(body); err != nil {
+			logger.Error("failed to unmarshal request", zap.Error(err))
+			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		q := r.URL.Query()
+
+		if len(pv3Request.Metrics) > 0 {
+			q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
+			q.Set("until", fmt.Sprintf("%d", pv3Request.Metrics[0].StopTime))
+			q.Set("maxDataPoints", fmt.Sprintf("%d", pv3Request.Metrics[0].MaxDataPoints))
+
+			for _, m := range pv3Request.Metrics {
+				tf := TimeFrame{
+					From:          m.StartTime,
+					Until:         m.StopTime,
+					MaxDataPoints: m.MaxDataPoints,
+				}
+				if _, ok := fetchRequests[tf]; ok {
+					target := fetchRequests[tf]
+					target.List = append(fetchRequests[tf].List, m.PathExpression)
+				} else {
+					fetchRequests[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
+				}
+				q.Add("target", m.PathExpression)
+			}
+		}
+
+		r.URL.RawQuery = q.Encode()
+	} else {
+		fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
+		if err != nil {
+			http.Error(w, "Bad request (cannot parse from)", http.StatusBadRequest)
+			return
+		}
+
+		untilTimestamp, err := strconv.ParseInt(r.FormValue("until"), 10, 32)
+		if err != nil {
+			http.Error(w, "Bad request (cannot parse until)", http.StatusBadRequest)
+			return
+		}
+
+		maxDataPoints, err := strconv.ParseInt(r.FormValue("maxDataPoints"), 10, 32)
+		if err != nil {
+			maxDataPoints = int64(h.config.ClickHouse.MaxDataPoints)
+		}
+
+		targets := dry.RemoveEmptyStrings(r.Form["target"])
+		tf := TimeFrame{
+			From:          fromTimestamp,
+			Until:         untilTimestamp,
+			MaxDataPoints: maxDataPoints,
+		}
+		fetchRequests[tf] = &Targets{List: targets, AM: alias.New()}
 	}
 
-	logger.Info("finder", zap.Int("metrics", am.Len()))
+	var wg sync.WaitGroup
+	var lock sync.RWMutex
+	errors := make([]error, 0, len(fetchRequests))
+	var metricsLen int
+	for tf, target := range fetchRequests {
+		for _, expr := range target.List {
+			wg.Add(1)
+			go func(tf TimeFrame, target string, am *alias.Map) {
+				defer wg.Done()
+				// Search in small index table first
+				fndResult, err := finder.Find(h.config, r.Context(), target, tf.From, tf.Until)
+				if err != nil {
+					logger.Error("find", zap.Error(err))
+					lock.Lock()
+					errors = append(errors, err)
+					lock.Unlock()
+					return
+				}
 
-	pointsTable, isReverse, rollupObj := SelectDataTable(h.config, fromTimestamp, untilTimestamp, targets, config.ContextGraphite)
-	if pointsTable == "" {
-		logger.Error("data tables is not specified", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var maxStep uint32
-
-	now := time.Now().Unix()
-	age := uint32(dry.Max(0, now-fromTimestamp))
-
-	metricList := am.Series(isReverse)
-
-	if len(metricList) == 0 {
-		// Return empty response
-		h.Reply(w, r, EmptyData, 0, 0, "", nil)
-		return
-	}
-
-	// calculate max step
-	for _, m := range metricList {
-		step, _ := rollupObj.Lookup(m, age)
-		if step > maxStep {
-			maxStep = step
+				am.MergeTarget(fndResult, target)
+				lock.Lock()
+				metricsLen += am.Len()
+				lock.Unlock()
+			}(tf, expr, target.AM)
 		}
 	}
-
-	pw := where.New()
-	pw.And(where.DateBetween("Date", time.Unix(fromTimestamp, 0), time.Unix(untilTimestamp, 0)))
-
-	wr := where.New()
-	wr.And(where.In("Path", metricList))
-
-	until := untilTimestamp - untilTimestamp%int64(maxStep) + int64(maxStep) - 1
-	wr.And(where.TimestampBetween("Time", fromTimestamp, until))
-
-	query := fmt.Sprintf(QUERY,
-		pointsTable, pw.PreWhereSQL(), wr.SQL(),
-	)
-
-	// start carbonlink request
-	carbonlinkResponseRead := h.queryCarbonlink(r.Context(), logger, metricList)
-
-	body, err := clickhouse.Reader(
-		scope.WithTable(r.Context(), pointsTable),
-		h.config.ClickHouse.Url,
-		query,
-		clickhouse.Options{Timeout: h.config.ClickHouse.DataTimeout.Value(), ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value()},
-	)
-
-	if err != nil {
-		clickhouse.HandleError(w, err)
+	wg.Wait()
+	if len(errors) != 0 {
+		clickhouse.HandleError(w, errors[0])
 		return
 	}
 
-	// fetch carbonlink response
-	carbonlinkData := carbonlinkResponseRead()
+	logger.Info("finder", zap.Int("metrics", metricsLen))
 
-	parseStart := time.Now()
-
-	// pass carbonlinkData to DataParse
-	data, err := DataParse(body, carbonlinkData, isReverse)
-
-	if err != nil {
-		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
-		clickhouse.HandleError(w, err)
+	if metricsLen == 0 {
+		h.Reply(w, r, "", EmptyResponse)
 		return
 	}
-	logger.Info("render", zap.Int("read_bytes", data.length), zap.Int("read_points", data.Points.Len()))
 
-	d := time.Since(parseStart)
-	logger.Debug("parse", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
+	reply, err := FetchDataPoints(r.Context(), h.config, fetchRequests, config.ContextGraphite)
+	if err != nil {
+		clickhouse.HandleError(w, err)
+	}
 
-	sortStart := time.Now()
-	data.Points.Sort()
-	d = time.Since(sortStart)
-	logger.Debug("sort", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
-
-	data.Points.Uniq()
-	data.Aliases = am
+	if len(reply.CHResponses) == 0 {
+		h.Reply(w, r, "", EmptyResponse)
+		return
+	}
 
 	// pp.Println(points)
-	h.Reply(w, r, data, uint32(fromTimestamp), uint32(untilTimestamp), prefix, rollupObj)
+	h.Reply(w, r, prefix, reply.CHResponses)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string, rollupObj *rollup.Rules) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, prefix string, data []CHResponse) {
 	start := time.Now()
+	// All formats, except of carbonapi_v3_pb would have same from and until time, and data would contain only
+	// one response
 	switch r.FormValue("format") {
 	case "pickle":
-		h.ReplyPickle(w, r, data, from, until, prefix, rollupObj)
+		h.ReplyPickle(w, r, data[0].Data, uint32(data[0].From), uint32(data[0].Until), prefix)
 	case "protobuf":
-		h.ReplyProtobuf(w, r, data, from, until, prefix, rollupObj)
+		h.ReplyProtobuf(w, r, prefix, data, false)
+	case "carbonapi_v3_pb":
+		h.ReplyProtobuf(w, r, prefix, data, true)
 	}
 	d := time.Since(start)
 	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))

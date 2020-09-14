@@ -1,8 +1,11 @@
 package find
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
 
+	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
@@ -20,7 +23,33 @@ func NewHandler(config *config.Config) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(1024 * 1024)
 
-	query := r.FormValue("query")
+	var query string
+
+	if r.FormValue("format") == "carbonapi_v3_pb" {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		var pv3Request v3pb.MultiGlobRequest
+		if err := pv3Request.Unmarshal(body); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		if len(pv3Request.Metrics) != 1 {
+			http.Error(w, fmt.Sprintf("Multiple metrics in same find request is not supported yet: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		query = pv3Request.Metrics[0]
+		q := r.URL.Query()
+		q.Set("query", query)
+		r.URL.RawQuery = q.Encode()
+	} else {
+		query = r.FormValue("query")
+	}
 	if len(query) == 0 {
 		http.Error(w, "Query not set", http.StatusBadRequest)
 		return
@@ -41,5 +70,8 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) {
 	case "protobuf":
 		w.Header().Set("Content-Type", "application/x-protobuf")
 		f.WriteProtobuf(w)
+	case "carbonapi_v3_pb":
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		f.WriteProtobufV3(w)
 	}
 }

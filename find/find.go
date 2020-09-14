@@ -6,6 +6,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
@@ -122,6 +123,61 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 	}
 
 	body, err := proto.Marshal(&response)
+	if err != nil {
+		return err
+	}
+
+	w.Write(body)
+
+	return nil
+}
+
+func (f *Find) WriteProtobufV3(w io.Writer) error {
+	rows := f.result.List()
+
+	if len(rows) == 0 { // empty
+		return nil
+	}
+
+	// message GlobMatch {
+	//     required string path = 1;
+	//     required bool isLeaf = 2;
+	// }
+
+	// message GlobResponse {
+	//     required string name = 1;
+	//     repeated GlobMatch matches = 2;
+	// }
+
+	var response v3pb.GlobResponse
+	response.Name = f.query
+
+	var numResults = 0
+
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			continue
+		}
+
+		path, isLeaf := finder.Leaf(rows[i])
+
+		response.Matches = append(response.Matches, v3pb.GlobMatch{
+			Path:   string(path),
+			IsLeaf: isLeaf,
+		})
+
+		numResults++
+		if f.isResultsLimitExceeded(numResults) {
+			break
+		}
+	}
+
+	multiGlobResponse := v3pb.MultiGlobResponse{
+		Metrics: []v3pb.GlobResponse{
+			response,
+		},
+	}
+	body, err := proto.Marshal(&multiGlobResponse)
 	if err != nil {
 		return err
 	}
