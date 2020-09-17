@@ -313,7 +313,6 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	steps := make(map[string]uint32)
 	for _, m := range metricList {
 		step, _ := targets.rollupObj.Lookup(m, uint32(age))
-		steps[m] = step
 		if int64(step) > maxStep {
 			maxStep = int64(step)
 		}
@@ -321,6 +320,8 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		if targets.isReverse {
 			m = reverse.String(m)
 		}
+
+		steps[m] = step
 	}
 	until := dry.CeilToMultiplier(tf.Until, maxStep) - 1
 
