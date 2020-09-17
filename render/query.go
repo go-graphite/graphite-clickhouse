@@ -12,6 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
+	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"go.uber.org/zap"
@@ -315,6 +316,10 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		steps[m] = step
 		if int64(step) > maxStep {
 			maxStep = int64(step)
+		}
+
+		if targets.isReverse {
+			m = reverse.String(m)
 		}
 	}
 	until := dry.CeilToMultiplier(tf.Until, maxStep) - 1
