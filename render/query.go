@@ -155,7 +155,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 	}
 
 	if err != nil {
-		return nil
+		return err
 	}
 
 	logger.Info("data", zap.Int("read_bytes", data.length), zap.Int("read_points", data.Points.Len()))
