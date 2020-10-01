@@ -3,6 +3,7 @@ package render
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -105,7 +106,7 @@ func dataSplitAggregated(data []byte, atEOF bool) (advance int, token []byte, er
 }
 
 // parseAggregatedResponse reads the ClickHouse body into *Data and merges with extraPoints
-func parseAggregatedResponse(b chan io.ReadCloser, e chan error, extraPoints *point.Points, isReverse bool) (*Data, error) {
+func parseAggregatedResponse(ctx context.Context, b chan io.ReadCloser, e chan error, extraPoints *point.Points, isReverse bool) (*Data, error) {
 	d := prepare(extraPoints)
 	pp := d.Points
 
@@ -115,6 +116,8 @@ func parseAggregatedResponse(b chan io.ReadCloser, e chan error, extraPoints *po
 
 	for r := 1; r <= cap(b); r++ {
 		select {
+		case <-ctx.Done():
+			return d, ctx.Err()
 		case err := <-e:
 			return d, err
 		case bodyReader := <-b:

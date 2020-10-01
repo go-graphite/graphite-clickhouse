@@ -160,6 +160,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reply, err := FetchDataPoints(r.Context(), h.config, fetchRequests, config.ContextGraphite)
 	if err != nil {
 		clickhouse.HandleError(w, err)
+		return
 	}
 
 	if len(reply.CHResponses) == 0 {

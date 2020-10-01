@@ -2,10 +2,12 @@ package render
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -144,6 +146,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 }
 
 func TestAggregatedDataParse(t *testing.T) {
+	ctx := context.Background()
 	t.Run("empty response", func(t *testing.T) {
 		body := []byte{}
 		b := make(chan io.ReadCloser, 1)
@@ -152,7 +155,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			close(b)
 		}()
 
-		d, err := parseAggregatedResponse(b, nil, nil, false)
+		d, err := parseAggregatedResponse(ctx, b, nil, nil, false)
 		assert.NoError(t, err)
 		assert.Empty(t, d.Points.List())
 	})
@@ -176,7 +179,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			close(b)
 		}()
 
-		d, err := parseAggregatedResponse(b, e, nil, false)
+		d, err := parseAggregatedResponse(ctx, b, e, nil, false)
 		assert.Error(t, err)
 		assert.Equal(t, initialError, err)
 		assert.Equal(t, 1, len(d.Points.List()))
@@ -196,17 +199,16 @@ func TestAggregatedDataParse(t *testing.T) {
 
 		for i := 1; i < len(body)-1; i++ {
 			b := make(chan io.ReadCloser, 1)
-			e := make(chan error)
+			var wg sync.WaitGroup
 			go func() {
+				wg.Add(1)
 				b <- ioutil.NopCloser(bytes.NewReader(body[:i]))
-				for len(b) != 0 {
-					// sleep until parseAggregatedResponse reads the channel to avoid false negative
-					time.Sleep(time.Millisecond)
-				}
+				wg.Wait()
 				close(b)
 			}()
 
-			d, err := parseAggregatedResponse(b, e, nil, false)
+			d, err := parseAggregatedResponse(ctx, b, nil, nil, false)
+			wg.Done()
 			assert.Error(t, err)
 			assert.Equal(t, 0, d.length)
 		}
@@ -245,13 +247,9 @@ func TestAggregatedDataParse(t *testing.T) {
 
 			go func(p testPoint) {
 				b <- ioutil.NopCloser(bytes.NewReader(makeAggregatedBody([]testPoint{p})))
-				for len(b) != 0 {
-					// sleep until parseAggregatedResponse reads the channel to avoid false negative
-					time.Sleep(time.Millisecond)
-				}
 			}(point)
 
-			_, err := parseAggregatedResponse(b, nil, nil, false)
+			_, err := parseAggregatedResponse(ctx, b, nil, nil, false)
 			assert.Error(t, err)
 		}
 		close(b)
@@ -276,25 +274,59 @@ func TestAggregatedDataParse(t *testing.T) {
 		}
 
 		b := make(chan io.ReadCloser, 2)
+		var wg sync.WaitGroup
 		go func() {
+			wg.Add(1)
 			for _, p := range points {
 				body := makeAggregatedBody([]testPoint{p})
 				b <- ioutil.NopCloser(bytes.NewReader(body))
 			}
-			for len(b) != 0 {
-				// sleep until parseAggregatedResponse reads the channel to avoid false negative
-				time.Sleep(time.Millisecond)
-			}
+			wg.Wait()
 			close(b)
 		}()
 
-		d, err := parseAggregatedResponse(b, nil, nil, false)
+		d, err := parseAggregatedResponse(ctx, b, nil, nil, false)
+		wg.Done()
 		result := []point.Point{
 			{1, 42.1, 1520056686, 1520056686},
 			{2, 42.1, 1520056686, 1520056686},
 			{2, 43, 1520056690, 1520056690},
 		}
 		assert.NoError(t, err)
+		assert.Equal(t, result, d.Points.List())
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		// Set length of bodies 2, but writes only one of them,
+		// then use context with timeout to raise deadline error
+		points := []testPoint{
+			{
+				Metric: "hello.world",
+				PointValues: &pointValues{
+					Values: []float64{42.1},
+					Times:  []uint32{1520056686},
+				},
+			},
+		}
+
+		ctxTimeout, cancel := context.WithTimeout(ctx, time.Millisecond)
+		defer cancel()
+		b := make(chan io.ReadCloser, 2)
+		var wg sync.WaitGroup
+		go func() {
+			wg.Add(1)
+			body := makeAggregatedBody(points)
+			b <- ioutil.NopCloser(bytes.NewReader(body))
+			wg.Wait()
+			close(b)
+		}()
+
+		d, err := parseAggregatedResponse(ctxTimeout, b, nil, nil, false)
+		wg.Done()
+		result := []point.Point{
+			{1, 42.1, 1520056686, 1520056686},
+		}
+		assert.Error(t, err, "context deadline exceeded")
 		assert.Equal(t, result, d.Points.List())
 	})
 }

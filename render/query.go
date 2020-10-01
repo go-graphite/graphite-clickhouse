@@ -82,6 +82,8 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)
+	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout.Duration)
+	defer cancel()
 	cStep := &commonStep{
 		result: 0,
 		wg:     sync.WaitGroup{},
@@ -115,7 +117,7 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 		wg.Add(1)
 		go func(tf TimeFrame, targets *Targets) {
 			defer wg.Done()
-			err := reply.getDataPoints(ctx, cfg, tf, targets)
+			err := reply.getDataPoints(ctxTimeout, cfg, tf, targets)
 			if err != nil {
 				lock.Lock()
 				errors = append(errors, err)
@@ -154,7 +156,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 	}
 
 	if err != nil {
-		return nil
+		return err
 	}
 
 	logger.Info("data", zap.Int("read_bytes", data.length), zap.Int("read_points", data.Points.Len()))
@@ -279,7 +281,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	carbonlinkData := carbonlinkResponseRead()
-	data, err = parseAggregatedResponse(b, e, carbonlinkData, targets.isReverse)
+	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, targets.isReverse)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
