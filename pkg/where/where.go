@@ -15,6 +15,7 @@ func unsafeString(b []byte) string {
 func GlobToRegexp(g string) string {
 	s := g
 	s = strings.ReplaceAll(s, ".", "[.]")
+	s = strings.ReplaceAll(s, "$", "[$]")
 	s = strings.ReplaceAll(s, "{", "(")
 	s = strings.ReplaceAll(s, "}", ")")
 	s = strings.ReplaceAll(s, "?", "[^.]")

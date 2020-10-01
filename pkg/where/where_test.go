@@ -15,6 +15,7 @@ func TestGlobToRegexp(t *testing.T) {
 		{`test.*.foo`, `test[.]([^.]*?)[.]foo`},
 		{`test.{foo,bar}`, `test[.](foo|bar)`},
 		{`test?.foo`, `test[^.][.]foo`},
+		{`test?.$foo`, `test[^.][.][$]foo`},
 	}
 
 	for _, test := range table {
