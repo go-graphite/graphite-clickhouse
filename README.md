@@ -20,7 +20,7 @@ Gray components are optional or alternative
 - [x] [carbonapi](https://github.com/go-graphite/carbonapi)
 
 ## Build
-Required golang 1.7+
+Required golang 1.13+
 ```sh
 # build binary
 git clone https://github.com/lomik/graphite-clickhouse.git
