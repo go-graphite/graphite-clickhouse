@@ -122,7 +122,7 @@ func parseAggregatedResponse(ctx context.Context, b chan io.ReadCloser, e chan e
 			return d, err
 		case bodyReader := <-b:
 			scanner := bufio.NewScanner(bodyReader)
-			scanner.Buffer(make([]byte, 10485760), 10485760)
+			scanner.Buffer(make([]byte, 1048576), 67108864)
 			scanner.Split(dataSplitAggregated)
 
 			var rowStart []byte
@@ -244,7 +244,7 @@ func parseUnaggregatedResponse(bodyReader io.Reader, extraPoints *point.Points, 
 	var metricID uint32
 
 	scanner := bufio.NewScanner(bodyReader)
-	scanner.Buffer(make([]byte, 10485760), 10485760)
+	scanner.Buffer(make([]byte, 1048576), 67108864)
 	scanner.Split(dataSplitUnaggregated)
 
 	var rowStart []byte
