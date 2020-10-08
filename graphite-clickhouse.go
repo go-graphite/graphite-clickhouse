@@ -156,13 +156,14 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
-	http.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
-	http.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
-	http.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
-	http.Handle("/render/", Handler(render.NewHandler(cfg)))
-	http.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
-	http.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
-	http.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
+	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
+	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
+	mux.Handle("/render/", Handler(render.NewHandler(cfg)))
+	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
+	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
+	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -171,7 +172,7 @@ func main() {
 		w.Write(b)
 	})
 
-	http.Handle("/", Handler(prometheus.NewHandler(cfg)))
+	mux.Handle("/", Handler(prometheus.NewHandler(cfg)))
 
-	log.Fatal(http.ListenAndServe(cfg.Common.Listen, nil))
+	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }
