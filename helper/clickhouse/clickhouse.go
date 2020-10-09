@@ -37,6 +37,17 @@ func (e *ErrDataParse) PrependDescription(test string) {
 	e.data = test + e.data
 }
 
+type ErrorWithCode struct {
+	err  string
+	Code int // error code
+}
+
+func NewErrorWithCode(err string, code int) error {
+	return &ErrorWithCode{err, code}
+}
+
+func (e *ErrorWithCode) Error() string { return e.err }
+
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
 var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
 var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
@@ -51,6 +62,15 @@ func HandleError(w http.ResponseWriter, err error) {
 			strings.HasSuffix(err.Error(), ": connection reset by peer") ||
 			strings.HasPrefix(err.Error(), "dial tcp: lookup ") { // DNS lookup
 			http.Error(w, "Storage error", http.StatusServiceUnavailable)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	errCode, ok := err.(*ErrorWithCode)
+	if ok {
+		if errCode.Code > 500 && errCode.Code < 512 {
+			http.Error(w, errCode.Error(), errCode.Code)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -82,13 +102,14 @@ type loggedReader struct {
 	logger   *zap.Logger
 	start    time.Time
 	finished bool
+	queryID  string
 }
 
 func (r *loggedReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err != nil && !r.finished {
 		r.finished = true
-		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
 	return n, err
 }
@@ -97,7 +118,7 @@ func (r *loggedReader) Close() error {
 	err := r.reader.Close()
 	if !r.finished {
 		r.finished = true
-		r.logger.Info("query", zap.Duration("time", time.Since(r.start)))
+		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
 	return err
 }
@@ -128,6 +149,8 @@ func Reader(ctx context.Context, dsn string, query string, opts Options) (io.Rea
 }
 
 func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
+	var chQueryID string
+
 	start := time.Now()
 
 	requestID := scope.RequestID(ctx)
@@ -193,7 +216,16 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	if resp.StatusCode != 200 {
+	// chproxy overwrite our query id. So read it again
+	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
+
+	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
+	if resp.StatusCode > 500 && resp.StatusCode < 512 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		err = NewErrorWithCode(string(body), resp.StatusCode)
+		return
+	} else if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
@@ -201,9 +233,10 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	}
 
 	bodyReader = &loggedReader{
-		reader: resp.Body,
-		logger: logger,
-		start:  start,
+		reader:  resp.Body,
+		logger:  logger,
+		start:   start,
+		queryID: chQueryID,
 	}
 
 	return
