@@ -95,7 +95,7 @@ func main() {
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	buildTags := flag.Bool("tags", false, "Build tags table")
-	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..)")
+	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -142,8 +142,12 @@ func main() {
 
 	/* CONFIG end */
 
-	if pprof != nil && *pprof != "" {
-		go func() { log.Fatal(http.ListenAndServe(*pprof, nil)) }()
+	if pprof != nil && *pprof != "" || cfg.Common.PprofListen != "" {
+		listen := cfg.Common.PprofListen
+		if *pprof != "" {
+			listen = *pprof
+		}
+		go func() { log.Fatal(http.ListenAndServe(listen, nil)) }()
 	}
 
 	/* CONSOLE COMMANDS start */

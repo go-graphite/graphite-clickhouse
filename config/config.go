@@ -46,6 +46,7 @@ type Common struct {
 	// MetricInterval *Duration `toml:"metric-interval"`
 	// MetricEndpoint string    `toml:"metric-endpoint"`
 	Listen                 string           `toml:"listen" json:"listen"`
+	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
 	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer"` //zero means infinite
 	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist"`
@@ -143,7 +144,8 @@ type Config struct {
 func New() *Config {
 	cfg := &Config{
 		Common: Common{
-			Listen: ":9090",
+			Listen:      ":9090",
+			PprofListen: "",
 			// MetricPrefix: "carbon.graphite-clickhouse.{host}",
 			// MetricInterval: &Duration{
 			// 	Duration: time.Minute,
