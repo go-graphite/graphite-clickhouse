@@ -4,13 +4,16 @@ go:
 - '1.14'
 - '1.15'
 - 'stable' # the latest version will be always checked
+addons:
+  apt:
+    packages: rpm
+install:
+  - gem install fpm
 script:
 - make
 - make test
 before_deploy:
-- sudo apt-get install -y rpm ruby ruby-dev
 - go get github.com/mitchellh/gox
-- gem install fpm
 - make gox-build
 - make fpm-deb
 - make fpm-rpm
