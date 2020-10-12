@@ -287,6 +287,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		return nil, err
 	}
 	data.commonStep = step
+	data.rollupObj = targets.rollupObj
 	return
 }
 

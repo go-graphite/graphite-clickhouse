@@ -3,6 +3,7 @@ go:
 - '1.13'
 - '1.14'
 - '1.15'
+- 'stable' # the latest version will be always checked
 script:
 - make
 - make test

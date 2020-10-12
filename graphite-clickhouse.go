@@ -95,7 +95,7 @@ func main() {
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	buildTags := flag.Bool("tags", false, "Build tags table")
-	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..)")
+	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ")
 
 	printVersion := flag.Bool("version", false, "Print version")
 
@@ -142,8 +142,12 @@ func main() {
 
 	/* CONFIG end */
 
-	if pprof != nil && *pprof != "" {
-		go func() { log.Fatal(http.ListenAndServe(*pprof, nil)) }()
+	if pprof != nil && *pprof != "" || cfg.Common.PprofListen != "" {
+		listen := cfg.Common.PprofListen
+		if *pprof != "" {
+			listen = *pprof
+		}
+		go func() { log.Fatal(http.ListenAndServe(listen, nil)) }()
 	}
 
 	/* CONSOLE COMMANDS start */
@@ -156,13 +160,14 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
-	http.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
-	http.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
-	http.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
-	http.Handle("/render/", Handler(render.NewHandler(cfg)))
-	http.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
-	http.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
-	http.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
+	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
+	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
+	mux.Handle("/render/", Handler(render.NewHandler(cfg)))
+	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
+	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
+	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -171,7 +176,7 @@ func main() {
 		w.Write(b)
 	})
 
-	http.Handle("/", Handler(prometheus.NewHandler(cfg)))
+	mux.Handle("/", Handler(prometheus.NewHandler(cfg)))
 
-	log.Fatal(http.ListenAndServe(cfg.Common.Listen, nil))
+	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }

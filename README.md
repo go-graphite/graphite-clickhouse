@@ -20,7 +20,7 @@ Gray components are optional or alternative
 - [x] [carbonapi](https://github.com/go-graphite/carbonapi)
 
 ## Build
-Required golang 1.7+
+Required golang 1.13+
 ```sh
 # build binary
 git clone https://github.com/lomik/graphite-clickhouse.git
@@ -61,6 +61,8 @@ Create `/etc/graphite-clickhouse/graphite-clickhouse.conf`
 ```toml
 [common]
 listen = ":9090"
+# Listener to serve /debug/pprof requests. `-pprof` argument would override it
+pprof-listen = ""
 max-cpu = 1
 # How frequently to call debug.FreeOSMemory() to return memory back to OS
 # Setting it to zero disables this functionality
@@ -69,6 +71,8 @@ memory-return-interval = "0s"
 max-metrics-in-find-answer = 0
 # Daemon returns empty response if query matches any of regular expressions
 # target-blacklist = ["^not_found.*"]
+# If this > 0, then once an interval daemon will return the freed memory to the OS
+memory-return-interval = "0s"
 
 [clickhouse]
 # You can add user/password (http://user:password@localhost:8123) and any clickhouse options (GET-parameters) to url
@@ -92,8 +96,10 @@ index-timeout = "1m"
 
 # `tagged` table from carbon-clickhouse. Required for seriesByTag
 tagged-table = ""
+# For how long the daeom will query tags during autocomplete
+tagged-autocomplete-days = 7
 
-# Old index tables. Deprecated
+# Old index tables. DEPRECATED
 tree-table = "graphite_tree"
 # Optional table with daily series list.
 # Useful for installations with big count of short-lived series
@@ -104,6 +110,15 @@ date-tree-table = ""
 # 3: same as #2 but with reversed Path. Table type "series-reverse" in the carbon-clickhouse
 date-tree-table-version = 0
 tree-timeout = "1m0s"
+
+connect-timeout = "1s"
+
+# Sets the maximum for maxDataPoints parameter.
+# If you use CH w/o https://github.com/ClickHouse/ClickHouse/pull/13947, you have to set it to 4096
+max-data-points = 4096
+# Use metrics aggregation on ClickHouse site.
+# This feature is very useful, read https://github.com/lomik/graphite-clickhouse/wiki/ClickHouse-aggregation-VS-graphite%E2%80%94clickhouse-aggregation
+internal-aggregation = false
 
 [prometheus]
 # The URL under which Prometheus is externally reachable (for example, if Prometheus is served via a reverse proxy). Used for

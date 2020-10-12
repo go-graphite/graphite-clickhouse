@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/prometheus/web"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/server"
@@ -72,6 +73,7 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 	if strings.HasSuffix(r.URL.Path, "/read") {
 		h.read(w, r)
 		return
