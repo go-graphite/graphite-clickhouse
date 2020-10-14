@@ -124,7 +124,11 @@ func Make(cfg *config.Config) error {
 					i,
 					extraWhere,
 				),
-				clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+				clickhouse.Options{
+					Timeout:        cfg.ClickHouse.IndexTimeout.Value(),
+					ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+				},
+				nil,
 			)
 			if err != nil {
 				return err
@@ -345,7 +349,11 @@ func Make(cfg *config.Config) error {
 			cfg.ClickHouse.Url,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
 			outBuf,
-			clickhouse.Options{Timeout: cfg.ClickHouse.IndexTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+			clickhouse.Options{
+				Timeout:        cfg.ClickHouse.IndexTimeout.Value(),
+				ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+			},
+			nil,
 		)
 		if err != nil {
 			return err

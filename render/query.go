@@ -260,7 +260,11 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 				scope.WithTable(ctx, targets.pointsTable),
 				cfg.ClickHouse.Url,
 				query,
-				clickhouse.Options{Timeout: cfg.ClickHouse.DataTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+				clickhouse.Options{
+					Timeout:        cfg.ClickHouse.DataTimeout.Value(),
+					ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+				},
+				nil,
 			)
 			if err != nil {
 				logger.Error("reader", zap.Error(err))
@@ -345,7 +349,11 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		scope.WithTable(ctx, targets.pointsTable),
 		cfg.ClickHouse.Url,
 		query,
-		clickhouse.Options{Timeout: cfg.ClickHouse.DataTimeout.Value(), ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value()},
+		clickhouse.Options{
+			Timeout:        cfg.ClickHouse.DataTimeout.Value(),
+			ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+		},
+		nil,
 	)
 
 	if err != nil {

@@ -31,9 +31,12 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.IndexTable),
 			config.ClickHouse.Url,
-			fmt.Sprintf("SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
-				config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset),
+			fmt.Sprintf(
+				"SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
+				config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset,
+			),
 			opts,
+			nil,
 		)
 	} else {
 		opts := clickhouse.Options{
@@ -45,6 +48,7 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 			config.ClickHouse.Url,
 			fmt.Sprintf("SELECT Path FROM %s GROUP BY Path", config.ClickHouse.TreeTable),
 			opts,
+			nil,
 		)
 	}
 

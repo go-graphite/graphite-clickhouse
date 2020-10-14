@@ -51,8 +51,16 @@ func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) 
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
-		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
+	body, err := clickhouse.Query(
+		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
+		q.config.ClickHouse.Url,
+		sql,
+		clickhouse.Options{
+			Timeout:        q.config.ClickHouse.IndexTimeout.Value(),
+			ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value(),
+		},
+		nil,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,8 +84,16 @@ func (q *Querier) LabelNames() ([]string, storage.Warnings, error) {
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable), q.config.ClickHouse.Url, sql,
-		clickhouse.Options{Timeout: q.config.ClickHouse.IndexTimeout.Value(), ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value()})
+	body, err := clickhouse.Query(
+		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
+		q.config.ClickHouse.Url,
+		sql,
+		clickhouse.Options{
+			Timeout:        q.config.ClickHouse.IndexTimeout.Value(),
+			ConnectTimeout: q.config.ClickHouse.ConnectTimeout.Value(),
+		},
+		nil,
+	)
 	if err != nil {
 		return nil, nil, err
 	}

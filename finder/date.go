@@ -43,10 +43,9 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.body, err = clickhouse.Query(
 			scope.WithTable(ctx, b.table),
 			b.url,
-			fmt.Sprintf(
-				`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path`,
-				b.table, dateWhere, w),
+			fmt.Sprintf(`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path`, b.table, dateWhere, w),
 			b.opts,
+			nil,
 		)
 	} else {
 		b.body, err = clickhouse.Query(
@@ -54,6 +53,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			b.url,
 			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere, w),
 			b.opts,
+			nil,
 		)
 	}
 
