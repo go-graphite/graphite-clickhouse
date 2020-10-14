@@ -101,6 +101,10 @@ func In(field string, list []string) string {
 	return buf.String()
 }
 
+func InTable(field string, table string) string {
+	return fmt.Sprintf("%s in %s", field, table)
+}
+
 func DateBetween(field string, from time.Time, until time.Time) string {
 	return fmt.Sprintf(
 		"%s >='%s' AND %s <= '%s'",

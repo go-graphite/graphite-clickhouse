@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -209,7 +210,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	// end of generic prepare
 
 	maxDataPoints := dry.Min(tf.MaxDataPoints, int64(cfg.ClickHouse.MaxDataPoints))
-	metricsAggregation := make(map[string][]string)
+	metricsAggregation := make(map[string][]byte)
 
 	// Grouping metrics by aggregation steps and functions
 	var step int64
@@ -217,9 +218,9 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := metricsAggregation[agg.Name()]; ok {
-			metricsAggregation[agg.Name()] = append(mm, m)
+			metricsAggregation[agg.Name()] = append(mm, []byte("\n"+m)...)
 		} else {
-			metricsAggregation[agg.Name()] = []string{m}
+			metricsAggregation[agg.Name()] = []byte(m)
 		}
 	}
 	r.cStep.calculate(step)
@@ -238,14 +239,24 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		close(b)
 	}()
 
-	for agg, metricList := range metricsAggregation {
+	for agg, tableBody := range metricsAggregation {
 		from := dry.CeilToMultiplier(tf.From, step)
 		until := dry.CeilToMultiplier(tf.Until, step) - 1
 		pw := where.New()
 		pw.And(where.DateBetween("Date", time.Unix(from, 0), time.Unix(until, 0)))
 
 		wr := where.New()
-		wr.And(where.In("Path", metricList))
+		tempTable := clickhouse.ExternalTable{
+			Name: "metrics_list",
+			Columns: []clickhouse.Column{{
+				Name: "Path",
+				Type: "String",
+			}},
+			Format: "TSV",
+			Data:   tableBody,
+		}
+		extData := clickhouse.NewExternalData(tempTable)
+		wr.And(where.InTable("Path", tempTable.Name))
 
 		wr.And(where.TimestampBetween("Time", from, until))
 		query := fmt.Sprintf(
@@ -264,7 +275,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 					Timeout:        cfg.ClickHouse.DataTimeout.Value(),
 					ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
 				},
-				nil,
+				extData,
 			)
 			if err != nil {
 				logger.Error("reader", zap.Error(err))
@@ -332,11 +343,23 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 	until := dry.CeilToMultiplier(tf.Until, maxStep) - 1
 
+	tableBody := []byte(strings.Join(metricList, "\n"))
+	tempTable := clickhouse.ExternalTable{
+		Name: "metrics_list",
+		Columns: []clickhouse.Column{{
+			Name: "Path",
+			Type: "String",
+		}},
+		Format: "TSV",
+		Data:   tableBody,
+	}
+	extData := clickhouse.NewExternalData(tempTable)
+
 	pw := where.New()
 	pw.And(where.DateBetween("Date", time.Unix(tf.From, 0), time.Unix(until, 0)))
 
 	wr := where.New()
-	wr.And(where.In("Path", metricList))
+	wr.And(where.InTable("Path", tempTable.Name))
 
 	wr.And(where.TimestampBetween("Time", tf.From, until))
 
@@ -353,7 +376,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 			Timeout:        cfg.ClickHouse.DataTimeout.Value(),
 			ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
 		},
-		nil,
+		extData,
 	)
 
 	if err != nil {
