@@ -39,6 +39,8 @@ func NewValues(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := scope.Logger(r.Context()).Named("autocomplete")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	if h.isValues {
 		h.ServeValues(w, r)
 	} else {

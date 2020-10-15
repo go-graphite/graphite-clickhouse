@@ -8,6 +8,7 @@ import (
 	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
 type Handler struct {
@@ -21,6 +22,8 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := scope.Logger(r.Context()).Named("metrics-find")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	r.ParseMultipartForm(1024 * 1024)
 
 	var query string
