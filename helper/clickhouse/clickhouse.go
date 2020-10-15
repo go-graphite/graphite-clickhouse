@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"github.com/lomik/zapwriter"
 
 	"go.uber.org/zap"
 )
@@ -159,7 +158,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:395] + "<...>" + queryForLogger[len(queryForLogger)-100:]
 	}
-	logger := zapwriter.Logger("query").With(zap.String("query", formatSQL(queryForLogger)), zap.String("request_id", requestID))
+	logger := scope.Logger(ctx).With(zap.String("query", formatSQL(queryForLogger)), zap.String("request_id", requestID))
 
 	defer func() {
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))

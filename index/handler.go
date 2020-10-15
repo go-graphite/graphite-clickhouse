@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
 type Handler struct {
@@ -17,6 +18,8 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := scope.Logger(r.Context()).Named("index")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	i, err := New(h.config, r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -67,7 +67,7 @@ func Handler(handler http.Handler) http.Handler {
 		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
 
-		logger := scope.Logger(r.Context())
+		logger := scope.Logger(r.Context()).Named("http")
 
 		grafana := scope.Grafana(r.Context())
 		if grafana != "" {

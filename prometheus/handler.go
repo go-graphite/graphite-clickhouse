@@ -73,6 +73,8 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := scope.Logger(r.Context()).Named("prometheus")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 	if strings.HasSuffix(r.URL.Path, "/read") {
 		h.read(w, r)
