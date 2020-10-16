@@ -63,6 +63,8 @@ func Handler(handler http.Handler) http.Handler {
 
 		r = scope.HttpRequest(r)
 
+		w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
+
 		start := time.Now()
 		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
