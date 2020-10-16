@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,35 @@ func (d *Duration) MarshalText() ([]byte, error) {
 // Value return time.Duration value
 func (d *Duration) Value() time.Duration {
 	return d.Duration
+}
+
+// FileMode wrapper os.FileMode for TOML
+type FileMode struct {
+	os.FileMode
+}
+
+var _ toml.TextMarshaler = &FileMode{}
+
+// UnmarshalText from TOML
+func (f *FileMode) UnmarshalText(text []byte) error {
+	var err error
+	var mode uint64
+	mode, err = strconv.ParseUint(string(text), 8, 32)
+	if err != nil {
+		return err
+	}
+	f.FileMode = os.FileMode(mode)
+	return nil
+}
+
+// MarshalText encode text with TOML format
+func (f *FileMode) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("0%o", f.FileMode)), nil
+}
+
+// Value return time.Duration value
+func (f *FileMode) Value() os.FileMode {
+	return f.FileMode
 }
 
 type Common struct {
@@ -129,6 +159,16 @@ type DataTable struct {
 	Rollup                 *rollup.Rollup  `toml:"-" json:"rollup-conf"`
 }
 
+// Debug contains debugging configuration
+type Debug struct {
+	// The directory for additional debug info
+	Directory     string    `toml:"directory" json:"directory"`
+	DirectoryPerm *FileMode `toml:"directory-perm" json:"directory-perm"`
+	// If ExternalDataPerm > 0 and X-Gch-Debug-Ext-Data HTTP header is set, the external data used in the query
+	// will be saved in the DebugDir directory
+	ExternalDataPerm *FileMode `toml:"external-data-perm" json:"external-data-perm"`
+}
+
 // Config ...
 type Config struct {
 	Common     Common             `toml:"common" json:"common"`
@@ -137,6 +177,7 @@ type Config struct {
 	Tags       Tags               `toml:"tags" json:"tags"`
 	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
 	Prometheus Prometheus         `toml:"prometheus" json:"prometheus"`
+	Debug      Debug              `toml:"debug" json:"debug"`
 	Logging    []zapwriter.Config `toml:"logging" json:"logging"`
 }
 
@@ -191,6 +232,11 @@ func New() *Config {
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
 			PageTitle:      "Prometheus Time Series Collection and Processing Server",
+		},
+		Debug: Debug{
+			Directory:        "",
+			DirectoryPerm:    &FileMode{FileMode: 0755},
+			ExternalDataPerm: &FileMode{FileMode: 0},
 		},
 		Logging: nil,
 	}
@@ -259,6 +305,19 @@ func ReadConfig(filename string) (*Config, error) {
 
 	if err := zapwriter.CheckConfig(cfg.Logging, nil); err != nil {
 		return nil, err
+	}
+
+	// Check if debug directory exists or could be created
+	if cfg.Debug.Directory != "" {
+		info, err := os.Stat(cfg.Debug.Directory)
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(cfg.Debug.Directory, os.ModeDir|cfg.Debug.DirectoryPerm.FileMode)
+			if err != nil {
+				return nil, err
+			}
+		} else if !info.IsDir() {
+			return nil, fmt.Errorf("the file for external data debug dumps exists and is not a directory: %v", cfg.Debug.Directory)
+		}
 	}
 
 	if cfg.ClickHouse.DataTableLegacy != "" {

@@ -198,6 +198,10 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		if err != nil {
 			return
 		}
+		err = extData.debugDump(ctx)
+		if err != nil {
+			logger.Warn("external-data", zap.Error(err))
+		}
 	} else {
 		postBody = strings.NewReader(query)
 	}

@@ -256,6 +256,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 			Data:   tableBody,
 		}
 		extData := clickhouse.NewExternalData(tempTable)
+		extData.SetDebug(cfg.Debug.Directory, cfg.Debug.ExternalDataPerm.FileMode)
 		wr.And(where.InTable("Path", tempTable.Name))
 
 		wr.And(where.TimestampBetween("Time", from, until))
@@ -354,6 +355,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		Data:   tableBody,
 	}
 	extData := clickhouse.NewExternalData(tempTable)
+	extData.SetDebug(cfg.Debug.Directory, cfg.Debug.ExternalDataPerm.FileMode)
 
 	pw := where.New()
 	pw.And(where.DateBetween("Date", time.Unix(tf.From, 0), time.Unix(until, 0)))

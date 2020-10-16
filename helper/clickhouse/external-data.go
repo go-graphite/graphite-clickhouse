@@ -2,9 +2,16 @@ package clickhouse
 
 import (
 	"bytes"
+	"context"
+	"fmt"
+	"io/ioutil"
 	"mime/multipart"
 	"net/url"
+	"os"
+	"path"
 	"strings"
+
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
 // ExternalData is a structure to use ClickHouse feature that creates a temporary table per query
@@ -30,10 +37,24 @@ func (c *Column) String() string {
 
 type ExternalData struct {
 	Tables []ExternalTable
+	debug  *extDataDebug
+}
+
+type extDataDebug struct {
+	dir  string
+	perm os.FileMode
 }
 
 func NewExternalData(tables ...ExternalTable) *ExternalData {
-	return &ExternalData{Tables: tables}
+	return &ExternalData{Tables: tables, debug: nil}
+}
+
+func (e *ExternalData) SetDebug(debugDir string, perm os.FileMode) {
+	if debugDir == "" && perm == 0 {
+		e.debug = nil
+	}
+	e.debug = &extDataDebug{debugDir, perm}
+	return
 }
 
 // buildBody returns multiform body, content type header and error
@@ -71,4 +92,23 @@ func (e *ExternalData) buildBody(u *url.URL) (*bytes.Buffer, string, error) {
 	}
 	header = writer.FormDataContentType()
 	return body, header, nil
+}
+
+func (e *ExternalData) debugDump(ctx context.Context) error {
+	if e.debug == nil || !scope.Debug(ctx, "ExternalData") {
+		// Do not dump if the settings are not set
+		return nil
+	}
+
+	requestID := scope.RequestID(ctx)
+
+	for _, t := range e.Tables {
+		_ = t
+		filename := path.Join(e.debug.dir, fmt.Sprintf("ext-%v:%v.%v", t.Name, requestID, t.Format))
+		err := ioutil.WriteFile(filename, t.Data, e.debug.perm)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

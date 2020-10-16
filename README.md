@@ -175,6 +175,14 @@ total-timeout = "500ms"
 # # regexp.Match({target-match-all}, target[0]) && regexp.Match({target-match-all}, target[1]) && ...
 # target-match-all = "regexp"
 
+[debug]
+# The directory for debug info. If set, additional info may be saved there
+directory = "/var/log/graphite-clickhouse/debug"
+directory-perm = "0755"
+# File permissions for external data dumps. Enabled only if !=0, see X-Gch-Debug-External-Data header
+# Format is octal, e.g. 0640
+external-data-perm = "0644"
+
 [[logging]]
 logger = ""
 file = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
@@ -183,6 +191,22 @@ encoding = "mixed"
 encoding-time = "iso8601"
 encoding-duration = "seconds"
 ```
+
+### Special headers processing
+
+Some HTTP headers are processed specially by the service
+
+#### Request headers
+
+*Grafana headers*: `X-Dashboard-Id`, `X-Grafana-Org-Id`, and `X-Panel-Id` are logged and passed further to the ClickHouse.
+
+*Debug headers*:
+
+- `X-Gch-Debug-External-Data` - when this header is set to anything and every of `directory`, `directory-perm`, and `external-data-perm` parameters in `[debug]` is set and valid, service will save the dump of external data tables in the directory for debug output.
+
+#### Response headers
+
+- `X-Gch-Request-Id` - the current request ID.
 
 ## Run on same host with old graphite-web 0.9.x
 By default graphite-web won't connect to CLUSTER_SERVER on localhost. Cheat:
