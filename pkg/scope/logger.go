@@ -14,6 +14,7 @@ func Logger(ctx context.Context) *zap.Logger {
 	if logger != nil {
 		if zl, ok := logger.(*zap.Logger); ok {
 			zapLogger = zl
+			return zapLogger
 		}
 	}
 	if zapLogger == nil {
