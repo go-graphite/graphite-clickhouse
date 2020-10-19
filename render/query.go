@@ -44,6 +44,7 @@ type TimeFrame struct {
 }
 
 type Targets struct {
+	// List contains list of metrics in one the target
 	List        []string
 	AM          *alias.Map
 	pointsTable string
@@ -53,6 +54,15 @@ type Targets struct {
 
 // MultiFetchRequest is a map of TimeFrame keys and targets slice of strings values
 type MultiFetchRequest map[TimeFrame]*Targets
+
+func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
+	for _, t := range *m {
+		if num < t.AM.Len() {
+			return fmt.Errorf("metrics limit exceeded: %v < %v", num, t.AM.Len())
+		}
+	}
+	return nil
+}
 
 type CHResponse struct {
 	Data  *Data
@@ -83,6 +93,13 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)
+
+	err := fetchRequests.checkMetricsLimitExceeded(cfg.Common.MaxMetricsPerTarget)
+	if err != nil {
+		logger.Error("data fetch", zap.Error(err))
+		return nil, err
+	}
+
 	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout.Duration)
 	defer cancel()
 	cStep := &commonStep{

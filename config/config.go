@@ -79,6 +79,7 @@ type Common struct {
 	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
 	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer"` //zero means infinite
+	MaxMetricsPerTarget    int              `toml:"max-metrics-per-target" json:"max-metrics-per-target"`
 	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist"`
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 	MemoryReturnInterval   *Duration        `toml:"memory-return-interval" json:"memory-return-interval"`
@@ -194,6 +195,7 @@ func New() *Config {
 			// MetricEndpoint: MetricEndpointLocal,
 			MaxCPU:                 1,
 			MaxMetricsInFindAnswer: 0,
+			MaxMetricsPerTarget:    15000, // This is arbitrary value to protect CH from overload
 			MemoryReturnInterval:   &Duration{},
 		},
 		ClickHouse: ClickHouse{

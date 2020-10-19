@@ -51,7 +51,7 @@ Create `/etc/graphite-clickhouse/rollup.xml` with same content as for ClickHouse
 </graphite_rollup>
 ```
 
-For complex clickhouse queries you might need to increase default query_max_size. To do that add following line to `/etc/clickhouse-server/users.xml` for the user you are using:
+For complex ClickHouse queries you might need to increase default query_max_size. To do that add following line to `/etc/clickhouse-server/users.xml` for the user you are using:
 ```xml
 <!-- Default is 262144 -->
 <max_query_size>10485760</max_query_size>
@@ -69,6 +69,8 @@ max-cpu = 1
 memory-return-interval = "0s"
 # Limit number of results from find query. Zero = unlimited
 max-metrics-in-find-answer = 0
+# Limit numbers of queried metrics per target in /render requests. Zero = unlimited
+max-metrics-per-target = 15000
 # Daemon returns empty response if query matches any of regular expressions
 # target-blacklist = ["^not_found.*"]
 # If this > 0, then once an interval daemon will return the freed memory to the OS
