@@ -33,6 +33,7 @@ func NewHandler(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("render")
+	url := r.URL
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 
@@ -69,7 +70,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		q := r.URL.Query()
+		q := url.Query()
 
 		if len(pv3Request.Metrics) > 0 {
 			q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
@@ -89,10 +90,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					fetchRequests[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
 				}
 				q.Add("target", m.PathExpression)
+				logger.Debug(
+					"pb3_target",
+					zap.Int64("from", m.StartTime),
+					zap.Int64("until", m.StopTime),
+					zap.Int64("maxDataPoints", m.MaxDataPoints),
+					zap.String("target", m.PathExpression),
+				)
 			}
 		}
 
-		r.URL.RawQuery = q.Encode()
+		url.RawQuery = q.Encode()
 	} else {
 		fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 		if err != nil {
