@@ -47,9 +47,15 @@ func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, perfix s
 				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
 				return err
 			}
+			function, err := data.GetAggregation(points[0].MetricID)
+			if err != nil {
+				logger.Error("fail to get function", zap.Error(err))
+				http.Error(w, fmt.Sprintf("failed to get function for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				return err
+			}
 
 			for _, a := range data.Aliases.Get(metricName) {
-				writeAlias(mb, mb2, writer, a.Target, a.DisplayName, from, until, step, points)
+				writeAlias(mb, mb2, writer, a.Target, a.DisplayName, function, from, until, step, points)
 			}
 			return nil
 		}

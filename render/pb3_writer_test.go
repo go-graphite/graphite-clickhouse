@@ -15,6 +15,7 @@ import (
 type test struct {
 	name      string
 	target    string
+	function  string
 	response  v3pb.MultiFetchResponse
 	from      uint32
 	until     uint32
@@ -26,11 +27,12 @@ type test struct {
 func TestWritePB3(t *testing.T) {
 	tests := []test{
 		{
-			name:   "singlePoint",
-			from:   4,
-			until:  13,
-			step:   5,
-			target: "*",
+			name:     "singlePoint",
+			function: "avg",
+			from:     4,
+			until:    13,
+			step:     5,
+			target:   "*",
 			points: []point.Point{
 				{
 					0,
@@ -44,7 +46,7 @@ func TestWritePB3(t *testing.T) {
 					{
 						Name:                    "singlePoint",
 						PathExpression:          "*",
-						ConsolidationFunc:       "Average",
+						ConsolidationFunc:       "avg",
 						XFilesFactor:            0,
 						HighPrecisionTimestamps: false,
 						StartTime:               5,
@@ -58,11 +60,12 @@ func TestWritePB3(t *testing.T) {
 			},
 		},
 		{
-			name:   "multiPoint",
-			from:   1,
-			until:  5,
-			step:   1,
-			target: "multiPoint",
+			name:     "multiPoint",
+			function: "max",
+			from:     1,
+			until:    5,
+			step:     1,
+			target:   "multiPoint",
 			points: []point.Point{
 				{
 					0,
@@ -88,7 +91,7 @@ func TestWritePB3(t *testing.T) {
 					{
 						Name:                    "multiPoint",
 						PathExpression:          "multiPoint",
-						ConsolidationFunc:       "Average",
+						ConsolidationFunc:       "max",
 						XFilesFactor:            0,
 						HighPrecisionTimestamps: false,
 						StartTime:               1,
@@ -114,7 +117,7 @@ func TestWritePB3(t *testing.T) {
 
 			mb := new(bytes.Buffer)
 			mb2 := new(bytes.Buffer)
-			writePB3(mb, mb2, w, tt.target, tt.name, tt.from, tt.until, tt.step, tt.points)
+			writePB3(mb, mb2, w, tt.target, tt.name, tt.function, tt.from, tt.until, tt.step, tt.points)
 
 			w.Flush()
 
