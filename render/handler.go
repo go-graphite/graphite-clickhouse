@@ -35,7 +35,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("render")
 	url := r.URL
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
-	w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 
 	var prefix string
 	var err error

@@ -242,7 +242,7 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 	)
 
 	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path", t.table, pw.PreWhereSQL(), w.SQL())
-	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts)
+	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
 	return err
 }
 

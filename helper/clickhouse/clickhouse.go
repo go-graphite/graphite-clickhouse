@@ -131,23 +131,28 @@ func formatSQL(q string) string {
 	return strings.Join(s, " ")
 }
 
-func Query(ctx context.Context, dsn string, query string, opts Options) ([]byte, error) {
-	return Post(ctx, dsn, query, nil, opts)
+func Query(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) ([]byte, error) {
+	return Post(ctx, dsn, query, nil, opts, extData)
 }
 
-func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options) ([]byte, error) {
-	return do(ctx, dsn, query, postBody, false, opts)
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, false, opts, extData)
 }
 
-func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options) ([]byte, error) {
-	return do(ctx, dsn, query, postBody, true, opts)
+func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, error) {
+	return do(ctx, dsn, query, postBody, true, opts, extData)
 }
 
-func Reader(ctx context.Context, dsn string, query string, opts Options) (io.ReadCloser, error) {
-	return reader(ctx, dsn, query, nil, false, opts)
+func Reader(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) (io.ReadCloser, error) {
+	return reader(ctx, dsn, query, nil, false, opts, extData)
 }
 
-func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) (bodyReader io.ReadCloser, err error) {
+func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) (bodyReader io.ReadCloser, err error) {
+	if postBody != nil && extData != nil {
+		err = fmt.Errorf("postBody and extData could not be passed in one request")
+		return
+	}
+
 	var chQueryID string
 
 	start := time.Now()
@@ -158,7 +163,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:395] + "<...>" + queryForLogger[len(queryForLogger)-100:]
 	}
-	logger := scope.Logger(ctx).With(zap.String("query", formatSQL(queryForLogger)), zap.String("request_id", requestID))
+	logger := scope.Logger(ctx).With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
 		// fmt.Println(time.Since(start), formatSQL(queryForLogger))
@@ -180,10 +185,23 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	q.Set("query_id", fmt.Sprintf("%s::%s", requestID, queryID))
 	p.RawQuery = q.Encode()
 
+	var contentHeader string
 	if postBody != nil {
 		q := p.Query()
 		q.Set("query", query)
 		p.RawQuery = q.Encode()
+	} else if extData != nil {
+		q := p.Query()
+		q.Set("query", query)
+		p.RawQuery = q.Encode()
+		postBody, contentHeader, err = extData.buildBody(p)
+		if err != nil {
+			return
+		}
+		err = extData.debugDump(ctx)
+		if err != nil {
+			logger.Warn("external-data", zap.Error(err))
+		}
 	} else {
 		postBody = strings.NewReader(query)
 	}
@@ -196,6 +214,9 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	}
 
 	req.Header.Add("User-Agent", scope.ClickhouseUserAgent(ctx))
+	if contentHeader != "" {
+		req.Header.Add("Content-Type", contentHeader)
+	}
 
 	if gzip {
 		req.Header.Add("Content-Encoding", "gzip")
@@ -241,8 +262,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options) ([]byte, error) {
-	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, opts)
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) ([]byte, error) {
+	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, opts, extData)
 	if err != nil {
 		return nil, err
 	}

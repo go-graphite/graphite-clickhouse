@@ -97,6 +97,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		idx.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", idx.table, w),
 		idx.opts,
+		nil,
 	)
 
 	return

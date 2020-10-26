@@ -21,6 +21,14 @@ func String(ctx context.Context, key string) string {
 	return ""
 }
 
+// Bool returns the true if particular key of the context is set
+func Bool(ctx context.Context, key string) bool {
+	if _, ok := ctx.Value(scopeKey(key)).(bool); ok {
+		return true
+	}
+	return false
+}
+
 // WithRequestID ...
 func WithRequestID(ctx context.Context, requestID string) context.Context {
 	return With(ctx, "requestID", requestID)
@@ -39,6 +47,16 @@ func WithTable(ctx context.Context, table string) context.Context {
 // Table ...
 func Table(ctx context.Context) string {
 	return String(ctx, "table")
+}
+
+// WithDebug returns the context with debug-name
+func WithDebug(ctx context.Context, name string) context.Context {
+	return With(ctx, "debug-"+name, true)
+}
+
+// Debug returns true if debug-name should be enabled
+func Debug(ctx context.Context, name string) bool {
+	return Bool(ctx, "debug-"+name)
 }
 
 // ClickhouseUserAgent ...

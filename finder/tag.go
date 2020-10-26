@@ -219,7 +219,7 @@ func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until
 	}
 
 	if sql != "" {
-		t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts)
+		t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
 	}
 
 	return err

@@ -38,10 +38,9 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 	f.body, err = clickhouse.Query(
 		scope.WithTable(ctx, f.table),
 		f.url,
-		fmt.Sprintf(
-			`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path`,
-			f.table, dateWhere, w),
+		fmt.Sprintf(`SELECT Path FROM %s WHERE (%s) AND (%s) GROUP BY Path`, f.table, dateWhere, w),
 		f.opts,
+		nil,
 	)
 
 	return

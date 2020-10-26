@@ -28,6 +28,10 @@ func HttpRequest(r *http.Request) *http.Request {
 	ctx := r.Context()
 	ctx = WithRequestID(ctx, requestID)
 
+	if d := r.Header.Get("X-Gch-Debug-External-Data"); d != "" {
+		ctx = WithDebug(ctx, "ExternalData")
+	}
+
 	for _, h := range passHeaders {
 		hv := r.Header.Get(h)
 		if hv != "" {

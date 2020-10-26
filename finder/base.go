@@ -43,6 +43,7 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.url,
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, w),
 		b.opts,
+		nil,
 	)
 
 	return

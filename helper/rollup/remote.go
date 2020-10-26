@@ -133,6 +133,7 @@ func remoteLoad(addr string, table string) (*Rules, error) {
 		addr,
 		query,
 		clickhouse.Options{Timeout: 10 * time.Second, ConnectTimeout: 10 * time.Second},
+		nil,
 	)
 	if err != nil {
 		return nil, err
