@@ -25,10 +25,23 @@ func TestMin(t *testing.T) {
 func TestCeilToMultiplier(t *testing.T) {
 	assert := assert.New(t)
 
+	assert.Equal(int64(0), CeilToMultiplier(0, -1))
+	assert.Equal(int64(0), CeilToMultiplier(1, 0))
 	assert.Equal(int64(0), CeilToMultiplier(1, -1))
 	assert.Equal(int64(2), CeilToMultiplier(1, 2))
 	assert.Equal(int64(6), CeilToMultiplier(4, 3))
 	assert.Equal(int64(6), CeilToMultiplier(6, 3))
+}
+
+func TestFloorToMultiplier(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(int64(0), FloorToMultiplier(0, -1))
+	assert.Equal(int64(0), FloorToMultiplier(1, 0))
+	assert.Equal(int64(0), FloorToMultiplier(1, -1))
+	assert.Equal(int64(0), FloorToMultiplier(1, 2))
+	assert.Equal(int64(3), FloorToMultiplier(4, 3))
+	assert.Equal(int64(6), FloorToMultiplier(6, 3))
 }
 
 func TestGCD(t *testing.T) {

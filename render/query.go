@@ -258,7 +258,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 
 	for agg, tableBody := range metricsAggregation {
 		from := dry.CeilToMultiplier(tf.From, step)
-		until := dry.CeilToMultiplier(tf.Until, step) - 1
+		until := dry.FloorToMultiplier(tf.Until, step) + step - 1
 		pw := where.New()
 		pw.And(where.DateBetween("Date", time.Unix(from, 0), time.Unix(until, 0)))
 
@@ -359,7 +359,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 
 		steps[m] = step
 	}
-	until := dry.CeilToMultiplier(tf.Until, maxStep) - 1
+	until := dry.FloorToMultiplier(tf.Until, maxStep) + maxStep - 1
 
 	tableBody := []byte(strings.Join(metricList, "\n"))
 	tempTable := clickhouse.ExternalTable{
