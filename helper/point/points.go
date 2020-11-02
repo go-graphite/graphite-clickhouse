@@ -81,7 +81,7 @@ func (pp *Points) SetSteps(steps map[string]uint32) {
 	}
 }
 
-// GetFunction returns string function for given metric id.
+// GetAggregation returns string function for given metric id.
 func (pp *Points) GetAggregation(id uint32) (string, error) {
 	i := int(id)
 	if i < 1 || len(pp.aggs) < i {
@@ -90,7 +90,7 @@ func (pp *Points) GetAggregation(id uint32) (string, error) {
 	return *pp.aggs[i-1], nil
 }
 
-// SetFunctions accepts map of metric name as keys and function as values and sets slice of functions for existing metrics in Data.Points
+// SetAggregations accepts map of metric name as keys and function as values and sets slice of functions for existing metrics in Data.Points
 func (pp *Points) SetAggregations(functions map[string][]string) {
 	pp.aggs = make([]*string, len(pp.metrics))
 	pp.uniqAgg = make([]string, len(functions))
