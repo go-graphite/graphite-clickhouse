@@ -7,7 +7,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
-func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name string, from, until, step uint32, points []point.Point) {
+func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start := from - (from % step)
 	if start < from {
 		start += step

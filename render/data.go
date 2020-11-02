@@ -50,12 +50,24 @@ func prepare(extraPoints *point.Points) *Data {
 	return data
 }
 
-// GetStep returns the step for metric ID i
+// GetStep returns the commonStep for all points or, if unset, step for metric ID id
 func (d *Data) GetStep(id uint32) (uint32, error) {
 	if 0 < d.commonStep {
 		return uint32(d.commonStep), nil
 	}
 	return d.Points.GetStep(id)
+}
+
+// GetAggregation returns the generic whisper compatible name for an aggregation of metric with ID id
+func (d *Data) GetAggregation(id uint32) (string, error) {
+	function, err := d.Points.GetAggregation(id)
+	if err != nil {
+		return function, err
+	}
+	if function == "any" || function == "anyLast" {
+		return "last", nil
+	}
+	return function, nil
 }
 
 // Error handler for data splitting functions

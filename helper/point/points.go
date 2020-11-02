@@ -10,6 +10,8 @@ type Points struct {
 	idMap   map[string]uint32
 	metrics []string
 	steps   []uint32
+	aggs    []*string
+	uniqAgg []string
 }
 
 func NewPoints() *Points {
@@ -75,6 +77,31 @@ func (pp *Points) SetSteps(steps map[string]uint32) {
 	for m, step := range steps {
 		if id, ok := pp.idMap[m]; ok {
 			pp.steps[id-1] = step
+		}
+	}
+}
+
+// GetFunction returns string function for given metric id.
+func (pp *Points) GetAggregation(id uint32) (string, error) {
+	i := int(id)
+	if i < 1 || len(pp.aggs) < i {
+		return "", fmt.Errorf("wrong id %v for given functions: %v", i, len(pp.aggs))
+	}
+	return *pp.aggs[i-1], nil
+}
+
+// SetFunctions accepts map of metric name as keys and function as values and sets slice of functions for existing metrics in Data.Points
+func (pp *Points) SetAggregations(functions map[string][]string) {
+	pp.aggs = make([]*string, len(pp.metrics))
+	pp.uniqAgg = make([]string, len(functions))
+	for f := range functions {
+		pp.uniqAgg = append(pp.uniqAgg, f)
+	}
+	for i, f := range pp.uniqAgg {
+		for _, m := range functions[f] {
+			if id, ok := pp.idMap[m]; ok {
+				pp.aggs[id-1] = &pp.uniqAgg[i]
+			}
 		}
 	}
 }

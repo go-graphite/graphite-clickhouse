@@ -13,7 +13,7 @@ const (
 	Float32  = 5
 )
 
-func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name string, from, until, step uint32, points []point.Point) {
+func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start := from - (from % step)
 	if start < from {
 		start += step
@@ -35,7 +35,7 @@ func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name string, 
 	VarintWrite(mb, uint64(len(target)))
 	mb.WriteString(target)
 
-	consolidationFunc := "Average"
+	consolidationFunc := function
 	// consolidationFunc
 	VarintWrite(mb, (3<<3)+Repeated) // tag
 	VarintWrite(mb, uint64(len(consolidationFunc)))

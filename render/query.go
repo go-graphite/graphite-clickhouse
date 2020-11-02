@@ -324,6 +324,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		return nil, err
 	}
 	data.commonStep = step
+	data.Points.SetAggregations(metricsAggregation)
 	data.rollupObj = targets.rollupObj
 	return
 }
@@ -351,8 +352,9 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 
 	var maxStep int64
 	steps := make(map[string]uint32)
+	metricsAggregation := make(map[string][]string)
 	for _, m := range metricList {
-		step, _ := targets.rollupObj.Lookup(m, uint32(age))
+		step, agg := targets.rollupObj.Lookup(m, uint32(age))
 		if int64(step) > maxStep {
 			maxStep = int64(step)
 		}
@@ -362,6 +364,11 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		}
 
 		steps[m] = step
+		if mm, ok := metricsAggregation[agg.Name()]; ok {
+			metricsAggregation[agg.Name()] = append(mm, m)
+		} else {
+			metricsAggregation[agg.Name()] = []string{m}
+		}
 	}
 	until := dry.CeilToMultiplier(tf.Until, maxStep) - 1
 
@@ -422,6 +429,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 
 	data.rollupObj = targets.rollupObj
 	data.Points.SetSteps(steps)
+	data.Points.SetAggregations(metricsAggregation)
 
 	logger.Debug("parse", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 
