@@ -14,7 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
-// ExternalData is a structure to use ClickHouse feature that creates a temporary table per query
+// ExternalTable is a structure to use ClickHouse feature that creates a temporary table for a query
 type ExternalTable struct {
 	// Table nama
 	Name    string
@@ -24,7 +24,7 @@ type ExternalTable struct {
 	Data   []byte
 }
 
-// Column is a pair of Name and Type for temporary
+// Column is a pair of Name and Type for temporary table structure
 type Column struct {
 	Name string
 	// ClickHouse data type
@@ -35,6 +35,8 @@ func (c *Column) String() string {
 	return c.Name + " " + c.Type
 }
 
+// ExternalData is a type to use ClickHouse external data feature. You could use it to pass multiple
+// temporary tables for a query.
 type ExternalData struct {
 	Tables []ExternalTable
 	debug  *extDataDebug
@@ -45,12 +47,15 @@ type extDataDebug struct {
 	perm os.FileMode
 }
 
+// NewExternalData returns the `*ExternalData` object for `tables`
 func NewExternalData(tables ...ExternalTable) *ExternalData {
 	return &ExternalData{Tables: tables, debug: nil}
 }
 
+// SetDebug sets the directory and file permission for an external table data dump. Works only if
+// both `debugDir` and `perm` are set
 func (e *ExternalData) SetDebug(debugDir string, perm os.FileMode) {
-	if debugDir == "" && perm == 0 {
+	if debugDir == "" || perm == 0 {
 		e.debug = nil
 	}
 	e.debug = &extDataDebug{debugDir, perm}
@@ -103,7 +108,6 @@ func (e *ExternalData) debugDump(ctx context.Context) error {
 	requestID := scope.RequestID(ctx)
 
 	for _, t := range e.Tables {
-		_ = t
 		filename := path.Join(e.debug.dir, fmt.Sprintf("ext-%v:%v.%v", t.Name, requestID, t.Format))
 		err := ioutil.WriteFile(filename, t.Data, e.debug.perm)
 		if err != nil {

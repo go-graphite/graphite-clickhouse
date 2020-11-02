@@ -56,6 +56,10 @@ type Targets struct {
 type MultiFetchRequest map[TimeFrame]*Targets
 
 func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
+	if num <= 0 {
+		// zero or negative means unlimited
+		return nil
+	}
 	for _, t := range *m {
 		if num < t.AM.Len() {
 			return fmt.Errorf("metrics limit exceeded: %v < %v", num, t.AM.Len())

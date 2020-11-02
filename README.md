@@ -69,7 +69,7 @@ max-cpu = 1
 memory-return-interval = "0s"
 # Limit number of results from find query. Zero = unlimited
 max-metrics-in-find-answer = 0
-# Limit numbers of queried metrics per target in /render requests. Zero = unlimited
+# Limit numbers of queried metrics per target in /render requests. Zero or negative are unlimited
 max-metrics-per-target = 15000
 # Daemon returns empty response if query matches any of regular expressions
 # target-blacklist = ["^not_found.*"]
