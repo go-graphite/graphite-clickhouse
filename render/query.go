@@ -231,13 +231,25 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	// end of generic prepare
 
 	maxDataPoints := dry.Min(tf.MaxDataPoints, int64(cfg.ClickHouse.MaxDataPoints))
+	// map for points.SetAggregations
 	metricsAggregation := make(map[string][]string)
+	// map of CH external tables body grouped by aggregation function
+	bodyAggregation := make(map[string][]byte)
 
 	// Grouping metrics by aggregation steps and functions
 	var step int64
 	for _, m := range metricList {
 		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
+		if mm, ok := bodyAggregation[agg.Name()]; ok {
+			bodyAggregation[agg.Name()] = append(mm, []byte("\n"+m)...)
+		} else {
+			bodyAggregation[agg.Name()] = []byte(m)
+		}
+
+		if targets.isReverse {
+			m = reverse.String(m)
+		}
 		if mm, ok := metricsAggregation[agg.Name()]; ok {
 			metricsAggregation[agg.Name()] = append(mm, m)
 		} else {
@@ -260,8 +272,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		close(b)
 	}()
 
-	for agg, metrics := range metricsAggregation {
-		tableBody := []byte(strings.Join(metrics, "\n"))
+	for agg, tableBody := range bodyAggregation {
 		from := dry.CeilToMultiplier(tf.From, step)
 		until := dry.CeilToMultiplier(tf.Until, step) - 1
 		pw := where.New()

@@ -93,7 +93,7 @@ func (pp *Points) GetAggregation(id uint32) (string, error) {
 // SetAggregations accepts map of metric name as keys and function as values and sets slice of functions for existing metrics in Data.Points
 func (pp *Points) SetAggregations(functions map[string][]string) {
 	pp.aggs = make([]*string, len(pp.metrics))
-	pp.uniqAgg = make([]string, len(functions))
+	pp.uniqAgg = make([]string, 0, len(functions))
 	for f := range functions {
 		pp.uniqAgg = append(pp.uniqAgg, f)
 	}
