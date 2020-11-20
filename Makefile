@@ -43,11 +43,11 @@ gox-build:
 	./out/$(NAME)-linux-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
 
 fpm-deb:
-	make fpm-build-deb ARCH=amd64
-	make fpm-build-deb ARCH=386
+	$(MAKE) fpm-build-deb ARCH=amd64
+	$(MAKE) fpm-build-deb ARCH=386
 fpm-rpm:
-	make fpm-build-rpm ARCH=amd64
-	make fpm-build-rpm ARCH=386
+	$(MAKE) fpm-build-rpm ARCH=amd64
+	$(MAKE) fpm-build-rpm ARCH=386
 
 fpm-build-deb:
 	fpm -s dir -t deb -n $(NAME) -v $(VERSION) \
@@ -90,7 +90,7 @@ packagecloud-push:
 	package_cloud push $(REPO)/debian/jessie $(NAME)_$(VERSION)_amd64.deb || true
 
 packagecloud-autobuilds:
-	make packagecloud-push REPO=go-graphite/autobuilds
+	$(MAKE) packagecloud-push REPO=go-graphite/autobuilds
 
 packagecloud-stable:
-	make packagecloud-push REPO=go-graphite/stable
+	$(MAKE) packagecloud-push REPO=go-graphite/stable
