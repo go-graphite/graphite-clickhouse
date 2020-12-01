@@ -68,10 +68,12 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return newMetricsSet(am.DisplayNames()), nil, nil
 	}
 
-	var maxDataPoints int64 = 1
+	var step int64 = 60000
 	if selectParams.Step != 0 {
-		maxDataPoints = (until.Unix() - from.Unix()) / (selectParams.Step / 1000)
+		step = selectParams.Step
 	}
+
+	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)
 
 	fetchRequests := render.MultiFetchRequest{
 		render.TimeFrame{
