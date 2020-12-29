@@ -17,7 +17,7 @@ func Min(x, y int64) int64 {
 }
 
 // Ceil returns integer greater or equal to x and denominator d division.
-// Works only with x >= 0 and m > 0. It returns 0 with other values.
+// Works only with x >= 0 and d > 0. It returns 0 with other values.
 func Ceil(x, d int64) int64 {
 	if x <= 0 || d <= 0 {
 		return int64(0)
