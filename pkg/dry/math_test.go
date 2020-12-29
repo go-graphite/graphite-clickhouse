@@ -22,6 +22,15 @@ func TestMin(t *testing.T) {
 	assert.Equal(int64(3), Min(3, 3))
 }
 
+func TestCeil(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal(int64(0), Ceil(0, -1))
+	assert.Equal(int64(3), Ceil(5, 2))
+	assert.Equal(int64(1), Ceil(5, 5))           // if quotient is integer we should get quotient without +1
+	assert.Equal(int64(2), Ceil(100001, 100000)) // if quotient is any fraction bigger than integer then we get +1
+}
+
 func TestCeilToMultiplier(t *testing.T) {
 	assert := assert.New(t)
 

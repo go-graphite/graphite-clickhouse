@@ -16,13 +16,19 @@ func Min(x, y int64) int64 {
 	return y
 }
 
+// Ceil returns integer greater or equal to x and denominator d division.
+// Works only with x >= 0 and d > 0. It returns 0 with other values.
+func Ceil(x, d int64) int64 {
+	if x <= 0 || d <= 0 {
+		return int64(0)
+	}
+	return (x + d - 1) / d
+}
+
 // CeilToMultiplier returns the integer greater or equal to x and multiplier m product.
 // Works only with x >= 0 and m > 0. It returns 0 with other values.
 func CeilToMultiplier(x, m int64) int64 {
-	if x <= 0 || m <= 0 {
-		return int64(0)
-	}
-	return ((x + m - 1) / m) * m
+	return Ceil(x, m) * m
 }
 
 // FloorToMultiplier returns the integer less or equal to x and multiplier m product.

@@ -257,7 +257,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		}
 	}
 	r.cStep.calculate(step)
-	step = dry.Max(r.cStep.getResult(), (tf.Until-tf.From)/maxDataPoints)
+	step = dry.Max(r.cStep.getResult(), dry.Ceil(tf.Until-tf.From, maxDataPoints))
 	step = dry.CeilToMultiplier(step, r.cStep.getResult())
 
 	b := make(chan io.ReadCloser, len(metricsAggregation))
