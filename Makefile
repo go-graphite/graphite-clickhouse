@@ -17,6 +17,12 @@ endif
 
 all: $(NAME)
 
+.PHONY: clean
+clean:
+	rm -rf out
+	rm -f *deb *rpm
+	rm -f sha256sum md5sum
+
 .PHONY: $(NAME)
 $(NAME):
 	$(GO) build $(MODULE)
@@ -37,17 +43,17 @@ test:
 gox-build:
 	rm -rf out
 	mkdir -p out
-	gox -os="linux" -arch="amd64" -arch="386" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
+	gox -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
 	./out/$(NAME)-linux-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
 
 fpm-deb:
-	make fpm-build-deb ARCH=amd64
-	make fpm-build-deb ARCH=386
+	$(MAKE) fpm-build-deb ARCH=amd64
+	$(MAKE) fpm-build-deb ARCH=arm64
 fpm-rpm:
-	make fpm-build-rpm ARCH=amd64
-	make fpm-build-rpm ARCH=386
+	$(MAKE) fpm-build-rpm ARCH=amd64
+	$(MAKE) fpm-build-rpm ARCH=arm64
 
 fpm-build-deb:
 	fpm -s dir -t deb -n $(NAME) -v $(VERSION) \
@@ -90,7 +96,15 @@ packagecloud-push:
 	package_cloud push $(REPO)/debian/jessie $(NAME)_$(VERSION)_amd64.deb || true
 
 packagecloud-autobuilds:
-	make packagecloud-push REPO=go-graphite/autobuilds
+	$(MAKE) packagecloud-push REPO=go-graphite/autobuilds
 
 packagecloud-stable:
-	make packagecloud-push REPO=go-graphite/stable
+	$(MAKE) packagecloud-push REPO=go-graphite/stable
+
+sum-files: | sha256sum md5sum
+
+md5sum:
+	md5sum $(wildcard $(NAME)_$(VERSION)*.deb) $(wildcard $(NAME)-$(VERSION)*.rpm) > md5sum
+
+sha256sum:
+	sha256sum $(wildcard $(NAME)_$(VERSION)*.deb) $(wildcard $(NAME)-$(VERSION)*.rpm) > sha256sum

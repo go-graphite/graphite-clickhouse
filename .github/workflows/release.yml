@@ -1,0 +1,72 @@
+name: Upload Packages to new release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1
+    - uses: actions/checkout@v2
+      name: Checkout
+    - name: Install packaging dependencies
+      run: |
+        sudo apt-get install rpm ruby-dev
+        sudo gem install fpm
+        GO111MODULE=off go get github.com/mitchellh/gox
+    - name: Build packages
+      id: build
+      run: |
+        make gox-build fpm-deb fpm-rpm
+        make sum-files
+        version=$(./out/graphite-clickhouse-linux-amd64 -version)
+        echo ::set-output name=matrix::{\"file\": [\"sha256sum\", \"md5sum\", \
+        \"graphite-clickhouse_${version}_arm64.deb\", \"graphite-clickhouse_${version}_amd64.deb\", \
+        \"graphite-clickhouse-${version}-1.arm64.rpm\", \"graphite-clickhouse-${version}-1.x86_64.rpm\"]}
+    - name: Check version
+      id: check_version
+      run: |
+        ./out/graphite-clickhouse-linux-amd64 -version
+        [ v$(./out/graphite-clickhouse-linux-amd64 -version) = ${{ github.event.release.tag_name }} ]
+    - name: Artifact
+      id: artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: packages
+        retention-days: 1
+        path: |
+          *.deb
+          *.rpm
+          sha256sum
+          md5sum
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{fromJson(needs.build.outputs.matrix)}}
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: packages
+    - name: Upload ${{ matrix.file }}
+      id: upload
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ matrix.file }}
+        asset_name: ${{ matrix.file }}
+        asset_content_type: application/octet-stream
