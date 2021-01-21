@@ -16,8 +16,8 @@ Gray components are optional or alternative
 - [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web)
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
 - [x] [graphite-web 1.0.0](https://github.com/graphite-project/graphite-web)
-- [x] [carbonzipper](https://github.com/go-graphite/carbonzipper)
-- [x] [carbonapi](https://github.com/go-graphite/carbonapi)
+- [x] [carbonapi 0.14.1+](https://github.com/go-graphite/carbonapi)
+- [x] [carbonzipper](https://github.com/go-graphite/carbonzipper) (DEPRECATED, is part of carbonapi currently)
 
 ## Build
 Required golang 1.13+
