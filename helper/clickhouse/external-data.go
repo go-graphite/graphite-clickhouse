@@ -16,7 +16,7 @@ import (
 
 // ExternalTable is a structure to use ClickHouse feature that creates a temporary table for a query
 type ExternalTable struct {
-	// Table nama
+	// Table name
 	Name    string
 	Columns []Column
 	// ClickHouse input/output format
