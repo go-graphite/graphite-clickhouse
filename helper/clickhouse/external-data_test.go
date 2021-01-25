@@ -73,7 +73,7 @@ func TestBuildBody(t *testing.T) {
 	for _, tt := range [][]ExternalTable{tables, tables[0:1], tables[1:]} {
 		extData := NewExternalData(tt...)
 		u := &url.URL{}
-		body, header, err := extData.buildBody(u)
+		body, header, err := extData.buildBody(context.Background(), u)
 		assert.NoError(t, err, "body is not built")
 		assert.Regexp(t, "^multipart/form-data; boundary=[A-Fa-f0-9]+$", header, "header does not match")
 		contentID := strings.TrimPrefix(header, "multipart/form-data; boundary=")
@@ -107,8 +107,8 @@ func TestDebugDump(t *testing.T) {
 	ctx := scope.WithRequestID(context.Background(), reqID)
 	ctx = scope.WithDebug(ctx, "ExternalData")
 	extData.SetDebug(dir, 0640)
-	err = extData.debugDump(ctx)
-	assert.NoError(t, err, "unable to dump external data: %w", err)
+	u := url.URL{}
+	extData.debugDump(ctx, u)
 	for _, table := range extData.Tables {
 		dumpFile := filepath.Join(dir, fmt.Sprintf("ext-%v:%v.%v", table.Name, reqID, table.Format))
 		assert.FileExists(t, dumpFile)

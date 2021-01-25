@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"go.uber.org/zap"
 )
 
 // ExternalTable is a structure to use ClickHouse feature that creates a temporary table for a query
@@ -63,10 +64,11 @@ func (e *ExternalData) SetDebug(debugDir string, perm os.FileMode) {
 }
 
 // buildBody returns multiform body, content type header and error
-func (e *ExternalData) buildBody(u *url.URL) (*bytes.Buffer, string, error) {
+func (e *ExternalData) buildBody(ctx context.Context, u *url.URL) (*bytes.Buffer, string, error) {
 	body := new(bytes.Buffer)
 	header := ""
 	writer := multipart.NewWriter(body)
+
 	for _, t := range e.Tables {
 		part, err := writer.CreateFormFile(t.Name, t.Name)
 		if err != nil {
@@ -91,28 +93,50 @@ func (e *ExternalData) buildBody(u *url.URL) (*bytes.Buffer, string, error) {
 		q.Set(t.Name+"_structure", strings.Join(structure, ","))
 		u.RawQuery = q.Encode()
 	}
+
 	err := writer.Close()
 	if err != nil {
 		return nil, header, err
 	}
+
 	header = writer.FormDataContentType()
+	du := *u
+	// Do not lock the execution by debugging process
+	go e.debugDump(ctx, du)
 	return body, header, nil
 }
 
-func (e *ExternalData) debugDump(ctx context.Context) error {
+func (e *ExternalData) debugDump(ctx context.Context, u url.URL) {
 	if e.debug == nil || !scope.Debug(ctx, "ExternalData") {
 		// Do not dump if the settings are not set
-		return nil
+		return
 	}
 
 	requestID := scope.RequestID(ctx)
+	logger := scope.Logger(ctx)
+	command := "curl "
 
 	for _, t := range e.Tables {
 		filename := path.Join(e.debug.dir, fmt.Sprintf("ext-%v:%v.%v", t.Name, requestID, t.Format))
 		err := ioutil.WriteFile(filename, t.Data, e.debug.perm)
 		if err != nil {
-			return err
+			logger.Warn("external-data", zap.Error(err))
+			// The debug command couldn't be built w/o all external tables
+			return
 		}
+		command += fmt.Sprintf("-F '%v=@%v;' ", t.Name, filename)
 	}
-	return nil
+
+	// Change query_id to not interfere with the original one
+	q := u.Query()
+	q["query_id"] = []string{fmt.Sprintf("%v:debug", requestID)}
+	u.RawQuery = q.Encode()
+
+	// TODO: replace with u.Redacted() after support of 1.14 is dropped
+	if _, has := u.User.Password(); has {
+		u.User = url.UserPassword(u.User.Username(), "xxxxx")
+	}
+	command += "'" + u.String() + "'"
+
+	logger.Info("external-data", zap.String("debug command", command))
 }
