@@ -94,11 +94,11 @@ rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
 index-table = "graphite_index"
 # Use daily data from index table. This is useful for installations with big count of short-lived series but can be slower in other cases
 index-use-daily = true
-index-timeout = "1m"
+index-timeout = "1m0s"
 
 # `tagged` table from carbon-clickhouse. Required for seriesByTag
 tagged-table = ""
-# For how long the daeom will query tags during autocomplete
+# For how long the daemon will query tags during autocomplete
 tagged-autocomplete-days = 7
 
 # Old index tables. DEPRECATED
