@@ -41,6 +41,13 @@ func NewValues(config *config.Config) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("autocomplete")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
+
+	// Don't process, if the tagged table is not set
+	if h.config.ClickHouse.TaggedTable == "" {
+		w.Write([]byte{'[', ']'})
+		return
+	}
+
 	if h.isValues {
 		h.ServeValues(w, r)
 	} else {
