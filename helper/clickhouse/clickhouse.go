@@ -194,13 +194,9 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		q := p.Query()
 		q.Set("query", query)
 		p.RawQuery = q.Encode()
-		postBody, contentHeader, err = extData.buildBody(p)
+		postBody, contentHeader, err = extData.buildBody(ctx, p)
 		if err != nil {
 			return
-		}
-		err = extData.debugDump(ctx)
-		if err != nil {
-			logger.Warn("external-data", zap.Error(err))
 		}
 	} else {
 		postBody = strings.NewReader(query)
