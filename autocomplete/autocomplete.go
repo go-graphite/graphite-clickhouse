@@ -225,10 +225,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	var valueSQL string
 	if len(usedTags) == 0 {
-		valueSQL = "splitByChar('=', Tag1)[2] AS value"
+		valueSQL = "substr(Tag1, " + (len(tag)+2) + ") AS value"
 		wr.And(where.HasPrefix("Tag1", tag+"="+valuePrefix))
 	} else {
-		valueSQL = "splitByChar('=', arrayJoin(Tags))[2] AS value"
+		valueSQL = "substr(arrayJoin(Tags), " + (len(tag)+2) + ") AS value"
 		wr.And(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
 	}
 
