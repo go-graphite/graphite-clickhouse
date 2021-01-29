@@ -1,0 +1,8 @@
+/var/log/graphite-clickhouse/graphite-clickhouse.log {
+    compress
+    delaycompress
+    notifempty
+    rotate 10
+    maxsize 100M
+    daily
+}
