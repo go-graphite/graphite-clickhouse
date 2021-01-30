@@ -44,3 +44,16 @@ jobs:
         make gox-build
         make DEVEL=1 fpm-deb
         make DEVEL=1 fpm-rpm
+        make sum-files
+
+    - name: Artifact
+      id: artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: packages-${{ matrix.go }}
+        retention-days: 1
+        path: |
+          *.deb
+          *.rpm
+          sha256sum
+          md5sum
