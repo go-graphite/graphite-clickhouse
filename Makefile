@@ -55,8 +55,9 @@ fpm-build-deb:
 		--license "MIT" \
 		-a $(ARCH) \
 		--config-files /etc/$(NAME)/$(NAME).conf \
+		--config-files /etc/logrotate.d/$(NAME) \
 		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
-		deploy/systemd/$(NAME).service=/usr/lib/systemd/system/$(NAME).service \
+		deploy/root/=/ \
 		out/root/=/
 
 
@@ -70,8 +71,9 @@ fpm-build-rpm:
 		--license "MIT" \
 		-a $(ARCH) \
 		--config-files /etc/$(NAME)/$(NAME).conf \
+		--config-files /etc/logrotate.d/$(NAME) \
 		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
-		deploy/systemd/$(NAME).service=/usr/lib/systemd/system/$(NAME).service \
+		deploy/root/=/ \
 		out/root/=/
 
 packagecloud-push:
