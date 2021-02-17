@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"regexp"
 )
@@ -14,6 +15,7 @@ var passHeaders = []string{
 	"X-Dashboard-Id",
 	"X-Grafana-Org-Id",
 	"X-Panel-Id",
+	"X-Forwarded-For",
 }
 
 func HttpRequest(r *http.Request) *http.Request {
@@ -30,6 +32,12 @@ func HttpRequest(r *http.Request) *http.Request {
 
 	if d := r.Header.Get("X-Gch-Debug-External-Data"); d != "" {
 		ctx = WithDebug(ctx, "ExternalData")
+	}
+
+	// Append the server IP to X-Forwarded-For if exists, else ignore
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		clientIP, _, _ := net.SplitHostPort(r.RemoteAddr)
+		r.Header.Set("X-Forwarded-For", fmt.Sprintf("%s, %s", xff, clientIP))
 	}
 
 	for _, h := range passHeaders {
