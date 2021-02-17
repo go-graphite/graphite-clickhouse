@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -69,7 +70,7 @@ func HandleError(w http.ResponseWriter, err error) {
 	errCode, ok := err.(*ErrorWithCode)
 	if ok {
 		if errCode.Code > 500 && errCode.Code < 512 {
-			http.Error(w, errCode.Error(), errCode.Code)
+			http.Error(w, html.EscapeString(errCode.Error()), errCode.Code)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
