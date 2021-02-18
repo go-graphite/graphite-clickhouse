@@ -25,8 +25,18 @@ jobs:
       with:
         go-version: ${{ matrix.go }}
 
-    - name: Check out code into the Go module directory
+    - name: Check out code
       uses: actions/checkout@v2
+
+    - name: Checkout to the latest code
+      run: |
+        # Fetch all tags
+        git fetch --depth=1 --tags
+        # Get the latest tag
+        VERS=$(git tag -l | sort -Vr | head -n1)
+        # Fetch everything to the latest tag
+        git fetch --shallow-since=$(git log $VERS -1 --format=%at)
+      if: ${{ github.event_name == 'push' }}
 
     - name: Test
       run: |
