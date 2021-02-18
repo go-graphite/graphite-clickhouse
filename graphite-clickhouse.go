@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/lomik/zapwriter"
@@ -76,11 +78,24 @@ func Handler(handler http.Handler) http.Handler {
 			logger = logger.With(zap.String("grafana", grafana))
 		}
 
+		var peer string
+		if peer = r.Header.Get("X-Real-Ip"); peer == "" {
+			peer = r.RemoteAddr
+		} else {
+			peer = net.JoinHostPort(peer, "0")
+		}
+
+		var client string
+		if client = r.Header.Get("X-Forwarded-For"); client != "" {
+			client = strings.Split(client, ", ")[0]
+		}
+
 		logger.Info("access",
 			zap.Duration("time", d),
 			zap.String("method", r.Method),
 			zap.String("url", r.URL.String()),
-			zap.String("peer", r.RemoteAddr),
+			zap.String("peer", peer),
+			zap.String("client", client),
 			zap.Int("status", writer.Status()),
 		)
 	})
