@@ -153,7 +153,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows := strings.Split(string(body), "\n")
-	tags := make([]string, 0, len(rows)+1) // +1 - reserve for "name" tag
+	tags := make([]string, 0, uint64(len(rows))+1) // +1 - reserve for "name" tag
 
 	hasName := false
 	for i := 0; i < len(rows); i++ {

@@ -91,7 +91,7 @@ func parseXML(body []byte) (*Rules, error) {
 		r = &y.Rules
 	}
 
-	patterns := make([]Pattern, 0, len(r.Pattern)+4)
+	patterns := make([]Pattern, 0, uint64(len(r.Pattern))+4)
 	for _, p := range r.Pattern {
 		patterns = append(patterns, p.pattern())
 	}
