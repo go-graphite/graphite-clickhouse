@@ -4,6 +4,7 @@
 *.so
 graphite-clickhouse
 .vscode
+/out/
 
 # Folders
 _obj
