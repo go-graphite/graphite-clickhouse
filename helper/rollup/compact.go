@@ -41,12 +41,12 @@ func parseCompact(body string) (*Rules, error) {
 					return nil, fmt.Errorf("can't parse line: %#v", line)
 				}
 
-				age, err := strconv.Atoi(strings.TrimSpace(p[0]))
+				age, err := strconv.ParseUint(strings.TrimSpace(p[0]), 10, 32)
 				if err != nil {
 					return nil, err
 				}
 
-				precision, err := strconv.Atoi(strings.TrimSpace(p[1]))
+				precision, err := strconv.ParseUint(strings.TrimSpace(p[1]), 10, 32)
 				if err != nil {
 					return nil, err
 				}
