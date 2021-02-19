@@ -61,7 +61,6 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: packages-${{ matrix.go }}
-        retention-days: 1
         path: |
           *.deb
           *.rpm
