@@ -78,6 +78,12 @@ func Handler(handler http.Handler) http.Handler {
 			logger = logger.With(zap.String("grafana", grafana))
 		}
 
+		// Log carbonapi request uuid for requests trace
+		carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
+		if carbonapiUUID != "" {
+			logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+		}
+
 		var peer string
 		if peer = r.Header.Get("X-Real-Ip"); peer == "" {
 			peer = r.RemoteAddr
