@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +63,7 @@ func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
 	}
 	for _, t := range *m {
 		if num < t.AM.Len() {
-			return fmt.Errorf("metrics limit exceeded: %v < %v", num, t.AM.Len())
+			return clickhouse.NewErrorWithCode(fmt.Sprintf("metrics limit exceeded: %d < %d", num, t.AM.Len()), http.StatusForbidden)
 		}
 	}
 	return nil
