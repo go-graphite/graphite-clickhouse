@@ -108,6 +108,10 @@ func quote(value interface{}) string {
 	}
 }
 
+func Like(field, s string) string {
+	return fmt.Sprintf("%s LIKE '%s'", field, s)
+}
+
 func Eq(field, value interface{}) string {
 	return fmt.Sprintf("%s=%s", field, quote(value))
 }

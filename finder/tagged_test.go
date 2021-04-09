@@ -24,6 +24,9 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=hello%' AND match(x, 'key=hello.world'), Tags))", "", false},
 		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=Vladimirs-MacBook-Pro%' AND match(x, 'host=Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
 		// grafana multi-value variable produce this
+		{"seriesByTag('name=value','what=*')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},        // If All masked to value with *
+		{"seriesByTag('name=value','what=*x')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},      // If All masked to value with *
+		{"seriesByTag('name=value','what!=*x')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false}, // If All masked to value with *
 		{"seriesByTag('name={avg,max}')", "Tag1 IN ('__name__=avg','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax}')", "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", "Tag1='__name__=m{in,ax'", "", true},
