@@ -108,6 +108,10 @@ func quote(value interface{}) string {
 	}
 }
 
+func quoteRegex(value string) string {
+	return fmt.Sprintf("'^%s$'", escape(value))
+}
+
 func Like(field, s string) string {
 	return fmt.Sprintf("%s LIKE '%s'", field, s)
 }

@@ -66,8 +66,8 @@ func Match(field string, expr string) string {
 	}
 
 	if simplePrefix == "" {
-		return fmt.Sprintf("match(%s, %s)", field, quote(expr))
+		return fmt.Sprintf("match(%s, %s)", field, quoteRegex(expr))
 	}
 
-	return fmt.Sprintf("%s AND match(%s, %s)", HasPrefix(field, simplePrefix), field, quote(expr))
+	return fmt.Sprintf("%s AND match(%s, %s)", HasPrefix(field, simplePrefix), field, quoteRegex(expr))
 }

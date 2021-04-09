@@ -19,10 +19,10 @@ func TestTaggedWhere(t *testing.T) {
 		// info about _tag "directory"
 		{"seriesByTag('key=value')", "Tag1='key=value'", "", false},
 		{"seriesByTag('name=rps')", "Tag1='__name__=rps'", "", false},
-		{"seriesByTag('name=~cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '__name__=cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '__name__=cpu.usage')", false},
+		{"seriesByTag('name=~cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '^__name__=cpu.usage$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=cpu%' AND match(Tag1, '^__name__=cpu.usage$')", false},
 		{"seriesByTag('name=rps', 'key=~value')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
-		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=hello%' AND match(x, 'key=hello.world'), Tags))", "", false},
-		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=Vladimirs-MacBook-Pro%' AND match(x, 'host=Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
+		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=hello%' AND match(x, '^key=hello.world$'), Tags))", "", false},
+		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=Vladimirs-MacBook-Pro%' AND match(x, '^host=Vladimirs-MacBook-Pro\\.local$'), Tags))`, "", false},
 		// grafana multi-value variable produce this
 		{"seriesByTag('name=value','what=*')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},        // If All masked to value with *
 		{"seriesByTag('name=value','what=*x')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},      // If All masked to value with *
