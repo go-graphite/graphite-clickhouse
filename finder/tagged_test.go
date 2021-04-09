@@ -23,6 +23,12 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=rps', 'key=~value')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
 		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=hello%' AND match(x, 'key=hello.world'), Tags))", "", false},
 		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=Vladimirs-MacBook-Pro%' AND match(x, 'host=Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
+		// grafana multi-value variable produce this
+		{"seriesByTag('name={avg,max}')", "Tag1 IN ('__name__=avg','__name__=max')", "", false},
+		{"seriesByTag('name=m{in,ax}')", "Tag1 IN ('__name__=min','__name__=max')", "", false},
+		{"seriesByTag('name=m{in,ax')", "Tag1='__name__=m{in,ax'", "", true},
+		{"seriesByTag('name=value','what={avg,max}')", "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what!={avg,max}')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 	}
 
 	for _, test := range table {
@@ -30,13 +36,18 @@ func TestTaggedWhere(t *testing.T) {
 
 		terms, err := ParseSeriesByTag(test.query)
 
-		if test.isErr {
-			assert.Error(err, testName+", err")
-		} else {
+		if !test.isErr {
 			assert.NoError(err, testName+", err")
 		}
 
-		w, pw := TaggedWhere(terms)
+		w, pw, err := TaggedWhere(terms)
+
+		if test.isErr {
+			assert.Error(err, testName+", err")
+			continue
+		} else {
+			assert.NoError(err, testName+", err")
+		}
 
 		assert.Equal(test.where, w.String(), testName+", where")
 		assert.Equal(test.prewhere, pw.String(), testName+", prewhere")

@@ -2,14 +2,55 @@ package where
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// workaraund for Grafana multi-value variables, expand S{a,b,c}E to [SaE,SbE,ScE]
+func GlobExpandSimple(value, prefix string, result *[]string) error {
+	if len(value) == 0 {
+		// we at the end of glob
+		*result = append(*result, prefix)
+		return nil
+	}
+
+	start := strings.IndexAny(value, "{}")
+	if start == -1 {
+		*result = append(*result, prefix+value)
+	} else {
+		end := strings.Index(value[start:], "}")
+		if end == start {
+			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+		}
+		if end == -1 || strings.IndexAny(value[start+1:start+end], "{}") != -1 {
+			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+		}
+		if start > 0 {
+			prefix = prefix + value[0:start]
+		}
+		g := value[start+1 : start+end]
+		values := strings.Split(g, ",")
+		var postfix string
+		if end+start-1 < len(value) {
+			postfix = value[start+end+1:]
+		}
+		for _, v := range values {
+			if err := GlobExpandSimple(postfix, prefix+v, result); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func GlobToRegexp(g string) string {
