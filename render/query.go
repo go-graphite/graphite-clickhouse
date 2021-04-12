@@ -243,9 +243,9 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := bodyAggregation[agg.Name()]; ok {
-			bodyAggregation[agg.Name()] = append(mm, []byte("\n"+m)...)
+			bodyAggregation[agg.Name()] = append(mm, []byte(m+"\n")...)
 		} else {
-			bodyAggregation[agg.Name()] = []byte(m)
+			bodyAggregation[agg.Name()] = []byte(m + "\n")
 		}
 
 		if targets.isReverse {
@@ -385,7 +385,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 	until := dry.FloorToMultiplier(tf.Until, maxStep) + maxStep - 1
 
-	tableBody := []byte(strings.Join(metricList, "\n"))
+	tableBody := []byte(strings.Join(metricList, "\n") + "\n")
 	tempTable := clickhouse.ExternalTable{
 		Name: "metrics_list",
 		Columns: []clickhouse.Column{{
