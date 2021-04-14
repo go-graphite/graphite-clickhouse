@@ -3,15 +3,80 @@ package render
 import (
 	"bufio"
 	"bytes"
+	"fmt"
+	"io/ioutil"
 	"math"
+	"net/http"
 
+	"github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"go.uber.org/zap"
 )
 
 const (
 	Repeated = 2
 	Float32  = 5
 )
+
+type v3pb struct{}
+
+func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
+	logger := scope.Logger(r.Context()).Named("render")
+	url := r.URL
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		logger.Error("failed to read request", zap.Error(err))
+		return nil, fmt.Errorf("failed to read request body: %w", err)
+	}
+
+	var pv3Request carbonapi_v3_pb.MultiFetchRequest
+	if err := pv3Request.Unmarshal(body); err != nil {
+		logger.Error("failed to unmarshal request", zap.Error(err))
+		return nil, fmt.Errorf("failed to unmarshal request: %w", err)
+	}
+
+	q := url.Query()
+	fetchRequests := make(MultiFetchRequest)
+
+	if len(pv3Request.Metrics) > 0 {
+		q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
+		q.Set("until", fmt.Sprintf("%d", pv3Request.Metrics[0].StopTime))
+		q.Set("maxDataPoints", fmt.Sprintf("%d", pv3Request.Metrics[0].MaxDataPoints))
+
+		for _, m := range pv3Request.Metrics {
+			tf := TimeFrame{
+				From:          m.StartTime,
+				Until:         m.StopTime,
+				MaxDataPoints: m.MaxDataPoints,
+			}
+			if _, ok := fetchRequests[tf]; ok {
+				target := fetchRequests[tf]
+				target.List = append(fetchRequests[tf].List, m.PathExpression)
+			} else {
+				fetchRequests[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
+			}
+			q.Add("target", m.PathExpression)
+			logger.Debug(
+				"pb3_target",
+				zap.Int64("from", m.StartTime),
+				zap.Int64("until", m.StopTime),
+				zap.Int64("maxDataPoints", m.MaxDataPoints),
+				zap.String("target", m.PathExpression),
+			)
+		}
+	}
+
+	url.RawQuery = q.Encode()
+
+	return fetchRequests, nil
+}
+
+func (*v3pb) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
+	replyProtobuf(w, r, multiData, true)
+}
 
 func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start := from - (from % step)

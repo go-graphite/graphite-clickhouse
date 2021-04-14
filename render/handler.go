@@ -2,27 +2,25 @@ package render
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
-	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
-	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
+// Handler serves /render requests
 type Handler struct {
 	config *config.Config
 }
 
+// NewHandler generates new *Handler
 func NewHandler(config *config.Config) *Handler {
 	h := &Handler{
 		config: config,
@@ -33,10 +31,8 @@ func NewHandler(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("render")
-	url := r.URL
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
-	var prefix string
 	var err error
 
 	defer func() {
@@ -50,83 +46,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, answer, http.StatusInternalServerError)
 		}
 	}()
-	fetchRequests := make(MultiFetchRequest)
 
 	r.ParseMultipartForm(1024 * 1024)
-
-	if r.FormValue("format") == "carbonapi_v3_pb" {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			logger.Error("failed to read request", zap.Error(err))
-			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
-			return
-		}
-
-		var pv3Request v3pb.MultiFetchRequest
-		if err := pv3Request.Unmarshal(body); err != nil {
-			logger.Error("failed to unmarshal request", zap.Error(err))
-			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), http.StatusBadRequest)
-			return
-		}
-
-		q := url.Query()
-
-		if len(pv3Request.Metrics) > 0 {
-			q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
-			q.Set("until", fmt.Sprintf("%d", pv3Request.Metrics[0].StopTime))
-			q.Set("maxDataPoints", fmt.Sprintf("%d", pv3Request.Metrics[0].MaxDataPoints))
-
-			for _, m := range pv3Request.Metrics {
-				tf := TimeFrame{
-					From:          m.StartTime,
-					Until:         m.StopTime,
-					MaxDataPoints: m.MaxDataPoints,
-				}
-				if _, ok := fetchRequests[tf]; ok {
-					target := fetchRequests[tf]
-					target.List = append(fetchRequests[tf].List, m.PathExpression)
-				} else {
-					fetchRequests[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
-				}
-				q.Add("target", m.PathExpression)
-				logger.Debug(
-					"pb3_target",
-					zap.Int64("from", m.StartTime),
-					zap.Int64("until", m.StopTime),
-					zap.Int64("maxDataPoints", m.MaxDataPoints),
-					zap.String("target", m.PathExpression),
-				)
-			}
-		}
-
-		url.RawQuery = q.Encode()
-	} else {
-		fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
-		if err != nil {
-			http.Error(w, "Bad request (cannot parse from)", http.StatusBadRequest)
-			return
-		}
-
-		untilTimestamp, err := strconv.ParseInt(r.FormValue("until"), 10, 32)
-		if err != nil {
-			http.Error(w, "Bad request (cannot parse until)", http.StatusBadRequest)
-			return
-		}
-
-		maxDataPoints, err := strconv.ParseInt(r.FormValue("maxDataPoints"), 10, 32)
-		if err != nil {
-			maxDataPoints = int64(h.config.ClickHouse.MaxDataPoints)
-		}
-
-		targets := dry.RemoveEmptyStrings(r.Form["target"])
-		tf := TimeFrame{
-			From:          fromTimestamp,
-			Until:         untilTimestamp,
-			MaxDataPoints: maxDataPoints,
-		}
-		fetchRequests[tf] = &Targets{List: targets, AM: alias.New()}
+	formatter, err := getFormatter(r)
+	if err != nil {
+		logger.Error("formatter", zap.Error(err))
+		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
+		return
 	}
 
+	fetchRequests, err := formatter.parseRequest(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	// TODO: move to a function
 	var wg sync.WaitGroup
 	var lock sync.RWMutex
 	errors := make([]error, 0, len(fetchRequests))
@@ -162,7 +97,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Info("finder", zap.Int("metrics", metricsLen))
 
 	if metricsLen == 0 {
-		h.Reply(w, r, "", EmptyResponse)
+		formatter.reply(w, r, EmptyResponse)
 		return
 	}
 
@@ -173,26 +108,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(reply.CHResponses) == 0 {
-		h.Reply(w, r, "", EmptyResponse)
+		formatter.reply(w, r, EmptyResponse)
 		return
 	}
 
-	// pp.Println(points)
-	h.Reply(w, r, prefix, reply.CHResponses)
-}
-
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, prefix string, data []CHResponse) {
 	start := time.Now()
-	// All formats, except of carbonapi_v3_pb would have same from and until time, and data would contain only
-	// one response
-	switch r.FormValue("format") {
-	case "pickle":
-		h.ReplyPickle(w, r, data[0].Data, uint32(data[0].From), uint32(data[0].Until), prefix)
-	case "protobuf":
-		h.ReplyProtobuf(w, r, prefix, data, false)
-	case "carbonapi_v3_pb":
-		h.ReplyProtobuf(w, r, prefix, data, true)
-	}
+	formatter.reply(w, r, reply.CHResponses)
 	d := time.Since(start)
 	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

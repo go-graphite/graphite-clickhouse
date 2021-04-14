@@ -8,12 +8,22 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	pickle "github.com/lomik/graphite-pickle"
+	graphitePickle "github.com/lomik/graphite-pickle"
 	"go.uber.org/zap"
 )
 
-func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data, from, until uint32, prefix string) {
+type pickle struct{}
+
+func (*pickle) parseRequest(r *http.Request) (fetchRequests MultiFetchRequest, err error) {
+	return parseRequestForms(r)
+}
+
+func (*pickle) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
 	var pickleTime time.Duration
+	// Pickle response always contain single request/response
+	data := multiData[0].Data
+	from := uint32(multiData[0].From)
+	until := uint32(multiData[0].Until)
 
 	points := data.Points.List()
 
@@ -27,12 +37,12 @@ func (h *Handler) ReplyPickle(w http.ResponseWriter, r *http.Request, data *Data
 	}()
 
 	if len(points) == 0 {
-		w.Write(pickle.EmptyList)
+		w.Write(graphitePickle.EmptyList)
 		return
 	}
 
 	writer := bufio.NewWriterSize(w, 1024*1024)
-	p := pickle.NewWriter(writer)
+	p := graphitePickle.NewWriter(writer)
 	defer writer.Flush()
 
 	p.List()

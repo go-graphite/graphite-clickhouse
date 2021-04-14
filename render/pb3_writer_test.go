@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
+	"github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
@@ -16,7 +16,7 @@ type test struct {
 	name      string
 	target    string
 	function  string
-	response  v3pb.MultiFetchResponse
+	response  carbonapi_v3_pb.MultiFetchResponse
 	from      uint32
 	until     uint32
 	step      uint32
@@ -41,8 +41,8 @@ func TestWritePB3(t *testing.T) {
 					5,
 				},
 			},
-			response: v3pb.MultiFetchResponse{
-				Metrics: []v3pb.FetchResponse{
+			response: carbonapi_v3_pb.MultiFetchResponse{
+				Metrics: []carbonapi_v3_pb.FetchResponse{
 					{
 						Name:                    "singlePoint",
 						PathExpression:          "*",
@@ -86,8 +86,8 @@ func TestWritePB3(t *testing.T) {
 					4,
 				},
 			},
-			response: v3pb.MultiFetchResponse{
-				Metrics: []v3pb.FetchResponse{
+			response: carbonapi_v3_pb.MultiFetchResponse{
+				Metrics: []carbonapi_v3_pb.FetchResponse{
 					{
 						Name:                    "multiPoint",
 						PathExpression:          "multiPoint",
@@ -121,7 +121,7 @@ func TestWritePB3(t *testing.T) {
 
 			w.Flush()
 
-			var resp v3pb.MultiFetchResponse
+			var resp carbonapi_v3_pb.MultiFetchResponse
 
 			data := b.Bytes()
 			if bytes.Compare(data, correctResp) != 0 {

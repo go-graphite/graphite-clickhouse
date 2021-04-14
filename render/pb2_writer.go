@@ -3,9 +3,20 @@ package render
 import (
 	"bufio"
 	"bytes"
+	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
+
+type v2pb struct{}
+
+func (*v2pb) parseRequest(r *http.Request) (fetchRequests MultiFetchRequest, err error) {
+	return parseRequestForms(r)
+}
+
+func (*v2pb) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
+	replyProtobuf(w, r, multiData, false)
+}
 
 func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start := from - (from % step)

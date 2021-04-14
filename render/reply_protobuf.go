@@ -12,7 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
-func (h *Handler) ReplyProtobuf(w http.ResponseWriter, r *http.Request, perfix string, multiData []CHResponse, pbv3 bool) {
+func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []CHResponse, pbv3 bool) {
 	logger := scope.Logger(r.Context())
 
 	// var multiResponse carbonzipperpb.MultiFetchResponse
