@@ -128,9 +128,8 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 		if tf.MaxDataPoints <= 0 {
 			tf.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
-		targets.pointsTable, targets.isReverse, targets.rollupUseReverted, targets.rollupObj = SelectDataTable(cfg, tf.From, tf.Until, targets.List, chContext)
-		if targets.pointsTable == "" {
-			err := fmt.Errorf("data tables is not specified for %v", targets.List[0])
+		err := targets.SelectDataTable(cfg, tf.From, tf.Until, targets.List, chContext)
+		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)
 			lock.Unlock()

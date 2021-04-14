@@ -1,13 +1,13 @@
 package render
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
-func SelectDataTable(cfg *config.Config, from int64, until int64, targets []string, context string) (string, bool, bool, *rollup.Rules) {
+func (tt *Targets) SelectDataTable(cfg *config.Config, from int64, until int64, targets []string, context string) error {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -57,9 +57,12 @@ TableLoop:
 				continue TableLoop
 			}
 		}
-
-		return t.Table, t.Reverse, t.RollupUseReverted, t.Rollup.Rules()
+		tt.pointsTable = t.Table
+		tt.isReverse = t.Reverse
+		tt.rollupUseReverted = t.RollupUseReverted
+		tt.rollupObj = t.Rollup.Rules()
+		return nil
 	}
 
-	return "", false, false, nil
+	return fmt.Errorf("data tables is not specified for %v", targets[0])
 }
