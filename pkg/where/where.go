@@ -73,6 +73,12 @@ func NonRegexpPrefix(expr string) string {
 	s := regexp.QuoteMeta(expr)
 	for i := 0; i < len(expr); i++ {
 		if expr[i] != s[i] || expr[i] == '\\' {
+			if len(expr) > i+1 && expr[i] == '|' {
+				eq := strings.LastIndexAny(expr[:i], "=~")
+				if eq > 0 {
+					return expr[:eq+1]
+				}
+			}
 			return expr[:i]
 		}
 	}
