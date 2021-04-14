@@ -13,6 +13,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"github.com/lomik/graphite-clickhouse/render/data"
+	"github.com/lomik/graphite-clickhouse/render/reply"
 )
 
 // Handler serves /render requests
@@ -48,14 +50,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
-	formatter, err := getFormatter(r)
+	formatter, err := reply.GetFormatter(r)
 	if err != nil {
 		logger.Error("formatter", zap.Error(err))
 		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	fetchRequests, err := formatter.parseRequest(r)
+	fetchRequests, err := formatter.ParseRequest(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
 		return
@@ -69,7 +71,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for tf, target := range fetchRequests {
 		for _, expr := range target.List {
 			wg.Add(1)
-			go func(tf TimeFrame, target string, am *alias.Map) {
+			go func(tf data.TimeFrame, target string, am *alias.Map) {
 				defer wg.Done()
 				// Search in small index table first
 				fndResult, err := finder.Find(h.config, r.Context(), target, tf.From, tf.Until)
@@ -97,23 +99,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Info("finder", zap.Int("metrics", metricsLen))
 
 	if metricsLen == 0 {
-		formatter.reply(w, r, EmptyResponse)
+		formatter.Reply(w, r, data.EmptyResponse)
 		return
 	}
 
-	reply, err := FetchDataPoints(r.Context(), h.config, fetchRequests, config.ContextGraphite)
+	reply, err := data.FetchDataPoints(r.Context(), h.config, fetchRequests, config.ContextGraphite)
 	if err != nil {
 		clickhouse.HandleError(w, err)
 		return
 	}
 
 	if len(reply.CHResponses) == 0 {
-		formatter.reply(w, r, EmptyResponse)
+		formatter.Reply(w, r, data.EmptyResponse)
 		return
 	}
 
 	start := time.Now()
-	formatter.reply(w, r, reply.CHResponses)
+	formatter.Reply(w, r, reply.CHResponses)
 	d := time.Since(start)
 	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

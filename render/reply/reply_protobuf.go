@@ -1,4 +1,4 @@
-package render
+package reply
 
 import (
 	"bufio"
@@ -10,9 +10,10 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
-func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []CHResponse, pbv3 bool) {
+func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse, pbv3 bool) {
 	logger := scope.Logger(r.Context())
 
 	// var multiResponse carbonzipperpb.MultiFetchResponse

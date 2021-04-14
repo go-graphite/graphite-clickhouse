@@ -1,4 +1,4 @@
-package render
+package reply
 
 import (
 	"fmt"
@@ -8,30 +8,31 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
+	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
 // Formatter implements request parser and response generator
-type formatter interface {
+type Formatter interface {
 	// Parse request
-	parseRequest(r *http.Request) (fetchRequests MultiFetchRequest, err error)
+	ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error)
 	// Generate reply payload
-	reply(http.ResponseWriter, *http.Request, []CHResponse)
+	Reply(http.ResponseWriter, *http.Request, []data.CHResponse)
 }
 
-func getFormatter(r *http.Request) (formatter, error) {
+func GetFormatter(r *http.Request) (Formatter, error) {
 	format := r.FormValue("format")
 	switch format {
 	case "carbonapi_v3_pb":
-		return &v3pb{}, nil
+		return &V3pb{}, nil
 	case "pickle":
-		return &pickle{}, nil
+		return &Pickle{}, nil
 	case "protobuf":
-		return &v2pb{}, nil
+		return &V2pb{}, nil
 	}
 	return nil, fmt.Errorf("format %v is not supported, supported formats: carbonapi_v3_pb, json, pickle, protobuf (aka carbonapi_v2_pb)", format)
 }
 
-func parseRequestForms(r *http.Request) (MultiFetchRequest, error) {
+func parseRequestForms(r *http.Request) (data.MultiFetchRequest, error) {
 	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse from")
@@ -48,12 +49,12 @@ func parseRequestForms(r *http.Request) (MultiFetchRequest, error) {
 	}
 
 	targets := dry.RemoveEmptyStrings(r.Form["target"])
-	tf := TimeFrame{
+	tf := data.TimeFrame{
 		From:          fromTimestamp,
 		Until:         untilTimestamp,
 		MaxDataPoints: maxDataPoints,
 	}
-	fetchRequests := make(MultiFetchRequest)
-	fetchRequests[tf] = &Targets{List: targets, AM: alias.New()}
+	fetchRequests := make(data.MultiFetchRequest)
+	fetchRequests[tf] = &data.Targets{List: targets, AM: alias.New()}
 	return fetchRequests, nil
 }

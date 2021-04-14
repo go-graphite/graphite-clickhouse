@@ -1,4 +1,4 @@
-package render
+package reply
 
 import (
 	"bufio"
@@ -6,15 +6,17 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
-type v2pb struct{}
+// V2pb is a formatter for carbonapi_v2_pb
+type V2pb struct{}
 
-func (*v2pb) parseRequest(r *http.Request) (fetchRequests MultiFetchRequest, err error) {
+func (*V2pb) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
 	return parseRequestForms(r)
 }
 
-func (*v2pb) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
+func (*V2pb) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
 	replyProtobuf(w, r, multiData, false)
 }
 

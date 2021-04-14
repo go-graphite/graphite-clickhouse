@@ -1,4 +1,4 @@
-package render
+package reply
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"github.com/lomik/graphite-clickhouse/render/data"
 	"go.uber.org/zap"
 )
 
@@ -20,9 +21,9 @@ const (
 	Float32  = 5
 )
 
-type v3pb struct{}
+type V3pb struct{}
 
-func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
+func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 	logger := scope.Logger(r.Context()).Named("render")
 	url := r.URL
 
@@ -39,7 +40,7 @@ func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
 	}
 
 	q := url.Query()
-	fetchRequests := make(MultiFetchRequest)
+	fetchRequests := make(data.MultiFetchRequest)
 
 	if len(pv3Request.Metrics) > 0 {
 		q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
@@ -47,7 +48,7 @@ func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
 		q.Set("maxDataPoints", fmt.Sprintf("%d", pv3Request.Metrics[0].MaxDataPoints))
 
 		for _, m := range pv3Request.Metrics {
-			tf := TimeFrame{
+			tf := data.TimeFrame{
 				From:          m.StartTime,
 				Until:         m.StopTime,
 				MaxDataPoints: m.MaxDataPoints,
@@ -56,7 +57,7 @@ func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
 				target := fetchRequests[tf]
 				target.List = append(fetchRequests[tf].List, m.PathExpression)
 			} else {
-				fetchRequests[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
+				fetchRequests[tf] = &data.Targets{List: []string{m.PathExpression}, AM: alias.New()}
 			}
 			q.Add("target", m.PathExpression)
 			logger.Debug(
@@ -74,7 +75,7 @@ func (*v3pb) parseRequest(r *http.Request) (MultiFetchRequest, error) {
 	return fetchRequests, nil
 }
 
-func (*v3pb) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
+func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
 	replyProtobuf(w, r, multiData, true)
 }
 

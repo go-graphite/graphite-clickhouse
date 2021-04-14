@@ -1,4 +1,4 @@
-package render
+package reply
 
 import (
 	"bufio"
@@ -8,17 +8,18 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"github.com/lomik/graphite-clickhouse/render/data"
 	graphitePickle "github.com/lomik/graphite-pickle"
 	"go.uber.org/zap"
 )
 
-type pickle struct{}
+type Pickle struct{}
 
-func (*pickle) parseRequest(r *http.Request) (fetchRequests MultiFetchRequest, err error) {
+func (*Pickle) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
 	return parseRequestForms(r)
 }
 
-func (*pickle) reply(w http.ResponseWriter, r *http.Request, multiData []CHResponse) {
+func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
 	var pickleTime time.Duration
 	// Pickle response always contain single request/response
 	data := multiData[0].Data
