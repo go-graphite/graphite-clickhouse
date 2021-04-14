@@ -236,7 +236,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricList)
+	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -344,7 +344,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	carbonlinkData := carbonlinkResponseRead()
-	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, targets.isReverse)
+	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, false)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
@@ -380,7 +380,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricList)
+	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -459,7 +459,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	parseStart := time.Now()
 
 	// pass carbonlinkData to data parser
-	data, err = parseUnaggregatedResponse(body, carbonlinkData, targets.isReverse)
+	data, err = parseUnaggregatedResponse(body, carbonlinkData, false)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
