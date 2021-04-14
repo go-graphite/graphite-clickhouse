@@ -344,7 +344,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	carbonlinkData := carbonlinkResponseRead()
-	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, false)
+	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, targets.isReverse)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
@@ -459,7 +459,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	parseStart := time.Now()
 
 	// pass carbonlinkData to data parser
-	data, err = parseUnaggregatedResponse(body, carbonlinkData, false)
+	data, err = parseUnaggregatedResponse(body, carbonlinkData, targets.isReverse)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
