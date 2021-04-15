@@ -105,7 +105,7 @@ func TestDebugDump(t *testing.T) {
 
 	reqID := fmt.Sprintf("%x", rand.Uint32())
 	ctx := scope.WithRequestID(context.Background(), reqID)
-	ctx = scope.WithDebug(ctx, "ExternalData")
+	ctx = scope.WithDebug(ctx, "External-Data")
 	extData.SetDebug(dir, 0640)
 	u := url.URL{}
 	extData.debugDump(ctx, u)
