@@ -107,7 +107,7 @@ func (e *ExternalData) buildBody(ctx context.Context, u *url.URL) (*bytes.Buffer
 }
 
 func (e *ExternalData) debugDump(ctx context.Context, u url.URL) {
-	if e.debug == nil || !scope.Debug(ctx, "ExternalData") {
+	if e.debug == nil || !scope.Debug(ctx, "External-Data") {
 		// Do not dump if the settings are not set
 		return
 	}

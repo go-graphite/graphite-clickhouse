@@ -8,7 +8,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
-	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/lomik/graphite-clickhouse/render/data"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
 )
@@ -75,14 +75,14 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)
 
-	fetchRequests := render.MultiFetchRequest{
-		render.TimeFrame{
+	fetchRequests := data.MultiFetchRequest{
+		data.TimeFrame{
 			From:          from.Unix(),
 			Until:         until.Unix(),
 			MaxDataPoints: maxDataPoints,
-		}: &render.Targets{List: []string{}, AM: am},
+		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := render.FetchDataPoints(q.ctx, q.config, fetchRequests, config.ContextPrometheus)
+	reply, err := data.FetchDataPoints(q.ctx, q.config, fetchRequests, config.ContextPrometheus)
 	if err != nil {
 		return nil, nil, err
 	}
