@@ -5,9 +5,21 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
-func (tt *Targets) SelectDataTable(cfg *config.Config, from int64, until int64, targets []string, context string) error {
+type Targets struct {
+	// List contains list of metrics in one the target
+	List              []string
+	AM                *alias.Map
+	pointsTable       string
+	isReverse         bool
+	rollupObj         *rollup.Rules
+	rollupUseReverted bool
+}
+
+func (tt *Targets) selectDataTable(cfg *config.Config, from int64, until int64, context string) error {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -37,8 +49,8 @@ TableLoop:
 		}
 
 		if t.TargetMatchAllRegexp != nil {
-			for j := 0; j < len(targets); j++ {
-				if !t.TargetMatchAllRegexp.MatchString(targets[j]) {
+			for j := 0; j < len(tt.List); j++ {
+				if !t.TargetMatchAllRegexp.MatchString(tt.List[j]) {
 					continue TableLoop
 				}
 			}
@@ -47,8 +59,8 @@ TableLoop:
 		if t.TargetMatchAnyRegexp != nil {
 			matched := false
 		TargetsLoop:
-			for j := 0; j < len(targets); j++ {
-				if t.TargetMatchAnyRegexp.MatchString(targets[j]) {
+			for j := 0; j < len(tt.List); j++ {
+				if t.TargetMatchAnyRegexp.MatchString(tt.List[j]) {
 					matched = true
 					break TargetsLoop
 				}
@@ -64,5 +76,5 @@ TableLoop:
 		return nil
 	}
 
-	return fmt.Errorf("data tables is not specified for %v", targets[0])
+	return fmt.Errorf("data tables is not specified for %v", tt.List[0])
 }

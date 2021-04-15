@@ -11,8 +11,6 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
-	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -41,16 +39,6 @@ type TimeFrame struct {
 	From          int64
 	Until         int64
 	MaxDataPoints int64
-}
-
-type Targets struct {
-	// List contains list of metrics in one the target
-	List              []string
-	AM                *alias.Map
-	pointsTable       string
-	isReverse         bool
-	rollupObj         *rollup.Rules
-	rollupUseReverted bool
 }
 
 // MultiFetchRequest is a map of TimeFrame keys and targets slice of strings values
@@ -128,7 +116,7 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 		if tf.MaxDataPoints <= 0 {
 			tf.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
-		err := targets.SelectDataTable(cfg, tf.From, tf.Until, targets.List, chContext)
+		err := targets.selectDataTable(cfg, tf.From, tf.Until, chContext)
 		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)
