@@ -158,6 +158,10 @@ total-timeout = "500ms"
 # # Useful when reading from distributed table, but the rollup parameters are on the shard tables.
 # # Can be in "database.table" form.
 # rollup-auto-table = ""
+# # Use unreversed metric name to discover rollup-rules. If not specified - use as is (reversed metric name).
+# # Use if unreversed rules is used.
+# # Ignored for non-reverse tables (unreversed metric names used always)
+# rollup-use-reverted = false
 # # Sets the default precision and function for rollup patterns which don't have age=0 retention defined.
 # # If age=0 retention is defined in the rollup config then it takes precedence.
 # # If left at the default value of 0 then no rollup is performed when the requested interval 

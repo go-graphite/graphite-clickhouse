@@ -155,6 +155,7 @@ type DataTable struct {
 	RollupAutoTable        string          `toml:"rollup-auto-table" json:"rollup-auto-table"`
 	RollupDefaultPrecision uint32          `toml:"rollup-default-precision" json:"rollup-default-precision"`
 	RollupDefaultFunction  string          `toml:"rollup-default-function" json:"rollup-default-function"`
+	RollupUseReverted      bool            `toml:"rollup-use-reverted" json:"rollup-use-reverted"`
 	Context                []string        `toml:"context" json:"context"`
 	ContextMap             map[string]bool `toml:"-" json:"-"`
 	Rollup                 *rollup.Rollup  `toml:"-" json:"rollup-conf"`

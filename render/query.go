@@ -14,7 +14,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
-	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"go.uber.org/zap"
@@ -46,11 +45,12 @@ type TimeFrame struct {
 
 type Targets struct {
 	// List contains list of metrics in one the target
-	List        []string
-	AM          *alias.Map
-	pointsTable string
-	isReverse   bool
-	rollupObj   *rollup.Rules
+	List              []string
+	AM                *alias.Map
+	pointsTable       string
+	isReverse         bool
+	rollupObj         *rollup.Rules
+	rollupUseReverted bool
 }
 
 // MultiFetchRequest is a map of TimeFrame keys and targets slice of strings values
@@ -128,9 +128,8 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 		if tf.MaxDataPoints <= 0 {
 			tf.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
-		targets.pointsTable, targets.isReverse, targets.rollupObj = SelectDataTable(cfg, tf.From, tf.Until, targets.List, chContext)
-		if targets.pointsTable == "" {
-			err := fmt.Errorf("data tables is not specified for %v", targets.List[0])
+		err := targets.SelectDataTable(cfg, tf.From, tf.Until, targets.List, chContext)
+		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)
 			lock.Unlock()
@@ -218,13 +217,26 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	data = EmptyData
 
 	metricList := targets.AM.Series(targets.isReverse)
-
 	if len(metricList) == 0 {
 		return
 	}
 
+	var metricListUnreverse []string
+	if targets.isReverse {
+		metricListUnreverse = targets.AM.Series(false)
+	} else {
+		metricListUnreverse = metricList
+	}
+
+	var metricListRuleLookup []string
+	if targets.isReverse && targets.rollupUseReverted {
+		metricListRuleLookup = metricListUnreverse
+	} else {
+		metricListRuleLookup = metricList
+	}
+
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricList)
+	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -239,8 +251,8 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 
 	// Grouping metrics by aggregation steps and functions
 	var step int64
-	for _, m := range metricList {
-		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
+	for n, m := range metricList {
+		newStep, agg := targets.rollupObj.Lookup(metricListRuleLookup[n], uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := bodyAggregation[agg.Name()]; ok {
 			bodyAggregation[agg.Name()] = append(mm, []byte(m+"\n")...)
@@ -249,8 +261,9 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		}
 
 		if targets.isReverse {
-			m = reverse.String(m)
+			m = metricListUnreverse[n]
 		}
+
 		if mm, ok := metricsAggregation[agg.Name()]; ok {
 			metricsAggregation[agg.Name()] = append(mm, m)
 		} else {
@@ -348,13 +361,26 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	data = EmptyData
 
 	metricList := targets.AM.Series(targets.isReverse)
-
 	if len(metricList) == 0 {
 		return
 	}
 
+	var metricListUnreverse []string
+	if targets.isReverse {
+		metricListUnreverse = targets.AM.Series(false)
+	} else {
+		metricListUnreverse = metricList
+	}
+
+	var metricListRuleLookup []string
+	if targets.isReverse && targets.rollupUseReverted {
+		metricListRuleLookup = metricListUnreverse
+	} else {
+		metricListRuleLookup = metricList
+	}
+
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricList)
+	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -366,14 +392,14 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	var maxStep int64
 	steps := make(map[string]uint32)
 	metricsAggregation := make(map[string][]string)
-	for _, m := range metricList {
+	for n, m := range metricListRuleLookup {
 		step, agg := targets.rollupObj.Lookup(m, uint32(age))
 		if int64(step) > maxStep {
 			maxStep = int64(step)
 		}
 
 		if targets.isReverse {
-			m = reverse.String(m)
+			m = metricListUnreverse[n]
 		}
 
 		steps[m] = step
