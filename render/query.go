@@ -251,8 +251,8 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 
 	// Grouping metrics by aggregation steps and functions
 	var step int64
-	for n, m := range metricListRuleLookup {
-		newStep, agg := targets.rollupObj.Lookup(m, uint32(age))
+	for n, m := range metricList {
+		newStep, agg := targets.rollupObj.Lookup(metricListRuleLookup[n], uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := bodyAggregation[agg.Name()]; ok {
 			bodyAggregation[agg.Name()] = append(mm, []byte("\n"+m)...)
