@@ -225,7 +225,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, metricListUnreverse)
+	carbonlinkResponseRead := queryCarbonlink(ctx, carbonlink, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -371,7 +371,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, metricListUnreverse)
+	carbonlinkResponseRead := queryCarbonlink(ctx, carbonlink, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)

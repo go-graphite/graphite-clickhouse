@@ -12,9 +12,13 @@ import (
 	graphitePickle "github.com/lomik/graphite-pickle"
 )
 
+type carbonlinkFetcher interface {
+	CacheQueryMulti(context.Context, []string) (map[string][]graphitePickle.DataPoint, error)
+}
+
 // carbonlink to get data from carbonlink server globally
 type carbonlinkClient struct {
-	graphitePickle.CarbonlinkClient
+	carbonlinkFetcher
 	totalTimeout time.Duration
 }
 
@@ -29,7 +33,7 @@ func setCarbonlinkClient(config *config.Carbonlink) {
 		return
 	}
 	carbonlink = &carbonlinkClient{
-		*graphitePickle.NewCarbonlinkClient(
+		graphitePickle.NewCarbonlinkClient(
 			config.Server,
 			config.Retries,
 			config.Threads,
@@ -42,7 +46,7 @@ func setCarbonlinkClient(config *config.Carbonlink) {
 }
 
 // queryCarbonlink returns callable result fetcher
-func queryCarbonlink(parentCtx context.Context, metrics []string) func() *point.Points {
+func queryCarbonlink(parentCtx context.Context, carbonlink *carbonlinkClient, metrics []string) func() *point.Points {
 	logger := scope.Logger(parentCtx)
 	if carbonlink == nil {
 		return func() *point.Points { return nil }
