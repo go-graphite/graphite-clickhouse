@@ -49,12 +49,12 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 			MaxDataPoints: int64(h.config.ClickHouse.MaxDataPoints),
 		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := data.FetchDataPoints(ctx, h.config, fetchRequests, config.ContextPrometheus)
+	reply, err := fetchRequests.Fetch(ctx, h.config, config.ContextPrometheus)
 	if err != nil {
 		return nil, err
 	}
 
-	return h.makeQueryResult(ctx, reply.CHResponses[0].Data, am, uint32(fromTimestamp), uint32(untilTimestamp))
+	return h.makeQueryResult(ctx, reply[0].Data, am, uint32(fromTimestamp), uint32(untilTimestamp))
 }
 
 func (h *Handler) makeQueryResult(ctx context.Context, data *data.Data, am *alias.Map, from, until uint32) (*prompb.QueryResult, error) {

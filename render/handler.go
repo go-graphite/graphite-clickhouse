@@ -99,23 +99,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Info("finder", zap.Int("metrics", metricsLen))
 
 	if metricsLen == 0 {
-		formatter.Reply(w, r, data.EmptyResponse)
+		formatter.Reply(w, r, data.EmptyResponse())
 		return
 	}
 
-	reply, err := data.FetchDataPoints(r.Context(), h.config, fetchRequests, config.ContextGraphite)
+	reply, err := fetchRequests.Fetch(r.Context(), h.config, config.ContextGraphite)
 	if err != nil {
 		clickhouse.HandleError(w, err)
 		return
 	}
 
-	if len(reply.CHResponses) == 0 {
-		formatter.Reply(w, r, data.EmptyResponse)
+	if len(reply) == 0 {
+		formatter.Reply(w, r, data.EmptyResponse())
 		return
 	}
 
 	start := time.Now()
-	formatter.Reply(w, r, reply.CHResponses)
+	formatter.Reply(w, r, reply)
 	d := time.Since(start)
 	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

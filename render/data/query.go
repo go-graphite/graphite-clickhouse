@@ -57,45 +57,29 @@ func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
 	return nil
 }
 
+// CHResponse contains the parsed Data and From/Until timestamps
 type CHResponse struct {
 	Data  *Data
 	From  int64
 	Until int64
 }
 
-type Reply struct {
-	CHResponses []CHResponse
-	lock        sync.RWMutex
+// CHResponses is a slice of CHResponse
+type CHResponses []CHResponse
+
+// EmptyResponse returns an CHResponses with one element containing emptyData for the following encoding
+func EmptyResponse() CHResponses { return CHResponses{{emptyData, 0, 0}} }
+
+type query struct {
+	CHResponses
 	cStep       *commonStep
+	chConfig    *config.ClickHouse
+	debugConfig *config.Debug
+	lock        sync.RWMutex
+	aggregated  bool
 }
 
-func (r *Reply) Append(chr CHResponse) {
-	r.lock.Lock()
-	r.CHResponses = append(r.CHResponses, chr)
-	r.lock.Unlock()
-}
-
-// EmptyResponse is an empty []CHResponse
-var EmptyResponse []CHResponse = []CHResponse{{EmptyData, 0, 0}}
-
-// EmptyReply is used when no metrics/data points are read
-var EmptyReply *Reply = &Reply{EmptyResponse, sync.RWMutex{}, nil}
-
-// FetchDataPoints fetches the data from ClickHouse and parses it into []CHResponse
-func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests MultiFetchRequest, chContext string) (*Reply, error) {
-	var lock sync.RWMutex
-	var wg sync.WaitGroup
-	logger := scope.Logger(ctx)
-	setCarbonlinkClient(&cfg.Carbonlink)
-
-	err := fetchRequests.checkMetricsLimitExceeded(cfg.Common.MaxMetricsPerTarget)
-	if err != nil {
-		logger.Error("data fetch", zap.Error(err))
-		return nil, err
-	}
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout.Duration)
-	defer cancel()
+func newQuery(cfg *config.Config, targets int) *query {
 	cStep := &commonStep{
 		result: 0,
 		wg:     sync.WaitGroup{},
@@ -103,18 +87,48 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 	}
 
 	if cfg.ClickHouse.InternalAggregation {
-		cStep.addTargets(len(fetchRequests))
+		cStep.addTargets(targets)
 	}
 
-	reply := &Reply{
-		CHResponses: make([]CHResponse, 0, len(fetchRequests)),
-		lock:        sync.RWMutex{},
+	query := &query{
+		CHResponses: make([]CHResponse, 0, targets),
 		cStep:       cStep,
+		chConfig:    &cfg.ClickHouse,
+		debugConfig: &cfg.Debug,
+		lock:        sync.RWMutex{},
+		aggregated:  cfg.ClickHouse.InternalAggregation,
 	}
-	errors := make([]error, 0, len(fetchRequests))
 
-	for tf, targets := range fetchRequests {
-		if tf.MaxDataPoints <= 0 {
+	return query
+}
+
+func (q *query) appendReply(chr CHResponse) {
+	q.lock.Lock()
+	q.CHResponses = append(q.CHResponses, chr)
+	q.lock.Unlock()
+}
+
+// Fetch fetches the parsed ClickHouse data returns CHResponses
+func (m *MultiFetchRequest) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
+	var lock sync.RWMutex
+	var wg sync.WaitGroup
+	logger := scope.Logger(ctx)
+	setCarbonlinkClient(&cfg.Carbonlink)
+
+	err := m.checkMetricsLimitExceeded(cfg.Common.MaxMetricsPerTarget)
+	if err != nil {
+		logger.Error("data fetch", zap.Error(err))
+		return nil, err
+	}
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout.Duration)
+	defer cancel()
+
+	errors := make([]error, 0, len(*m))
+	query := newQuery(cfg, len(*m))
+
+	for tf, targets := range *m {
+		if tf.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < tf.MaxDataPoints {
 			tf.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
 		err := targets.selectDataTable(cfg, tf.From, tf.Until, chContext)
@@ -123,12 +137,12 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 			errors = append(errors, err)
 			lock.Unlock()
 			logger.Error("data tables is not specified", zap.Error(err))
-			return EmptyReply, err
+			return EmptyResponse(), err
 		}
 		wg.Add(1)
 		go func(tf TimeFrame, targets *Targets) {
 			defer wg.Done()
-			err := reply.getDataPoints(ctxTimeout, cfg, tf, targets)
+			err := query.getDataPoints(ctxTimeout, tf, targets)
 			if err != nil {
 				lock.Lock()
 				errors = append(errors, err)
@@ -139,13 +153,13 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 	}
 	wg.Wait()
 	for len(errors) != 0 {
-		return EmptyReply, errors[0]
+		return EmptyResponse(), errors[0]
 	}
 
-	return reply, nil
+	return query.CHResponses, nil
 }
 
-func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFrame, targets *Targets) error {
+func (q *query) getDataPoints(ctx context.Context, tf TimeFrame, targets *Targets) error {
 	logger := scope.Logger(ctx)
 	var data *Data
 	var err error
@@ -160,10 +174,10 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 		}
 	}()
 
-	if cfg.ClickHouse.InternalAggregation {
-		data, err = r.getDataAggregated(ctx, cfg, tf, targets)
+	if q.aggregated {
+		data, err = q.getDataAggregated(ctx, tf, targets)
 	} else {
-		data, err = r.getDataUnaggregated(ctx, cfg, tf, targets)
+		data, err = q.getDataUnaggregated(ctx, tf, targets)
 	}
 
 	if err != nil {
@@ -174,7 +188,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 	// ClickHouse returns sorted and uniq values, when internal aggregation is used
 	// But if carbonlink is used, we still need to sort, filter and rollup points
-	if !cfg.ClickHouse.InternalAggregation || carbonlink != nil {
+	if !q.aggregated || carbonlink != nil {
 		sortStart := time.Now()
 		data.Points.Sort()
 		d := time.Since(sortStart)
@@ -182,7 +196,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 		data.Points.Uniq()
 		rollupStart := time.Now()
-		err = data.rollupObj.RollupPoints(data.Points, tf.From, data.commonStep)
+		err = targets.rollupObj.RollupPoints(data.Points, tf.From, data.commonStep)
 		if err != nil {
 			logger.Error("rollup failed", zap.Error(err))
 			return err
@@ -192,7 +206,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 	data.Aliases = targets.AM
 
-	r.Append(CHResponse{
+	q.appendReply(CHResponse{
 		Data:  data,
 		From:  tf.From,
 		Until: tf.Until,
@@ -200,10 +214,10 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 	return nil
 }
 
-func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf TimeFrame, targets *Targets) (data *Data, err error) {
+func (q *query) getDataAggregated(ctx context.Context, tf TimeFrame, targets *Targets) (data *Data, err error) {
 	// Generic prepare part
 	logger := scope.Logger(ctx)
-	data = EmptyData
+	data = emptyData
 
 	metricList := targets.AM.Series(targets.isReverse)
 	if len(metricList) == 0 {
@@ -232,7 +246,6 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 
 	// end of generic prepare
 
-	maxDataPoints := dry.Min(tf.MaxDataPoints, int64(cfg.ClickHouse.MaxDataPoints))
 	// map for points.SetAggregations
 	metricsAggregation := make(map[string][]string)
 	// map of CH external tables body grouped by aggregation function
@@ -242,7 +255,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	var step int64
 	for n, m := range metricList {
 		newStep, agg := targets.rollupObj.Lookup(metricListRuleLookup[n], uint32(age))
-		step = r.cStep.calculateUnsafe(step, int64(newStep))
+		step = q.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := bodyAggregation[agg.Name()]; ok {
 			mm.WriteString(m + "\n")
 		} else {
@@ -261,9 +274,9 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 			metricsAggregation[agg.Name()] = []string{m}
 		}
 	}
-	r.cStep.calculate(step)
-	step = dry.Max(r.cStep.getResult(), dry.Ceil(tf.Until-tf.From, maxDataPoints))
-	step = dry.CeilToMultiplier(step, r.cStep.getResult())
+	q.cStep.calculate(step)
+	step = dry.Max(q.cStep.getResult(), dry.Ceil(tf.Until-tf.From, tf.MaxDataPoints))
+	step = dry.CeilToMultiplier(step, q.cStep.getResult())
 
 	b := make(chan io.ReadCloser, len(metricsAggregation))
 	e := make(chan error)
@@ -294,7 +307,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 			Data:   []byte(tableBody.String()),
 		}
 		extData := clickhouse.NewExternalData(tempTable)
-		extData.SetDebug(cfg.Debug.Directory, cfg.Debug.ExternalDataPerm.FileMode)
+		extData.SetDebug(q.debugConfig.Directory, q.debugConfig.ExternalDataPerm.FileMode)
 		wr.And(where.InTable("Path", tempTable.Name))
 
 		wr.And(where.TimestampBetween("Time", from, until))
@@ -308,11 +321,11 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 			defer queryWg.Done()
 			body, err := clickhouse.Reader(
 				scope.WithTable(ctx, targets.pointsTable),
-				cfg.ClickHouse.Url,
+				q.chConfig.Url,
 				query,
 				clickhouse.Options{
-					Timeout:        cfg.ClickHouse.DataTimeout.Value(),
-					ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+					Timeout:        q.chConfig.DataTimeout.Value(),
+					ConnectTimeout: q.chConfig.ConnectTimeout.Value(),
 				},
 				extData,
 			)
@@ -342,14 +355,13 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 	data.commonStep = step
 	data.Points.SetAggregations(metricsAggregation)
-	data.rollupObj = targets.rollupObj
 	return
 }
 
-func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf TimeFrame, targets *Targets) (data *Data, err error) {
+func (q *query) getDataUnaggregated(ctx context.Context, tf TimeFrame, targets *Targets) (data *Data, err error) {
 	// Generic
 	logger := scope.Logger(ctx)
-	data = EmptyData
+	data = emptyData
 
 	metricList := targets.AM.Series(targets.isReverse)
 	if len(metricList) == 0 {
@@ -413,7 +425,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 		Data:   tableBody,
 	}
 	extData := clickhouse.NewExternalData(tempTable)
-	extData.SetDebug(cfg.Debug.Directory, cfg.Debug.ExternalDataPerm.FileMode)
+	extData.SetDebug(q.debugConfig.Directory, q.debugConfig.ExternalDataPerm.FileMode)
 
 	pw := where.New()
 	pw.And(where.DateBetween("Date", time.Unix(tf.From, 0), time.Unix(until, 0)))
@@ -430,11 +442,11 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 
 	body, err := clickhouse.Reader(
 		scope.WithTable(ctx, targets.pointsTable),
-		cfg.ClickHouse.Url,
+		q.chConfig.Url,
 		query,
 		clickhouse.Options{
-			Timeout:        cfg.ClickHouse.DataTimeout.Value(),
-			ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        q.chConfig.DataTimeout.Value(),
+			ConnectTimeout: q.chConfig.ConnectTimeout.Value(),
 		},
 		extData,
 	)
@@ -457,7 +469,6 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 	d := time.Since(parseStart)
 
-	data.rollupObj = targets.rollupObj
 	data.Points.SetSteps(steps)
 	data.Points.SetAggregations(metricsAggregation)
 

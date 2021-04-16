@@ -82,16 +82,16 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 			MaxDataPoints: maxDataPoints,
 		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := data.FetchDataPoints(q.ctx, q.config, fetchRequests, config.ContextPrometheus)
+	reply, err := fetchRequests.Fetch(q.ctx, q.config, config.ContextPrometheus)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if len(reply.CHResponses) == 0 {
+	if len(reply) == 0 {
 		return emptySeriesSet(), nil, nil
 	}
 
-	ss, err := makeSeriesSet(reply.CHResponses[0].Data, am)
+	ss, err := makeSeriesSet(reply[0].Data, am)
 	if err != nil {
 		return nil, nil, err
 	}

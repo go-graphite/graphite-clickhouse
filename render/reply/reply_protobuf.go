@@ -13,7 +13,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
-func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse, pbv3 bool) {
+func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData data.CHResponses, pbv3 bool) {
 	logger := scope.Logger(r.Context())
 
 	// var multiResponse carbonzipperpb.MultiFetchResponse

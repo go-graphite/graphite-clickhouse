@@ -11,7 +11,6 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 )
@@ -24,11 +23,10 @@ type Data struct {
 	length     int // readed bytes count
 	Points     *point.Points
 	Aliases    *alias.Map
-	rollupObj  *rollup.Rules
 	commonStep int64
 }
 
-var EmptyData *Data = &Data{Points: point.NewPoints()}
+var emptyData *Data = &Data{Points: point.NewPoints()}
 
 func prepare(extraPoints *point.Points) *Data {
 	data := &Data{

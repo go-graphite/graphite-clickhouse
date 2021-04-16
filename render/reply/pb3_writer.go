@@ -75,7 +75,7 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 	return fetchRequests, nil
 }
 
-func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
+func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	replyProtobuf(w, r, multiData, true)
 }
 

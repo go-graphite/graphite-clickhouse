@@ -19,7 +19,7 @@ func (*Pickle) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchReque
 	return parseRequestForms(r)
 }
 
-func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
+func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	var pickleTime time.Duration
 	// Pickle response always contain single request/response
 	data := multiData[0].Data
