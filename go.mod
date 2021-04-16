@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/common v0.4.1
 	github.com/prometheus/prometheus v1.8.2-0.20190814100549-343d8d75fd76
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/atomic v1.4.0 // indirect; prometheus?
 	go.uber.org/multierr v1.1.0 // indirect; prometheus?
 	go.uber.org/tools v0.0.0-20190618225709-2cfd321de3ee // indirect
