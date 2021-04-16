@@ -235,7 +235,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	// map for points.SetAggregations
 	metricsAggregation := make(map[string][]string)
 	// map of CH external tables body grouped by aggregation function
-	bodyAggregation := make(map[string][]byte)
+	bodyAggregation := make(map[string]*strings.Builder)
 
 	// Grouping metrics by aggregation steps and functions
 	var step int64
@@ -243,9 +243,11 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		newStep, agg := targets.rollupObj.Lookup(metricListRuleLookup[n], uint32(age))
 		step = r.cStep.calculateUnsafe(step, int64(newStep))
 		if mm, ok := bodyAggregation[agg.Name()]; ok {
-			bodyAggregation[agg.Name()] = append(mm, []byte(m+"\n")...)
+			mm.WriteString(m + "\n")
 		} else {
-			bodyAggregation[agg.Name()] = []byte(m + "\n")
+			var mm strings.Builder
+			mm.WriteString(m + "\n")
+			bodyAggregation[agg.Name()] = &mm
 		}
 
 		if targets.isReverse {
@@ -288,7 +290,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 				Type: "String",
 			}},
 			Format: "TSV",
-			Data:   tableBody,
+			Data:   []byte(tableBody.String()),
 		}
 		extData := clickhouse.NewExternalData(tempTable)
 		extData.SetDebug(cfg.Debug.Directory, cfg.Debug.ExternalDataPerm.FileMode)
