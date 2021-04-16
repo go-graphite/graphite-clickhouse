@@ -86,6 +86,7 @@ func FetchDataPoints(ctx context.Context, cfg *config.Config, fetchRequests Mult
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)
+	setCarbonlinkClient(&cfg.Carbonlink)
 
 	err := fetchRequests.checkMetricsLimitExceeded(cfg.Common.MaxMetricsPerTarget)
 	if err != nil {
@@ -173,7 +174,7 @@ func (r *Reply) getDataPoints(ctx context.Context, cfg *config.Config, tf TimeFr
 
 	// ClickHouse returns sorted and uniq values, when internal aggregation is used
 	// But if carbonlink is used, we still need to sort, filter and rollup points
-	if !cfg.ClickHouse.InternalAggregation || carbonlinkClient(cfg) != nil {
+	if !cfg.ClickHouse.InternalAggregation || carbonlink != nil {
 		sortStart := time.Now()
 		data.Points.Sort()
 		d := time.Since(sortStart)
@@ -224,7 +225,7 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
+	carbonlinkResponseRead := queryCarbonlink(ctx, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -333,8 +334,8 @@ func (r *Reply) getDataAggregated(ctx context.Context, cfg *config.Config, tf Ti
 		}(query)
 	}
 
-	carbonlinkData := carbonlinkResponseRead()
-	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkData, targets.isReverse)
+	carbonlinkPoints := carbonlinkResponseRead()
+	data, err = parseAggregatedResponse(ctx, b, e, carbonlinkPoints, targets.isReverse)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
@@ -370,7 +371,7 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 
 	// from carbonlink request
-	carbonlinkResponseRead := queryCarbonlink(ctx, cfg, metricListUnreverse)
+	carbonlinkResponseRead := queryCarbonlink(ctx, metricListUnreverse)
 
 	now := time.Now().Unix()
 	age := dry.Max(0, now-tf.From)
@@ -444,12 +445,12 @@ func (r *Reply) getDataUnaggregated(ctx context.Context, cfg *config.Config, tf 
 	}
 
 	// fetch carbonlink response
-	carbonlinkData := carbonlinkResponseRead()
+	carbonlinkPoints := carbonlinkResponseRead()
 
 	parseStart := time.Now()
 
 	// pass carbonlinkData to data parser
-	data, err = parseUnaggregatedResponse(body, carbonlinkData, targets.isReverse)
+	data, err = parseUnaggregatedResponse(body, carbonlinkPoints, targets.isReverse)
 	if err != nil {
 		logger.Error("data", zap.Error(err), zap.Int("read_bytes", data.length))
 		return nil, err
