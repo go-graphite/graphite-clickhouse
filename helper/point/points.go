@@ -72,11 +72,17 @@ func (pp *Points) GetStep(id uint32) (uint32, error) {
 }
 
 // SetSteps accepts map of metric name as keys and step as values and sets slice of uint32 steps for existing metrics in Data.Points
-func (pp *Points) SetSteps(steps map[string]uint32) {
+func (pp *Points) SetSteps(steps map[uint32][]string) {
+	if len(steps) == 0 {
+		return
+	}
+
 	pp.steps = make([]uint32, len(pp.metrics))
-	for m, step := range steps {
-		if id, ok := pp.idMap[m]; ok {
-			pp.steps[id-1] = step
+	for step, mm := range steps {
+		for _, m := range mm {
+			if id, ok := pp.idMap[m]; ok {
+				pp.steps[id-1] = step
+			}
 		}
 	}
 }

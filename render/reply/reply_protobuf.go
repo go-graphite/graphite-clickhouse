@@ -55,7 +55,7 @@ func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData data.CHResp
 				return err
 			}
 
-			for _, a := range data.Aliases.Get(metricName) {
+			for _, a := range data.AM.Get(metricName) {
 				writeAlias(mb, mb2, writer, a.Target, a.DisplayName, function, from, until, step, points)
 			}
 			return nil

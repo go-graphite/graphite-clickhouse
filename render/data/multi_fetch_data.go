@@ -55,10 +55,11 @@ func (m *MultiFetchRequest) Fetch(ctx context.Context, cfg *config.Config, chCon
 	query := newQuery(cfg, len(*m))
 
 	for tf, targets := range *m {
-		if tf.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < tf.MaxDataPoints {
-			tf.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
+		cond := &conditions{TimeFrame: &tf, Targets: targets, aggregated: cfg.ClickHouse.InternalAggregation}
+		if cond.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < cond.MaxDataPoints {
+			cond.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
-		err := targets.selectDataTable(cfg, tf.From, tf.Until, chContext)
+		err := cond.selectDataTable(cfg, cond.TimeFrame, chContext)
 		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)
@@ -67,16 +68,16 @@ func (m *MultiFetchRequest) Fetch(ctx context.Context, cfg *config.Config, chCon
 			return EmptyResponse(), err
 		}
 		wg.Add(1)
-		go func(tf TimeFrame, targets *Targets) {
+		go func(cond *conditions) {
 			defer wg.Done()
-			err := query.getDataPoints(ctxTimeout, tf, targets)
+			err := query.getDataPoints(ctxTimeout, cond)
 			if err != nil {
 				lock.Lock()
 				errors = append(errors, err)
 				lock.Unlock()
 				return
 			}
-		}(tf, targets)
+		}(cond)
 	}
 	wg.Wait()
 	for len(errors) != 0 {

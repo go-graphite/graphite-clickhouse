@@ -19,7 +19,7 @@ type Targets struct {
 	rollupUseReverted bool
 }
 
-func (tt *Targets) selectDataTable(cfg *config.Config, from int64, until int64, context string) error {
+func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string) error {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -30,20 +30,20 @@ TableLoop:
 			continue TableLoop
 		}
 
-		if t.MaxInterval != nil && (until-from) > int64(t.MaxInterval.Value().Seconds()) {
+		if t.MaxInterval != nil && (tf.Until-tf.From) > int64(t.MaxInterval.Value().Seconds()) {
 			continue TableLoop
 		}
 
-		if t.MinInterval != nil && (until-from) < int64(t.MinInterval.Value().Seconds()) {
+		if t.MinInterval != nil && (tf.Until-tf.From) < int64(t.MinInterval.Value().Seconds()) {
 			continue TableLoop
 		}
 
-		if t.MaxAge != nil && from < now-int64(t.MaxAge.Value().Seconds()) {
+		if t.MaxAge != nil && tf.From < now-int64(t.MaxAge.Value().Seconds()) {
 			continue TableLoop
 
 		}
 
-		if t.MinAge != nil && until > now-int64(t.MinAge.Value().Seconds()) {
+		if t.MinAge != nil && tf.Until > now-int64(t.MinAge.Value().Seconds()) {
 			continue TableLoop
 
 		}

@@ -112,7 +112,7 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 			http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
 			return err
 		}
-		for _, a := range data.Aliases.Get(metricName) {
+		for _, a := range data.AM.Get(metricName) {
 			writeAlias(a.DisplayName, a.Target, points, step)
 		}
 		return nil

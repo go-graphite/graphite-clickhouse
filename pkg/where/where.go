@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -177,10 +176,10 @@ func InTable(field string, table string) string {
 	return fmt.Sprintf("%s in %s", field, table)
 }
 
-func DateBetween(field string, from time.Time, until time.Time) string {
+func DateBetween(field string, from int64, until int64) string {
 	return fmt.Sprintf(
-		"%s >='%s' AND %s <= '%s'",
-		field, from.Format("2006-01-02"), field, until.Format("2006-01-02"),
+		"%s >= toDate(%d) AND %s <= toDate(%d)",
+		field, from, field, until,
 	)
 }
 
