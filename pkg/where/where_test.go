@@ -19,6 +19,7 @@ func TestGlobExpandSimple(t *testing.T) {
 		{"S{a,bc,d}E", []string{"SaE", "SbcE", "SdE"}, false},
 		{"S{a,bc,d}E{f,h}", []string{"SaEf", "SaEh", "SbcEf", "SbcEh", "SdEf", "SdEh"}, false},
 		{"S{a,bc,d}}E{f,h}", nil, true}, //error
+		{"S{{a,bc,d}E{f,h}", nil, true}, //error
 	}
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
