@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -23,17 +24,21 @@ type IndexFinder struct {
 	table        string             // graphite_tree table
 	opts         clickhouse.Options // timeout, connectTimeout
 	dailyEnabled bool
+	reverseDepth int
+	revUse       []config.NValue
 	body         []byte // clickhouse response body
 	useReverse   bool
 	useDaily     bool
 }
 
-func NewIndex(url string, table string, dailyEnabled bool, opts clickhouse.Options) Finder {
+func NewIndex(url string, table string, dailyEnabled bool, reverseDepth int, reverseUse []config.NValue, opts clickhouse.Options) Finder {
 	return &IndexFinder{
 		url:          url,
 		table:        table,
 		opts:         opts,
 		dailyEnabled: dailyEnabled,
+		reverseDepth: reverseDepth,
+		revUse:       reverseUse,
 	}
 }
 
@@ -48,14 +53,17 @@ func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 	return w
 }
 
-func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func useReverseDepth(query string, reverseDepth int, revUse []config.NValue) bool {
 	p := strings.LastIndexByte(query, '.')
 
 	if !where.HasWildcard(query) || p < 0 || p >= len(query)-1 || where.HasWildcard(query[p+1:]) {
-		idx.useReverse = false
-	} else {
-		idx.useReverse = true
+		return false
 	}
+	return true
+}
+
+func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+	idx.useReverse = useReverseDepth(query, idx.reverseDepth, idx.revUse)
 
 	if idx.dailyEnabled && from > 0 && until > 0 {
 		idx.useDaily = true

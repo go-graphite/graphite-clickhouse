@@ -85,6 +85,12 @@ type Common struct {
 	MemoryReturnInterval   *Duration        `toml:"memory-return-interval" json:"memory-return-interval"`
 }
 
+type NValue struct {
+	Suffix string `toml:"suffix" json:"suffix"`
+	Prefix string `toml:"prefix" json:"prefix"`
+	Value  int    `toml:"reverse" json:"reverse"`
+}
+
 type ClickHouse struct {
 	Url                  string    `toml:"url" json:"url"`
 	DataTimeout          *Duration `toml:"data-timeout" json:"data-timeout"`
@@ -93,6 +99,8 @@ type ClickHouse struct {
 	DateTreeTableVersion int       `toml:"date-tree-table-version" json:"date-tree-table-version"`
 	IndexTable           string    `toml:"index-table" json:"index-table"`
 	IndexUseDaily        bool      `toml:"index-use-daily" json:"index-use-daily"`
+	IndexReverseDepth    int       `toml:"index-reverse-depth" json:"index-reverse-depth"`
+	IndexUseReverses     []NValue  `toml:"index-reverses" json:"index-reverses"`
 	IndexTimeout         *Duration `toml:"index-timeout" json:"index-timeout"`
 	TaggedTable          string    `toml:"tagged-table" json:"tagged-table"`
 	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
@@ -208,8 +216,10 @@ func New() *Config {
 			TreeTimeout: &Duration{
 				Duration: time.Minute,
 			},
-			IndexTable:    "",
-			IndexUseDaily: true,
+			IndexTable:        "",
+			IndexUseDaily:     true,
+			IndexReverseDepth: 1,
+			IndexUseReverses:  []NValue{},
 			IndexTimeout: &Duration{
 				Duration: time.Minute,
 			},
