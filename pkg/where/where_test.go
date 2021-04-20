@@ -18,6 +18,7 @@ func TestGlobExpandSimple(t *testing.T) {
 		{"{a,bc,d}E", []string{"aE", "bcE", "dE"}, false},
 		{"S{a,bc,d}E", []string{"SaE", "SbcE", "SdE"}, false},
 		{"S{a,bc,d}E{f,h}", []string{"SaEf", "SaEh", "SbcEf", "SbcEh", "SdEf", "SdEh"}, false},
+		{"test{a,b}", []string{"testa", "testb"}, false},
 		{"S{a,bc,d}}E{f,h}", nil, true}, //error
 		{"S{{a,bc,d}E{f,h}", nil, true}, //error
 	}
