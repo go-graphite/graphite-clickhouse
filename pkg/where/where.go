@@ -28,7 +28,7 @@ func GlobExpandSimple(value, prefix string, result *[]string) error {
 		*result = append(*result, prefix+value)
 	} else {
 		end := strings.Index(value[start:], "}")
-		if end == start {
+		if end <= 1 {
 			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
 		}
 		if end == -1 || strings.IndexAny(value[start+1:start+end], "{}") != -1 {
@@ -114,8 +114,22 @@ func quote(value interface{}) string {
 	}
 }
 
-func quoteRegex(value string) string {
-	return fmt.Sprintf("'^%s$'", escape(value))
+// {'name=~cpu.usage', '^__name__=.*cpu.usage'},
+// {'name=~cpu|mem',   '^__name__=.*cpu|mem'},
+// {'name=~cpu|mem$',  '^__name__=.*cpu|mem$'},
+// {'name=~^cpu|mem',  '^__name__=^cpu|mem$'},
+// {'name=~^cpu|mem$', '^__name__=cpu|mem$'},
+func quoteRegex(key, value string) string {
+	startLine := value[0] == '^'
+	endLine := value[len(value)-1] == '$'
+	if startLine && endLine {
+		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+	} else if startLine {
+		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+	} else if endLine {
+		return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value[0:]))
+	}
+	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value))
 }
 
 func Like(field, s string) string {

@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+var (
+	opEq    string = "="
+	opMatch string = "=~"
+)
+
 func glob(field string, query string, optionalDotAtEnd bool) string {
 	if query == "*" {
 		return ""
@@ -59,15 +64,23 @@ func TreeGlob(field string, query string) string {
 	return glob(field, query, true)
 }
 
-func Match(field string, expr string) string {
+func ConcatKV(key, value string) string {
+	return key + opEq + value
+}
+
+func Match(field string, key, value string) string {
+	expr := ConcatKV(key, value)
 	simplePrefix := NonRegexpPrefix(expr)
 	if len(simplePrefix) == len(expr) {
 		return Eq(field, expr)
 	}
 
 	if simplePrefix == "" {
-		return fmt.Sprintf("match(%s, %s)", field, quoteRegex(expr))
+		return fmt.Sprintf("match(%s, %s)", field, quoteRegex(key, value))
 	}
 
-	return fmt.Sprintf("%s AND match(%s, %s)", HasPrefix(field, simplePrefix), field, quoteRegex(expr))
+	return fmt.Sprintf("%s AND match(%s, %s)",
+		HasPrefix(field, simplePrefix),
+		field, quoteRegex(key, value),
+	)
 }

@@ -69,7 +69,7 @@ func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Op
 }
 
 func (term *TaggedTerm) concat() string {
-	return fmt.Sprintf("%s=%s", term.Key, term.Value)
+	return where.ConcatKV(term.Key, term.Value)
 }
 
 func (term *TaggedTerm) concatMask() string {
@@ -117,9 +117,10 @@ func TaggedTermWhere1(term *TaggedTerm) (string, error) {
 			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat())), nil
 		}
 	case TaggedTermMatch:
-		return where.Match("Tag1", term.concat()), nil
+		return where.Match("Tag1", term.Key, term.Value), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.concat())), nil
+		// return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", term.Key, term.Value), nil
+		return "NOT " + where.Match("Tag1", term.Key, term.Value), nil
 	default:
 		return "", nil
 	}
@@ -164,9 +165,9 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 			return "NOT arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
 		}
 	case TaggedTermMatch:
-		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.concat())), nil
+		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.concat())), nil
+		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	default:
 		return "", nil
 	}
