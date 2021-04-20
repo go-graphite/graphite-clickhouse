@@ -64,15 +64,24 @@ func TreeGlob(field string, query string) string {
 	return glob(field, query, true)
 }
 
-func ConcatKV(key, value string) string {
-	return key + opEq + value
+func ConcatMatchKV(key, value string) string {
+	startLine := value[0] == '^'
+	endLine := value[len(value)-1] == '$'
+	if startLine {
+		return key + opEq + value[1:]
+	} else if endLine {
+		return key + opEq + value + "\\\\%"
+	}
+	return key + opEq + "\\\\%" + value
 }
 
 func Match(field string, key, value string) string {
-	expr := ConcatKV(key, value)
+	expr := ConcatMatchKV(key, value)
 	simplePrefix := NonRegexpPrefix(expr)
 	if len(simplePrefix) == len(expr) {
 		return Eq(field, expr)
+	} else if len(simplePrefix) == len(expr)-1 && expr[len(expr)-1] == '$' {
+		return Eq(field, simplePrefix)
 	}
 
 	if simplePrefix == "" {

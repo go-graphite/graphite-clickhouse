@@ -114,11 +114,6 @@ func quote(value interface{}) string {
 	}
 }
 
-// {'name=~cpu.usage', '^__name__=.*cpu.usage'},
-// {'name=~cpu|mem',   '^__name__=.*cpu|mem'},
-// {'name=~cpu|mem$',  '^__name__=.*cpu|mem$'},
-// {'name=~^cpu|mem',  '^__name__=^cpu|mem$'},
-// {'name=~^cpu|mem$', '^__name__=cpu|mem$'},
 func quoteRegex(key, value string) string {
 	startLine := value[0] == '^'
 	endLine := value[len(value)-1] == '$'

@@ -69,7 +69,7 @@ func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Op
 }
 
 func (term *TaggedTerm) concat() string {
-	return where.ConcatKV(term.Key, term.Value)
+	return term.Key + "=" + term.Value
 }
 
 func (term *TaggedTerm) concatMask() string {
