@@ -101,12 +101,13 @@ index-use-daily = true
 # 2 - allow a.b*.c.d) to index table.
 # This is useful when reverse queries has bad perfomance
 index-reverse-depth = 1
-# overwrite default index-use-reverse for metrics with prefix/suffix (not used when index-use-reverse = -1)
+# overwrite default index-use-reverse for metrics with prefix/suffix/regular_expression checks against target (not used when index-use-reverse = -1)
 #index-reverses = [
 #    { suffix = ".p99", reverse = 2 },
 #    { suffix = ".avg", reverse = 2 },
-#    { suffix = ".gc.gen1", reverse = 0 }
-#    { prefix = "Test.", suffix = ".cpu", reverse = 2 }
+#    { suffix = ".gc.gen1", reverse = 0 },
+#    { prefix = "Test.", suffix = ".cpu", reverse = 2 },
+#    { regex = "\\.gc\\.(heap|gen)[0-9]+$", reverse = 0 }
 #]
 index-reverses = []
 index-timeout = "1m0s"
