@@ -77,9 +77,8 @@ func clearGlob(query string) string {
 			builder.WriteString(query[p:])
 		}
 		return builder.String()
-	} else {
-		return query
 	}
+	return query
 }
 
 func glob(field string, query string, optionalDotAtEnd bool) string {
