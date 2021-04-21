@@ -208,7 +208,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 
 		data.Points.Uniq()
 		rollupStart := time.Now()
-		err = cond.rollupObj.RollupPoints(data.Points, cond.From, data.commonStep)
+		err = cond.rollupRules.RollupPoints(data.Points, cond.From, data.commonStep)
 		if err != nil {
 			logger.Error("rollup failed", zap.Error(err))
 			return err
@@ -280,7 +280,7 @@ func (c *conditions) prepareLookup() {
 	aggName := ""
 
 	for i := range c.metricsRequested {
-		step, agg := c.rollupObj.Lookup(c.metricsLookup[i], age)
+		step, agg := c.rollupRules.Lookup(c.metricsLookup[i], age)
 
 		if _, ok := c.steps[step]; !ok {
 			c.steps[step] = make([]string, 0)

@@ -9,13 +9,15 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
+// Targets represents requested metrics
 type Targets struct {
-	// List contains list of metrics in one the target
-	List              []string
+	// List contains queried metrics, e.g. [metric.{name1,name2}, metric.name[3-9]]
+	List []string
+	// AM stores found expanded metrics
 	AM                *alias.Map
 	pointsTable       string
 	isReverse         bool
-	rollupObj         *rollup.Rules
+	rollupRules       *rollup.Rules
 	rollupUseReverted bool
 }
 
@@ -72,7 +74,7 @@ TableLoop:
 		tt.pointsTable = t.Table
 		tt.isReverse = t.Reverse
 		tt.rollupUseReverted = t.RollupUseReverted
-		tt.rollupObj = t.Rollup.Rules()
+		tt.rollupRules = t.Rollup.Rules()
 		return nil
 	}
 
