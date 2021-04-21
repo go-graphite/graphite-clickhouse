@@ -25,13 +25,13 @@ type IndexFinder struct {
 	opts         clickhouse.Options // timeout, connectTimeout
 	dailyEnabled bool
 	reverseDepth int
-	revUse       []config.NValue
+	revUse       []*config.NValue
 	body         []byte // clickhouse response body
 	useReverse   bool
 	useDaily     bool
 }
 
-func NewIndex(url string, table string, dailyEnabled bool, reverseDepth int, reverseUse []config.NValue, opts clickhouse.Options) Finder {
+func NewIndex(url string, table string, dailyEnabled bool, reverseDepth int, reverseUse []*config.NValue, opts clickhouse.Options) Finder {
 	return &IndexFinder{
 		url:          url,
 		table:        table,
@@ -62,15 +62,15 @@ func useReverse(query string) bool {
 	return true
 }
 
-func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []config.NValue) int {
+func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []*config.NValue) int {
 	for i := range revUse {
-		if len(revUse[i].Prefix) == 0 && len(revUse[i].Suffix) == 0 {
-			continue
-		}
 		if len(revUse[i].Prefix) > 0 && !strings.HasPrefix(query, revUse[i].Prefix) {
 			continue
 		}
 		if len(revUse[i].Suffix) > 0 && !strings.HasSuffix(query, revUse[i].Suffix) {
+			continue
+		}
+		if revUse[i].Regex != nil && revUse[i].Regex.FindStringIndex(query) == nil {
 			continue
 		}
 		return revUse[i].Value
@@ -78,7 +78,7 @@ func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []config.N
 	return defaultReverseDepth
 }
 
-func useReverseDepth(query string, reverseDepth int, revUse []config.NValue) bool {
+func useReverseDepth(query string, reverseDepth int, revUse []*config.NValue) bool {
 	if reverseDepth == -1 {
 		return false
 	}

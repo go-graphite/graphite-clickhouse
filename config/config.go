@@ -86,9 +86,11 @@ type Common struct {
 }
 
 type NValue struct {
-	Suffix string `toml:"suffix" json:"suffix"`
-	Prefix string `toml:"prefix" json:"prefix"`
-	Value  int    `toml:"reverse" json:"reverse"`
+	Suffix   string         `toml:"suffix" json:"suffix"`
+	Prefix   string         `toml:"prefix" json:"prefix"`
+	RegexStr string         `toml:"regex" json:"regex"`
+	Regex    *regexp.Regexp `toml:"-" json:"-"`
+	Value    int            `toml:"reverse" json:"reverse"`
 }
 
 type ClickHouse struct {
@@ -100,7 +102,7 @@ type ClickHouse struct {
 	IndexTable           string    `toml:"index-table" json:"index-table"`
 	IndexUseDaily        bool      `toml:"index-use-daily" json:"index-use-daily"`
 	IndexReverseDepth    int       `toml:"index-reverse-depth" json:"index-reverse-depth"`
-	IndexUseReverses     []NValue  `toml:"index-reverses" json:"index-reverses"`
+	IndexUseReverses     []*NValue `toml:"index-reverses" json:"index-reverses"`
 	IndexTimeout         *Duration `toml:"index-timeout" json:"index-timeout"`
 	TaggedTable          string    `toml:"tagged-table" json:"tagged-table"`
 	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
@@ -219,7 +221,7 @@ func New() *Config {
 			IndexTable:        "",
 			IndexUseDaily:     true,
 			IndexReverseDepth: 1,
-			IndexUseReverses:  []NValue{},
+			IndexUseReverses:  []*NValue{},
 			IndexTimeout: &Duration{
 				Duration: time.Minute,
 			},
@@ -254,6 +256,20 @@ func New() *Config {
 	}
 
 	return cfg
+}
+
+func IndexUseReversesValidate(u []*NValue) error {
+	var err error
+	for i, n := range u {
+		if len(n.RegexStr) > 0 {
+			if n.Regex, err = regexp.Compile(n.RegexStr); err != nil {
+				return err
+			}
+		} else if len(n.Prefix) == 0 && len(n.Suffix) == 0 {
+			return fmt.Errorf("empthy index-use-reverses[%d] rule", i)
+		}
+	}
+	return nil
 }
 
 func NewLoggingConfig() zapwriter.Config {
@@ -337,6 +353,11 @@ func ReadConfig(filename string) (*Config, error) {
 			Table:      cfg.ClickHouse.DataTableLegacy,
 			RollupConf: cfg.ClickHouse.RollupConfLegacy,
 		})
+	}
+
+	err = IndexUseReversesValidate(cfg.ClickHouse.IndexUseReverses)
+	if err != nil {
+		return nil, err
 	}
 
 	l := len(cfg.Common.TargetBlacklist)
