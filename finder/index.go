@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -23,17 +24,21 @@ type IndexFinder struct {
 	table        string             // graphite_tree table
 	opts         clickhouse.Options // timeout, connectTimeout
 	dailyEnabled bool
+	reverseDepth int
+	revUse       []*config.NValue
 	body         []byte // clickhouse response body
 	useReverse   bool
 	useDaily     bool
 }
 
-func NewIndex(url string, table string, dailyEnabled bool, opts clickhouse.Options) Finder {
+func NewIndex(url string, table string, dailyEnabled bool, reverseDepth int, reverseUse []*config.NValue, opts clickhouse.Options) Finder {
 	return &IndexFinder{
 		url:          url,
 		table:        table,
 		opts:         opts,
 		dailyEnabled: dailyEnabled,
+		reverseDepth: reverseDepth,
+		revUse:       reverseUse,
 	}
 }
 
@@ -48,14 +53,83 @@ func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 	return w
 }
 
-func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func useReverse(query string) bool {
 	p := strings.LastIndexByte(query, '.')
 
 	if !where.HasWildcard(query) || p < 0 || p >= len(query)-1 || where.HasWildcard(query[p+1:]) {
-		idx.useReverse = false
-	} else {
-		idx.useReverse = true
+		return false
 	}
+	return true
+}
+
+func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []*config.NValue) int {
+	for i := range revUse {
+		if len(revUse[i].Prefix) > 0 && !strings.HasPrefix(query, revUse[i].Prefix) {
+			continue
+		}
+		if len(revUse[i].Suffix) > 0 && !strings.HasSuffix(query, revUse[i].Suffix) {
+			continue
+		}
+		if revUse[i].Regex != nil && revUse[i].Regex.FindStringIndex(query) == nil {
+			continue
+		}
+		return revUse[i].Value
+	}
+	return defaultReverseDepth
+}
+
+func useReverseDepth(query string, reverseDepth int, revUse []*config.NValue) bool {
+	if reverseDepth == -1 {
+		return false
+	}
+
+	w := where.IndexWildcardOrDot(query)
+	if w == -1 {
+		return false
+	} else if query[w] == '.' {
+		reverseDepth = reverseSuffixDepth(query, reverseDepth, revUse)
+		if reverseDepth == 0 {
+			return false
+		} else if reverseDepth == 1 {
+			return useReverse(query)
+		}
+	} else {
+		reverseDepth = 1
+	}
+
+	w = where.IndexReverseWildcard(query)
+	if w == -1 {
+		return false
+	}
+	p := len(query)
+	if w == p-1 {
+		return false
+	}
+	depth := 0
+
+	for {
+		e := strings.LastIndexByte(query[w:p], '.')
+		if e < 0 {
+			break
+		} else if e < len(query)-1 {
+			if where.HasWildcard(query[w+e+1 : p]) {
+				break
+			}
+			depth++
+			if depth >= reverseDepth {
+				return true
+			}
+			if e == 0 {
+				break
+			}
+		}
+		p = w + e - 1
+	}
+	return false
+}
+
+func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+	idx.useReverse = useReverseDepth(query, idx.reverseDepth, idx.revUse)
 
 	if idx.dailyEnabled && from > 0 && until > 0 {
 		idx.useDaily = true
