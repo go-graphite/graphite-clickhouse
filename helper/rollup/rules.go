@@ -29,6 +29,19 @@ type Rules struct {
 	Updated int64     `json:"updated"`
 }
 
+// NewMockRulles creates mock rollup for tests
+func NewMockRules(pattern []Pattern, defaultPrecision uint32, defaultFunction string) (*Rules, error) {
+	rules, err := (&Rules{Pattern: pattern}).compile()
+	if err != nil {
+		return nil, err
+	}
+	rules, err = rules.prepare(defaultPrecision, defaultFunction)
+	if err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
 // should never be used in real conditions
 var superDefaultFunction = AggrMap["avg"]
 
@@ -79,15 +92,21 @@ func (r *Rules) compile() (*Rules, error) {
 	return r, nil
 }
 
+func (r *Rules) prepare(defaultPrecision uint32, defaultFunction string) (*Rules, error) {
+	defaultAggr := AggrMap[defaultFunction]
+	if defaultFunction != "" && defaultAggr == nil {
+		return r, fmt.Errorf("unknown function %#v", defaultFunction)
+	}
+	return r.withDefault(defaultPrecision, defaultAggr).withSuperDefault().setUpdated(), nil
+}
+
 func (r *Rules) withDefault(defaultPrecision uint32, defaultFunction *Aggr) *Rules {
 	patterns := make([]Pattern, len(r.Pattern)+1)
 	copy(patterns, r.Pattern)
 
 	var retention []Retention
 	if defaultPrecision != 0 {
-		retention = []Retention{
-			Retention{Age: 0, Precision: defaultPrecision},
-		}
+		retention = []Retention{{Age: 0, Precision: defaultPrecision}}
 	}
 
 	patterns = append(patterns, Pattern{

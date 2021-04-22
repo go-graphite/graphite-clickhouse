@@ -9,7 +9,6 @@ import (
 
 type wrapper struct {
 	*commonStep
-	cancel      func()
 	calcCounter int
 	cLock       sync.RWMutex
 }
@@ -28,10 +27,8 @@ func newWrapper() *wrapper {
 		lock:   sync.RWMutex{},
 	}
 
-	var cancel func()
 	return &wrapper{
 		commonStep: c,
-		cancel:     cancel,
 		cLock:      sync.RWMutex{},
 	}
 }

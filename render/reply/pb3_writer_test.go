@@ -9,19 +9,17 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/helper/rollup"
 )
 
 type test struct {
-	name      string
-	target    string
-	function  string
-	response  carbonapi_v3_pb.MultiFetchResponse
-	from      uint32
-	until     uint32
-	step      uint32
-	points    []point.Point
-	rollupObj *rollup.Rules
+	name     string
+	target   string
+	function string
+	response carbonapi_v3_pb.MultiFetchResponse
+	from     uint32
+	until    uint32
+	step     uint32
+	points   []point.Point
 }
 
 func TestWritePB3(t *testing.T) {
