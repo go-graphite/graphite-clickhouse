@@ -2,14 +2,55 @@ package where
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 )
 
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// workaraund for Grafana multi-value variables, expand S{a,b,c}E to [SaE,SbE,ScE]
+func GlobExpandSimple(value, prefix string, result *[]string) error {
+	if len(value) == 0 {
+		// we at the end of glob
+		*result = append(*result, prefix)
+		return nil
+	}
+
+	start := strings.IndexAny(value, "{}")
+	if start == -1 {
+		*result = append(*result, prefix+value)
+	} else {
+		end := strings.Index(value[start:], "}")
+		if end <= 1 {
+			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+		}
+		if end == -1 || strings.IndexAny(value[start+1:start+end], "{}") != -1 {
+			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+		}
+		if start > 0 {
+			prefix = prefix + value[0:start]
+		}
+		g := value[start+1 : start+end]
+		values := strings.Split(g, ",")
+		var postfix string
+		if end+start-1 < len(value) {
+			postfix = value[start+end+1:]
+		}
+		for _, v := range values {
+			if err := GlobExpandSimple(postfix, prefix+v, result); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func GlobToRegexp(g string) string {
@@ -40,6 +81,12 @@ func NonRegexpPrefix(expr string) string {
 	s := regexp.QuoteMeta(expr)
 	for i := 0; i < len(expr); i++ {
 		if expr[i] != s[i] || expr[i] == '\\' {
+			if len(expr) > i+1 && expr[i] == '|' {
+				eq := strings.LastIndexAny(expr[:i], "=~")
+				if eq > 0 {
+					return expr[:eq+1]
+				}
+			}
 			return expr[:i]
 		}
 	}
@@ -73,6 +120,23 @@ func quote(value interface{}) string {
 	default:
 		panic("not implemented")
 	}
+}
+
+func quoteRegex(key, value string) string {
+	startLine := value[0] == '^'
+	endLine := value[len(value)-1] == '$'
+	if startLine && endLine {
+		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+	} else if startLine {
+		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+	} else if endLine {
+		return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value[0:]))
+	}
+	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value))
+}
+
+func Like(field, s string) string {
+	return fmt.Sprintf("%s LIKE '%s'", field, s)
 }
 
 func Eq(field, value interface{}) string {

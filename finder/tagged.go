@@ -69,49 +69,107 @@ func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Op
 }
 
 func (term *TaggedTerm) concat() string {
-	return fmt.Sprintf("%s=%s", term.Key, term.Value)
+	return term.Key + "=" + term.Value
 }
 
-func TaggedTermWhere1(term *TaggedTerm) string {
+func (term *TaggedTerm) concatMask() string {
+	v := strings.ReplaceAll(term.Value, "*", "%")
+	return fmt.Sprintf("%s=%s", term.Key, v)
+}
+
+func TaggedTermWhere1(term *TaggedTerm) (string, error) {
 	// positive expression check only in Tag1
 	// negative check in all Tags
 	switch term.Op {
 	case TaggedTermEq:
-		return where.Eq("Tag1", term.concat())
+		if strings.Index(term.Value, "*") >= 0 {
+			return where.Like("Tag1", term.concatMask()), nil
+		}
+		var values []string
+		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
+			return "", err
+		}
+		if len(values) == 1 {
+			return where.Eq("Tag1", values[0]), nil
+		} else if len(values) > 1 {
+			return where.In("Tag1", values), nil
+		} else {
+			return where.Eq("Tag1", term.concat()), nil
+		}
 	case TaggedTermNe:
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return where.HasPrefixAndNotEq("Tag1", term.Key+"=")
+			return where.HasPrefixAndNotEq("Tag1", term.Key+"="), nil
 		}
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
+		if strings.Index(term.Value, "*") >= 0 {
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+		}
+		var values []string
+		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
+			return "", err
+		}
+		if len(values) == 1 {
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", values[0])), nil
+		} else if len(values) > 1 {
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.In("x", values)), nil
+		} else {
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat())), nil
+		}
 	case TaggedTermMatch:
-		return where.Match("Tag1", term.concat())
+		return where.Match("Tag1", term.Key, term.Value), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
+		// return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", term.Key, term.Value), nil
+		return "NOT " + where.Match("Tag1", term.Key, term.Value), nil
 	default:
-		return ""
+		return "", nil
 	}
 }
 
-func TaggedTermWhereN(term *TaggedTerm) string {
+func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 	// arrayExists((x) -> %s, Tags)
 	switch term.Op {
 	case TaggedTermEq:
-		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
+		if strings.Index(term.Value, "*") >= 0 {
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+		}
+		var values []string
+		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
+			return "", err
+		}
+		if len(values) == 1 {
+			return "arrayExists((x) -> " + where.Eq("x", values[0]) + ", Tags)", nil
+		} else if len(values) > 1 {
+			return "arrayExists((x) -> " + where.In("x", values) + ", Tags)", nil
+		} else {
+			return "arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
+		}
 	case TaggedTermNe:
 		if term.Value == "" {
 			// special case
 			// container_name!=""  ==> container_name exists and it is not empty
-			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"="))
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"=")), nil
 		}
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat()))
+		if strings.Index(term.Value, "*") >= 0 {
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+		}
+		var values []string
+		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
+			return "", err
+		}
+		if len(values) == 1 {
+			return "NOT arrayExists((x) -> " + where.Eq("x", values[0]) + ", Tags)", nil
+		} else if len(values) > 1 {
+			return "NOT arrayExists((x) -> " + where.In("x", values) + ", Tags)", nil
+		} else {
+			return "NOT arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
+		}
 	case TaggedTermMatch:
-		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
+		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.concat()))
+		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	default:
-		return ""
+		return "", nil
 	}
 }
 
@@ -206,20 +264,27 @@ func ParseSeriesByTag(query string) ([]TaggedTerm, error) {
 	return ParseTaggedConditions(conditions)
 }
 
-func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where) {
+func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
 	w := where.New()
 	pw := where.New()
-	x := TaggedTermWhere1(&terms[0])
+	x, err := TaggedTermWhere1(&terms[0])
+	if err != nil {
+		return nil, nil, err
+	}
 	if terms[0].Op == TaggedTermMatch {
 		pw.And(x)
 	}
 	w.And(x)
 
 	for i := 1; i < len(terms); i++ {
-		w.And(TaggedTermWhereN(&terms[i]))
+		and, err := TaggedTermWhereN(&terms[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		w.And(and)
 	}
 
-	return w, pw
+	return w, pw, nil
 }
 
 func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
@@ -232,8 +297,10 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 }
 
 func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
-	var err error
-	w, pw := TaggedWhere(terms)
+	w, pw, err := TaggedWhere(terms)
+	if err != nil {
+		return err
+	}
 
 	w.Andf(
 		"Date >='%s' AND Date <= '%s'",

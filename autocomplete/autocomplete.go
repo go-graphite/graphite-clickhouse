@@ -78,7 +78,10 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 		return wr, pw, usedTags, err
 	}
 
-	wr, pw = finder.TaggedWhere(terms)
+	wr, pw, err = finder.TaggedWhere(terms)
+	if err != nil {
+		return wr, pw, usedTags, err
+	}
 
 	for i := 0; i < len(expr); i++ {
 		a := strings.Split(expr[i], "=")
