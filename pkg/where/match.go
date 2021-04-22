@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	opEq    string = "="
+	opEq string = "="
 )
 
 // clearGlob cleanup grafana globs like {name}
@@ -153,6 +153,9 @@ func ConcatMatchKV(key, value string) string {
 }
 
 func Match(field string, key, value string) string {
+	if value == "*" {
+		return Like(field, key+"=%")
+	}
 	expr := ConcatMatchKV(key, value)
 	simplePrefix := NonRegexpPrefix(expr)
 	if len(simplePrefix) == len(expr) {
