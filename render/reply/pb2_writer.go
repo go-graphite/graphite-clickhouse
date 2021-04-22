@@ -1,11 +1,24 @@
-package render
+package reply
 
 import (
 	"bufio"
 	"bytes"
+	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/render/data"
 )
+
+// V2pb is a formatter for carbonapi_v2_pb
+type V2pb struct{}
+
+func (*V2pb) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
+	return parseRequestForms(r)
+}
+
+func (*V2pb) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
+	replyProtobuf(w, r, multiData, false)
+}
 
 func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start := from - (from % step)

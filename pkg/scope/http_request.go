@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 var requestIdRegexp *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
@@ -30,8 +31,12 @@ func HttpRequest(r *http.Request) *http.Request {
 	ctx := r.Context()
 	ctx = WithRequestID(ctx, requestID)
 
-	if d := r.Header.Get("X-Gch-Debug-External-Data"); d != "" {
-		ctx = WithDebug(ctx, "ExternalData")
+	// Process all X-Gch-Debug-* headers
+	debugPrefix := "X-Gch-Debug-"
+	for name, values := range r.Header {
+		if strings.HasPrefix(name, debugPrefix) && len(values) != 0 && values[0] != "" {
+			ctx = WithDebug(ctx, strings.TrimPrefix(name, debugPrefix))
+		}
 	}
 
 	// Append the server IP to X-Forwarded-For if exists, else ignore

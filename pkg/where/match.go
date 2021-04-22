@@ -7,13 +7,90 @@ import (
 
 var (
 	opEq    string = "="
-	opMatch string = "=~"
 )
+
+// clearGlob cleanup grafana globs like {name}
+func clearGlob(query string) string {
+	p := 0
+	s := strings.IndexAny(query, "{[")
+	if s == -1 {
+		return query
+	}
+
+	found := false
+	var builder strings.Builder
+
+	for {
+		var e int
+		if query[s] == '{' {
+			e = strings.IndexAny(query[s:], "}.")
+			if e == -1 || query[s+e] == '.' {
+				// { not closed, glob with error
+				break
+			}
+			e += s + 1
+			delim := strings.IndexRune(query[s+1:e], ',')
+			if delim == -1 {
+				if !found {
+					builder.Grow(len(query) - 2)
+					found = true
+				}
+				builder.WriteString(query[p:s])
+				builder.WriteString(query[s+1 : e-1])
+				p = e
+			}
+		} else {
+			e = strings.IndexAny(query[s+1:], "].")
+			if e == -1 || query[s+e] == '.' {
+				// [ not closed, glob with error
+				break
+			} else {
+				symbols := 0
+				for _, c := range query[s+1 : s+e+1] {
+					_ = c // for loop over runes
+					symbols++
+					if symbols == 2 {
+						break
+					}
+				}
+				if symbols <= 1 {
+					if !found {
+						builder.Grow(len(query) - 2)
+						found = true
+					}
+					builder.WriteString(query[p:s])
+					builder.WriteString(query[s+1 : s+e+1])
+					p = e + s + 2
+				}
+			}
+			e += s + 2
+		}
+
+		if e >= len(query) {
+			break
+		}
+		s = strings.IndexAny(query[e:], "{[")
+		if s == -1 {
+			break
+		}
+		s += e
+	}
+
+	if found {
+		if p < len(query) {
+			builder.WriteString(query[p:])
+		}
+		return builder.String()
+	}
+	return query
+}
 
 func glob(field string, query string, optionalDotAtEnd bool) string {
 	if query == "*" {
 		return ""
 	}
+
+	query = clearGlob(query)
 
 	if !HasWildcard(query) {
 		if optionalDotAtEnd {

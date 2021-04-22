@@ -6,7 +6,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 
-	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/lomik/graphite-clickhouse/render/data"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
 )
@@ -32,7 +32,7 @@ type seriesSet struct {
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeriesSet(data *render.Data, am *alias.Map) (storage.SeriesSet, error) {
+func makeSeriesSet(data *data.Data, am *alias.Map) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil

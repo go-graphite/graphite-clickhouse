@@ -69,7 +69,8 @@ func HandleError(w http.ResponseWriter, err error) {
 	}
 	errCode, ok := err.(*ErrorWithCode)
 	if ok {
-		if errCode.Code > 500 && errCode.Code < 512 {
+		if (errCode.Code > 500 && errCode.Code < 512) ||
+			errCode.Code == http.StatusBadRequest || errCode.Code == http.StatusForbidden {
 			http.Error(w, html.EscapeString(errCode.Error()), errCode.Code)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

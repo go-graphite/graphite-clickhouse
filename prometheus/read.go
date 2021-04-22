@@ -14,7 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
-	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/lomik/graphite-clickhouse/render/data"
 	"github.com/prometheus/prometheus/prompb"
 )
 
@@ -42,14 +42,14 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
-	fetchRequests := render.MultiFetchRequest{
-		render.TimeFrame{
+	fetchRequests := data.MultiFetchRequest{
+		data.TimeFrame{
 			From:          fromTimestamp,
 			Until:         untilTimestamp,
 			MaxDataPoints: int64(h.config.ClickHouse.MaxDataPoints),
-		}: &render.Targets{List: []string{}, AM: am},
+		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := render.FetchDataPoints(ctx, h.config, fetchRequests, config.ContextPrometheus)
+	reply, err := data.FetchDataPoints(ctx, h.config, fetchRequests, config.ContextPrometheus)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 	return h.makeQueryResult(ctx, reply.CHResponses[0].Data, am, uint32(fromTimestamp), uint32(untilTimestamp))
 }
 
-func (h *Handler) makeQueryResult(ctx context.Context, data *render.Data, am *alias.Map, from, until uint32) (*prompb.QueryResult, error) {
+func (h *Handler) makeQueryResult(ctx context.Context, data *data.Data, am *alias.Map, from, until uint32) (*prompb.QueryResult, error) {
 	if data == nil {
 		return &prompb.QueryResult{}, nil
 	}

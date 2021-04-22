@@ -94,6 +94,22 @@ rollup-conf = "/etc/graphite-clickhouse/rollup.xml"
 index-table = "graphite_index"
 # Use daily data from index table. This is useful for installations with big count of short-lived series but can be slower in other cases
 index-use-daily = true
+# Allow use reverse queries with minimal depth
+# -1 - disable
+# 0 - disable if no wildcard at first level
+# 1 - allow for example a.b.c*.d and a.b*.c.d queries (default)
+# 2 - allow a.b*.c.d) to index table.
+# This is useful when reverse queries has bad perfomance
+index-reverse-depth = 1
+# overwrite default index-use-reverse for metrics with prefix/suffix/regular_expression checks against target (not used when index-use-reverse = -1)
+#index-reverses = [
+#    { suffix = ".p99", reverse = 2 },
+#    { suffix = ".avg", reverse = 2 },
+#    { suffix = ".gc.gen1", reverse = 0 },
+#    { prefix = "Test.", suffix = ".cpu", reverse = 2 },
+#    { regex = "\\.gc\\.(heap|gen)[0-9]+$", reverse = 0 }
+#]
+index-reverses = []
 index-timeout = "1m0s"
 
 # `tagged` table from carbon-clickhouse. Required for seriesByTag
@@ -158,6 +174,10 @@ total-timeout = "500ms"
 # # Useful when reading from distributed table, but the rollup parameters are on the shard tables.
 # # Can be in "database.table" form.
 # rollup-auto-table = ""
+# # Use unreversed metric name to discover rollup-rules. If not specified - use as is (reversed metric name).
+# # Use if unreversed rules is used.
+# # Ignored for non-reverse tables (unreversed metric names used always)
+# rollup-use-reverted = false
 # # Sets the default precision and function for rollup patterns which don't have age=0 retention defined.
 # # If age=0 retention is defined in the rollup config then it takes precedence.
 # # If left at the default value of 0 then no rollup is performed when the requested interval 
