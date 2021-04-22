@@ -28,7 +28,7 @@ $(NAME):
 	$(GO) build $(MODULE)
 
 test:
-	$(GO) test ./...
+	$(GO) test -race ./...
 
 gox-build:
 	rm -rf out
