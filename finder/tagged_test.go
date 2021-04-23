@@ -18,6 +18,9 @@ func TestTaggedWhere(t *testing.T) {
 	}{
 		// info about _tag "directory"
 		{"seriesByTag('key=value')", "Tag1='key=value'", "", false},
+		// test case for wildcarded name, must be not first check
+		{"seriesByTag('name=*', 'key=value')", "(Tag1='key=value') AND (arrayExists((x) -> x LIKE '__name__=%', Tags))", "", false},
+		{"seriesByTag('name=*', 'key=value*')", "(Tag1 LIKE '__name__=%') AND (arrayExists((x) -> x LIKE 'key=value%', Tags))", "", false},
 		{"seriesByTag('name=rps')", "Tag1='__name__=rps'", "", false},
 		{"seriesByTag('name=~cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", false},
 		{"seriesByTag('name=~cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", false},
