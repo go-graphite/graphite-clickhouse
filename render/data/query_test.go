@@ -69,10 +69,8 @@ func ageToTimestamp(age int64) int64 {
 func newCondition(fromAge, untilAge, maxDataPoints int64) *conditions {
 	tf := TimeFrame{ageToTimestamp(fromAge), ageToTimestamp(untilAge), maxDataPoints}
 	tt := Targets{
-		List: []string{"*.name.*"},
-		AM:   newAM(),
-		// selectDataTable is not tested
-		// TODO add tests for selectDataTable
+		List:        []string{"*.name.*"},
+		AM:          newAM(),
 		pointsTable: "graphite.data",
 		rollupRules: newRules(false),
 	}
