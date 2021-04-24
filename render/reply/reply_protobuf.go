@@ -13,7 +13,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
-func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse, pbv3 bool) {
+func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData data.CHResponses, pbv3 bool) {
 	logger := scope.Logger(r.Context())
 
 	// var multiResponse carbonzipperpb.MultiFetchResponse
@@ -55,7 +55,7 @@ func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData []data.CHRe
 				return err
 			}
 
-			for _, a := range data.Aliases.Get(metricName) {
+			for _, a := range data.AM.Get(metricName) {
 				writeAlias(mb, mb2, writer, a.Target, a.DisplayName, function, from, until, step, points)
 			}
 			return nil

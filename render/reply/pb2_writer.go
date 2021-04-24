@@ -16,7 +16,7 @@ func (*V2pb) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest
 	return parseRequestForms(r)
 }
 
-func (*V2pb) Reply(w http.ResponseWriter, r *http.Request, multiData []data.CHResponse) {
+func (*V2pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	replyProtobuf(w, r, multiData, false)
 }
 

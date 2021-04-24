@@ -349,13 +349,6 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 	}
 
-	if cfg.ClickHouse.DataTableLegacy != "" {
-		cfg.DataTable = append(cfg.DataTable, DataTable{
-			Table:      cfg.ClickHouse.DataTableLegacy,
-			RollupConf: cfg.ClickHouse.RollupConfLegacy,
-		})
-	}
-
 	err = IndexUseReversesValidate(cfg.ClickHouse.IndexUseReverses)
 	if err != nil {
 		return nil, err
@@ -373,53 +366,9 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 	}
 
-	for i := 0; i < len(cfg.DataTable); i++ {
-		if cfg.DataTable[i].TargetMatchAny != "" {
-			r, err := regexp.Compile(cfg.DataTable[i].TargetMatchAny)
-			if err != nil {
-				return nil, err
-			}
-			cfg.DataTable[i].TargetMatchAnyRegexp = r
-		}
-
-		if cfg.DataTable[i].TargetMatchAll != "" {
-			r, err := regexp.Compile(cfg.DataTable[i].TargetMatchAll)
-			if err != nil {
-				return nil, err
-			}
-			cfg.DataTable[i].TargetMatchAllRegexp = r
-		}
-
-		rdp := cfg.DataTable[i].RollupDefaultPrecision
-		rdf := cfg.DataTable[i].RollupDefaultFunction
-		if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
-			table := cfg.DataTable[i].Table
-			if cfg.DataTable[i].RollupAutoTable != "" {
-				table = cfg.DataTable[i].RollupAutoTable
-			}
-
-			cfg.DataTable[i].Rollup, err = rollup.NewAuto(cfg.ClickHouse.Url, table, time.Minute, rdp, rdf)
-		} else if cfg.DataTable[i].RollupConf == "none" {
-			cfg.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
-		} else {
-			cfg.DataTable[i].Rollup, err = rollup.NewXMLFile(cfg.DataTable[i].RollupConf, rdp, rdf)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		if len(cfg.DataTable[i].Context) == 0 {
-			cfg.DataTable[i].ContextMap = knownDataTableContext
-		} else {
-			cfg.DataTable[i].ContextMap = make(map[string]bool)
-			for _, c := range cfg.DataTable[i].Context {
-				if !knownDataTableContext[c] {
-					return nil, fmt.Errorf("unknown context %#v", c)
-				}
-				cfg.DataTable[i].ContextMap[c] = true
-			}
-		}
+	err = cfg.ProcessDataTables()
+	if err != nil {
+		return nil, err
 	}
 
 	// compute prometheus external url
@@ -442,4 +391,65 @@ func ReadConfig(filename string) (*Config, error) {
 	cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
 
 	return cfg, nil
+}
+
+// ProcessDataTables checks if legacy `data`-table config is used, compiles regexps for `target-match-any` and `target-match-all`
+// parameters, sets the rollup configuration and proper context.
+func (c *Config) ProcessDataTables() (err error) {
+	if c.ClickHouse.DataTableLegacy != "" {
+		c.DataTable = append(c.DataTable, DataTable{
+			Table:      c.ClickHouse.DataTableLegacy,
+			RollupConf: c.ClickHouse.RollupConfLegacy,
+		})
+	}
+
+	for i := 0; i < len(c.DataTable); i++ {
+		if c.DataTable[i].TargetMatchAny != "" {
+			r, err := regexp.Compile(c.DataTable[i].TargetMatchAny)
+			if err != nil {
+				return err
+			}
+			c.DataTable[i].TargetMatchAnyRegexp = r
+		}
+
+		if c.DataTable[i].TargetMatchAll != "" {
+			r, err := regexp.Compile(c.DataTable[i].TargetMatchAll)
+			if err != nil {
+				return err
+			}
+			c.DataTable[i].TargetMatchAllRegexp = r
+		}
+
+		rdp := c.DataTable[i].RollupDefaultPrecision
+		rdf := c.DataTable[i].RollupDefaultFunction
+		if c.DataTable[i].RollupConf == "auto" || c.DataTable[i].RollupConf == "" {
+			table := c.DataTable[i].Table
+			if c.DataTable[i].RollupAutoTable != "" {
+				table = c.DataTable[i].RollupAutoTable
+			}
+
+			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.Url, table, time.Minute, rdp, rdf)
+		} else if c.DataTable[i].RollupConf == "none" {
+			c.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
+		} else {
+			c.DataTable[i].Rollup, err = rollup.NewXMLFile(c.DataTable[i].RollupConf, rdp, rdf)
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if len(c.DataTable[i].Context) == 0 {
+			c.DataTable[i].ContextMap = knownDataTableContext
+		} else {
+			c.DataTable[i].ContextMap = make(map[string]bool)
+			for _, ctx := range c.DataTable[i].Context {
+				if !knownDataTableContext[ctx] {
+					return fmt.Errorf("unknown context %#v", ctx)
+				}
+				c.DataTable[i].ContextMap[ctx] = true
+			}
+		}
+	}
+	return nil
 }

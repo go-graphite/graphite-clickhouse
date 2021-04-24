@@ -12,31 +12,43 @@ import (
 	graphitePickle "github.com/lomik/graphite-pickle"
 )
 
-// carbonlink to get data from carbonlink server globally
-var carbonlink *graphitePickle.CarbonlinkClient = nil
+type carbonlinkFetcher interface {
+	CacheQueryMulti(context.Context, []string) (map[string][]graphitePickle.DataPoint, error)
+}
 
-// carbonlinkClient returns *graphitePickle.CarbonlinkClient. If it's unset, checks if it's configured and initialize it
-func carbonlinkClient(c *config.Config) *graphitePickle.CarbonlinkClient {
+// carbonlink to get data from carbonlink server globally
+type carbonlinkClient struct {
+	carbonlinkFetcher
+	totalTimeout time.Duration
+}
+
+var carbonlink *carbonlinkClient = nil
+
+// setCarbonlinkClient setup the client once. Does nothing if Config.Carbonlink.Server is not set
+func setCarbonlinkClient(config *config.Carbonlink) {
 	if carbonlink != nil {
-		return carbonlink
+		return
 	}
-	if c.Carbonlink.Server == "" {
-		return nil
+	if config.Server == "" {
+		return
 	}
-	carbonlink = graphitePickle.NewCarbonlinkClient(
-		c.Carbonlink.Server,
-		c.Carbonlink.Retries,
-		c.Carbonlink.Threads,
-		c.Carbonlink.ConnectTimeout.Value(),
-		c.Carbonlink.QueryTimeout.Value(),
-	)
-	return carbonlink
+	carbonlink = &carbonlinkClient{
+		graphitePickle.NewCarbonlinkClient(
+			config.Server,
+			config.Retries,
+			config.Threads,
+			config.ConnectTimeout.Value(),
+			config.QueryTimeout.Value(),
+		),
+		config.TotalTimeout.Value(),
+	}
+	return
 }
 
 // queryCarbonlink returns callable result fetcher
-func queryCarbonlink(parentCtx context.Context, config *config.Config, metrics []string) func() *point.Points {
+func queryCarbonlink(parentCtx context.Context, carbonlink *carbonlinkClient, metrics []string) func() *point.Points {
 	logger := scope.Logger(parentCtx)
-	if carbonlinkClient(config) == nil {
+	if carbonlink == nil {
 		return func() *point.Points { return nil }
 	}
 
@@ -48,7 +60,7 @@ func queryCarbonlink(parentCtx context.Context, config *config.Config, metrics [
 	}
 
 	go func() {
-		ctx, cancel := context.WithTimeout(parentCtx, config.Carbonlink.TotalTimeout.Value())
+		ctx, cancel := context.WithTimeout(parentCtx, carbonlink.totalTimeout)
 		defer cancel()
 
 		res, err := carbonlink.CacheQueryMulti(ctx, metrics)

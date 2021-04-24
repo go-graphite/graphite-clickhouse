@@ -16,7 +16,7 @@ type Formatter interface {
 	// Parse request
 	ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error)
 	// Generate reply payload
-	Reply(http.ResponseWriter, *http.Request, []data.CHResponse)
+	Reply(http.ResponseWriter, *http.Request, data.CHResponses)
 }
 
 func GetFormatter(r *http.Request) (Formatter, error) {
