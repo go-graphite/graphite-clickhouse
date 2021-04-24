@@ -40,6 +40,8 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=value','what!={avg,max}')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
 		{"seriesByTag('name=value','what=~*')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
+		// empty tag value during autocompletion
+		{"seriesByTag('name=value','what=~')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 	}
 
 	for _, test := range table {
