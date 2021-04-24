@@ -25,9 +25,10 @@ const (
 )
 
 type TaggedTerm struct {
-	Key   string
-	Op    TaggedTermOp
-	Value string
+	Key         string
+	Op          TaggedTermOp
+	Value       string
+	HasWildcard bool // only for TaggedTermEq
 }
 
 type TaggedTermList []TaggedTerm
@@ -45,6 +46,12 @@ func (s TaggedTermList) Less(i, j int) bool {
 	if s[i].Op > s[j].Op {
 		return false
 	}
+
+	if s[i].Op == TaggedTermEq && !s[i].HasWildcard && s[j].HasWildcard {
+		// globs as fist eq might be have a bad perfomance
+		return true
+	}
+
 	if s[i].Key == "__name__" && s[j].Key != "__name__" {
 		return true
 	}
@@ -209,6 +216,7 @@ func ParseTaggedConditions(conditions []string) ([]TaggedTerm, error) {
 		switch op {
 		case "=":
 			terms[i].Op = TaggedTermEq
+			terms[i].HasWildcard = where.HasWildcard(terms[i].Value)
 		case "!=":
 			terms[i].Op = TaggedTermNe
 		case "=~":
