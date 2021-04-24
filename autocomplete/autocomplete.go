@@ -151,7 +151,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		nil,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		clickhouse.HandleError(w, err)
 		return
 	}
 
@@ -257,7 +257,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		nil,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		clickhouse.HandleError(w, err)
 		return
 	}
 

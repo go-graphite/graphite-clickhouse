@@ -45,8 +45,9 @@ func GCD(a, b int64) int64 {
 	if b < 0 {
 		b = -b
 	}
+	var t int64
 	for b != 0 {
-		t := b
+		t = b
 		b = a % b
 		a = t
 	}

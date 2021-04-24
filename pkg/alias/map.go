@@ -45,7 +45,7 @@ func (m *Map) MergeTarget(r finder.Result, target string) {
 		if x, ok := m.data[key]; ok {
 			m.data[key] = append(x, Value{Target: target, DisplayName: abs})
 		} else {
-			m.data[key] = []Value{Value{Target: target, DisplayName: abs}}
+			m.data[key] = []Value{{Target: target, DisplayName: abs}}
 		}
 		m.lock.Unlock()
 	}
