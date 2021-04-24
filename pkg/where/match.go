@@ -153,7 +153,7 @@ func ConcatMatchKV(key, value string) string {
 }
 
 func Match(field string, key, value string) string {
-	if value == "*" {
+	if len(value) == 0 || value == "*" {
 		return Like(field, key+"=%")
 	}
 	expr := ConcatMatchKV(key, value)
