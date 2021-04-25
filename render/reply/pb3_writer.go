@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
+	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -33,7 +33,7 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 
-	var pv3Request carbonapi_v3_pb.MultiFetchRequest
+	var pv3Request v3pb.MultiFetchRequest
 	if err := pv3Request.Unmarshal(body); err != nil {
 		logger.Error("failed to unmarshal request", zap.Error(err))
 		return nil, fmt.Errorf("failed to unmarshal request: %w", err)

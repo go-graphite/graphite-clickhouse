@@ -6,7 +6,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	v3pb "github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
+	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
