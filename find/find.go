@@ -6,8 +6,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	v2pb "github.com/go-graphite/protocol/carbonapi_v2_pb"
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
-	"github.com/lomik/graphite-clickhouse/carbonzipperpb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/pickle"
@@ -99,7 +99,7 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 	//     repeated GlobMatch matches = 2;
 	// }
 
-	var response carbonzipperpb.GlobResponse
+	var response v2pb.GlobResponse
 	response.Name = f.query
 
 	var numResults = 0
@@ -111,7 +111,7 @@ func (f *Find) WriteProtobuf(w io.Writer) error {
 
 		path, isLeaf := finder.Leaf(rows[i])
 
-		response.Matches = append(response.Matches, &carbonzipperpb.GlobMatch{
+		response.Matches = append(response.Matches, v2pb.GlobMatch{
 			Path:   string(path),
 			IsLeaf: isLeaf,
 		})
