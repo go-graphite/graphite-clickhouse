@@ -8,6 +8,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
@@ -19,6 +20,7 @@ type Formatter interface {
 	Reply(http.ResponseWriter, *http.Request, data.CHResponses)
 }
 
+// GetFormatter returns a proper interface for render format
 func GetFormatter(r *http.Request) (Formatter, error) {
 	format := r.FormValue("format")
 	switch format {
@@ -28,8 +30,19 @@ func GetFormatter(r *http.Request) (Formatter, error) {
 		return &Pickle{}, nil
 	case "protobuf":
 		return &V2pb{}, nil
+	case "carbonapi_v2_pb":
+		return &V2pb{}, nil
 	}
-	return nil, fmt.Errorf("format %v is not supported, supported formats: carbonapi_v3_pb, json, pickle, protobuf (aka carbonapi_v2_pb)", format)
+	err := fmt.Errorf("format %v is not supported, supported formats: carbonapi_v3_pb, pickle, protobuf (aka carbonapi_v2_pb)", format)
+	if !scope.Debug(r.Context(), "Output") {
+		return nil, err
+	}
+	switch format {
+	case "json":
+		return &JSON{}, nil
+	}
+	err = fmt.Errorf("%w\n(formats available for output debug: carbonapi_v3_pb, json, protobuf)", err)
+	return nil, err
 }
 
 func parseRequestForms(r *http.Request) (data.MultiTarget, error) {

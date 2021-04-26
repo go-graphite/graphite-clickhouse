@@ -3,6 +3,7 @@ package reply
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,6 @@ import (
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
 	"go.uber.org/zap"
@@ -25,7 +25,6 @@ type V3pb struct{}
 
 func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	logger := scope.Logger(r.Context()).Named("render")
-	url := r.URL
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -39,28 +38,10 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 		return nil, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
-	q := url.Query()
-	multiTarget := make(data.MultiTarget)
-
+	multiTarget := data.MFRToMultiTarget(&pv3Request)
 	if len(pv3Request.Metrics) > 0 {
-		q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
-		q.Set("until", fmt.Sprintf("%d", pv3Request.Metrics[0].StopTime))
-		q.Set("maxDataPoints", fmt.Sprintf("%d", pv3Request.Metrics[0].MaxDataPoints))
-
 		for _, m := range pv3Request.Metrics {
-			tf := data.TimeFrame{
-				From:          m.StartTime,
-				Until:         m.StopTime,
-				MaxDataPoints: m.MaxDataPoints,
-			}
-			if _, ok := multiTarget[tf]; ok {
-				target := multiTarget[tf]
-				target.List = append(multiTarget[tf].List, m.PathExpression)
-			} else {
-				multiTarget[tf] = &data.Targets{List: []string{m.PathExpression}, AM: alias.New()}
-			}
-			q.Add("target", m.PathExpression)
-			logger.Debug(
+			logger.Info(
 				"pb3_target",
 				zap.Int64("from", m.StartTime),
 				zap.Int64("until", m.StopTime),
@@ -70,7 +51,12 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 		}
 	}
 
-	url.RawQuery = q.Encode()
+	if scope.Debug(r.Context(), "Output") {
+		request, err := json.Marshal(pv3Request)
+		if err == nil {
+			logger.Info("v3pb_request", zap.ByteString("json", request))
+		}
+	}
 
 	return multiTarget, nil
 }
