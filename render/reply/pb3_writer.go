@@ -23,7 +23,7 @@ const (
 
 type V3pb struct{}
 
-func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
+func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	logger := scope.Logger(r.Context()).Named("render")
 	url := r.URL
 
@@ -40,7 +40,7 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 	}
 
 	q := url.Query()
-	fetchRequests := make(data.MultiFetchRequest)
+	multiTarget := make(data.MultiTarget)
 
 	if len(pv3Request.Metrics) > 0 {
 		q.Set("from", fmt.Sprintf("%d", pv3Request.Metrics[0].StartTime))
@@ -53,11 +53,11 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 				Until:         m.StopTime,
 				MaxDataPoints: m.MaxDataPoints,
 			}
-			if _, ok := fetchRequests[tf]; ok {
-				target := fetchRequests[tf]
-				target.List = append(fetchRequests[tf].List, m.PathExpression)
+			if _, ok := multiTarget[tf]; ok {
+				target := multiTarget[tf]
+				target.List = append(multiTarget[tf].List, m.PathExpression)
 			} else {
-				fetchRequests[tf] = &data.Targets{List: []string{m.PathExpression}, AM: alias.New()}
+				multiTarget[tf] = &data.Targets{List: []string{m.PathExpression}, AM: alias.New()}
 			}
 			q.Add("target", m.PathExpression)
 			logger.Debug(
@@ -72,7 +72,7 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiFetchRequest, error) {
 
 	url.RawQuery = q.Encode()
 
-	return fetchRequests, nil
+	return multiTarget, nil
 }
 
 func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {

@@ -14,7 +14,7 @@ import (
 // V2pb is a formatter for carbonapi_v2_pb
 type V2pb struct{}
 
-func (*V2pb) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
+func (*V2pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return parseRequestForms(r)
 }
 

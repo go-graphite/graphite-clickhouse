@@ -17,7 +17,7 @@ import (
 
 type Pickle struct{}
 
-func (*Pickle) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
+func (*Pickle) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return parseRequestForms(r)
 }
 

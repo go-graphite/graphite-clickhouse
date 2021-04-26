@@ -19,10 +19,10 @@ type TimeFrame struct {
 	MaxDataPoints int64
 }
 
-// MultiFetchRequest is a map of TimeFrame keys and targets slice of strings values
-type MultiFetchRequest map[TimeFrame]*Targets
+// MultiTarget is a map of TimeFrame keys and targets slice of strings values
+type MultiTarget map[TimeFrame]*Targets
 
-func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
+func (m *MultiTarget) checkMetricsLimitExceeded(num int) error {
 	if num <= 0 {
 		// zero or negative means unlimited
 		return nil
@@ -36,7 +36,7 @@ func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
 }
 
 // Fetch fetches the parsed ClickHouse data returns CHResponses
-func (m *MultiFetchRequest) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
+func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)

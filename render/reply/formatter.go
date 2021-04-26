@@ -14,7 +14,7 @@ import (
 // Formatter implements request parser and response generator
 type Formatter interface {
 	// Parse request
-	ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error)
+	ParseRequest(r *http.Request) (data.MultiTarget, error)
 	// Generate reply payload
 	Reply(http.ResponseWriter, *http.Request, data.CHResponses)
 }
@@ -32,7 +32,7 @@ func GetFormatter(r *http.Request) (Formatter, error) {
 	return nil, fmt.Errorf("format %v is not supported, supported formats: carbonapi_v3_pb, json, pickle, protobuf (aka carbonapi_v2_pb)", format)
 }
 
-func parseRequestForms(r *http.Request) (data.MultiFetchRequest, error) {
+func parseRequestForms(r *http.Request) (data.MultiTarget, error) {
 	fromTimestamp, err := strconv.ParseInt(r.FormValue("from"), 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse from")
@@ -54,7 +54,7 @@ func parseRequestForms(r *http.Request) (data.MultiFetchRequest, error) {
 		Until:         untilTimestamp,
 		MaxDataPoints: maxDataPoints,
 	}
-	fetchRequests := make(data.MultiFetchRequest)
-	fetchRequests[tf] = &data.Targets{List: targets, AM: alias.New()}
-	return fetchRequests, nil
+	multiTarget := make(data.MultiTarget)
+	multiTarget[tf] = &data.Targets{List: targets, AM: alias.New()}
+	return multiTarget, nil
 }

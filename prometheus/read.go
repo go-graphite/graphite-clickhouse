@@ -42,14 +42,14 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 
 	fromTimestamp := q.StartTimestampMs / 1000
 	untilTimestamp := q.EndTimestampMs / 1000
-	fetchRequests := data.MultiFetchRequest{
+	multiTarget := data.MultiTarget{
 		data.TimeFrame{
 			From:          fromTimestamp,
 			Until:         untilTimestamp,
 			MaxDataPoints: int64(h.config.ClickHouse.MaxDataPoints),
 		}: &data.Targets{List: []string{}, AM: am},
 	}
-	response, err := fetchRequests.Fetch(ctx, h.config, config.ContextPrometheus)
+	response, err := multiTarget.Fetch(ctx, h.config, config.ContextPrometheus)
 	if err != nil {
 		return nil, err
 	}
