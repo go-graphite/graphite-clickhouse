@@ -131,10 +131,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 	logger := scope.Logger(ctx)
 	var err error
 
-	err = cond.prepareMetricsLists()
-	if err != nil {
-		return err
-	}
+	cond.prepareMetricsLists()
 	if len(cond.metricsRequested) == 0 {
 		return nil
 	}
@@ -247,29 +244,21 @@ func (q *query) metricsListExtData(body *strings.Builder) *clickhouse.ExternalDa
 	return extData
 }
 
-func (c *conditions) prepareMetricsLists() error {
-	c.metricsRequested = c.AM.Series(c.isReverse)
-	c.metricsUnreverse = c.metricsRequested
-	c.metricsLookup = c.metricsRequested
+func (c *conditions) prepareMetricsLists() {
+	c.metricsUnreverse = c.AM.Series(false)
+	c.metricsRequested = c.metricsUnreverse
 
 	if c.isReverse {
-		c.metricsUnreverse = make([]string, len(c.metricsRequested))
+		c.metricsRequested = make([]string, len(c.metricsRequested))
 		for i := range c.metricsRequested {
-			c.metricsUnreverse[i] = reverse.String(c.metricsRequested[i])
+			c.metricsRequested[i] = reverse.String(c.metricsUnreverse[i])
 		}
+	}
 
-		if c.rollupUseReverted {
-			c.metricsLookup = c.metricsUnreverse
-		}
+	c.metricsLookup = c.metricsRequested
+	if c.rollupUseReverted {
+		c.metricsLookup = c.metricsUnreverse
 	}
-	if len(c.metricsRequested) != len(c.metricsUnreverse) {
-		return fmt.Errorf(
-			"number of metrics in queried an unreversed lists from finder aren't the same: %d vs %d",
-			len(c.metricsRequested),
-			len(c.metricsUnreverse),
-		)
-	}
-	return nil
 }
 
 func (c *conditions) prepareLookup() {
