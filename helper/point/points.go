@@ -15,6 +15,9 @@ type Points struct {
 	uniqAgg []string
 }
 
+// NextMetric returns the list of points for one metric name
+type NextMetric func() []Point
+
 // NewPoints return new empty Points
 func NewPoints() *Points {
 	return &Points{
@@ -144,4 +147,28 @@ func (pp *Points) Sort() {
 // Uniq cleans up the points
 func (pp *Points) Uniq() {
 	pp.list = Uniq(pp.list)
+}
+
+// GroupByMetric returns NextMetric function, that by each call returns points for one next metric.
+// It should be called only on sorted and cleaned Points.
+func (pp *Points) GroupByMetric() NextMetric {
+	var i, n int
+	l := pp.Len()
+	// i - current position of iterator
+	// n - position of the first record with current metric
+	return func() []Point {
+		if n == l {
+			return []Point{}
+		}
+		for i = n; i < l; i++ {
+			if pp.list[i].MetricID != pp.list[n].MetricID {
+				points := pp.list[n:i]
+				n = i
+				return points
+			}
+		}
+		points := pp.list[n:i]
+		n = i
+		return points
+	}
 }

@@ -33,25 +33,24 @@ func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData data.CHResp
 		data := d.Data
 		from := uint32(d.From)
 		until := uint32(d.Until)
-		points := data.Points.List()
 
-		if len(points) == 0 {
+		if data.Len() == 0 {
 			continue
 		}
 		totalWritten++
 
 		writeMetric := func(points []point.Point) error {
-			metricName := data.Points.MetricName(points[0].MetricID)
+			metricName := data.MetricName(points[0].MetricID)
 			step, err := data.GetStep(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get step", zap.Error(err))
-				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
 				return err
 			}
 			function, err := data.GetAggregation(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get function", zap.Error(err))
-				http.Error(w, fmt.Sprintf("failed to get function for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("failed to get function for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
 				return err
 			}
 
@@ -61,23 +60,15 @@ func replyProtobuf(w http.ResponseWriter, r *http.Request, multiData data.CHResp
 			return nil
 		}
 
-		// group by Metric
-		var i, n int
-		// i - current position of iterator
-		// n - position of the first record with current metric
-		l := len(points)
-
-		for i = 1; i < l; i++ {
-			if points[i].MetricID != points[n].MetricID {
-				if err := writeMetric(points[n:i]); err != nil {
-					return
-				}
-				n = i
-				continue
+		nextMetric := data.GroupByMetric()
+		for {
+			points := nextMetric()
+			if len(points) == 0 {
+				break
 			}
-		}
-		if err := writeMetric(points[n:i]); err != nil {
-			return
+			if err := writeMetric(points); err != nil {
+				return
+			}
 		}
 	}
 

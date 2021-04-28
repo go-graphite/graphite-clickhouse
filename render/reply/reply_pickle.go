@@ -26,8 +26,6 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	from := uint32(multiData[0].From)
 	until := uint32(multiData[0].Until)
 
-	points := data.Points.List()
-
 	logger := scope.Logger(r.Context())
 
 	defer func() {
@@ -37,7 +35,7 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		)
 	}()
 
-	if len(points) == 0 {
+	if data.Len() == 0 {
 		w.Write(graphitePickle.EmptyList)
 		return
 	}
@@ -105,11 +103,11 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	}
 
 	writeMetric := func(points []point.Point) error {
-		metricName := data.Points.MetricName(points[0].MetricID)
+		metricName := data.MetricName(points[0].MetricID)
 		step, err := data.GetStep(points[0].MetricID)
 		if err != nil {
 			logger.Error("fail to get step", zap.Error(err))
-			http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.Points.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
 			return err
 		}
 		for _, a := range data.AM.Get(metricName) {
@@ -117,24 +115,16 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		}
 		return nil
 	}
-	// group by Metric
-	var i, n int
-	// i - current position of iterator
-	// n - position of the first record with current metric
-	l := len(points)
 
-	for i = 1; i < l; i++ {
-		if points[i].MetricID != points[n].MetricID {
-			if err := writeMetric(points[n:i]); err != nil {
-				return
-			}
-			n = i
-			continue
+	nextMetric := data.GroupByMetric()
+	for {
+		points := nextMetric()
+		if len(points) == 0 {
+			break
 		}
-	}
-
-	if err := writeMetric(points[n:i]); err != nil {
-		return
+		if err := writeMetric(points); err != nil {
+			return
+		}
 	}
 
 	p.Stop()
