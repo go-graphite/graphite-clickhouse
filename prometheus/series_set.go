@@ -4,7 +4,6 @@ package prometheus
 
 import (
 	"github.com/lomik/graphite-clickhouse/helper/point"
-	"github.com/lomik/graphite-clickhouse/pkg/alias"
 
 	"github.com/lomik/graphite-clickhouse/render/data"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -32,45 +31,27 @@ type seriesSet struct {
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeriesSet(data *data.Data, am *alias.Map) (storage.SeriesSet, error) {
+func makeSeriesSet(data *data.Data) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
 	}
 
-	points := data.Points.List()
-
-	if len(points) == 0 {
+	if data.Len() == 0 {
 		return ss, nil
 	}
 
-	appendSeries := func(metricID uint32, points []point.Point) error {
-		metricName := data.Points.MetricName(metricID)
+	nextMetric := data.GroupByMetric()
+	for {
+		points := nextMetric()
+		if len(points) == 0 {
+			break
+		}
 
-		for _, v := range am.Get(metricName) {
+		metricName := data.MetricName(points[0].MetricID)
+		for _, v := range data.AM.Get(metricName) {
 			ss.series = append(ss.series, series{metricName: v.DisplayName, points: points})
 		}
-
-		return nil
-	}
-
-	// group by Metric
-	var i, n int
-	// i - current position of iterator
-	// n - position of the first record with current metric
-
-	for i = 1; i < len(points); i++ {
-		if points[i].MetricID != points[n].MetricID {
-			if err := appendSeries(points[n].MetricID, points[n:i]); err != nil {
-				return ss, err
-			}
-			n = i
-			continue
-		}
-	}
-
-	if err := appendSeries(points[n].MetricID, points[n:i]); err != nil {
-		return ss, err
 	}
 
 	return ss, nil

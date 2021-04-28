@@ -91,7 +91,7 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 		return emptySeriesSet(), nil, nil
 	}
 
-	ss, err := makeSeriesSet(reply[0].Data, am)
+	ss, err := makeSeriesSet(reply[0].Data)
 	if err != nil {
 		return nil, nil, err
 	}

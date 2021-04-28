@@ -49,33 +49,27 @@ func (h *Handler) queryData(ctx context.Context, q *prompb.Query, am *alias.Map)
 			MaxDataPoints: int64(h.config.ClickHouse.MaxDataPoints),
 		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := fetchRequests.Fetch(ctx, h.config, config.ContextPrometheus)
+	response, err := fetchRequests.Fetch(ctx, h.config, config.ContextPrometheus)
 	if err != nil {
 		return nil, err
 	}
 
-	return h.makeQueryResult(ctx, reply[0].Data, am, uint32(fromTimestamp), uint32(untilTimestamp))
+	return h.makeQueryResult(ctx, response[0].Data)
 }
 
-func (h *Handler) makeQueryResult(ctx context.Context, data *data.Data, am *alias.Map, from, until uint32) (*prompb.QueryResult, error) {
-	if data == nil {
-		return &prompb.QueryResult{}, nil
+func (h *Handler) makeQueryResult(ctx context.Context, data *data.Data) (*prompb.QueryResult, error) {
+	result := &prompb.QueryResult{}
+
+	if data == nil || data.Len() == 0 {
+		return result, nil
 	}
 
-	points := data.Points.List()
-
-	if len(points) == 0 {
-		return &prompb.QueryResult{}, nil
-	}
-
-	result := &prompb.QueryResult{
-		Timeseries: make([]*prompb.TimeSeries, 0),
-	}
+	result.Timeseries = make([]*prompb.TimeSeries, 0)
 
 	writeMetric := func(points []point.Point) {
-		metricName := data.Points.MetricName(points[0].MetricID)
+		metricName := data.MetricName(points[0].MetricID)
 
-		for _, dn := range am.Get(metricName) {
+		for _, dn := range data.AM.Get(metricName) {
 			u, err := url.Parse(dn.DisplayName)
 			if err != nil {
 				return
@@ -102,20 +96,14 @@ func (h *Handler) makeQueryResult(ctx context.Context, data *data.Data, am *alia
 		}
 	}
 
-	// group by Metric
-	var i, n int
-	// i - current position of iterator
-	// n - position of the first record with current metric
-	l := len(points)
-
-	for i = 1; i < l; i++ {
-		if points[i].MetricID != points[n].MetricID {
-			writeMetric(points[n:i])
-			n = i
+	nextMetric := data.GroupByMetric()
+	for {
+		points := nextMetric()
+		if len(points) == 0 {
+			break
 		}
+		writeMetric(points)
 	}
-
-	writeMetric(points[n:i])
 
 	return result, nil
 }
