@@ -5,6 +5,7 @@ import (
 	"sort"
 )
 
+// Points is a structure that stores points and additional information about them, e.g. steps, aggregating functions and names.
 type Points struct {
 	list    []Point
 	idMap   map[string]uint32
@@ -14,6 +15,7 @@ type Points struct {
 	uniqAgg []string
 }
 
+// NewPoints return new empty Points
 func NewPoints() *Points {
 	return &Points{
 		list:    make([]Point, 0),
@@ -22,6 +24,7 @@ func NewPoints() *Points {
 	}
 }
 
+// AppendPoint creates a Point with given values and appends it to list
 func (pp *Points) AppendPoint(metricID uint32, value float64, time uint32, version uint32) {
 	pp.list = append(pp.list, Point{
 		MetricID:  metricID,
@@ -31,6 +34,7 @@ func (pp *Points) AppendPoint(metricID uint32, value float64, time uint32, versi
 	})
 }
 
+// MetricID checks if metric name already exists and returns the ID for it. If not, it creates it first.
 func (pp *Points) MetricID(metricName string) uint32 {
 	id := pp.idMap[metricName]
 	if id == 0 {
@@ -41,11 +45,13 @@ func (pp *Points) MetricID(metricName string) uint32 {
 	return id
 }
 
+// MetricIDBytes checks if metric name already exists and returns the ID for it. If not, it creates it first.
 func (pp *Points) MetricIDBytes(metricNameBytes []byte) uint32 {
 	// @TODO: optimize?
 	return pp.MetricID(string(metricNameBytes))
 }
 
+// MetricName returns name for metric with given metricID or empty string when ID does not exist
 func (pp *Points) MetricName(metricID uint32) string {
 	i := int(metricID)
 	if i < 1 || len(pp.metrics) < i {
@@ -54,10 +60,12 @@ func (pp *Points) MetricName(metricID uint32) string {
 	return pp.metrics[i-1]
 }
 
+// List returns list of points
 func (pp *Points) List() []Point {
 	return pp.list
 }
 
+// ReplaceList replaces list of points
 func (pp *Points) ReplaceList(list []Point) {
 	pp.list = list
 }
@@ -128,10 +136,12 @@ func (pp *Points) Swap(i, j int) {
 	pp.list[i], pp.list[j] = pp.list[j], pp.list[i]
 }
 
+// Sort sorts the points list by ID, Time
 func (pp *Points) Sort() {
 	sort.Sort(pp)
 }
 
+// Uniq cleans up the points
 func (pp *Points) Uniq() {
 	pp.list = Uniq(pp.list)
 }
