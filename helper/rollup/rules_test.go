@@ -26,7 +26,7 @@ func TestMetricPrecision(t *testing.T) {
 
 	for _, test := range tests {
 		result := doMetricPrecision(test[0], 60, AggrMap["sum"])
-		point.AssertListEq(t, test[1], result)
+		assert.Equal(t, test[1], result)
 	}
 }
 

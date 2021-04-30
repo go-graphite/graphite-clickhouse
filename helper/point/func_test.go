@@ -4,7 +4,11 @@ import (
 	"math"
 
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+var nan = math.NaN()
 
 func TestUniq(t *testing.T) {
 	tests := [][2][]Point{
@@ -32,7 +36,7 @@ func TestUniq(t *testing.T) {
 		},
 		{
 			{ // in
-				Point{MetricID: 1, Time: 1478025152, Timestamp: 3, Value: math.NaN()},
+				Point{MetricID: 1, Time: 1478025152, Timestamp: 3, Value: nan},
 				Point{MetricID: 1, Time: 1478025152, Timestamp: 2, Value: 2},
 				Point{MetricID: 1, Time: 1478025155, Timestamp: 1, Value: 1},
 			},
@@ -44,7 +48,7 @@ func TestUniq(t *testing.T) {
 
 	for _, test := range tests {
 		result := Uniq(test[0])
-		AssertListEq(t, test[1], result)
+		assert.Equal(t, test[1], result)
 	}
 }
 
@@ -82,9 +86,9 @@ func TestCleanUp(t *testing.T) {
 		},
 		{
 			{ // in
-				Point{MetricID: 1, Time: 1478025152, Timestamp: 3, Value: math.NaN()},
+				Point{MetricID: 1, Time: 1478025152, Timestamp: 3, Value: nan},
 				Point{MetricID: 1, Time: 1478025152, Timestamp: 2, Value: 2},
-				Point{MetricID: 1, Time: 1478025155, Timestamp: 1, Value: math.NaN()},
+				Point{MetricID: 1, Time: 1478025155, Timestamp: 1, Value: nan},
 			},
 			{ // out
 				Point{MetricID: 1, Time: 1478025152, Timestamp: 2, Value: 2},
@@ -94,6 +98,6 @@ func TestCleanUp(t *testing.T) {
 
 	for _, test := range tests {
 		result := CleanUp(test[0])
-		AssertListEq(t, test[1], result)
+		assert.Equal(t, test[1], result)
 	}
 }

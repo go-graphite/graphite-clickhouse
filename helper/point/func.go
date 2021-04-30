@@ -2,8 +2,6 @@ package point
 
 import (
 	"math"
-
-	"testing"
 )
 
 // CleanUp removes points with empty metric
@@ -47,19 +45,4 @@ func Uniq(points []Point) []Point {
 	}
 
 	return CleanUp(points)
-}
-
-func AssertListEq(t *testing.T, expected, actual []Point) {
-	if len(actual) != len(expected) {
-		t.Fatalf("len(actual) != len(expected): %d != %d", len(actual), len(expected))
-	}
-
-	for i := 0; i < len(actual); i++ {
-		if (actual[i].MetricID != expected[i].MetricID) ||
-			(actual[i].Time != expected[i].Time) ||
-			(actual[i].Timestamp != expected[i].Timestamp) ||
-			(actual[i].Value != expected[i].Value) {
-			t.FailNow()
-		}
-	}
 }
