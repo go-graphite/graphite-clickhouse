@@ -77,7 +77,7 @@ func (pp *Points) ReplaceList(list []Point) {
 func (pp *Points) GetStep(id uint32) (uint32, error) {
 	i := int(id)
 	if i < 1 || len(pp.steps) < i {
-		return 0, fmt.Errorf("wrong id %v for given steps: %v", i, len(pp.steps))
+		return 0, fmt.Errorf("wrong id %d for given steps %d: %w", i, len(pp.steps), ErrWrongMetricID)
 	}
 	return pp.steps[i-1], nil
 }
@@ -102,7 +102,7 @@ func (pp *Points) SetSteps(steps map[uint32][]string) {
 func (pp *Points) GetAggregation(id uint32) (string, error) {
 	i := int(id)
 	if i < 1 || len(pp.aggs) < i {
-		return "", fmt.Errorf("wrong id %v for given functions: %v", i, len(pp.aggs))
+		return "", fmt.Errorf("wrong id %d for given functions %d: %w", i, len(pp.aggs), ErrWrongMetricID)
 	}
 	return *pp.aggs[i-1], nil
 }
