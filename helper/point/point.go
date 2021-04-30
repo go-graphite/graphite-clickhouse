@@ -17,3 +17,6 @@ var ErrTimeGreaterStop = fmt.Errorf("the points for time interval are rover")
 
 // ErrWrongMetricID shows the Point.MetricID is wrong somehow
 var ErrWrongMetricID = fmt.Errorf("the point MetricID is wrong")
+
+// ErrPointsUnsorted returns for unsorted []Point or Points
+var ErrPointsUnsorted = fmt.Errorf("the points are unsorted")

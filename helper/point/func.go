@@ -74,6 +74,10 @@ func FillNulls(points []Point, from, until, step uint32) (start, stop, count uin
 				currentPoint++
 				continue
 			}
+			if point.Time <= last {
+				// This is definitely an error. Possible reason is unsorted points
+				return 0, fmt.Errorf("the time is less or equal to previous %d < %d: %w", point.Time, last, ErrPointsUnsorted)
+			}
 			if stop <= point.Time {
 				break
 			}

@@ -168,7 +168,7 @@ func TestFillNulls(t *testing.T) {
 			expected: expected{[]float64{12}, 2, 14, 6, ErrWrongMetricID},
 		},
 		{
-			name: "unsorted points cause chaos and wrong result",
+			name: "unsorted points cause error",
 			in: in{
 				[]Point{
 					{1, 12, 4, 0},
@@ -179,7 +179,7 @@ func TestFillNulls(t *testing.T) {
 				13,
 				2,
 			},
-			expected: expected{[]float64{nan, 12, 2, nan, 1, nan, nan, nan}, 2, 14, 6, nil},
+			expected: expected{[]float64{nan, 12}, 2, 14, 6, ErrPointsUnsorted},
 		},
 	}
 
