@@ -3,9 +3,9 @@ package reply
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/carbonapi_v3_pb"
@@ -80,15 +80,9 @@ func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResp
 }
 
 func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
-	start := from - (from % step)
-	if start < from {
-		start += step
-	}
-	stop := until - (until % step) + step
-	count := (stop - start) / step
+	start, stop, count, getValue := point.FillNulls(points, from, until, step)
 
 	mb.Reset()
-	mb2.Reset()
 
 	// First chunk
 	// name
@@ -130,6 +124,17 @@ func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, functio
 	// Values header
 	VarintWrite(mb, (9<<3)+Repeated) // tag
 	VarintWrite(mb, uint64(8*count))
+	for {
+		value, err := getValue()
+		if err != nil {
+			if errors.Is(err, point.ErrTimeGreaterStop) {
+				break
+			}
+			// if err is not point.ErrTimeGreaterStop, the points are corrupted
+			return
+		}
+		ProtobufWriteDouble(mb, value)
+	}
 
 	// rest fields, that goes after values
 
@@ -140,43 +145,18 @@ func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, functio
 	//VarintWrite(mb2, VarintLen(0)) // currently not supported
 
 	// requestStartTime
-	VarintWrite(mb2, 11<<3)
-	VarintWrite(mb2, uint64(from))
+	VarintWrite(mb, 11<<3)
+	VarintWrite(mb, uint64(from))
 
 	// requestStopTime
-	VarintWrite(mb2, 12<<3)
-	VarintWrite(mb2, uint64(until))
+	VarintWrite(mb, 12<<3)
+	VarintWrite(mb, uint64(until))
 
 	// start write to output
 	// repeated FetchResponse metrics = 1;
 	// write tag and len
 	VarintWrite(writer, (1<<3)+2)
-	VarintWrite(writer,
-		uint64(mb.Len())+
-			uint64(8*count)+ // packed <repeated double values>
-			uint64(mb2.Len()), // other parameters
-	)
+	VarintWrite(writer, uint64(mb.Len()))
 
 	writer.Write(mb.Bytes())
-
-	last := start - step
-	for _, p := range points {
-		if p.Time < start || p.Time >= stop {
-			continue
-		}
-
-		if p.Time > last+step {
-			ProtobufWriteDoubleN(writer, math.NaN(), int(((p.Time-last)/step)-1))
-		}
-
-		ProtobufWriteDouble(writer, p.Value)
-
-		last = p.Time
-	}
-
-	if stop-step > last {
-		ProtobufWriteDoubleN(writer, math.NaN(), int(((stop-last)/step)-1))
-	}
-
-	writer.Write(mb2.Bytes())
 }
