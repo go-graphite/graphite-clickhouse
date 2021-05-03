@@ -1,9 +1,8 @@
 package point
 
 import (
+	"fmt"
 	"math"
-
-	"testing"
 )
 
 // CleanUp removes points with empty metric
@@ -49,17 +48,53 @@ func Uniq(points []Point) []Point {
 	return CleanUp(points)
 }
 
-func AssertListEq(t *testing.T, expected, actual []Point) {
-	if len(actual) != len(expected) {
-		t.Fatalf("len(actual) != len(expected): %d != %d", len(actual), len(expected))
+// FillNulls accepts an ordered []Point for one metric and returns a generator that will return all points for specific
+// interval. Generator returns EmptyPoint when it's finished
+func FillNulls(points []Point, from, until, step uint32) (start, stop, count uint32, getter GetValueOrNaN) {
+	start = from - (from % step)
+	if start < from {
+		start += step
 	}
-
-	for i := 0; i < len(actual); i++ {
-		if (actual[i].MetricID != expected[i].MetricID) ||
-			(actual[i].Time != expected[i].Time) ||
-			(actual[i].Timestamp != expected[i].Timestamp) ||
-			(actual[i].Value != expected[i].Value) {
-			t.FailNow()
+	stop = until - (until % step) + step
+	count = (stop - start) / step
+	last := start - step
+	currentPoint := 0
+	metricID := points[0].MetricID
+	getter = func() (float64, error) {
+		if stop <= last {
+			return 0, ErrTimeGreaterStop
 		}
+		for i := currentPoint; i < len(points); i++ {
+			point := points[i]
+			if metricID != point.MetricID {
+				return 0, fmt.Errorf("the point MetricID %d differs from other %d: %w", point.MetricID, metricID, ErrWrongMetricID)
+			}
+			if point.Time < start {
+				// Points begin before request's start
+				currentPoint++
+				continue
+			}
+			if point.Time <= last {
+				// This is definitely an error. Possible reason is unsorted points
+				return 0, fmt.Errorf("the time is less or equal to previous %d < %d: %w", point.Time, last, ErrPointsUnsorted)
+			}
+			if stop <= point.Time {
+				break
+			}
+			if last+step < point.Time {
+				// There are nulls in slice
+				last += step
+				return math.NaN(), nil
+			}
+			last = point.Time
+			currentPoint = i + 1
+			return point.Value, nil
+		}
+		if last+step < stop {
+			last += step
+			return math.NaN(), nil
+		}
+		return 0, ErrTimeGreaterStop
 	}
+	return
 }

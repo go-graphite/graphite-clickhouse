@@ -2,7 +2,9 @@ package reply
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -62,31 +64,24 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		p.Uint32(step)
 		p.SetItem()
 
-		start := from - (from % step)
-		if start < from {
-			start += step
-		}
-		end := until - (until % step) + step
-		last := start - step
+		start, end, _, getValue := point.FillNulls(points, from, until, step)
 
 		p.String("values")
 		p.List()
-		for _, point := range points {
-			if point.Time < start || point.Time >= end {
+		for {
+			value, err := getValue()
+			if err != nil {
+				if errors.Is(err, point.ErrTimeGreaterStop) {
+					break
+				}
+				// if err is not point.ErrTimeGreaterStop, the points are corrupted
+				return
+			}
+			if !math.IsNaN(value) {
+				p.AppendFloat64(value)
 				continue
 			}
-
-			if point.Time > last+step {
-				p.AppendNulls(int(((point.Time - last) / step) - 1))
-			}
-
-			p.AppendFloat64(point.Value)
-
-			last = point.Time
-		}
-
-		if end-step > last {
-			p.AppendNulls(int(((end - last) / step) - 1))
+			p.AppendNulls(1)
 		}
 		p.SetItem()
 
