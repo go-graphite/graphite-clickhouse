@@ -24,7 +24,7 @@ const (
 type V3pb struct{}
 
 func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
-	logger := scope.Logger(r.Context()).Named("render")
+	logger := scope.Logger(r.Context()).Named("pb3parser")
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
