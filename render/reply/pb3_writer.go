@@ -16,14 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	Repeated = 2
-	Float32  = 5
-)
+type V3PB struct {
+	b *bytes.Buffer
+}
 
-type V3pb struct{}
-
-func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
+func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	logger := scope.Logger(r.Context()).Named("pb3parser")
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -61,55 +58,59 @@ func (*V3pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return multiTarget, nil
 }
 
-func (*V3pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
-	replyProtobuf(w, r, multiData, true)
+func (v *V3PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	replyProtobuf(v, w, r, multiData)
 }
 
-func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
+func (v *V3PB) initBuffer() {
+	v.b = new(bytes.Buffer)
+}
+
+func (v *V3PB) writeBody(writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start, stop, count, getValue := point.FillNulls(points, from, until, step)
 
-	mb.Reset()
+	v.b.Reset()
 
 	// First chunk
 	// name
-	VarintWrite(mb, (1<<3)+Repeated) // tag
-	VarintWrite(mb, uint64(len(name)))
-	mb.WriteString(name)
+	VarintWrite(v.b, (1<<3)+repeated) // tag
+	VarintWrite(v.b, uint64(len(name)))
+	v.b.WriteString(name)
 
 	// pathExpression
-	VarintWrite(mb, (2<<3)+Repeated) // tag
-	VarintWrite(mb, uint64(len(target)))
-	mb.WriteString(target)
+	VarintWrite(v.b, (2<<3)+repeated) // tag
+	VarintWrite(v.b, uint64(len(target)))
+	v.b.WriteString(target)
 
 	consolidationFunc := function
 	// consolidationFunc
-	VarintWrite(mb, (3<<3)+Repeated) // tag
-	VarintWrite(mb, uint64(len(consolidationFunc)))
-	mb.WriteString(consolidationFunc)
+	VarintWrite(v.b, (3<<3)+repeated) // tag
+	VarintWrite(v.b, uint64(len(consolidationFunc)))
+	v.b.WriteString(consolidationFunc)
 
 	// start
-	VarintWrite(mb, 4<<3) // tag
-	VarintWrite(mb, uint64(start))
+	VarintWrite(v.b, 4<<3) // tag
+	VarintWrite(v.b, uint64(start))
 
 	// stop
-	VarintWrite(mb, 5<<3) // tag
-	VarintWrite(mb, uint64(stop))
+	VarintWrite(v.b, 5<<3) // tag
+	VarintWrite(v.b, uint64(stop))
 
 	// step
-	VarintWrite(mb, 6<<3) // tag
-	VarintWrite(mb, uint64(step))
+	VarintWrite(v.b, 6<<3) // tag
+	VarintWrite(v.b, uint64(step))
 
 	// xFilesFactor
-	VarintWrite(mb, (7<<3)+Float32) // tag
-	ProtobufWriteSingle(mb, 0.0)
+	VarintWrite(v.b, (7<<3)+flt32) // tag
+	ProtobufWriteSingle(v.b, 0.0)
 
 	// highPrecisionTimestamps
-	VarintWrite(mb, 8<<3) // tag
-	mb.WriteByte('\x00')  // False
+	VarintWrite(v.b, 8<<3) // tag
+	v.b.WriteByte('\x00')  // False
 
 	// Values header
-	VarintWrite(mb, (9<<3)+Repeated) // tag
-	VarintWrite(mb, uint64(8*count))
+	VarintWrite(v.b, (9<<3)+repeated) // tag
+	VarintWrite(v.b, uint64(8*count))
 	for {
 		value, err := getValue()
 		if err != nil {
@@ -119,7 +120,7 @@ func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, functio
 			// if err is not point.ErrTimeGreaterStop, the points are corrupted
 			return
 		}
-		ProtobufWriteDouble(mb, value)
+		ProtobufWriteDouble(v.b, value)
 	}
 
 	// rest fields, that goes after values
@@ -131,18 +132,18 @@ func writePB3(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, functio
 	//VarintWrite(mb2, VarintLen(0)) // currently not supported
 
 	// requestStartTime
-	VarintWrite(mb, 11<<3)
-	VarintWrite(mb, uint64(from))
+	VarintWrite(v.b, 11<<3)
+	VarintWrite(v.b, uint64(from))
 
 	// requestStopTime
-	VarintWrite(mb, 12<<3)
-	VarintWrite(mb, uint64(until))
+	VarintWrite(v.b, 12<<3)
+	VarintWrite(v.b, uint64(until))
 
 	// start write to output
 	// repeated FetchResponse metrics = 1;
 	// write tag and len
 	VarintWrite(writer, (1<<3)+2)
-	VarintWrite(writer, uint64(mb.Len()))
+	VarintWrite(writer, uint64(v.b.Len()))
 
-	writer.Write(mb.Bytes())
+	writer.Write(v.b.Bytes())
 }

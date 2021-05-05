@@ -12,47 +12,55 @@ import (
 )
 
 // V2pb is a formatter for carbonapi_v2_pb
-type V2pb struct{}
+type V2PB struct {
+	b1 *bytes.Buffer
+	b2 *bytes.Buffer
+}
 
-func (*V2pb) ParseRequest(r *http.Request) (data.MultiTarget, error) {
+func (*V2PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return parseRequestForms(r)
 }
 
-func (*V2pb) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
-	replyProtobuf(w, r, multiData, false)
+func (v *V2PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	replyProtobuf(v, w, r, multiData)
 }
 
-func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
+func (v *V2PB) initBuffer() {
+	v.b1 = new(bytes.Buffer)
+	v.b2 = new(bytes.Buffer)
+}
+
+func (v *V2PB) writeBody(writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {
 	start, stop, count, getValue := point.FillNulls(points, from, until, step)
 
-	mb.Reset()
-	mb2.Reset()
+	v.b1.Reset()
+	v.b2.Reset()
 
 	// name
-	VarintWrite(mb, (1<<3)+2) // tag
-	VarintWrite(mb, uint64(len(name)))
-	mb.WriteString(name)
+	VarintWrite(v.b1, (1<<3)+repeated) // tag
+	VarintWrite(v.b1, uint64(len(name)))
+	v.b1.WriteString(name)
 
 	// start
-	VarintWrite(mb, 2<<3)
-	VarintWrite(mb, uint64(start))
+	VarintWrite(v.b1, 2<<3)
+	VarintWrite(v.b1, uint64(start))
 
 	// stop
-	VarintWrite(mb, 3<<3)
-	VarintWrite(mb, uint64(stop))
+	VarintWrite(v.b1, 3<<3)
+	VarintWrite(v.b1, uint64(stop))
 
 	// step
-	VarintWrite(mb, 4<<3)
-	VarintWrite(mb, uint64(step))
+	VarintWrite(v.b1, 4<<3)
+	VarintWrite(v.b1, uint64(step))
 
 	// start write to output
 	// Write values
-	VarintWrite(mb, (5<<3)+2)
-	VarintWrite(mb, uint64(8*count))
+	VarintWrite(v.b1, (5<<3)+repeated)
+	VarintWrite(v.b1, uint64(8*count))
 
 	// Write isAbsent
-	VarintWrite(mb2, (6<<3)+2)
-	VarintWrite(mb2, uint64(count))
+	VarintWrite(v.b2, (6<<3)+repeated)
+	VarintWrite(v.b2, uint64(count))
 
 	for {
 		value, err := getValue()
@@ -64,19 +72,19 @@ func writePB2(mb, mb2 *bytes.Buffer, writer *bufio.Writer, target, name, functio
 			return
 		}
 		if !math.IsNaN(value) {
-			ProtobufWriteDouble(mb, value)
-			mb2.WriteByte('\x00')
+			ProtobufWriteDouble(v.b1, value)
+			v.b2.WriteByte(0)
 			continue
 		}
-		ProtobufWriteDouble(mb, 0)
-		mb2.WriteByte('\x01')
+		ProtobufWriteDouble(v.b1, 0)
+		v.b2.WriteByte(1)
 	}
 
 	// repeated FetchResponse metrics = 1;
 	// write tag and len
-	VarintWrite(writer, (1<<3)+2)
-	VarintWrite(writer, uint64(mb.Len())+uint64(mb2.Len()))
+	VarintWrite(writer, (1<<3)+repeated)
+	VarintWrite(writer, uint64(v.b1.Len())+uint64(v.b2.Len()))
 
-	writer.Write(mb.Bytes())
-	writer.Write(mb2.Bytes())
+	writer.Write(v.b1.Bytes())
+	writer.Write(v.b2.Bytes())
 }

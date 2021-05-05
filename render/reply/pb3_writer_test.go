@@ -113,9 +113,9 @@ func TestWritePB3(t *testing.T) {
 			b := bytes.Buffer{}
 			w := bufio.NewWriter(&b)
 
-			mb := new(bytes.Buffer)
-			mb2 := new(bytes.Buffer)
-			writePB3(mb, mb2, w, tt.target, tt.name, tt.function, tt.from, tt.until, tt.step, tt.points)
+			v := &V3PB{}
+			v.initBuffer()
+			v.writeBody(w, tt.target, tt.name, tt.function, tt.from, tt.until, tt.step, tt.points)
 
 			w.Flush()
 

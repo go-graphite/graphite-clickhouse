@@ -25,13 +25,13 @@ func GetFormatter(r *http.Request) (Formatter, error) {
 	format := r.FormValue("format")
 	switch format {
 	case "carbonapi_v3_pb":
-		return &V3pb{}, nil
+		return &V3PB{}, nil
 	case "pickle":
 		return &Pickle{}, nil
 	case "protobuf":
-		return &V2pb{}, nil
+		return &V2PB{}, nil
 	case "carbonapi_v2_pb":
-		return &V2pb{}, nil
+		return &V2PB{}, nil
 	}
 	err := fmt.Errorf("format %v is not supported, supported formats: carbonapi_v3_pb, pickle, protobuf (aka carbonapi_v2_pb)", format)
 	if !scope.Debug(r.Context(), "Output") {
@@ -41,7 +41,7 @@ func GetFormatter(r *http.Request) (Formatter, error) {
 	case "json":
 		return &JSON{}, nil
 	}
-	err = fmt.Errorf("%w\n(formats available for output debug: carbonapi_v3_pb, json, protobuf)", err)
+	err = fmt.Errorf("%w\n(formats available for output debug: json)", err)
 	return nil, err
 }
 
