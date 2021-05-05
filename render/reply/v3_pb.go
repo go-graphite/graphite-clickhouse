@@ -62,11 +62,26 @@ func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 
 // Reply serializes ClickHouse response to carbonapi_v3_pb.MultiFetchResponse format
 func (v *V3PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	if scope.Debug(r.Context(), "Protobuf") {
+		v.replyDebug(w, r, multiData)
+	}
 	replyProtobuf(v, w, r, multiData)
 }
 
 func (v *V3PB) initBuffer() {
 	v.b = new(bytes.Buffer)
+}
+
+func (v *V3PB) replyDebug(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	mfr, err := multiData.ToMultiFetchResponseV3()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to convert response to v3pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
+	}
+	response, err := mfr.Marshal()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to marshal v3pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
+	}
+	w.Write(response)
 }
 
 func (v *V3PB) writeBody(writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
@@ -24,12 +26,27 @@ func (*V2PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 
 // Reply serializes ClickHouse response to carbonapi_v2_pb.MultiFetchResponse format
 func (v *V2PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	if scope.Debug(r.Context(), "Protobuf") {
+		v.replyDebug(w, r, multiData)
+	}
 	replyProtobuf(v, w, r, multiData)
 }
 
 func (v *V2PB) initBuffer() {
 	v.b1 = new(bytes.Buffer)
 	v.b2 = new(bytes.Buffer)
+}
+
+func (v *V2PB) replyDebug(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	mfr, err := multiData.ToMultiFetchResponseV2()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to convert response to v2pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
+	}
+	response, err := mfr.Marshal()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to marshal v2pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
+	}
+	w.Write(response)
 }
 
 func (v *V2PB) writeBody(writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point) {

@@ -39,7 +39,7 @@ The format is relatively easy to debug. You should have `protoc` binary installe
 
 If the repository is not available, there's still a way to run `protoc --decode_raw`, but it's much less readable.
 
-### format=carbonapi_v3_proto
+### format=carbonapi_v3_pb
 The format is the most efficient in the meaning of network traffic and memory. At the same time it is the least debug-able. The request itself is done by sending a POST body with `carbonapi_v3_pb.MultiFetchRequest` protobuf message. So, first one have to generate the request itself, pipe it to curl, and then decode the request. To do it one should run the following command in the root of the repository:
 
 ```
@@ -60,3 +60,6 @@ The format exists only for debugging purpose and enabled by passing a header `X-
 - In logs either see the JSON body itself for the query ID, or look for `[render.pb3parser] pb3_target` record.
 - Now to make a request just run:  
 `curl -H 'Content-Type: application/json' -H 'Content-Type: application/json' -d "{\"metrics\":[{\"name\":\"metric.name\",\"startTime\":1619777413,\"stopTime\":1619778013,\"pathExpression\":\"metric.name\",\"maxDataPoints\":700}]}" 'localhost:9090/render/?format=json'`
+
+### Marshal protobuf data with original marshallers
+Both `carbonapi_v2_pb` and `carbonapi_v3_proto` have the optimized marshallers to convert ClickHouse data points to the protobuf response. But when it's necessary, it's possible to debug if the proper data is produced by passing `X-Gch-Debug-Protobuf: 1` header.
