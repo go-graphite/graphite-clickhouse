@@ -33,10 +33,10 @@ func TestWritePB3(t *testing.T) {
 			target:   "*",
 			points: []point.Point{
 				{
-					0,
-					1.0,
-					5,
-					5,
+					MetricID:  0,
+					Value:     1.0,
+					Time:      5,
+					Timestamp: 5,
 				},
 			},
 			response: v3pb.MultiFetchResponse{
@@ -66,22 +66,22 @@ func TestWritePB3(t *testing.T) {
 			target:   "multiPoint",
 			points: []point.Point{
 				{
-					0,
-					1.0,
-					2,
-					2,
+					MetricID:  0,
+					Value:     1.0,
+					Time:      2,
+					Timestamp: 2,
 				},
 				{
-					0,
-					math.NaN(),
-					3,
-					3,
+					MetricID:  0,
+					Value:     math.NaN(),
+					Time:      3,
+					Timestamp: 3,
 				},
 				{
-					0,
-					3.0,
-					4,
-					4,
+					MetricID:  0,
+					Value:     3.0,
+					Time:      4,
+					Timestamp: 4,
 				},
 			},
 			response: v3pb.MultiFetchResponse{
