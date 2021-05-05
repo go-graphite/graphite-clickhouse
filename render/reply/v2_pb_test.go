@@ -7,23 +7,23 @@ import (
 	"reflect"
 	"testing"
 
-	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
+	v2pb "github.com/go-graphite/protocol/carbonapi_v2_pb"
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
-type test struct {
+type testV2PB struct {
 	name     string
 	target   string
 	function string
-	response v3pb.MultiFetchResponse
+	response v2pb.MultiFetchResponse
 	from     uint32
 	until    uint32
 	step     uint32
 	points   []point.Point
 }
 
-func TestWritePB3(t *testing.T) {
-	tests := []test{
+func TestV2PBWriteBody(t *testing.T) {
+	tests := []testV2PB{
 		{
 			name:     "singlePoint",
 			function: "avg",
@@ -39,20 +39,15 @@ func TestWritePB3(t *testing.T) {
 					Timestamp: 5,
 				},
 			},
-			response: v3pb.MultiFetchResponse{
-				Metrics: []v3pb.FetchResponse{
+			response: v2pb.MultiFetchResponse{
+				Metrics: []v2pb.FetchResponse{
 					{
-						Name:                    "singlePoint",
-						PathExpression:          "*",
-						ConsolidationFunc:       "avg",
-						XFilesFactor:            0,
-						HighPrecisionTimestamps: false,
-						StartTime:               5,
-						StopTime:                10,
-						Values:                  []float64{1.0},
-						AppliedFunctions:        []string{},
-						RequestStartTime:        4,
-						RequestStopTime:         13,
+						Name:      "singlePoint",
+						StartTime: 5,
+						StopTime:  10,
+						StepTime:  5,
+						Values:    []float64{1.0},
+						IsAbsent:  []bool{false},
 					},
 				},
 			},
@@ -84,20 +79,15 @@ func TestWritePB3(t *testing.T) {
 					Timestamp: 4,
 				},
 			},
-			response: v3pb.MultiFetchResponse{
-				Metrics: []v3pb.FetchResponse{
+			response: v2pb.MultiFetchResponse{
+				Metrics: []v2pb.FetchResponse{
 					{
-						Name:                    "multiPoint",
-						PathExpression:          "multiPoint",
-						ConsolidationFunc:       "max",
-						XFilesFactor:            0,
-						HighPrecisionTimestamps: false,
-						StartTime:               1,
-						StopTime:                6,
-						Values:                  []float64{math.NaN(), 1.0, math.NaN(), 3.0, math.NaN()},
-						AppliedFunctions:        []string{},
-						RequestStartTime:        1,
-						RequestStopTime:         6,
+						Name:      "multiPoint",
+						StartTime: 1,
+						StopTime:  6,
+						StepTime:  1,
+						Values:    []float64{math.NaN(), 1.0, math.NaN(), 3.0, math.NaN()},
+						IsAbsent:  []bool{true, false, true, false, true},
 					},
 				},
 			},
@@ -113,13 +103,13 @@ func TestWritePB3(t *testing.T) {
 			b := bytes.Buffer{}
 			w := bufio.NewWriter(&b)
 
-			v := &V3PB{}
+			v := &V2PB{}
 			v.initBuffer()
 			v.writeBody(w, tt.target, tt.name, tt.function, tt.from, tt.until, tt.step, tt.points)
 
 			w.Flush()
 
-			var resp v3pb.MultiFetchResponse
+			var resp v2pb.MultiFetchResponse
 
 			data := b.Bytes()
 			if bytes.Compare(data, correctResp) != 0 {
