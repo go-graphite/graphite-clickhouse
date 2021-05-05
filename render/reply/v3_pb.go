@@ -16,10 +16,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// V3PB is a formatter for carbonapi_v3_pb
 type V3PB struct {
 	b *bytes.Buffer
 }
 
+// ParseRequest reads the requests parameters from carbonapi_v3_pb.MultiFetchRequest
 func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	logger := scope.Logger(r.Context()).Named("pb3parser")
 
@@ -58,6 +60,7 @@ func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return multiTarget, nil
 }
 
+// Reply serializes ClickHouse response to carbonapi_v3_pb.MultiFetchResponse format
 func (v *V3PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	replyProtobuf(v, w, r, multiData)
 }

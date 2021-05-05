@@ -11,16 +11,18 @@ import (
 	"github.com/lomik/graphite-clickhouse/render/data"
 )
 
-// V2pb is a formatter for carbonapi_v2_pb
+// V2PB is a formatter for carbonapi_v2_pb
 type V2PB struct {
 	b1 *bytes.Buffer
 	b2 *bytes.Buffer
 }
 
+// ParseRequest parses target/from/until/maxDataPoints URL forms values
 func (*V2PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return parseRequestForms(r)
 }
 
+// Reply serializes ClickHouse response to carbonapi_v2_pb.MultiFetchResponse format
 func (v *V2PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	replyProtobuf(v, w, r, multiData)
 }
