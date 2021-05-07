@@ -11,14 +11,14 @@ func (c *ClickHouse) MarshalJSON() ([]byte, error) {
 	// make copy
 	a := *c
 
-	u, err := url.Parse(a.Url)
+	u, err := url.Parse(a.URL)
 	if err != nil {
-		a.Url = "<parse error>"
+		a.URL = "<parse error>"
 	} else {
 		if _, isSet := u.User.Password(); isSet {
 			u.User = url.UserPassword(u.User.Username(), "xxxxxx")
 		}
-		a.Url = u.String()
+		a.URL = u.String()
 	}
 
 	return json.Marshal((*ClickHouseRaw)(&a))

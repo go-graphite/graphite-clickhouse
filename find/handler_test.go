@@ -33,7 +33,7 @@ func TestFind(t *testing.T) {
 		defer srv.Close()
 
 		cfg := config.New()
-		cfg.ClickHouse.Url = srv.URL
+		cfg.ClickHouse.URL = srv.URL
 
 		handler := NewHandler(cfg)
 		w := httptest.NewRecorder()

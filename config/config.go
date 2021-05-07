@@ -114,7 +114,7 @@ var IndexReverse = map[string]uint8{
 var IndexReverseNames = []string{"auto", "direct", "reversed"}
 
 type ClickHouse struct {
-	Url                  string        `toml:"url" json:"url"`
+	URL                  string        `toml:"url" json:"url"`
 	DataTimeout          *Duration     `toml:"data-timeout" json:"data-timeout"`
 	TreeTable            string        `toml:"tree-table" json:"tree-table"`
 	DateTreeTable        string        `toml:"date-tree-table" json:"date-tree-table"`
@@ -230,7 +230,7 @@ func New() *Config {
 			MemoryReturnInterval:   &Duration{},
 		},
 		ClickHouse: ClickHouse{
-			Url:             "http://localhost:8123",
+			URL:             "http://localhost:8123",
 			DataTableLegacy: "",
 			DataTimeout: &Duration{
 				Duration: time.Minute,
@@ -457,7 +457,7 @@ func (c *Config) ProcessDataTables() (err error) {
 				table = c.DataTable[i].RollupAutoTable
 			}
 
-			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.Url, table, time.Minute, rdp, rdf)
+			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.URL, table, time.Minute, rdp, rdf)
 		} else if c.DataTable[i].RollupConf == "none" {
 			c.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
