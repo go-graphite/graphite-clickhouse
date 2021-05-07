@@ -328,23 +328,34 @@ func PrintDefaultConfig() error {
 	return nil
 }
 
-// ReadConfig ...
+// ReadConfig reads the content of the file with given name and process it to the *Config
 func ReadConfig(filename string) (*Config, error) {
 	var err error
-
-	cfg := New()
+	var body []byte
 	if filename != "" {
-		b, err := ioutil.ReadFile(filename)
+		body, err = ioutil.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		body := string(b)
+	return Unmarshal(body)
+}
 
-		// @TODO: fix for config starts with [logging]
-		body = strings.ReplaceAll(body, "\n[logging]\n", "\n[[logging]]\n")
+// Unmarshal process the body to *Config
+func Unmarshal(body []byte) (*Config, error) {
+	var err error
 
-		if _, err := toml.Decode(body, cfg); err != nil {
+	cfg := New()
+	if len(body) != 0 {
+		// TODO: remove in v0.14
+		if bytes.Index(body, []byte("\n[logging]\n")) != -1 || bytes.Index(body, []byte("[logging]")) == 0 {
+			body = bytes.ReplaceAll(body, []byte("\n[logging]\n"), []byte("\n[[logging]]\n"))
+			if bytes.Index(body, []byte("[logging]")) == 0 {
+				body = bytes.Replace(body, []byte("[logging]"), []byte("[[logging]]"), 1)
+			}
+		}
+		if err = toml.Unmarshal(body, cfg); err != nil {
 			return nil, err
 		}
 	}

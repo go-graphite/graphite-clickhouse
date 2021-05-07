@@ -3,11 +3,13 @@ package config
 import (
 	"fmt"
 	"io/fs"
+	"net/url"
 	"regexp"
 	"regexp/syntax"
 	"syscall"
 	"testing"
 
+	"github.com/lomik/zapwriter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -212,4 +214,186 @@ func TestProcessDataTables(t *testing.T) {
 
 func TestKnownDataTableContext(t *testing.T) {
 	assert.Equal(t, map[string]bool{ContextGraphite: true, ContextPrometheus: true}, knownDataTableContext)
+}
+
+func TestReadConfig(t *testing.T) {
+	body := []byte(
+		`[common]
+listen = "[::1]:9090"
+pprof-listen = "127.0.0.1:9091"
+max-cpu = 15
+max-metrics-in-find-answer = 13
+max-metrics-per-target = 16
+target-blacklist = ['^blacklisted']
+memory-return-interval = "12s150ms"
+
+[clickhouse]
+url = "http://somehost:8123"
+index-table = "graphite_index"
+index-use-daily = false
+index-reverse = "direct"
+index-reverses = [
+  {suffix = "suf", prefix = "pref", reverse = "direct"},
+  {regex = "^reg$", reverse = "reversed"},
+]
+tagged-table = "graphite_tags"
+tagged-autocomplete-days = 5
+tree-table = "tree"
+reverse-tree-table = "reversed_tree"
+date-tree-table = "data_tree"
+date-tree-table-version = 2
+tag-table = "tag_table"
+extra-prefix = "tum.pu-dum"
+data-table = "data"
+rollup-conf = "none"
+max-data-points = 8000
+internal-aggregation = true
+data-timeout = "64s"
+index-timeout = "4s"
+tree-timeout = "5s"
+connect-timeout = "2s"
+
+# DataTable is tested in TestProcessDataTables
+# [[data-table]]
+# table = "another_data"
+# rollup-conf = "auto"
+# rollup-conf-table = "another_table"
+
+[tags]
+rules = "filename"
+date = "2012-12-12"
+extra-where = "AND case"
+input-file = "input"
+output-file = "output"
+
+[carbonlink]
+server = "server:3333"
+threads-per-request = 5
+connect-timeout = "250ms"
+query-timeout = "350ms"
+total-timeout = "800ms"
+
+[prometheus]
+external-url = "https://server:3456/uri"
+page-title = "Prometheus Time Series"
+
+[debug]
+directory = "tests_tmp"
+directory-perm = "0755"
+external-data-perm = "0640"
+
+[[logging]]
+logger = "debugger"
+file = "stdout"
+level = "debug"
+encoding = "console"
+encoding-time = "iso8601"
+encoding-duration = "string"
+sample-tick = "5ms"
+sample-initial = 1
+sample-thereafter = 2
+
+[[logging]]
+logger = "logger"
+file = "tests_tmp/logger.txt"
+level = "info"
+encoding = "json"
+encoding-time = "epoch"
+encoding-duration = "seconds"
+sample-tick = "50ms"
+sample-initial = 10
+sample-thereafter = 12
+`,
+	)
+	config, err := Unmarshal(body)
+	expected := New()
+	assert.NoError(t, err)
+
+	// Common
+	expected.Common = Common{
+		Listen:                 "[::1]:9090",
+		PprofListen:            "127.0.0.1:9091",
+		MaxCPU:                 15,
+		MaxMetricsInFindAnswer: 13,
+		MaxMetricsPerTarget:    16,
+		TargetBlacklist:        []string{"^blacklisted"},
+		Blacklist:              make([]*regexp.Regexp, 1),
+		MemoryReturnInterval:   &Duration{12150000000},
+	}
+	r, _ := regexp.Compile(expected.Common.TargetBlacklist[0])
+	expected.Common.Blacklist[0] = r
+	assert.Equal(t, expected.Common, config.Common)
+
+	// ClickHouse
+	expected.ClickHouse = ClickHouse{
+		URL:                  "http://somehost:8123",
+		DataTimeout:          &Duration{64000000000},
+		IndexTable:           "graphite_index",
+		IndexReverse:         "direct",
+		IndexReverses:        make(IndexReverses, 2),
+		IndexTimeout:         &Duration{4000000000},
+		TaggedTable:          "graphite_tags",
+		TaggedAutocompleDays: 5,
+		TreeTable:            "tree",
+		ReverseTreeTable:     "reversed_tree",
+		DateTreeTable:        "data_tree",
+		DateTreeTableVersion: 2,
+		TreeTimeout:          &Duration{5000000000},
+		TagTable:             "tag_table",
+		ExtraPrefix:          "tum.pu-dum",
+		ConnectTimeout:       &Duration{2000000000},
+		DataTableLegacy:      "data",
+		RollupConfLegacy:     "none",
+		MaxDataPoints:        8000,
+		InternalAggregation:  true,
+	}
+	expected.ClickHouse.IndexReverses[0] = &IndexReverseRule{"suf", "pref", "", nil, "direct"}
+	r, _ = regexp.Compile("^reg$")
+	expected.ClickHouse.IndexReverses[1] = &IndexReverseRule{"", "", "^reg$", r, "reversed"}
+	assert.Equal(t, expected.ClickHouse, config.ClickHouse)
+
+	// Tags
+	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output"}
+	assert.Equal(t, expected.Tags, config.Tags)
+
+	// Carbonlink
+	expected.Carbonlink = Carbonlink{"server:3333", 5, 2, &Duration{250000000}, &Duration{350000000}, &Duration{800000000}}
+	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
+
+	// Prometheus
+	expected.Prometheus = Prometheus{"https://server:3456/uri", nil, "Prometheus Time Series"}
+	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
+	expected.Prometheus.ExternalURL = u
+	assert.Equal(t, expected.Prometheus, config.Prometheus)
+
+	// Debug
+	expected.Debug = Debug{"tests_tmp", &FileMode{0755}, &FileMode{0640}}
+	assert.Equal(t, expected.Debug, config.Debug)
+	assert.DirExists(t, "tests_tmp")
+
+	// Logger
+	expected.Logging = make([]zapwriter.Config, 2)
+	expected.Logging[0] = zapwriter.Config{
+		Logger:           "debugger",
+		File:             "stdout",
+		Level:            "debug",
+		Encoding:         "console",
+		EncodingTime:     "iso8601",
+		EncodingDuration: "string",
+		SampleTick:       "5ms",
+		SampleInitial:    1,
+		SampleThereafter: 2,
+	}
+	expected.Logging[1] = zapwriter.Config{
+		Logger:           "logger",
+		File:             "tests_tmp/logger.txt",
+		Level:            "info",
+		Encoding:         "json",
+		EncodingTime:     "epoch",
+		EncodingDuration: "seconds",
+		SampleTick:       "50ms",
+		SampleInitial:    10,
+		SampleThereafter: 12,
+	}
+	assert.Equal(t, expected.Logging, config.Logging)
 }
