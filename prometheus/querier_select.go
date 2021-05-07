@@ -75,14 +75,14 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)
 
-	fetchRequests := data.MultiFetchRequest{
+	multiTarget := data.MultiTarget{
 		data.TimeFrame{
 			From:          from.Unix(),
 			Until:         until.Unix(),
 			MaxDataPoints: maxDataPoints,
 		}: &data.Targets{List: []string{}, AM: am},
 	}
-	reply, err := fetchRequests.Fetch(q.ctx, q.config, config.ContextPrometheus)
+	reply, err := multiTarget.Fetch(q.ctx, q.config, config.ContextPrometheus)
 	if err != nil {
 		return nil, nil, err
 	}

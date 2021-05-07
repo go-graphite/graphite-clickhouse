@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/go-graphite/carbonapi v0.0.0-20180220165555-9db1310e484a
+	github.com/go-graphite/protocol v0.4.3
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/snappy v0.0.1
 	github.com/google/renameio v0.1.0 // indirect

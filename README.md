@@ -222,9 +222,11 @@ Some HTTP headers are processed specially by the service
 
 *Grafana headers*: `X-Dashboard-Id`, `X-Grafana-Org-Id`, and `X-Panel-Id` are logged and passed further to the ClickHouse.
 
-*Debug headers*:
+*Debug headers* (see [debugging.md](./doc/debugging.md) for details):
 
 - `X-Gch-Debug-External-Data` - when this header is set to anything and every of `directory`, `directory-perm`, and `external-data-perm` parameters in `[debug]` is set and valid, service will save the dump of external data tables in the directory for debug output.
+- `X-Gch-Debug-Output` - header to enable special processing for `format=carbonapi_v3_pb` and `format=json` render output.
+- `X-Gch-Debug-Protobuf` - header enables the original marshallers for `protobuf` and `carbonapi_v3_pb` to check the binary data integrity.
 
 #### Response headers
 

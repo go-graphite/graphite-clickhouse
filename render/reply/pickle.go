@@ -15,15 +15,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// Pickle is a formatter for python object serialization format.
 type Pickle struct{}
 
-func (*Pickle) ParseRequest(r *http.Request) (fetchRequests data.MultiFetchRequest, err error) {
+// ParseRequest parses target/from/until/maxDataPoints URL forms values
+func (*Pickle) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	return parseRequestForms(r)
 }
 
+// Reply serializes ClickHouse response to pickle format
 func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
 	var pickleTime time.Duration
-	// Pickle response always contain single request/response
+	// Pickle format always contain single request/response
 	data := multiData[0].Data
 	from := uint32(multiData[0].From)
 	until := uint32(multiData[0].Until)

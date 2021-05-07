@@ -3,13 +3,81 @@ package reply
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"math"
+	"net/http"
+
+	"github.com/lomik/graphite-clickhouse/helper/point"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"github.com/lomik/graphite-clickhouse/render/data"
+	"go.uber.org/zap"
 )
 
 var pbVarints []byte
 
-const protobufMaxVarintBytes = 10 // maximum length of a varint
+const (
+	repeated               = 2
+	flt32                  = 5
+	protobufMaxVarintBytes = 10 // maximum length of a varint
+)
+
+type pb interface {
+	initBuffer()
+	writeBody(writer *bufio.Writer, target, name, function string, from, until, step uint32, points []point.Point)
+}
+
+func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.CHResponses) {
+	logger := scope.Logger(r.Context())
+
+	// var multiResponse carbonzipperpb.MultiFetchResponse
+	writer := bufio.NewWriterSize(w, 1024*1024)
+	defer writer.Flush()
+
+	p.initBuffer()
+
+	totalWritten := 0
+	for _, d := range multiData {
+		data := d.Data
+		from := uint32(d.From)
+		until := uint32(d.Until)
+
+		if data.Len() == 0 {
+			continue
+		}
+		totalWritten++
+
+		nextMetric := data.GroupByMetric()
+		for {
+			points := nextMetric()
+			if len(points) == 0 {
+				break
+			}
+			metricName := data.MetricName(points[0].MetricID)
+			step, err := data.GetStep(points[0].MetricID)
+			if err != nil {
+				logger.Error("fail to get step", zap.Error(err))
+				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				return
+			}
+			function, err := data.GetAggregation(points[0].MetricID)
+			if err != nil {
+				logger.Error("fail to get function", zap.Error(err))
+				http.Error(w, fmt.Sprintf("failed to get function for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+				return
+			}
+
+			for _, a := range data.AM.Get(metricName) {
+				p.writeBody(writer, a.Target, a.DisplayName, function, from, until, step, points)
+			}
+		}
+	}
+
+	if totalWritten == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+}
 
 func init() {
 	// precalculate varints

@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"sync"
 
+	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
 )
@@ -19,10 +21,31 @@ type TimeFrame struct {
 	MaxDataPoints int64
 }
 
-// MultiFetchRequest is a map of TimeFrame keys and targets slice of strings values
-type MultiFetchRequest map[TimeFrame]*Targets
+// MultiTarget is a map of TimeFrame keys and targets slice of strings values
+type MultiTarget map[TimeFrame]*Targets
 
-func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
+func MFRToMultiTarget(v3Request *v3pb.MultiFetchRequest) MultiTarget {
+	multiTarget := make(MultiTarget)
+
+	if len(v3Request.Metrics) > 0 {
+		for _, m := range v3Request.Metrics {
+			tf := TimeFrame{
+				From:          m.StartTime,
+				Until:         m.StopTime,
+				MaxDataPoints: m.MaxDataPoints,
+			}
+			if _, ok := multiTarget[tf]; ok {
+				target := multiTarget[tf]
+				target.List = append(multiTarget[tf].List, m.PathExpression)
+			} else {
+				multiTarget[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
+			}
+		}
+	}
+	return multiTarget
+}
+
+func (m *MultiTarget) checkMetricsLimitExceeded(num int) error {
 	if num <= 0 {
 		// zero or negative means unlimited
 		return nil
@@ -36,7 +59,7 @@ func (m *MultiFetchRequest) checkMetricsLimitExceeded(num int) error {
 }
 
 // Fetch fetches the parsed ClickHouse data returns CHResponses
-func (m *MultiFetchRequest) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
+func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	logger := scope.Logger(ctx)
