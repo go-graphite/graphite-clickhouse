@@ -22,7 +22,7 @@ type Finder interface {
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64) Finder {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.TreeTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout.Value(),
 		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
 	}
 
@@ -98,7 +98,7 @@ func Leaf(value []byte) ([]byte, bool) {
 
 func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64) (Result, error) {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.TreeTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout.Value(),
 		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
 	}
 
