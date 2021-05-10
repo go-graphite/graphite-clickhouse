@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/zapwriter"
@@ -131,8 +132,10 @@ type ClickHouse struct {
 	TagTable             string        `toml:"tag-table" json:"tag-table"`
 	ExtraPrefix          string        `toml:"extra-prefix" json:"extra-prefix"`
 	ConnectTimeout       *Duration     `toml:"connect-timeout" json:"connect-timeout"`
-	DataTableLegacy      string        `toml:"data-table" json:"data-table"`
-	RollupConfLegacy     string        `toml:"rollup-conf" json:"-"`
+	// TODO: remove in v0.14
+	DataTableLegacy string `toml:"data-table" json:"data-table"`
+	// TODO: remove in v0.14
+	RollupConfLegacy string `toml:"rollup-conf" json:"-"`
 	// Sets the maximum for maxDataPoints parameter.
 	MaxDataPoints int `toml:"max-data-points" json:"max-data-points"`
 	// InternalAggregation controls if ClickHouse itself or graphite-clickhouse aggregates points to proper retention
@@ -231,7 +234,6 @@ func New() *Config {
 		},
 		ClickHouse: ClickHouse{
 			URL:                  "http://localhost:8123",
-			DataTableLegacy:      "",
 			DataTimeout:          &Duration{time.Minute},
 			TreeTable:            "graphite_tree",
 			TreeTimeout:          &Duration{time.Minute},
@@ -240,10 +242,11 @@ func New() *Config {
 			IndexReverse:         "auto",
 			IndexReverses:        IndexReverses{},
 			IndexTimeout:         &Duration{time.Minute},
-			RollupConfLegacy:     "auto",
 			TagTable:             "",
 			TaggedAutocompleDays: 7,
 			ConnectTimeout:       &Duration{time.Second},
+			DataTableLegacy:      "",
+			RollupConfLegacy:     "auto",
 			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
 			InternalAggregation:  false,
 		},
@@ -339,11 +342,13 @@ func ReadConfig(filename string) (*Config, error) {
 // Unmarshal process the body to *Config
 func Unmarshal(body []byte) (*Config, error) {
 	var err error
+	deprecations := make(map[string]error)
 
 	cfg := New()
 	if len(body) != 0 {
 		// TODO: remove in v0.14
 		if bytes.Index(body, []byte("\n[logging]\n")) != -1 || bytes.Index(body, []byte("[logging]")) == 0 {
+			deprecations["logging"] = fmt.Errorf("single [logging] value became multivalue [[logging]]; please, adjust your config")
 			body = bytes.ReplaceAll(body, []byte("\n[logging]\n"), []byte("\n[[logging]]\n"))
 			if bytes.Index(body, []byte("[logging]")) == 0 {
 				body = bytes.Replace(body, []byte("[logging]"), []byte("[[logging]]"), 1)
@@ -424,6 +429,18 @@ func Unmarshal(body []byte) (*Config, error) {
 	}
 	cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
 
+	checkDeprecations(cfg, deprecations)
+	if len(deprecations) != 0 {
+		localManager, err := zapwriter.NewManager(cfg.Logging)
+		if err != nil {
+			return nil, err
+		}
+		logger := localManager.Logger("config deprecation")
+		for name, message := range deprecations {
+			logger.Error(name, zap.Error(message))
+		}
+	}
+
 	return cfg, nil
 }
 
@@ -486,4 +503,10 @@ func (c *Config) ProcessDataTables() (err error) {
 		}
 	}
 	return nil
+}
+
+func checkDeprecations(cfg *Config, d map[string]error) {
+	if cfg.ClickHouse.DataTableLegacy != "" {
+		d["data-table"] = fmt.Errorf("data-table parameter in [clickhouse] is deprecated; use [[data-table]]")
+	}
 }
