@@ -54,11 +54,11 @@ func TestFind(t *testing.T) {
 
 	testCase(
 		"host.top.cpu.cpu%2A",
-		"SELECT Path FROM graphite_tree WHERE (Level=4) AND (Path LIKE 'host.top.cpu.cpu%') GROUP BY Path",
+		"SELECT Path FROM graphite_index WHERE ((Level=20004) AND (Path LIKE 'host.top.cpu.cpu%')) AND (Date='1970-02-12') GROUP BY Path",
 	)
 
 	testCase(
 		"host.?cpu",
-		"SELECT Path FROM graphite_tree WHERE (Level=2) AND (Path LIKE 'host.%' AND match(Path, '^host[.][^.]cpu[.]?$')) GROUP BY Path",
+		"SELECT Path FROM graphite_index WHERE ((Level=20002) AND (Path LIKE 'host.%' AND match(Path, '^host[.][^.]cpu[.]?$'))) AND (Date='1970-02-12') GROUP BY Path",
 	)
 }

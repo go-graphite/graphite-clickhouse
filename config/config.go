@@ -117,9 +117,6 @@ var IndexReverseNames = []string{"auto", "direct", "reversed"}
 type ClickHouse struct {
 	URL                  string        `toml:"url" json:"url"`
 	DataTimeout          *Duration     `toml:"data-timeout" json:"data-timeout"`
-	TreeTable            string        `toml:"tree-table" json:"tree-table"`
-	DateTreeTable        string        `toml:"date-tree-table" json:"date-tree-table"`
-	DateTreeTableVersion int           `toml:"date-tree-table-version" json:"date-tree-table-version"`
 	IndexTable           string        `toml:"index-table" json:"index-table"`
 	IndexUseDaily        bool          `toml:"index-use-daily" json:"index-use-daily"`
 	IndexReverse         string        `toml:"index-reverse" json:"index-reverse"`
@@ -127,7 +124,10 @@ type ClickHouse struct {
 	IndexTimeout         *Duration     `toml:"index-timeout" json:"index-timeout"`
 	TaggedTable          string        `toml:"tagged-table" json:"tagged-table"`
 	TaggedAutocompleDays int           `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
+	TreeTable            string        `toml:"tree-table" json:"tree-table"`
 	ReverseTreeTable     string        `toml:"reverse-tree-table" json:"reverse-tree-table"`
+	DateTreeTable        string        `toml:"date-tree-table" json:"date-tree-table"`
+	DateTreeTableVersion int           `toml:"date-tree-table-version" json:"date-tree-table-version"`
 	TreeTimeout          *Duration     `toml:"tree-timeout" json:"tree-timeout"`
 	TagTable             string        `toml:"tag-table" json:"tag-table"`
 	ExtraPrefix          string        `toml:"extra-prefix" json:"extra-prefix"`
@@ -235,15 +235,14 @@ func New() *Config {
 		ClickHouse: ClickHouse{
 			URL:                  "http://localhost:8123",
 			DataTimeout:          &Duration{time.Minute},
-			TreeTable:            "graphite_tree",
-			TreeTimeout:          &Duration{time.Minute},
-			IndexTable:           "",
+			IndexTable:           "graphite_index",
 			IndexUseDaily:        true,
 			IndexReverse:         "auto",
 			IndexReverses:        IndexReverses{},
 			IndexTimeout:         &Duration{time.Minute},
-			TagTable:             "",
+			TaggedTable:          "graphite_tagged",
 			TaggedAutocompleDays: 7,
+			ExtraPrefix:          "",
 			ConnectTimeout:       &Duration{time.Second},
 			DataTableLegacy:      "",
 			RollupConfLegacy:     "auto",
