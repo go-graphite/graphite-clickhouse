@@ -230,26 +230,20 @@ func New() *Config {
 			MemoryReturnInterval:   &Duration{},
 		},
 		ClickHouse: ClickHouse{
-			URL:             "http://localhost:8123",
-			DataTableLegacy: "",
-			DataTimeout: &Duration{
-				Duration: time.Minute,
-			},
-			TreeTable: "graphite_tree",
-			TreeTimeout: &Duration{
-				Duration: time.Minute,
-			},
-			IndexTable:    "",
-			IndexUseDaily: true,
-			IndexReverse:  "auto",
-			IndexReverses: IndexReverses{},
-			IndexTimeout: &Duration{
-				Duration: time.Minute,
-			},
+			URL:                  "http://localhost:8123",
+			DataTableLegacy:      "",
+			DataTimeout:          &Duration{time.Minute},
+			TreeTable:            "graphite_tree",
+			TreeTimeout:          &Duration{time.Minute},
+			IndexTable:           "",
+			IndexUseDaily:        true,
+			IndexReverse:         "auto",
+			IndexReverses:        IndexReverses{},
+			IndexTimeout:         &Duration{time.Minute},
 			RollupConfLegacy:     "auto",
 			TagTable:             "",
 			TaggedAutocompleDays: 7,
-			ConnectTimeout:       &Duration{Duration: time.Second},
+			ConnectTimeout:       &Duration{time.Second},
 			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
 			InternalAggregation:  false,
 		},
@@ -260,9 +254,9 @@ func New() *Config {
 		Carbonlink: Carbonlink{
 			Threads:        10,
 			Retries:        2,
-			ConnectTimeout: &Duration{Duration: 50 * time.Millisecond},
-			QueryTimeout:   &Duration{Duration: 50 * time.Millisecond},
-			TotalTimeout:   &Duration{Duration: 500 * time.Millisecond},
+			ConnectTimeout: &Duration{50 * time.Millisecond},
+			QueryTimeout:   &Duration{50 * time.Millisecond},
+			TotalTimeout:   &Duration{500 * time.Millisecond},
 		},
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
@@ -270,8 +264,8 @@ func New() *Config {
 		},
 		Debug: Debug{
 			Directory:        "",
-			DirectoryPerm:    &FileMode{FileMode: 0755},
-			ExternalDataPerm: &FileMode{FileMode: 0},
+			DirectoryPerm:    &FileMode{0755},
+			ExternalDataPerm: &FileMode{0},
 		},
 		Logging: nil,
 	}
