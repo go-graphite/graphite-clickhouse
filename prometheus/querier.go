@@ -12,17 +12,27 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
+	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
 )
 
 // Querier returns a new Querier on the storage.
 func (h *Handler) Querier(ctx context.Context, mint, maxt int64) (storage.Querier, error) {
+	return newQuerier(ctx, mint, maxt), nil
+}
+
+// Querier returns a new Querier on the storage.
+func (h *Handler) ChunkQuerier(ctx context.Context, mint, maxt int64) (storage.ChunkQuerier, error) {
+	return newQuerier(ctx, mint, maxt), nil
+}
+
+func newQuerier(ctx context.Context, mint, maxt int64) *Querier {
 	return &Querier{
 		config: h.config,
 		ctx:    ctx,
 		mint:   mint,
 		maxt:   maxt,
-	}, nil
+	}
 }
 
 // Querier provides reading access to time series data.
@@ -33,13 +43,18 @@ type Querier struct {
 	ctx    context.Context
 }
 
+type ChunkQuerier struct {
+	Querier
+}
+
 // Close releases the resources of the Querier.
 func (q *Querier) Close() error {
 	return nil
 }
 
 // LabelValues returns all potential values for a label name.
-func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) {
+// TODO: review if matchers should be used
+func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
 

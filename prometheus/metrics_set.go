@@ -5,22 +5,25 @@ package prometheus
 import (
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/tsdb/chunks"
 )
 
 // SeriesSet contains a set of series.
 type metricsSet struct {
-	metrics []string
-	current int
+	metrics  []string
+	current  int
+	warnings storage.Warnings
 }
 
 type metric struct {
 	name string
 }
 
-type dummyIterator struct{}
+type chunkMetricsSet struct {
+	metricsSet
+}
 
-var _ storage.SeriesSet = &metricsSet{}
-var _ storage.SeriesIterator = &dummyIterator{}
+type dummyIterator struct{}
 
 func (ms *metricsSet) At() storage.Series {
 	return &metric{name: ms.metrics[ms.current]}
@@ -40,7 +43,7 @@ func (it *dummyIterator) Next() bool { return false }
 func (it *dummyIterator) Err() error { return nil }
 
 // Iterator returns a new iterator of the data of the series.
-func (s *metric) Iterator() storage.SeriesIterator {
+func (s *metric) Iterator() chunks.Iterator {
 	return &dummyIterator{}
 }
 
@@ -61,6 +64,16 @@ func (ms *metricsSet) Next() bool {
 	return ms.current < len(ms.metrics)
 }
 
-func newMetricsSet(metrics []string) storage.SeriesSet {
+func (ms *metricsSet) Warnings() storage.Warnings { return ms.warnings }
+
+func newMetricsSet(metrics []string) *metricsSet {
 	return &metricsSet{metrics: metrics, current: -1}
+}
+
+func (ms *metricsSet) toChunkSeriesSet() storage.ChunkSeriesSet {
+	return &chunkMetricsSet{*ms}
+}
+
+func (ms *chunkMetricsSet) At() storage.ChunkSeries {
+	return ms.metricsSet.At()
 }

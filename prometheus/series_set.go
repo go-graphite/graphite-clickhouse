@@ -8,6 +8,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/render/data"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 // SeriesIterator iterates over the data of a time series.
@@ -25,13 +26,12 @@ type series struct {
 
 // SeriesSet contains a set of series.
 type seriesSet struct {
-	series  []series
-	current int
+	series   []series
+	current  int
+	warnings storage.Warnings
 }
 
-var _ storage.SeriesSet = &seriesSet{}
-
-func makeSeriesSet(data *data.Data) (storage.SeriesSet, error) {
+func makeSeriesSet(data *data.Data) (*seriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -57,8 +57,8 @@ func makeSeriesSet(data *data.Data) (storage.SeriesSet, error) {
 	return ss, nil
 }
 
-func emptySeriesSet() storage.SeriesSet {
-	return &seriesSet{series: make([]series, 0), current: -1}
+func emptySeriesSet() *seriesSet {
+	return &seriesSet{series: make([]series, 0), current: -1, warnings: make(storage.Warnings, 0)}
 }
 
 // func (sit *seriesIterator) logger() *zap.Logger {
@@ -133,8 +133,10 @@ func (ss *seriesSet) Next() bool {
 	return true
 }
 
+func (s *seriesSet) Warnings() storage.Warnings { return s.warnings }
+
 // Iterator returns a new iterator of the data of the series.
-func (s *series) Iterator() storage.SeriesIterator {
+func (s *series) Iterator() chunkenc.Iterator {
 	return &seriesIterator{metricName: s.metricName, points: s.points, current: -1}
 }
 

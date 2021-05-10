@@ -13,6 +13,11 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
+type set interface {
+	toSeriesSet() storage.SeriesSet
+	toChunkSeriesSet() storage.ChunkSeriesSet
+}
+
 func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) (*alias.Map, error) {
 	terms, err := makeTaggedFromPromQL(labelsMatcher)
 	if err != nil {
@@ -30,14 +35,15 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 }
 
 // Select returns a set of series that matches the given label matchers.
-func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+func (q *Querier) Select(sortSerie bool, selectHints *storage.SelectHints, labelsMatcher ...*labels.Matcher) *seriesSet {
 	var from, until time.Time
+	ss := emptySeriesSet()
 
-	if from.IsZero() && selectParams != nil && selectParams.Start != 0 {
-		from = time.Unix(selectParams.Start/1000, (selectParams.Start%1000)*1000000)
+	if from.IsZero() && selectHints != nil && selectHints.Start != 0 {
+		from = time.Unix(selectHints.Start/1000, (selectHints.Start%1000)*1000000)
 	}
-	if until.IsZero() && selectParams != nil && selectParams.End != 0 {
-		until = time.Unix(selectParams.End/1000, (selectParams.End%1000)*1000000)
+	if until.IsZero() && selectHints != nil && selectHints.End != 0 {
+		until = time.Unix(selectHints.End/1000, (selectHints.End%1000)*1000000)
 	}
 
 	if from.IsZero() && q.mint > 0 {
@@ -56,21 +62,22 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	am, err := q.lookup(from, until, labelsMatcher...)
 	if err != nil {
-		return nil, nil, err
+		ss.warnings = append(ss.warnings, err)
+		return ss
 	}
 
 	if am.Len() == 0 {
-		return emptySeriesSet(), nil, nil
+		return ss
 	}
 
-	if selectParams == nil {
+	if selectHints == nil {
 		// /api/v1/series?match[]=...
-		return newMetricsSet(am.DisplayNames()), nil, nil
+		return newMetricsSet(am.DisplayNames())
 	}
 
 	var step int64 = 60000
-	if selectParams.Step != 0 {
-		step = selectParams.Step
+	if selectHints.Step != 0 {
+		step = selectHints.Step
 	}
 
 	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)

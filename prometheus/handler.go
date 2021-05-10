@@ -41,24 +41,33 @@ type Handler struct {
 func NewHandler(config *config.Config) *Handler {
 	h := &Handler{
 		config:      config,
-		queryEngine: promql.NewEngine(promql.EngineOpts{MaxConcurrent: 100, MaxSamples: 50000000, Timeout: time.Minute}),
+		queryEngine: promql.NewEngine(promql.EngineOpts{MaxSamples: 50000000, Timeout: time.Minute}),
 	}
 
 	apiV1 := v1.NewAPI(
-		h.queryEngine, // qe *promql.Engine,
-		h,             // q storage.Queryable,
-		nil,           // tr targetRetriever,
-		nil,           // ar alertmanagerRetriever,
-		nil,           // configFunc func() config.Config,
-		nil,           // flagsMap map[string]string,
+		h.queryEngine,         // qe *promql.Engine,
+		h,                     // q storage.SampleAndChunkQueryable,
+		nil,                   // ap storage.Appendable,
+		nil,                   // eq storage.ExemplarQueryable,
+		nil,                   // tr targetRetriever,
+		nil,                   // ar alertmanagerRetriever,
+		nil,                   // configFunc func() config.Config,
+		nil,                   // flagsMap map[string]string,
+		v1.GlobalURLOptions{}, // globalURLOptions GlobalURLOptions,
 		func(f http.HandlerFunc) http.HandlerFunc { return f }, // readyFunc func(http.HandlerFunc) http.HandlerFunc,
-		nil,   // db func() TSDBAdmin,
+		nil,   // db TSDBAdminStats,
+		"",    // dbDir string,
 		false, // enableAdmin bool,
 		nil,   // logger log.Logger,
 		nil,   // rr rulesRetriever,
 		0,     // remoteReadSampleLimit int,
 		0,     // remoteReadConcurrencyLimit int,
+		0,     // remoteReadMaxBytesInFrame int,
 		nil,   // CORSOrigin *regexp.Regexp,
+		nil,   // runtimeInfo func() (RuntimeInfo, error),
+		nil,   // buildInfo *PrometheusVersion,
+		nil,   // gatherer prometheus.Gatherer,
+		nil,   // registerer prometheus.Registerer,
 	)
 
 	apiV1Router := route.New()
