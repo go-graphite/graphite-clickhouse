@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	pathpkg "path"
@@ -49,7 +47,6 @@ func Generate(input http.FileSystem, opt Options) error {
 	}
 
 	// Write output file (all at once).
-	fmt.Println("writing", opt.Filename)
 	err = ioutil.WriteFile(opt.Filename, buf.Bytes(), 0644)
 	return err
 }
@@ -83,8 +80,8 @@ type dirInfo struct {
 func findAndWriteFiles(buf *bytes.Buffer, fs http.FileSystem, toc *toc) error {
 	walkFn := func(path string, fi os.FileInfo, r io.ReadSeeker, err error) error {
 		if err != nil {
-			log.Printf("can't stat file %q: %v\n", path, err)
-			return nil
+			// Consider all errors reading the input filesystem as fatal.
+			return err
 		}
 
 		switch fi.IsDir() {
@@ -173,7 +170,7 @@ func writeCompressedFileInfo(w io.Writer, file *fileInfo, r io.Reader) error {
 		return err
 	}
 	sw := &stringWriter{Writer: w}
-	gw := gzip.NewWriter(sw)
+	gw, _ := gzip.NewWriterLevel(sw, gzip.BestCompression)
 	_, err = io.Copy(gw, r)
 	if err != nil {
 		return err

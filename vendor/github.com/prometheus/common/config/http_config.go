@@ -17,7 +17,7 @@ package config
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -29,8 +29,14 @@ import (
 	"time"
 
 	"github.com/mwitkow/go-conntrack"
+	"golang.org/x/net/http2"
 	"gopkg.in/yaml.v2"
 )
+
+// DefaultHTTPClientConfig is the default HTTP client configuration.
+var DefaultHTTPClientConfig = HTTPClientConfig{
+	FollowRedirects: true,
+}
 
 type closeIdler interface {
 	CloseIdleConnections()
@@ -41,6 +47,29 @@ type BasicAuth struct {
 	Username     string `yaml:"username"`
 	Password     Secret `yaml:"password,omitempty"`
 	PasswordFile string `yaml:"password_file,omitempty"`
+}
+
+// SetDirectory joins any relative file paths with dir.
+func (a *BasicAuth) SetDirectory(dir string) {
+	if a == nil {
+		return
+	}
+	a.PasswordFile = JoinDir(dir, a.PasswordFile)
+}
+
+// Authorization contains HTTP authorization credentials.
+type Authorization struct {
+	Type            string `yaml:"type,omitempty"`
+	Credentials     Secret `yaml:"credentials,omitempty"`
+	CredentialsFile string `yaml:"credentials_file,omitempty"`
+}
+
+// SetDirectory joins any relative file paths with dir.
+func (a *Authorization) SetDirectory(dir string) {
+	if a == nil {
+		return
+	}
+	a.CredentialsFile = JoinDir(dir, a.CredentialsFile)
 }
 
 // URL is a custom URL type that allows validation at configuration load time.
@@ -75,19 +104,39 @@ func (u URL) MarshalYAML() (interface{}, error) {
 type HTTPClientConfig struct {
 	// The HTTP basic authentication credentials for the targets.
 	BasicAuth *BasicAuth `yaml:"basic_auth,omitempty"`
-	// The bearer token for the targets.
+	// The HTTP authorization credentials for the targets.
+	Authorization *Authorization `yaml:"authorization,omitempty"`
+	// The bearer token for the targets. Deprecated in favour of
+	// Authorization.Credentials.
 	BearerToken Secret `yaml:"bearer_token,omitempty"`
-	// The bearer token file for the targets.
+	// The bearer token file for the targets. Deprecated in favour of
+	// Authorization.CredentialsFile.
 	BearerTokenFile string `yaml:"bearer_token_file,omitempty"`
 	// HTTP proxy server to use to connect to the targets.
 	ProxyURL URL `yaml:"proxy_url,omitempty"`
 	// TLSConfig to use to connect to the targets.
 	TLSConfig TLSConfig `yaml:"tls_config,omitempty"`
+	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
+	// The omitempty flag is not set, because it would be hidden from the
+	// marshalled configuration when set to false.
+	FollowRedirects bool `yaml:"follow_redirects"`
+}
+
+// SetDirectory joins any relative file paths with dir.
+func (c *HTTPClientConfig) SetDirectory(dir string) {
+	if c == nil {
+		return
+	}
+	c.TLSConfig.SetDirectory(dir)
+	c.BasicAuth.SetDirectory(dir)
+	c.Authorization.SetDirectory(dir)
+	c.BearerTokenFile = JoinDir(dir, c.BearerTokenFile)
 }
 
 // Validate validates the HTTPClientConfig to check only one of BearerToken,
 // BasicAuth and BearerTokenFile is configured.
 func (c *HTTPClientConfig) Validate() error {
+	// Backwards compatibility with the bearer_token field.
 	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
 		return fmt.Errorf("at most one of bearer_token & bearer_token_file must be configured")
 	}
@@ -97,12 +146,42 @@ func (c *HTTPClientConfig) Validate() error {
 	if c.BasicAuth != nil && (string(c.BasicAuth.Password) != "" && c.BasicAuth.PasswordFile != "") {
 		return fmt.Errorf("at most one of basic_auth password & password_file must be configured")
 	}
+	if c.Authorization != nil {
+		if len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0 {
+			return fmt.Errorf("authorization is not compatible with bearer_token & bearer_token_file")
+		}
+		if string(c.Authorization.Credentials) != "" && c.Authorization.CredentialsFile != "" {
+			return fmt.Errorf("at most one of authorization credentials & credentials_file must be configured")
+		}
+		c.Authorization.Type = strings.TrimSpace(c.Authorization.Type)
+		if len(c.Authorization.Type) == 0 {
+			c.Authorization.Type = "Bearer"
+		}
+		if strings.ToLower(c.Authorization.Type) == "basic" {
+			return fmt.Errorf(`authorization type cannot be set to "basic", use "basic_auth" instead`)
+		}
+		if c.BasicAuth != nil {
+			return fmt.Errorf("at most one of basic_auth & authorization must be configured")
+		}
+	} else {
+		if len(c.BearerToken) > 0 {
+			c.Authorization = &Authorization{Credentials: c.BearerToken}
+			c.Authorization.Type = "Bearer"
+			c.BearerToken = ""
+		}
+		if len(c.BearerTokenFile) > 0 {
+			c.Authorization = &Authorization{CredentialsFile: c.BearerTokenFile}
+			c.Authorization.Type = "Bearer"
+			c.BearerTokenFile = ""
+		}
+	}
 	return nil
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface
 func (c *HTTPClientConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain HTTPClientConfig
+	*c = DefaultHTTPClientConfig
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
@@ -122,17 +201,23 @@ func newClient(rt http.RoundTripper) *http.Client {
 
 // NewClientFromConfig returns a new HTTP client configured for the
 // given config.HTTPClientConfig. The name is used as go-conntrack metric label.
-func NewClientFromConfig(cfg HTTPClientConfig, name string) (*http.Client, error) {
-	rt, err := NewRoundTripperFromConfig(cfg, name)
+func NewClientFromConfig(cfg HTTPClientConfig, name string, disableKeepAlives, enableHTTP2 bool) (*http.Client, error) {
+	rt, err := NewRoundTripperFromConfig(cfg, name, disableKeepAlives, enableHTTP2)
 	if err != nil {
 		return nil, err
 	}
-	return newClient(rt), nil
+	client := newClient(rt)
+	if !cfg.FollowRedirects {
+		client.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+	return client, nil
 }
 
 // NewRoundTripperFromConfig returns a new HTTP RoundTripper configured for the
 // given config.HTTPClientConfig. The name is used as go-conntrack metric label.
-func NewRoundTripperFromConfig(cfg HTTPClientConfig, name string) (http.RoundTripper, error) {
+func NewRoundTripperFromConfig(cfg HTTPClientConfig, name string, disableKeepAlives, enableHTTP2 bool) (http.RoundTripper, error) {
 	newRT := func(tlsConfig *tls.Config) (http.RoundTripper, error) {
 		// The only timeout we care about is the configured scrape timeout.
 		// It is applied on request. So we leave out any timings here.
@@ -140,7 +225,7 @@ func NewRoundTripperFromConfig(cfg HTTPClientConfig, name string) (http.RoundTri
 			Proxy:               http.ProxyURL(cfg.ProxyURL.URL),
 			MaxIdleConns:        20000,
 			MaxIdleConnsPerHost: 1000, // see https://github.com/golang/go/issues/13801
-			DisableKeepAlives:   false,
+			DisableKeepAlives:   disableKeepAlives,
 			TLSClientConfig:     tlsConfig,
 			DisableCompression:  true,
 			// 5 minutes is typically above the maximum sane scrape interval. So we can
@@ -153,13 +238,33 @@ func NewRoundTripperFromConfig(cfg HTTPClientConfig, name string) (http.RoundTri
 				conntrack.DialWithName(name),
 			),
 		}
+		if enableHTTP2 {
+			// HTTP/2 support is golang has many problematic cornercases where
+			// dead connections would be kept and used in connection pools.
+			// https://github.com/golang/go/issues/32388
+			// https://github.com/golang/go/issues/39337
+			// https://github.com/golang/go/issues/39750
+			// TODO: Re-Enable HTTP/2 once upstream issue is fixed.
+			// TODO: use ForceAttemptHTTP2 when we move to Go 1.13+.
+			err := http2.ConfigureTransport(rt.(*http.Transport))
+			if err != nil {
+				return nil, err
+			}
+		}
 
-		// If a bearer token is provided, create a round tripper that will set the
+		// If a authorization_credentials is provided, create a round tripper that will set the
 		// Authorization header correctly on each request.
+		if cfg.Authorization != nil && len(cfg.Authorization.Credentials) > 0 {
+			rt = NewAuthorizationCredentialsRoundTripper(cfg.Authorization.Type, cfg.Authorization.Credentials, rt)
+		} else if cfg.Authorization != nil && len(cfg.Authorization.CredentialsFile) > 0 {
+			rt = NewAuthorizationCredentialsFileRoundTripper(cfg.Authorization.Type, cfg.Authorization.CredentialsFile, rt)
+		}
+		// Backwards compatibility, be nice with importers who would not have
+		// called Validate().
 		if len(cfg.BearerToken) > 0 {
-			rt = NewBearerAuthRoundTripper(cfg.BearerToken, rt)
+			rt = NewAuthorizationCredentialsRoundTripper("Bearer", cfg.BearerToken, rt)
 		} else if len(cfg.BearerTokenFile) > 0 {
-			rt = NewBearerAuthFileRoundTripper(cfg.BearerTokenFile, rt)
+			rt = NewAuthorizationCredentialsFileRoundTripper("Bearer", cfg.BearerTokenFile, rt)
 		}
 
 		if cfg.BasicAuth != nil {
@@ -182,58 +287,61 @@ func NewRoundTripperFromConfig(cfg HTTPClientConfig, name string) (http.RoundTri
 	return newTLSRoundTripper(tlsConfig, cfg.TLSConfig.CAFile, newRT)
 }
 
-type bearerAuthRoundTripper struct {
-	bearerToken Secret
-	rt          http.RoundTripper
+type authorizationCredentialsRoundTripper struct {
+	authType        string
+	authCredentials Secret
+	rt              http.RoundTripper
 }
 
-// NewBearerAuthRoundTripper adds the provided bearer token to a request unless the authorization
-// header has already been set.
-func NewBearerAuthRoundTripper(token Secret, rt http.RoundTripper) http.RoundTripper {
-	return &bearerAuthRoundTripper{token, rt}
+// NewAuthorizationCredentialsRoundTripper adds the provided credentials to a
+// request unless the authorization header has already been set.
+func NewAuthorizationCredentialsRoundTripper(authType string, authCredentials Secret, rt http.RoundTripper) http.RoundTripper {
+	return &authorizationCredentialsRoundTripper{authType, authCredentials, rt}
 }
 
-func (rt *bearerAuthRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (rt *authorizationCredentialsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if len(req.Header.Get("Authorization")) == 0 {
 		req = cloneRequest(req)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", string(rt.bearerToken)))
+		req.Header.Set("Authorization", fmt.Sprintf("%s %s", rt.authType, string(rt.authCredentials)))
 	}
 	return rt.rt.RoundTrip(req)
 }
 
-func (rt *bearerAuthRoundTripper) CloseIdleConnections() {
+func (rt *authorizationCredentialsRoundTripper) CloseIdleConnections() {
 	if ci, ok := rt.rt.(closeIdler); ok {
 		ci.CloseIdleConnections()
 	}
 }
 
-type bearerAuthFileRoundTripper struct {
-	bearerFile string
-	rt         http.RoundTripper
+type authorizationCredentialsFileRoundTripper struct {
+	authType            string
+	authCredentialsFile string
+	rt                  http.RoundTripper
 }
 
-// NewBearerAuthFileRoundTripper adds the bearer token read from the provided file to a request unless
-// the authorization header has already been set. This file is read for every request.
-func NewBearerAuthFileRoundTripper(bearerFile string, rt http.RoundTripper) http.RoundTripper {
-	return &bearerAuthFileRoundTripper{bearerFile, rt}
+// NewAuthorizationCredentialsFileRoundTripper adds the authorization
+// credentials read from the provided file to a request unless the authorization
+// header has already been set. This file is read for every request.
+func NewAuthorizationCredentialsFileRoundTripper(authType, authCredentialsFile string, rt http.RoundTripper) http.RoundTripper {
+	return &authorizationCredentialsFileRoundTripper{authType, authCredentialsFile, rt}
 }
 
-func (rt *bearerAuthFileRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (rt *authorizationCredentialsFileRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if len(req.Header.Get("Authorization")) == 0 {
-		b, err := ioutil.ReadFile(rt.bearerFile)
+		b, err := ioutil.ReadFile(rt.authCredentialsFile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read bearer token file %s: %s", rt.bearerFile, err)
+			return nil, fmt.Errorf("unable to read authorization credentials file %s: %s", rt.authCredentialsFile, err)
 		}
-		bearerToken := strings.TrimSpace(string(b))
+		authCredentials := strings.TrimSpace(string(b))
 
 		req = cloneRequest(req)
-		req.Header.Set("Authorization", "Bearer "+bearerToken)
+		req.Header.Set("Authorization", fmt.Sprintf("%s %s", rt.authType, authCredentials))
 	}
 
 	return rt.rt.RoundTrip(req)
 }
 
-func (rt *bearerAuthFileRoundTripper) CloseIdleConnections() {
+func (rt *authorizationCredentialsFileRoundTripper) CloseIdleConnections() {
 	if ci, ok := rt.rt.(closeIdler); ok {
 		ci.CloseIdleConnections()
 	}
@@ -338,6 +446,16 @@ type TLSConfig struct {
 	InsecureSkipVerify bool `yaml:"insecure_skip_verify"`
 }
 
+// SetDirectory joins any relative file paths with dir.
+func (c *TLSConfig) SetDirectory(dir string) {
+	if c == nil {
+		return
+	}
+	c.CAFile = JoinDir(dir, c.CAFile)
+	c.CertFile = JoinDir(dir, c.CertFile)
+	c.KeyFile = JoinDir(dir, c.KeyFile)
+}
+
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *TLSConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain TLSConfig
@@ -415,7 +533,7 @@ func (t *tlsRoundTripper) getCAWithHash() ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	h := md5.Sum(b)
+	h := sha256.Sum256(b)
 	return b, h[:], nil
 
 }
