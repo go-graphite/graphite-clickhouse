@@ -185,7 +185,7 @@ func New() *Config {
 			MemoryReturnInterval:   0,
 		},
 		ClickHouse: ClickHouse{
-			URL:                  "http://localhost:8123",
+			URL:                  "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1",
 			DataTimeout:          time.Minute,
 			IndexTable:           "graphite_index",
 			IndexUseDaily:        true,
@@ -198,13 +198,10 @@ func New() *Config {
 			ConnectTimeout:       time.Second,
 			DataTableLegacy:      "",
 			RollupConfLegacy:     "auto",
-			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
-			InternalAggregation:  false,
+			MaxDataPoints:        1048576,
+			InternalAggregation:  true,
 		},
-		Tags: Tags{
-			Date:  "2016-11-01",
-			Rules: "/etc/graphite-clickhouse/tag.d/*.conf",
-		},
+		Tags: Tags{},
 		Carbonlink: Carbonlink{
 			Threads:        10,
 			Retries:        2,
@@ -263,6 +260,15 @@ func PrintDefaultConfig() error {
 
 	if len(cfg.Logging) == 0 {
 		cfg.Logging = append(cfg.Logging, newLoggingConfig())
+	}
+
+	if len(cfg.DataTable) == 0 {
+		cfg.DataTable = []DataTable{
+			{
+				Table:      "graphite_data",
+				RollupConf: "auto",
+			},
+		}
 	}
 
 	if len(cfg.ClickHouse.IndexReverses) == 0 {
