@@ -246,7 +246,7 @@ func (ir IndexReverses) Compile() error {
 	return nil
 }
 
-func NewLoggingConfig() zapwriter.Config {
+func newLoggingConfig() zapwriter.Config {
 	cfg := zapwriter.NewConfig()
 	cfg.File = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
 	return cfg
@@ -262,7 +262,7 @@ func PrintDefaultConfig() error {
 	}
 
 	if len(cfg.Logging) == 0 {
-		cfg.Logging = append(cfg.Logging, NewLoggingConfig())
+		cfg.Logging = append(cfg.Logging, newLoggingConfig())
 	}
 
 	if len(cfg.ClickHouse.IndexReverses) == 0 {
@@ -328,7 +328,7 @@ func Unmarshal(body []byte) (*Config, error) {
 	}
 
 	if len(cfg.Logging) == 0 {
-		cfg.Logging = append(cfg.Logging, NewLoggingConfig())
+		cfg.Logging = append(cfg.Logging, newLoggingConfig())
 	}
 
 	if err := zapwriter.CheckConfig(cfg.Logging, nil); err != nil {
