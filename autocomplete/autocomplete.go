@@ -145,8 +145,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		h.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        h.config.ClickHouse.IndexTimeout,
+			ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 		},
 		nil,
 	)
@@ -251,8 +251,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		h.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        h.config.ClickHouse.IndexTimeout,
+			ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 		},
 		nil,
 	)

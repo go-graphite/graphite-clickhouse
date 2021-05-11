@@ -71,7 +71,7 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 		return nil, err
 	}
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout.Duration)
+	ctxTimeout, cancel := context.WithTimeout(ctx, cfg.ClickHouse.DataTimeout)
 	defer cancel()
 
 	errors := make([]error, 0, len(*m))

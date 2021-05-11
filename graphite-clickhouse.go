@@ -152,9 +152,9 @@ func main() {
 
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 
-	if cfg.Common.MemoryReturnInterval.Duration > 0 {
+	if cfg.Common.MemoryReturnInterval > 0 {
 		go func() {
-			t := time.NewTicker(cfg.Common.MemoryReturnInterval.Duration)
+			t := time.NewTicker(cfg.Common.MemoryReturnInterval)
 
 			for {
 				<-t.C

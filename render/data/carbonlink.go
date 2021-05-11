@@ -37,10 +37,10 @@ func setCarbonlinkClient(config *config.Carbonlink) {
 			config.Server,
 			config.Retries,
 			config.Threads,
-			config.ConnectTimeout.Value(),
-			config.QueryTimeout.Value(),
+			config.ConnectTimeout,
+			config.QueryTimeout,
 		),
-		config.TotalTimeout.Value(),
+		config.TotalTimeout,
 	}
 	return
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/url"
+	"os"
 	"regexp"
 	"regexp/syntax"
 	"syscall"
@@ -279,8 +280,8 @@ page-title = "Prometheus Time Series"
 
 [debug]
 directory = "tests_tmp"
-directory-perm = "0755"
-external-data-perm = "0640"
+directory-perm = 0o755
+external-data-perm = 0o640
 
 [[logging]]
 logger = "debugger"
@@ -318,7 +319,7 @@ sample-thereafter = 12
 		MaxMetricsPerTarget:    16,
 		TargetBlacklist:        []string{"^blacklisted"},
 		Blacklist:              make([]*regexp.Regexp, 1),
-		MemoryReturnInterval:   &Duration{12150000000},
+		MemoryReturnInterval:   12150000000,
 	}
 	r, _ := regexp.Compile(expected.Common.TargetBlacklist[0])
 	expected.Common.Blacklist[0] = r
@@ -327,21 +328,21 @@ sample-thereafter = 12
 	// ClickHouse
 	expected.ClickHouse = ClickHouse{
 		URL:                  "http://somehost:8123",
-		DataTimeout:          &Duration{64000000000},
+		DataTimeout:          64000000000,
 		IndexTable:           "graphite_index",
 		IndexReverse:         "direct",
 		IndexReverses:        make(IndexReverses, 2),
-		IndexTimeout:         &Duration{4000000000},
+		IndexTimeout:         4000000000,
 		TaggedTable:          "graphite_tags",
 		TaggedAutocompleDays: 5,
 		TreeTable:            "tree",
 		ReverseTreeTable:     "reversed_tree",
 		DateTreeTable:        "data_tree",
 		DateTreeTableVersion: 2,
-		TreeTimeout:          &Duration{5000000000},
+		TreeTimeout:          5000000000,
 		TagTable:             "tag_table",
 		ExtraPrefix:          "tum.pu-dum",
-		ConnectTimeout:       &Duration{2000000000},
+		ConnectTimeout:       2000000000,
 		DataTableLegacy:      "data",
 		RollupConfLegacy:     "none",
 		MaxDataPoints:        8000,
@@ -357,7 +358,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Tags, config.Tags)
 
 	// Carbonlink
-	expected.Carbonlink = Carbonlink{"server:3333", 5, 2, &Duration{250000000}, &Duration{350000000}, &Duration{800000000}}
+	expected.Carbonlink = Carbonlink{"server:3333", 5, 2, 250000000, 350000000, 800000000}
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
@@ -367,7 +368,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
 
 	// Debug
-	expected.Debug = Debug{"tests_tmp", &FileMode{0755}, &FileMode{0640}}
+	expected.Debug = Debug{"tests_tmp", os.FileMode(0755), os.FileMode(0640)}
 	assert.Equal(t, expected.Debug, config.Debug)
 	assert.DirExists(t, "tests_tmp")
 

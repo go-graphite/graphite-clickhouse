@@ -9,41 +9,37 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func dur(d time.Duration) *config.Duration {
-	return &config.Duration{Duration: d}
-}
-
 func TestSelectDataTableTime(t *testing.T) {
 	cfg := config.New()
 	cfg.DataTable = []config.DataTable{
 		{
 			Table:  "first_day",
-			MaxAge: dur(24 * time.Hour),
+			MaxAge: 24 * time.Hour,
 		},
 		{
 			Table:  "second_day",
-			MinAge: dur(24 * time.Hour),
-			MaxAge: dur(48 * time.Hour),
+			MinAge: 24 * time.Hour,
+			MaxAge: 48 * time.Hour,
 		},
 		{
 			Table:       "two_days_min_interval",
-			MaxAge:      dur(48 * time.Hour),
-			MinInterval: dur(2 * time.Hour),
+			MaxAge:      48 * time.Hour,
+			MinInterval: 2 * time.Hour,
 		},
 		{
 			Table:       "two_days_min_max_interval",
-			MaxAge:      dur(48 * time.Hour),
-			MinInterval: dur(30 * time.Minute),
-			MaxInterval: dur(1 * time.Hour),
+			MaxAge:      48 * time.Hour,
+			MinInterval: 30 * time.Minute,
+			MaxInterval: 1 * time.Hour,
 		},
 		{
 			Table:       "two_days_max_interval",
-			MaxAge:      dur(48 * time.Hour),
-			MaxInterval: dur(2 * time.Hour),
+			MaxAge:      48 * time.Hour,
+			MaxInterval: 2 * time.Hour,
 		},
 		{
 			Table:  "three_days",
-			MaxAge: dur(72 * time.Hour),
+			MaxAge: 72 * time.Hour,
 		},
 		{
 			Table: "unlimited",
@@ -51,7 +47,7 @@ func TestSelectDataTableTime(t *testing.T) {
 	}
 	err := cfg.ProcessDataTables()
 	assert.NoError(t, err)
-	tg := Targets{}
+	tg := Targets{List: []string{"metric"}}
 
 	tests := []struct {
 		*TimeFrame

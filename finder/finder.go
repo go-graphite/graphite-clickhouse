@@ -22,8 +22,8 @@ type Finder interface {
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64) Finder {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.IndexTimeout.Value(),
-		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout,
+		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
 
 	var f Finder
@@ -46,8 +46,8 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 			config.ClickHouse.IndexReverse,
 			config.ClickHouse.IndexReverses,
 			clickhouse.Options{
-				Timeout:        config.ClickHouse.IndexTimeout.Value(),
-				ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+				Timeout:        config.ClickHouse.IndexTimeout,
+				ConnectTimeout: config.ClickHouse.ConnectTimeout,
 			},
 		)
 	} else {
@@ -98,8 +98,8 @@ func Leaf(value []byte) ([]byte, bool) {
 
 func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64) (Result, error) {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.IndexTimeout.Value(),
-		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout,
+		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
 
 	plain := makePlainFromTagged(terms)

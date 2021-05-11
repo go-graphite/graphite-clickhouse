@@ -25,8 +25,8 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 
 	if config.ClickHouse.IndexTable != "" {
 		opts := clickhouse.Options{
-			Timeout:        config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        config.ClickHouse.IndexTimeout,
+			ConnectTimeout: config.ClickHouse.ConnectTimeout,
 		}
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.IndexTable),
@@ -40,8 +40,8 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 		)
 	} else {
 		opts := clickhouse.Options{
-			Timeout:        config.ClickHouse.TreeTimeout.Value(),
-			ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        config.ClickHouse.TreeTimeout,
+			ConnectTimeout: config.ClickHouse.ConnectTimeout,
 		}
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.TreeTable),

@@ -8,69 +8,15 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/zapwriter"
 )
-
-// Duration wrapper time.Duration for TOML
-type Duration struct {
-	time.Duration
-}
-
-var _ toml.TextMarshaler = &Duration{}
-
-// UnmarshalText from TOML
-func (d *Duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
-}
-
-// MarshalText encode text with TOML format
-func (d *Duration) MarshalText() ([]byte, error) {
-	return []byte(d.Duration.String()), nil
-}
-
-// Value return time.Duration value
-func (d *Duration) Value() time.Duration {
-	return d.Duration
-}
-
-// FileMode wrapper os.FileMode for TOML
-type FileMode struct {
-	os.FileMode
-}
-
-var _ toml.TextMarshaler = &FileMode{}
-
-// UnmarshalText from TOML
-func (f *FileMode) UnmarshalText(text []byte) error {
-	var err error
-	var mode uint64
-	mode, err = strconv.ParseUint(string(text), 8, 32)
-	if err != nil {
-		return err
-	}
-	f.FileMode = os.FileMode(mode)
-	return nil
-}
-
-// MarshalText encode text with TOML format
-func (f *FileMode) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("0%o", f.FileMode)), nil
-}
-
-// Value return time.Duration value
-func (f *FileMode) Value() os.FileMode {
-	return f.FileMode
-}
 
 type Common struct {
 	// MetricPrefix   string    `toml:"metric-prefix"`
@@ -83,7 +29,7 @@ type Common struct {
 	MaxMetricsPerTarget    int              `toml:"max-metrics-per-target" json:"max-metrics-per-target"`
 	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist"`
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
-	MemoryReturnInterval   *Duration        `toml:"memory-return-interval" json:"memory-return-interval"`
+	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -116,22 +62,22 @@ var IndexReverseNames = []string{"auto", "direct", "reversed"}
 
 type ClickHouse struct {
 	URL                  string        `toml:"url" json:"url"`
-	DataTimeout          *Duration     `toml:"data-timeout" json:"data-timeout"`
+	DataTimeout          time.Duration `toml:"data-timeout" json:"data-timeout" comment:"total time limit to fetch data"`
 	IndexTable           string        `toml:"index-table" json:"index-table"`
 	IndexUseDaily        bool          `toml:"index-use-daily" json:"index-use-daily"`
 	IndexReverse         string        `toml:"index-reverse" json:"index-reverse"`
 	IndexReverses        IndexReverses `toml:"index-reverses" json:"index-reverses"`
-	IndexTimeout         *Duration     `toml:"index-timeout" json:"index-timeout"`
+	IndexTimeout         time.Duration `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
 	TaggedTable          string        `toml:"tagged-table" json:"tagged-table"`
 	TaggedAutocompleDays int           `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
 	TreeTable            string        `toml:"tree-table" json:"tree-table"`
 	ReverseTreeTable     string        `toml:"reverse-tree-table" json:"reverse-tree-table"`
 	DateTreeTable        string        `toml:"date-tree-table" json:"date-tree-table"`
 	DateTreeTableVersion int           `toml:"date-tree-table-version" json:"date-tree-table-version"`
-	TreeTimeout          *Duration     `toml:"tree-timeout" json:"tree-timeout"`
+	TreeTimeout          time.Duration `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
 	TagTable             string        `toml:"tag-table" json:"tag-table"`
 	ExtraPrefix          string        `toml:"extra-prefix" json:"extra-prefix"`
-	ConnectTimeout       *Duration     `toml:"connect-timeout" json:"connect-timeout"`
+	ConnectTimeout       time.Duration `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
 	// TODO: remove in v0.14
 	DataTableLegacy string `toml:"data-table" json:"data-table"`
 	// TODO: remove in v0.14
@@ -151,12 +97,12 @@ type Tags struct {
 }
 
 type Carbonlink struct {
-	Server         string    `toml:"server" json:"server"`
-	Threads        int       `toml:"threads-per-request" json:"threads-per-request"`
-	Retries        int       `toml:"-" json:"-"`
-	ConnectTimeout *Duration `toml:"connect-timeout" json:"connect-timeout"`
-	QueryTimeout   *Duration `toml:"query-timeout" json:"query-timeout"`
-	TotalTimeout   *Duration `toml:"total-timeout" json:"total-timeout"`
+	Server         string        `toml:"server" json:"server"`
+	Threads        int           `toml:"threads-per-request" json:"threads-per-request"`
+	Retries        int           `toml:"-" json:"-"`
+	ConnectTimeout time.Duration `toml:"connect-timeout" json:"connect-timeout"`
+	QueryTimeout   time.Duration `toml:"query-timeout" json:"query-timeout"`
+	TotalTimeout   time.Duration `toml:"total-timeout" json:"total-timeout" comment:"timeout for querying and parsing response"`
 }
 
 type Prometheus struct {
@@ -176,10 +122,10 @@ var knownDataTableContext = map[string]bool{
 type DataTable struct {
 	Table                  string          `toml:"table" json:"table"`
 	Reverse                bool            `toml:"reverse" json:"reverse"`
-	MaxAge                 *Duration       `toml:"max-age" json:"max-age"`
-	MinAge                 *Duration       `toml:"min-age" json:"min-age"`
-	MaxInterval            *Duration       `toml:"max-interval" json:"max-interval"`
-	MinInterval            *Duration       `toml:"min-interval" json:"min-interval"`
+	MaxAge                 time.Duration   `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
+	MinAge                 time.Duration   `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
+	MaxInterval            time.Duration   `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
+	MinInterval            time.Duration   `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
 	TargetMatchAny         string          `toml:"target-match-any" json:"target-match-any"`
 	TargetMatchAll         string          `toml:"target-match-all" json:"target-match-all"`
 	TargetMatchAnyRegexp   *regexp.Regexp  `toml:"-" json:"-"`
@@ -197,11 +143,11 @@ type DataTable struct {
 // Debug contains debugging configuration
 type Debug struct {
 	// The directory for additional debug info
-	Directory     string    `toml:"directory" json:"directory"`
-	DirectoryPerm *FileMode `toml:"directory-perm" json:"directory-perm"`
+	Directory     string      `toml:"directory" json:"directory"`
+	DirectoryPerm os.FileMode `toml:"directory-perm" json:"directory-perm" comment:"permissions for directory, octal value is set as 0o755"`
 	// If ExternalDataPerm > 0 and X-Gch-Debug-Ext-Data HTTP header is set, the external data used in the query
 	// will be saved in the DebugDir directory
-	ExternalDataPerm *FileMode `toml:"external-data-perm" json:"external-data-perm"`
+	ExternalDataPerm os.FileMode `toml:"external-data-perm" json:"external-data-perm" comment:"permissions for directory, octal value is set as 0o640"`
 }
 
 // Config ...
@@ -223,27 +169,25 @@ func New() *Config {
 			Listen:      ":9090",
 			PprofListen: "",
 			// MetricPrefix: "carbon.graphite-clickhouse.{host}",
-			// MetricInterval: &Duration{
-			// 	Duration: time.Minute,
-			// },
+			// MetricInterval: time.Minute,
 			// MetricEndpoint: MetricEndpointLocal,
 			MaxCPU:                 1,
 			MaxMetricsInFindAnswer: 0,
 			MaxMetricsPerTarget:    15000, // This is arbitrary value to protect CH from overload
-			MemoryReturnInterval:   &Duration{},
+			MemoryReturnInterval:   0,
 		},
 		ClickHouse: ClickHouse{
 			URL:                  "http://localhost:8123",
-			DataTimeout:          &Duration{time.Minute},
+			DataTimeout:          time.Minute,
 			IndexTable:           "graphite_index",
 			IndexUseDaily:        true,
 			IndexReverse:         "auto",
 			IndexReverses:        IndexReverses{},
-			IndexTimeout:         &Duration{time.Minute},
+			IndexTimeout:         time.Minute,
 			TaggedTable:          "graphite_tagged",
 			TaggedAutocompleDays: 7,
 			ExtraPrefix:          "",
-			ConnectTimeout:       &Duration{time.Second},
+			ConnectTimeout:       time.Second,
 			DataTableLegacy:      "",
 			RollupConfLegacy:     "auto",
 			MaxDataPoints:        4096, // Default until https://github.com/ClickHouse/ClickHouse/pull/13947
@@ -256,9 +200,9 @@ func New() *Config {
 		Carbonlink: Carbonlink{
 			Threads:        10,
 			Retries:        2,
-			ConnectTimeout: &Duration{50 * time.Millisecond},
-			QueryTimeout:   &Duration{50 * time.Millisecond},
-			TotalTimeout:   &Duration{500 * time.Millisecond},
+			ConnectTimeout: 50 * time.Millisecond,
+			QueryTimeout:   50 * time.Millisecond,
+			TotalTimeout:   500 * time.Millisecond,
 		},
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
@@ -266,8 +210,8 @@ func New() *Config {
 		},
 		Debug: Debug{
 			Directory:        "",
-			DirectoryPerm:    &FileMode{0755},
-			ExternalDataPerm: &FileMode{0},
+			DirectoryPerm:    0755,
+			ExternalDataPerm: 0,
 		},
 		Logging: nil,
 	}
@@ -313,14 +257,15 @@ func PrintDefaultConfig() error {
 		cfg.Logging = append(cfg.Logging, NewLoggingConfig())
 	}
 
-	encoder := toml.NewEncoder(buf)
-	encoder.Indent = ""
+	encoder := toml.NewEncoder(buf).Indentation("").Order(toml.OrderPreserve)
 
 	if err := encoder.Encode(cfg); err != nil {
 		return err
 	}
 
-	fmt.Print(buf.String())
+	out := strings.Replace(buf.String(), "\n", "", 1)
+
+	fmt.Print(out)
 	return nil
 }
 
@@ -374,7 +319,7 @@ func Unmarshal(body []byte) (*Config, error) {
 	if cfg.Debug.Directory != "" {
 		info, err := os.Stat(cfg.Debug.Directory)
 		if os.IsNotExist(err) {
-			err := os.MkdirAll(cfg.Debug.Directory, os.ModeDir|cfg.Debug.DirectoryPerm.FileMode)
+			err := os.MkdirAll(cfg.Debug.Directory, os.ModeDir|cfg.Debug.DirectoryPerm)
 			if err != nil {
 				return nil, err
 			}
