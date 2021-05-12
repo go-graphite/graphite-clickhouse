@@ -65,7 +65,7 @@ var IndexReverseNames = []string{"auto", "direct", "reversed"}
 type ClickHouse struct {
 	URL                  string        `toml:"url" json:"url" comment:"see https://clickhouse.tech/docs/en/interfaces/http"`
 	DataTimeout          time.Duration `toml:"data-timeout" json:"data-timeout" comment:"total timeout to fetch data"`
-	IndexTable           string        `toml:"index-table" json:"index-table"`
+	IndexTable           string        `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
 	IndexUseDaily        bool          `toml:"index-use-daily" json:"index-use-daily"`
 	IndexReverse         string        `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
 	IndexReverses        IndexReverses `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
