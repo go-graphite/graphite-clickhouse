@@ -53,15 +53,6 @@ func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 	return w
 }
 
-func useReverse(query string) bool {
-	p := strings.LastIndexByte(query, '.')
-
-	if !where.HasWildcard(query) || p < 0 || p >= len(query)-1 || where.HasWildcard(query[p+1:]) {
-		return false
-	}
-	return true
-}
-
 func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []*config.NValue) int {
 	for i := range revUse {
 		if len(revUse[i].Prefix) > 0 && !strings.HasPrefix(query, revUse[i].Prefix) {
@@ -91,7 +82,11 @@ func useReverseDepth(query string, reverseDepth int, revUse []*config.NValue) bo
 		if reverseDepth == 0 {
 			return false
 		} else if reverseDepth == 1 {
-			return useReverse(query)
+			if len(query) <= w+1 {
+				return where.HasWildcard(query[:w])
+			}
+			p := strings.IndexByte(query[w+1:], '.') + w + 1
+			return where.HasWildcard(query[:p])
 		}
 	} else {
 		reverseDepth = 1
