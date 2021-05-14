@@ -18,99 +18,119 @@ func Test_useReverse(t *testing.T) {
 		{"a.b.c.d.e", false},
 		{"a.b*", false},
 		{"a.b.c.d.e*", false},
-		{"a.b.c.d*.e", true},
+		{"a.b.c.d*.e", false},
 		{"a.b*.c*.d.e", true},
-		{"a.b*.c*.d*.e", true},
+		{"a.b*.c.d.e", true},
 	}
 
 	for _, tt := range table {
-		assert.Equal(tt.result, useReverseDepth(tt.query, 1, []*config.NValue{}), tt.query)
+		idx := IndexFinder{confReverse: queryAuto}
+		assert.Equal(tt.result, idx.useReverse(tt.query), tt.query)
 	}
 }
 
-func Test_useReverseWithFixedDepth(t *testing.T) {
+func Test_useReverseWithSetConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	table := []struct {
-		query  string
-		depth  int
-		result bool
+		query   string
+		reverse uint8
+		result  bool
 	}{
-		{"a.b.c.d.e", 0, false},
-		{"a.b.c.d.e", 1, false},
-		{"a.b.c.d.e*", 1, false},
-		{"a.b.c.d*.e", 1, true},
-		{"a.b.c.d*.e", 2, false},
-		{"a*.b.c.d*.e", 2, true}, // Wildcard at first level, use reverse if possible
-		{"a.b*.c.d*.e", 2, false},
-		{"a.*.c.*.e.*.j", 2, false},
-		{"a.*.c.*.e.*.j", 1, true},
-		{"a.b*.c.*d.e", 2, false},
+		{"a.b.c.d.e", queryReversed, true},
+		{"a.b.c.d.e", queryAuto, false},
+		{"a.b.c.d.e", queryDirect, false},
+		{"a.b.c.d.e", queryDirect, false},
+		{"a.b.c.d.e*", queryDirect, false},
+		{"a.b.c.d*.e", queryDirect, false},
+		{"a.b.c.d*.e", queryReversed, true},
+		{"a*.b.c.d*.e", queryReversed, true}, // Wildcard at first level, use reverse if possible
+		{"a.b*.c.d*.e", queryReversed, true},
+		{"a.*.c.*.e.*.j", queryReversed, true},
+		{"a.*.c.*.e.*.j", queryDirect, false},
+		{"a.b*.c.*d.e", queryReversed, true},
 	}
 
 	for _, tt := range table {
-		assert.Equal(tt.result, useReverseDepth(tt.query, tt.depth, []*config.NValue{}), fmt.Sprintf("%s with depth %d", tt.query, tt.depth))
+		idx := IndexFinder{confReverse: tt.reverse}
+		assert.Equal(tt.result, idx.useReverse(tt.query), fmt.Sprintf("%s with iota %d", tt.query, tt.reverse))
 	}
 }
 
-func Test_useReverseDepth(t *testing.T) {
+func Test_checkReverses(t *testing.T) {
 	assert := assert.New(t)
 
-	usesDepth := []*config.NValue{
-		&config.NValue{Suffix: ".sum", Value: 2},
-		&config.NValue{Prefix: "test.", Suffix: ".alloc", Value: 2},
-		&config.NValue{Prefix: "test2.", Value: 2},
-		&config.NValue{RegexStr: `^a\..*\.max$`, Value: 2},
+	reverses := config.IndexReverses{
+		{Suffix: ".sum", Reverse: "direct"},
+		{Prefix: "test.", Suffix: ".alloc", Reverse: "direct"},
+		{Prefix: "test2.", Reverse: "reversed"},
+		{RegexStr: `^a\..*\.max$`, Reverse: "reversed"},
 	}
 
 	table := []struct {
-		query  string
-		depth  int
-		result bool
+		query   string
+		reverse uint8
+		result  uint8
 	}{
-		{"a.b.c.d*.sum", 1, false},
-		{"a.b.c*.d.sum", 1, true},
-		{"test.b.c*.d*.alloc", 1, false},
-		{"test.b.c*.d.alloc", 1, true},
-		{"test2.b.c*.d*.e", 1, false},
-		{"test2.b.c*.d.e", 1, true},
-		{"a.b.c.d*.max", 1, false}, // regex test
-		{"a.b.c*.d.max", 1, true},  // regex test
+		{"a.b.c.d*.sum", queryAuto, queryDirect},
+		{"a*.b.c.d.sum", queryAuto, queryDirect},
+		{"test.b.c*.d*.alloc", queryAuto, queryDirect},
+		{"test.b.c*.d.alloc", queryAuto, queryDirect},
+		{"test2.b.c*.d*.e", queryAuto, queryReversed},
+		{"test2.b.c*.d.e", queryAuto, queryReversed},
+		{"a.b.c.d*.max", queryAuto, queryReversed}, // regex test
+		{"a.b.c*.d.max", queryAuto, queryReversed}, // regex test
 	}
 
-	assert.NoError(config.IndexUseReversesValidate(usesDepth))
+	assert.NoError(reverses.Compile())
 
 	for _, tt := range table {
-		assert.Equal(tt.result, useReverseDepth(tt.query, tt.depth, usesDepth), fmt.Sprintf("%s with depth %d", tt.query, tt.depth))
+		idx := IndexFinder{confReverse: tt.reverse, confReverses: reverses}
+		assert.Equal(tt.result, idx.checkReverses(tt.query), fmt.Sprintf("%s with iota %d", tt.query, tt.reverse))
 	}
 }
 
 func Benchmark_useReverseDepth(b *testing.B) {
-	usesDepth := []*config.NValue{
-		&config.NValue{Prefix: "test2.", Value: 2},
+	reverses := config.IndexReverses{
+		{Prefix: "test2.", Reverse: "reversed"},
+	}
+	if err := reverses.Compile(); err != nil {
+		b.Fatal("failed to compile reverses")
 	}
 
+	idx := IndexFinder{confReverses: reverses}
+
 	for i := 0; i < b.N; i++ {
-		_ = useReverseDepth("test2.b.c*.d.e", 1, usesDepth)
+		_ = idx.checkReverses("test2.b.c*.d.e")
 	}
 }
 
 func Benchmark_useReverseDepthPrefixSuffix(b *testing.B) {
-	usesDepth := []*config.NValue{
-		&config.NValue{Prefix: "test2.", Suffix: ".e", Value: 2},
+	reverses := config.IndexReverses{
+		{Prefix: "test2.", Suffix: ".e", Reverse: "direct"},
+	}
+	if err := reverses.Compile(); err != nil {
+		b.Fatal("failed to compile reverses")
 	}
 
+	idx := IndexFinder{confReverses: reverses}
+
 	for i := 0; i < b.N; i++ {
-		_ = useReverseDepth("test2.b.c*.d.e", 1, usesDepth)
+		_ = idx.checkReverses("test2.b.c*.d.e")
 	}
 }
 
 func Benchmark_useReverseDepthRegex(b *testing.B) {
-	usesDepth := []*config.NValue{
-		&config.NValue{RegexStr: `^a\..*\.max$`, Value: 2},
+	reverses := config.IndexReverses{
+		{RegexStr: `^a\..*\.max$`, Reverse: "auto"},
+	}
+	if err := reverses.Compile(); err != nil {
+		b.Fatal("failed to compile reverses")
 	}
 
+	idx := IndexFinder{confReverses: reverses}
+
 	for i := 0; i < b.N; i++ {
-		_ = useReverseDepth("a.b.c*.d.max", 1, usesDepth)
+		_ = idx.checkReverses("a.b.c*.d.max")
 	}
 }

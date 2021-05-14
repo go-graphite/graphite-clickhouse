@@ -19,26 +19,32 @@ const ReverseTreeLevelOffset = 30000
 
 const DefaultTreeDate = "1970-02-12"
 
+const (
+	queryAuto     = config.IndexAuto
+	queryDirect   = config.IndexDirect
+	queryReversed = config.IndexReversed
+)
+
 type IndexFinder struct {
 	url          string             // clickhouse dsn
 	table        string             // graphite_tree table
 	opts         clickhouse.Options // timeout, connectTimeout
 	dailyEnabled bool
-	reverseDepth int
-	revUse       []*config.NValue
+	confReverse  uint8
+	confReverses config.IndexReverses
+	reverse      uint8  // calculated in IndexFinder.useReverse only once
 	body         []byte // clickhouse response body
-	useReverse   bool
 	useDaily     bool
 }
 
-func NewIndex(url string, table string, dailyEnabled bool, reverseDepth int, reverseUse []*config.NValue, opts clickhouse.Options) Finder {
+func NewIndex(url string, table string, dailyEnabled bool, reverse string, reverses config.IndexReverses, opts clickhouse.Options) Finder {
 	return &IndexFinder{
 		url:          url,
 		table:        table,
 		opts:         opts,
 		dailyEnabled: dailyEnabled,
-		reverseDepth: reverseDepth,
-		revUse:       reverseUse,
+		confReverse:  config.IndexReverse[reverse],
+		confReverses: reverses,
 	}
 }
 
@@ -53,83 +59,53 @@ func (idx *IndexFinder) where(query string, levelOffset int) *where.Where {
 	return w
 }
 
-func useReverse(query string) bool {
-	p := strings.LastIndexByte(query, '.')
-
-	if !where.HasWildcard(query) || p < 0 || p >= len(query)-1 || where.HasWildcard(query[p+1:]) {
-		return false
+func (idx *IndexFinder) checkReverses(query string) uint8 {
+	for _, rule := range idx.confReverses {
+		if len(rule.Prefix) > 0 && !strings.HasPrefix(query, rule.Prefix) {
+			continue
+		}
+		if len(rule.Suffix) > 0 && !strings.HasSuffix(query, rule.Suffix) {
+			continue
+		}
+		if rule.Regex != nil && rule.Regex.FindStringIndex(query) == nil {
+			continue
+		}
+		return config.IndexReverse[rule.Reverse]
 	}
-	return true
+	return idx.confReverse
 }
 
-func reverseSuffixDepth(query string, defaultReverseDepth int, revUse []*config.NValue) int {
-	for i := range revUse {
-		if len(revUse[i].Prefix) > 0 && !strings.HasPrefix(query, revUse[i].Prefix) {
-			continue
-		}
-		if len(revUse[i].Suffix) > 0 && !strings.HasSuffix(query, revUse[i].Suffix) {
-			continue
-		}
-		if revUse[i].Regex != nil && revUse[i].Regex.FindStringIndex(query) == nil {
-			continue
-		}
-		return revUse[i].Value
-	}
-	return defaultReverseDepth
-}
-
-func useReverseDepth(query string, reverseDepth int, revUse []*config.NValue) bool {
-	if reverseDepth == -1 {
+func (idx *IndexFinder) useReverse(query string) bool {
+	if idx.reverse == queryDirect {
 		return false
+	} else if idx.reverse == queryReversed {
+		return true
 	}
 
-	w := where.IndexWildcardOrDot(query)
+	if idx.reverse = idx.checkReverses(query); idx.reverse != queryAuto {
+		return idx.useReverse(query)
+	}
+
+	w := where.IndexWildcard(query)
 	if w == -1 {
-		return false
-	} else if query[w] == '.' {
-		reverseDepth = reverseSuffixDepth(query, reverseDepth, revUse)
-		if reverseDepth == 0 {
-			return false
-		} else if reverseDepth == 1 {
-			return useReverse(query)
-		}
-	} else {
-		reverseDepth = 1
+		idx.reverse = queryDirect
+		return idx.useReverse(query)
 	}
+	firstWildcardNode := strings.Count(query[:w], ".")
 
-	w = where.IndexReverseWildcard(query)
-	if w == -1 {
-		return false
-	}
-	p := len(query)
-	if w == p-1 {
-		return false
-	}
-	depth := 0
+	w = where.IndexLastWildcard(query)
+	lastWildcardNode := strings.Count(query[w:], ".")
 
-	for {
-		e := strings.LastIndexByte(query[w:p], '.')
-		if e < 0 {
-			break
-		} else if e < len(query)-1 {
-			if where.HasWildcard(query[w+e+1 : p]) {
-				break
-			}
-			depth++
-			if depth >= reverseDepth {
-				return true
-			}
-			if e == 0 {
-				break
-			}
-		}
-		p = w + e - 1
+	if firstWildcardNode < lastWildcardNode {
+		idx.reverse = queryReversed
+		return idx.useReverse(query)
 	}
-	return false
+	idx.reverse = queryDirect
+	return idx.useReverse(query)
 }
 
 func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
-	idx.useReverse = useReverseDepth(query, idx.reverseDepth, idx.revUse)
+	idx.useReverse(query)
 
 	if idx.dailyEnabled && from > 0 && until > 0 {
 		idx.useDaily = true
@@ -139,18 +115,18 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 
 	var levelOffset int
 	if idx.useDaily {
-		if idx.useReverse {
+		if idx.useReverse(query) {
 			levelOffset = ReverseLevelOffset
 		}
 	} else {
-		if idx.useReverse {
+		if idx.useReverse(query) {
 			levelOffset = ReverseTreeLevelOffset
 		} else {
 			levelOffset = TreeLevelOffset
 		}
 	}
 
-	if idx.useReverse {
+	if idx.useReverse(query) {
 		query = ReverseString(query)
 	}
 
@@ -205,7 +181,7 @@ func (idx *IndexFinder) makeList(onlySeries bool) [][]byte {
 
 	rows = rows[:len(rows)-skip]
 
-	if idx.useReverse {
+	if idx.useReverse("") {
 		for i := 0; i < len(rows); i++ {
 			rows[i] = ReverseBytes(rows[i])
 		}

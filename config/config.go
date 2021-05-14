@@ -85,34 +85,54 @@ type Common struct {
 	MemoryReturnInterval   *Duration        `toml:"memory-return-interval" json:"memory-return-interval"`
 }
 
-type NValue struct {
+// IndexReverseRule contains rules to use direct or reversed request to index table
+type IndexReverseRule struct {
 	Suffix   string         `toml:"suffix" json:"suffix"`
 	Prefix   string         `toml:"prefix" json:"prefix"`
 	RegexStr string         `toml:"regex" json:"regex"`
 	Regex    *regexp.Regexp `toml:"-" json:"-"`
-	Value    int            `toml:"reverse" json:"reverse"`
+	Reverse  string         `toml:"reverse" json:"reverse"`
 }
 
+// IndexReverses is a slise of ptrs to IndexReverseRule
+type IndexReverses []*IndexReverseRule
+
+const (
+	IndexAuto     = iota
+	IndexDirect   = iota
+	IndexReversed = iota
+)
+
+// IndexReverse maps setting name to value
+var IndexReverse = map[string]uint8{
+	"direct":   IndexDirect,
+	"auto":     IndexAuto,
+	"reversed": IndexReversed,
+}
+
+// IndexReverseNames contains valid names for index-reverse setting
+var IndexReverseNames = []string{"auto", "direct", "reversed"}
+
 type ClickHouse struct {
-	Url                  string    `toml:"url" json:"url"`
-	DataTimeout          *Duration `toml:"data-timeout" json:"data-timeout"`
-	TreeTable            string    `toml:"tree-table" json:"tree-table"`
-	DateTreeTable        string    `toml:"date-tree-table" json:"date-tree-table"`
-	DateTreeTableVersion int       `toml:"date-tree-table-version" json:"date-tree-table-version"`
-	IndexTable           string    `toml:"index-table" json:"index-table"`
-	IndexUseDaily        bool      `toml:"index-use-daily" json:"index-use-daily"`
-	IndexReverseDepth    int       `toml:"index-reverse-depth" json:"index-reverse-depth"`
-	IndexUseReverses     []*NValue `toml:"index-reverses" json:"index-reverses"`
-	IndexTimeout         *Duration `toml:"index-timeout" json:"index-timeout"`
-	TaggedTable          string    `toml:"tagged-table" json:"tagged-table"`
-	TaggedAutocompleDays int       `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
-	ReverseTreeTable     string    `toml:"reverse-tree-table" json:"reverse-tree-table"`
-	TreeTimeout          *Duration `toml:"tree-timeout" json:"tree-timeout"`
-	TagTable             string    `toml:"tag-table" json:"tag-table"`
-	ExtraPrefix          string    `toml:"extra-prefix" json:"extra-prefix"`
-	ConnectTimeout       *Duration `toml:"connect-timeout" json:"connect-timeout"`
-	DataTableLegacy      string    `toml:"data-table" json:"data-table"`
-	RollupConfLegacy     string    `toml:"rollup-conf" json:"-"`
+	Url                  string        `toml:"url" json:"url"`
+	DataTimeout          *Duration     `toml:"data-timeout" json:"data-timeout"`
+	TreeTable            string        `toml:"tree-table" json:"tree-table"`
+	DateTreeTable        string        `toml:"date-tree-table" json:"date-tree-table"`
+	DateTreeTableVersion int           `toml:"date-tree-table-version" json:"date-tree-table-version"`
+	IndexTable           string        `toml:"index-table" json:"index-table"`
+	IndexUseDaily        bool          `toml:"index-use-daily" json:"index-use-daily"`
+	IndexReverse         string        `toml:"index-reverse" json:"index-reverse"`
+	IndexReverses        IndexReverses `toml:"index-reverses" json:"index-reverses"`
+	IndexTimeout         *Duration     `toml:"index-timeout" json:"index-timeout"`
+	TaggedTable          string        `toml:"tagged-table" json:"tagged-table"`
+	TaggedAutocompleDays int           `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days"`
+	ReverseTreeTable     string        `toml:"reverse-tree-table" json:"reverse-tree-table"`
+	TreeTimeout          *Duration     `toml:"tree-timeout" json:"tree-timeout"`
+	TagTable             string        `toml:"tag-table" json:"tag-table"`
+	ExtraPrefix          string        `toml:"extra-prefix" json:"extra-prefix"`
+	ConnectTimeout       *Duration     `toml:"connect-timeout" json:"connect-timeout"`
+	DataTableLegacy      string        `toml:"data-table" json:"data-table"`
+	RollupConfLegacy     string        `toml:"rollup-conf" json:"-"`
 	// Sets the maximum for maxDataPoints parameter.
 	MaxDataPoints int `toml:"max-data-points" json:"max-data-points"`
 	// InternalAggregation controls if ClickHouse itself or graphite-clickhouse aggregates points to proper retention
@@ -219,10 +239,10 @@ func New() *Config {
 			TreeTimeout: &Duration{
 				Duration: time.Minute,
 			},
-			IndexTable:        "",
-			IndexUseDaily:     true,
-			IndexReverseDepth: 1,
-			IndexUseReverses:  []*NValue{},
+			IndexTable:    "",
+			IndexUseDaily: true,
+			IndexReverse:  "auto",
+			IndexReverses: IndexReverses{},
 			IndexTimeout: &Duration{
 				Duration: time.Minute,
 			},
@@ -259,9 +279,10 @@ func New() *Config {
 	return cfg
 }
 
-func IndexUseReversesValidate(u []*NValue) error {
+// Compile checks if IndexReverseRule are valid in the IndexReverses and compiles regexps if set
+func (ir IndexReverses) Compile() error {
 	var err error
-	for i, n := range u {
+	for i, n := range ir {
 		if len(n.RegexStr) > 0 {
 			if n.Regex, err = regexp.Compile(n.RegexStr); err != nil {
 				return err
@@ -269,6 +290,10 @@ func IndexUseReversesValidate(u []*NValue) error {
 		} else if len(n.Prefix) == 0 && len(n.Suffix) == 0 {
 			return fmt.Errorf("empthy index-use-reverses[%d] rule", i)
 		}
+		if _, ok := IndexReverse[n.Reverse]; !ok {
+			return fmt.Errorf("%s is not valid value for index-reverses.reverse", n.Reverse)
+		}
+
 	}
 	return nil
 }
@@ -349,7 +374,11 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 	}
 
-	err = IndexUseReversesValidate(cfg.ClickHouse.IndexUseReverses)
+	if _, ok := IndexReverse[cfg.ClickHouse.IndexReverse]; !ok {
+		return nil, fmt.Errorf("%s is not valid value for index-reverse", cfg.ClickHouse.IndexReverse)
+	}
+
+	err = cfg.ClickHouse.IndexReverses.Compile()
 	if err != nil {
 		return nil, err
 	}
