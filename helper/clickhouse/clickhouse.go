@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -18,6 +19,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type ErrDataParse struct {
@@ -189,6 +191,10 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 
 	q := p.Query()
 	q.Set("query_id", fmt.Sprintf("%s::%s", requestID, queryID))
+	// Get X-Clickhouse-Summary header
+	// TODO: remove when https://github.com/ClickHouse/ClickHouse/issues/16207 is done
+	q.Set("send_progress_in_http_headers", "1")
+	q.Set("http_headers_progress_interval_ms", "10000")
 	p.RawQuery = q.Encode()
 
 	var contentHeader string
@@ -240,6 +246,17 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 
 	// chproxy overwrite our query id. So read it again
 	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
+
+	summary := make(map[string]string)
+	err = json.Unmarshal([]byte(resp.Header.Get("X-Clickhouse-Summary")), &summary)
+	if err == nil {
+		// TODO: use in carbon metrics sender when it will be implemented
+		fields := make([]zapcore.Field, 0, len(summary))
+		for k, v := range summary {
+			fields = append(fields, zap.String(k, v))
+		}
+		logger = logger.With(fields...)
+	}
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
 	if resp.StatusCode > 500 && resp.StatusCode < 512 {
