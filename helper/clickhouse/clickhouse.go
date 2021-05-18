@@ -247,15 +247,21 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	// chproxy overwrite our query id. So read it again
 	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
 
-	summary := make(map[string]string)
-	err = json.Unmarshal([]byte(resp.Header.Get("X-Clickhouse-Summary")), &summary)
-	if err == nil {
-		// TODO: use in carbon metrics sender when it will be implemented
-		fields := make([]zapcore.Field, 0, len(summary))
-		for k, v := range summary {
-			fields = append(fields, zap.String(k, v))
+	summaryHeader := resp.Header.Get("X-Clickhouse-Summary")
+	if len(summaryHeader) > 0 {
+		summary := make(map[string]string)
+		err = json.Unmarshal([]byte(summaryHeader), &summary)
+		if err == nil {
+			// TODO: use in carbon metrics sender when it will be implemented
+			fields := make([]zapcore.Field, 0, len(summary))
+			for k, v := range summary {
+				fields = append(fields, zap.String(k, v))
+			}
+			logger = logger.With(fields...)
+		} else {
+			logger.Warn("query", zap.Error(err), zap.String("clickhouse-summary", summaryHeader))
+			err = nil
 		}
-		logger = logger.With(fields...)
 	}
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
