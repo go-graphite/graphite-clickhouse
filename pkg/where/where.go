@@ -68,12 +68,12 @@ func HasWildcard(target string) bool {
 	return strings.IndexAny(target, "[]{}*?") > -1
 }
 
-func IndexReverseWildcard(target string) int {
+func IndexLastWildcard(target string) int {
 	return strings.LastIndexAny(target, "[]{}*?")
 }
 
-func IndexWildcardOrDot(target string) int {
-	return strings.IndexAny(target, ".[]{}*?")
+func IndexWildcard(target string) int {
+	return strings.IndexAny(target, "[]{}*?")
 }
 
 func NonRegexpPrefix(expr string) string {
