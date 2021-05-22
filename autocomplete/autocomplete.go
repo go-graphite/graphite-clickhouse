@@ -142,11 +142,11 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	body, err := clickhouse.Query(
 		scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
-		h.config.ClickHouse.Url,
+		h.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.TreeTimeout.Value(),
-			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        h.config.ClickHouse.IndexTimeout,
+			ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 		},
 		nil,
 	)
@@ -248,11 +248,11 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	body, err := clickhouse.Query(
 		scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
-		h.config.ClickHouse.Url,
+		h.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
-			Timeout:        h.config.ClickHouse.IndexTimeout.Value(),
-			ConnectTimeout: h.config.ClickHouse.ConnectTimeout.Value(),
+			Timeout:        h.config.ClickHouse.IndexTimeout,
+			ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 		},
 		nil,
 	)

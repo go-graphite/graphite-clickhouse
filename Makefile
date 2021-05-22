@@ -19,13 +19,27 @@ all: $(NAME)
 
 .PHONY: clean
 clean:
+	rm $(NAME)
 	rm -rf out
 	rm -f *deb *rpm
 	rm -f sha256sum md5sum
 
-.PHONY: $(NAME)
-$(NAME):
+$(NAME): $(wildcard **/*.go)
 	$(GO) build $(MODULE)
+
+deploy/doc/graphite-clickhouse.conf: $(NAME)
+	./$(NAME) -config-print-default > $@
+
+doc/config.md: deploy/doc/graphite-clickhouse.conf deploy/doc/config.md
+	@echo 'Generating $@...'
+	@printf '[//]: # (This file is built out of deploy/doc/config.md, please do not edit it manually)  \n' > $@
+	@printf '[//]: # (To rebuild it run `make config`)\n\n' >> $@
+	@cat deploy/doc/config.md >> $@
+	@printf '\n```toml\n' >> $@
+	@cat deploy/doc/graphite-clickhouse.conf >> $@
+	@printf '```\n' >> $@
+
+config: doc/config.md
 
 test:
 	$(GO) test -race ./...

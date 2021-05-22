@@ -22,14 +22,14 @@ type Finder interface {
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64) Finder {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.TreeTimeout.Value(),
-		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout,
+		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
 
 	var f Finder
 
 	if config.ClickHouse.TaggedTable != "" && strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
-		f = NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, false, opts)
+		f = NewTagged(config.ClickHouse.URL, config.ClickHouse.TaggedTable, false, opts)
 
 		if len(config.Common.Blacklist) > 0 {
 			f = WrapBlacklist(f, config.Common.Blacklist)
@@ -40,30 +40,30 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 
 	if config.ClickHouse.IndexTable != "" {
 		f = NewIndex(
-			config.ClickHouse.Url,
+			config.ClickHouse.URL,
 			config.ClickHouse.IndexTable,
 			config.ClickHouse.IndexUseDaily,
 			config.ClickHouse.IndexReverse,
 			config.ClickHouse.IndexReverses,
 			clickhouse.Options{
-				Timeout:        config.ClickHouse.IndexTimeout.Value(),
-				ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+				Timeout:        config.ClickHouse.IndexTimeout,
+				ConnectTimeout: config.ClickHouse.ConnectTimeout,
 			},
 		)
 	} else {
 		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
-			f = NewDateFinder(config.ClickHouse.Url, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
+			f = NewDateFinder(config.ClickHouse.URL, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
 		} else {
-			f = NewBase(config.ClickHouse.Url, config.ClickHouse.TreeTable, opts)
+			f = NewBase(config.ClickHouse.URL, config.ClickHouse.TreeTable, opts)
 		}
 
 		if config.ClickHouse.ReverseTreeTable != "" {
-			f = WrapReverse(f, config.ClickHouse.Url, config.ClickHouse.ReverseTreeTable, opts)
+			f = WrapReverse(f, config.ClickHouse.URL, config.ClickHouse.ReverseTreeTable, opts)
 		}
 	}
 
 	if config.ClickHouse.TagTable != "" {
-		f = WrapTag(f, config.ClickHouse.Url, config.ClickHouse.TagTable, opts)
+		f = WrapTag(f, config.ClickHouse.URL, config.ClickHouse.TagTable, opts)
 	}
 
 	if config.ClickHouse.ExtraPrefix != "" {
@@ -98,8 +98,8 @@ func Leaf(value []byte) ([]byte, bool) {
 
 func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64) (Result, error) {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.TreeTimeout.Value(),
-		ConnectTimeout: config.ClickHouse.ConnectTimeout.Value(),
+		Timeout:        config.ClickHouse.IndexTimeout,
+		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
 
 	plain := makePlainFromTagged(terms)
@@ -112,7 +112,7 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 		return Result(plain), nil
 	}
 
-	fnd := NewTagged(config.ClickHouse.Url, config.ClickHouse.TaggedTable, true, opts)
+	fnd := NewTagged(config.ClickHouse.URL, config.ClickHouse.TaggedTable, true, opts)
 
 	err := fnd.ExecutePrepared(ctx, terms, from, until)
 	if err != nil {

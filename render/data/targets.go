@@ -32,20 +32,20 @@ TableLoop:
 			continue TableLoop
 		}
 
-		if t.MaxInterval != nil && (tf.Until-tf.From) > int64(t.MaxInterval.Value().Seconds()) {
+		if t.MaxInterval != 0 && (tf.Until-tf.From) > int64(t.MaxInterval.Seconds()) {
 			continue TableLoop
 		}
 
-		if t.MinInterval != nil && (tf.Until-tf.From) < int64(t.MinInterval.Value().Seconds()) {
+		if t.MinInterval != 0 && (tf.Until-tf.From) < int64(t.MinInterval.Seconds()) {
 			continue TableLoop
 		}
 
-		if t.MaxAge != nil && tf.From < now-int64(t.MaxAge.Value().Seconds()) {
+		if t.MaxAge != 0 && tf.From < now-int64(t.MaxAge.Seconds()) {
 			continue TableLoop
 
 		}
 
-		if t.MinAge != nil && tf.Until > now-int64(t.MinAge.Value().Seconds()) {
+		if t.MinAge != 0 && tf.Until > now-int64(t.MinAge.Seconds()) {
 			continue TableLoop
 
 		}

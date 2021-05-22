@@ -116,7 +116,7 @@ func Make(cfg *config.Config) error {
 		for i := 0; i < SelectChunksCount; i++ {
 			bodies[i], err = clickhouse.Query(
 				scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.IndexTable),
-				cfg.ClickHouse.Url,
+				cfg.ClickHouse.URL,
 				fmt.Sprintf(
 					"SELECT Path FROM %s WHERE cityHash64(Path) %% %d = %d %s AND Level > 20000 AND Level < 30000 AND Date = '1970-02-12' GROUP BY Path FORMAT RowBinary",
 					cfg.ClickHouse.IndexTable,
@@ -125,8 +125,8 @@ func Make(cfg *config.Config) error {
 					extraWhere,
 				),
 				clickhouse.Options{
-					Timeout:        cfg.ClickHouse.IndexTimeout.Value(),
-					ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+					Timeout:        cfg.ClickHouse.IndexTimeout,
+					ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
 				},
 				nil,
 			)
@@ -346,12 +346,12 @@ func Make(cfg *config.Config) error {
 		begin("upload to clickhouse")
 		_, err = clickhouse.PostGzip(
 			scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.TagTable),
-			cfg.ClickHouse.Url,
+			cfg.ClickHouse.URL,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
 			outBuf,
 			clickhouse.Options{
-				Timeout:        cfg.ClickHouse.IndexTimeout.Value(),
-				ConnectTimeout: cfg.ClickHouse.ConnectTimeout.Value(),
+				Timeout:        cfg.ClickHouse.IndexTimeout,
+				ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
 			},
 			nil,
 		)

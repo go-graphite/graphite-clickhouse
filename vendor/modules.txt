@@ -224,6 +224,9 @@ github.com/opentracing-contrib/go-stdlib/nethttp
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
+# github.com/pelletier/go-toml v1.9.2-0.20210512132240-d08347058532
+## explicit
+github.com/pelletier/go-toml
 # github.com/petermattis/goid v0.0.0-20170504144140-0ded85884ba5
 github.com/petermattis/goid
 # github.com/pkg/errors v0.8.1

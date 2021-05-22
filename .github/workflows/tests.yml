@@ -38,10 +38,16 @@ jobs:
         git fetch --shallow-since=$(git log $VERS -1 --format=%at)
       if: ${{ github.event_name == 'push' }}
 
-    - name: Test
+    - name: Build project
+      run: make
+
+    - name: Check documentation consistency
       run: |
-        make
-        make test
+        make config
+        git diff --exit-code
+
+    - name: Test
+      run: make test
 
     - name: Install packaging dependencies
       run: |

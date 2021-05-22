@@ -13,6 +13,7 @@ require (
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80 // indirect
 	github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd // indirect
 	github.com/lomik/zapwriter v0.0.0-20180906104450-2ec2b9a61680
+	github.com/pelletier/go-toml v1.9.2-0.20210512132240-d08347058532
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/common v0.4.1
 	github.com/prometheus/prometheus v1.8.2-0.20190814100549-343d8d75fd76
