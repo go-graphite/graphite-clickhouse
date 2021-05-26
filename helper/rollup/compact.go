@@ -12,11 +12,12 @@ compact form of rollup rules for tests
 regexp;function;age:precision,age:precision,...
 */
 
-func parseCompact(body string) (*Rules, error) {
+func parseCompact(body string, auto bool) (*Rules, error) {
 	lines := strings.Split(body, "\n")
 	patterns := make([]Pattern, 0)
 
 	for _, line := range lines {
+		var ruleType RuleType
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -29,6 +30,30 @@ func parseCompact(body string) (*Rules, error) {
 			return nil, fmt.Errorf("can't parse line: %#v", line)
 		}
 		regexp := strings.TrimSpace(line[:p1])
+		if len(regexp) > 8 && regexp[0] == '<' && regexp[1] == '!' && regexp[7] == '>' {
+			typeStr := regexp[1:7]
+			switch typeStr {
+			case "!ALL_T":
+				ruleType = RuleAll
+			case "!PLAIN":
+				ruleType = RulePlain
+			case "!TAG_R":
+				ruleType = RuleTaggedRegex
+			//case "!TAG_T":
+			//	ruleType = RuleTagged
+			default:
+				return nil, fmt.Errorf("not realised rule type for line: %#v", line)
+			}
+			regexp = regexp[8:]
+		} else {
+			if ruleType == RuleAuto {
+				if auto && len(regexp) > 0 {
+					ruleType = AutoDetectRuleType(regexp)
+				} else {
+					ruleType = RuleAll
+				}
+			}
+		}
 		function := strings.TrimSpace(line[p1+1 : p2])
 		retention := make([]Retention, 0)
 
@@ -55,7 +80,7 @@ func parseCompact(body string) (*Rules, error) {
 			}
 		}
 
-		patterns = append(patterns, Pattern{Regexp: regexp, Function: function, Retention: retention})
+		patterns = append(patterns, Pattern{RuleType: ruleType, Regexp: regexp, Function: function, Retention: retention})
 	}
 
 	return (&Rules{Pattern: patterns}).compile()

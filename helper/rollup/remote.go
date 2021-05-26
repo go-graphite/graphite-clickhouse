@@ -14,11 +14,12 @@ import (
 )
 
 type rollupRulesResponseRecord struct {
-	Regexp    string `json:"regexp"`
-	Function  string `json:"function"`
-	Age       string `json:"age"`
-	Precision string `json:"precision"`
-	IsDefault int    `json:"is_default"`
+	RuleType  RuleType `json:"type"`
+	Regexp    string   `json:"regexp"`
+	Function  string   `json:"function"`
+	Age       string   `json:"age"`
+	Precision string   `json:"precision"`
+	IsDefault int      `json:"is_default"`
 }
 type rollupRulesResponse struct {
 	Data []rollupRulesResponseRecord `json:"data"`
@@ -74,7 +75,11 @@ func parseJson(body []byte) (*Rules, error) {
 			}
 		} else {
 			if last() == nil || last().Regexp != d.Regexp || last().Function != d.Function {
+				if d.RuleType == RuleAuto {
+					d.RuleType = RuleAll // for remote rules - no auto-detect rule type
+				}
 				r.Pattern = append(r.Pattern, Pattern{
+					RuleType:  d.RuleType,
 					Retention: make([]Retention, 0),
 					Regexp:    d.Regexp,
 					Function:  d.Function,
@@ -92,6 +97,7 @@ func parseJson(body []byte) (*Rules, error) {
 
 	if defaultFunction != "" || len(defaultRetention) != 0 {
 		r.Pattern = append(r.Pattern, Pattern{
+			RuleType:  RuleAll,
 			Regexp:    "",
 			Function:  defaultFunction,
 			Retention: defaultRetention,
