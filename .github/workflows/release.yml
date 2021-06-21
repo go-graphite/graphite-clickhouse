@@ -31,10 +31,10 @@ jobs:
       run: |
         make gox-build fpm-deb fpm-rpm
         make sum-files
-        version=$(./out/${BINARY}-linux-amd64 -version)
-        echo ::set-output name=matrix::{\"file\": [\"sha256sum\", \"md5sum\", \
-        \"${BINARY}_${version}_arm64.deb\", \"${BINARY}_${version}_amd64.deb\", \
-        \"${BINARY}-${version}-1.arm64.rpm\", \"${BINARY}-${version}-1.x86_64.rpm\"]}
+        ARTIFACTS=
+        # Upload all deb and rpm packages
+        for package in *deb *rpm; do ARTIFACTS=${ARTIFACTS}\"$package\",\ ; done
+        echo ::set-output name=matrix::{\"file\": [${ARTIFACTS} \"sha256sum\", \"md5sum\"]}
     - name: Check version
       id: check_version
       run: |
