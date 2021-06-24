@@ -49,17 +49,19 @@ jobs:
     - name: Test
       run: make test
 
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.7' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
+
     - name: Install packaging dependencies
       run: |
-        sudo apt-get install rpm ruby-dev
-        sudo gem install fpm
+        gem install fpm package_cloud
+        GO111MODULE=off go get github.com/mitchellh/gox
 
     - name: Check packaging
       run: |
-        GO111MODULE=off go get github.com/mitchellh/gox
-        make gox-build
-        make DEVEL=1 fpm-deb
-        make DEVEL=1 fpm-rpm
+        make DEVEL=1 gox-build fpm-deb fpm-rpm
         make sum-files
 
     - name: Artifact

@@ -19,13 +19,19 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ^1
+
     - uses: actions/checkout@v2
       name: Checkout
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.7' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
     - name: Install packaging dependencies
       run: |
-        sudo apt-get install rpm ruby-dev
-        sudo gem install fpm
+        gem install fpm package_cloud
         GO111MODULE=off go get github.com/mitchellh/gox
+
     - name: Build packages
       id: build
       run: |
@@ -35,11 +41,13 @@ jobs:
         # Upload all deb and rpm packages
         for package in *deb *rpm; do ARTIFACTS=${ARTIFACTS}\"$package\",\ ; done
         echo ::set-output name=matrix::{\"file\": [${ARTIFACTS} \"sha256sum\", \"md5sum\"]}
+
     - name: Check version
       id: check_version
       run: |
         ./out/${BINARY}-linux-amd64 -version
         [ v$(./out/${BINARY}-linux-amd64 -version) = ${{ github.event.release.tag_name }} ]
+
     - name: Artifact
       id: artifact
       uses: actions/upload-artifact@v2
