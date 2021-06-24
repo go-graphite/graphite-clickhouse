@@ -36,7 +36,7 @@ jobs:
         VERS=$(git tag -l | sort -Vr | head -n1)
         # Fetch everything to the latest tag
         git fetch --shallow-since=$(git log $VERS -1 --format=%at)
-      if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'push' }} # only when built from master
 
     - name: Build project
       run: make
@@ -74,3 +74,9 @@ jobs:
           *.rpm
           sha256sum
           md5sum
+
+    - name: Push packages to the autobuilds repo
+      if: ${{ github.event_name == 'push' && matrix.go == '^1' }} # only when built from master with latest go
+      run: make packagecloud-autobuilds
+      env:
+        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}

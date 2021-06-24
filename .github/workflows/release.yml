@@ -60,6 +60,11 @@ jobs:
           sha256sum
           md5sum
 
+    - name: Push packages to the stable repo
+      run: make packagecloud-stable
+      env:
+        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+
   upload:
     needs: build
     runs-on: ubuntu-latest
