@@ -28,7 +28,7 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
-    - name: Checkout to the latest code
+    - name: Checkout to the latest tag
       run: |
         # Fetch all tags
         git fetch --depth=1 --tags
