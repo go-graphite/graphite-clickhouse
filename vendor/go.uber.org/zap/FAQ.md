@@ -27,6 +27,13 @@ abstraction, and it lets us add methods without introducing breaking changes.
 Your applications should define and depend upon an interface that includes
 just the methods you use.
 
+### Why are some of my logs missing?
+
+Logs are dropped intentionally by zap when sampling is enabled. The production
+configuration (as returned by `NewProductionConfig()` enables sampling which will
+cause repeated logs within a second to be sampled. See more details on why sampling
+is enabled in [Why sample application logs](https://github.com/uber-go/zap/blob/master/FAQ.md#why-sample-application-logs).
+
 ### Why sample application logs?
 
 Applications often experience runs of errors, either because of a bug or
@@ -134,6 +141,23 @@ core := zapcore.NewCore(
 )
 logger := zap.New(core)
 ```
+
+## Extensions
+
+We'd love to support every logging need within zap itself, but we're only
+familiar with a handful of log ingestion systems, flag-parsing packages, and
+the like. Rather than merging code that we can't effectively debug and
+support, we'd rather grow an ecosystem of zap extensions.
+
+We're aware of the following extensions, but haven't used them ourselves:
+
+| Package | Integration |
+| --- | --- |
+| `github.com/tchap/zapext` | Sentry, syslog |
+| `github.com/fgrosse/zaptest` | Ginkgo |
+| `github.com/blendle/zapdriver` | Stackdriver |
+| `github.com/moul/zapgorm` | Gorm |
+| `github.com/moul/zapfilter` | Advanced filtering rules |
 
 [go-proverbs]: https://go-proverbs.github.io/
 [import-path]: https://golang.org/cmd/go/#hdr-Remote_import_paths
