@@ -210,13 +210,22 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  external-data-perm = 0
 
 [[logging]]
+ # handler name, default empty
  logger = ""
+ # '/path/to/filename', 'stderr', 'stdout', 'empty' (=='stderr'), 'none'
  file = "/var/log/graphite-clickhouse/graphite-clickhouse.log"
+ # 'debug', 'info', 'warn', 'error', 'dpanic', 'panic', and 'fatal'
  level = "info"
+ # 'json' or 'console'
  encoding = "mixed"
+ # 'millis', 'nanos', 'epoch', 'iso8601'
  encoding-time = "iso8601"
+ # 'seconds', 'nanos', 'string'
  encoding-duration = "seconds"
+ # passed to time.ParseDuration
  sample-tick = ""
+ # first n messages logged per tick
  sample-initial = 0
+ # every m-th message logged thereafter per tick
  sample-thereafter = 0
 ```
