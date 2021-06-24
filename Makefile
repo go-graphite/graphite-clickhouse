@@ -19,7 +19,7 @@ all: $(NAME)
 
 .PHONY: clean
 clean:
-	rm $(NAME)
+	rm -f $(NAME)
 	rm -rf out
 	rm -f *deb *rpm
 	rm -f sha256sum md5sum
