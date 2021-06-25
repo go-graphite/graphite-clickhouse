@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         go:
-          - ^1.13
           - ^1.14
           - ^1.15
+          - ^1.16
           - ^1
     steps:
 
@@ -28,7 +28,7 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
-    - name: Checkout to the latest code
+    - name: Checkout to the latest tag
       run: |
         # Fetch all tags
         git fetch --depth=1 --tags
@@ -36,7 +36,7 @@ jobs:
         VERS=$(git tag -l | sort -Vr | head -n1)
         # Fetch everything to the latest tag
         git fetch --shallow-since=$(git log $VERS -1 --format=%at)
-      if: ${{ github.event_name == 'push' }}
+      if: ${{ github.event_name == 'push' }} # only when built from master
 
     - name: Build project
       run: make
@@ -49,17 +49,19 @@ jobs:
     - name: Test
       run: make test
 
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.7' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
+
     - name: Install packaging dependencies
       run: |
-        sudo apt-get install rpm ruby-dev
-        sudo gem install fpm
+        gem install fpm package_cloud
+        GO111MODULE=off go get github.com/mitchellh/gox
 
     - name: Check packaging
       run: |
-        GO111MODULE=off go get github.com/mitchellh/gox
-        make gox-build
-        make DEVEL=1 fpm-deb
-        make DEVEL=1 fpm-rpm
+        make DEVEL=1 gox-build fpm-deb fpm-rpm
         make sum-files
 
     - name: Artifact
@@ -72,3 +74,9 @@ jobs:
           *.rpm
           sha256sum
           md5sum
+
+    - name: Push packages to the autobuilds repo
+      if: ${{ github.event_name == 'push' && matrix.go == '^1' }} # only when built from master with latest go
+      run: make packagecloud-autobuilds
+      env:
+        PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}

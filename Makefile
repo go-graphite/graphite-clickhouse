@@ -19,7 +19,7 @@ all: $(NAME)
 
 .PHONY: clean
 clean:
-	rm $(NAME)
+	rm -f $(NAME)
 	rm -rf out
 	rm -f *deb *rpm
 	rm -f sha256sum md5sum
@@ -95,11 +95,10 @@ packagecloud-push:
 	package_cloud push $(REPO)/el/7 $(NAME)-$(VERSION)-1.x86_64.rpm || true
 	package_cloud push $(REPO)/ubuntu/xenial $(NAME)_$(VERSION)_amd64.deb || true
 	package_cloud push $(REPO)/ubuntu/bionic $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/ubuntu/disco $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/ubuntu/eoan $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/debian/buster $(NAME)_$(VERSION)_amd64.deb || true
+	package_cloud push $(REPO)/ubuntu/focal $(NAME)_$(VERSION)_amd64.deb || true
 	package_cloud push $(REPO)/debian/stretch $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/debian/jessie $(NAME)_$(VERSION)_amd64.deb || true
+	package_cloud push $(REPO)/debian/buster $(NAME)_$(VERSION)_amd64.deb || true
+	package_cloud push $(REPO)/debian/bullseye $(NAME)_$(VERSION)_amd64.deb || true
 
 packagecloud-autobuilds:
 	$(MAKE) packagecloud-push REPO=go-graphite/autobuilds
