@@ -90,15 +90,28 @@ fpm-build-rpm:
 		deploy/root/=/ \
 		out/root/=/
 
+.ONESHELL:
+RPM_VERSION:=$(subst -,_,$(VERSION))
+packagecloud-push-rpm: $(wildcard $(NAME)-$(RPM_VERSION)-1.*.rpm)
+	for pkg in $^; do
+		package_cloud push $(REPO)/el/7 $${pkg} || true
+		package_cloud push $(REPO)/el/8 $${pkg} || true
+	done
+
+.ONESHELL:
+packagecloud-push-deb: $(wildcard $(NAME)_$(VERSION)_*.deb)
+	for pkg in $^; do
+		package_cloud push $(REPO)/ubuntu/xenial   $${pkg} || true
+		package_cloud push $(REPO)/ubuntu/bionic   $${pkg} || true
+		package_cloud push $(REPO)/ubuntu/focal    $${pkg} || true
+		package_cloud push $(REPO)/debian/stretch  $${pkg} || true
+		package_cloud push $(REPO)/debian/buster   $${pkg} || true
+		package_cloud push $(REPO)/debian/bullseye $${pkg} || true
+	done
+
 packagecloud-push:
-	package_cloud push $(REPO)/el/8 $(NAME)-$(VERSION)-1.x86_64.rpm || true
-	package_cloud push $(REPO)/el/7 $(NAME)-$(VERSION)-1.x86_64.rpm || true
-	package_cloud push $(REPO)/ubuntu/xenial $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/ubuntu/bionic $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/ubuntu/focal $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/debian/stretch $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/debian/buster $(NAME)_$(VERSION)_amd64.deb || true
-	package_cloud push $(REPO)/debian/bullseye $(NAME)_$(VERSION)_amd64.deb || true
+	@$(MAKE) packagecloud-push-rpm
+	@$(MAKE) packagecloud-push-deb
 
 packagecloud-autobuilds:
 	$(MAKE) packagecloud-push REPO=go-graphite/autobuilds

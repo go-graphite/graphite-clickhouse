@@ -77,6 +77,6 @@ jobs:
 
     - name: Push packages to the autobuilds repo
       if: ${{ github.event_name == 'push' && matrix.go == '^1' }} # only when built from master with latest go
-      run: make packagecloud-autobuilds
+      run: make DEVEL=1 packagecloud-autobuilds
       env:
         PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
