@@ -99,7 +99,7 @@ func newQuery(cfg *config.Config, targets int) *query {
 		cStep:            cStep,
 		chURL:            cfg.ClickHouse.URL,
 		chDataTimeout:    cfg.ClickHouse.DataTimeout,
-		chConnectTimeout: cfg.Carbonlink.ConnectTimeout,
+		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
 		debugDir:         cfg.Debug.Directory,
 		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
 		lock:             sync.RWMutex{},
