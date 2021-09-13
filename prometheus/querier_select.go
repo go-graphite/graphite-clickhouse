@@ -1,3 +1,4 @@
+//go:build !noprom
 // +build !noprom
 
 package prometheus
@@ -43,7 +44,8 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	if from.IsZero() && q.mint > 0 {
 		from = time.Unix(q.mint/1000, (q.mint%1000)*1000000)
 	}
-	if until.IsZero() && q.maxt > 0 {
+	// ClickHouse supported Datetime range of values: [1970-01-01 00:00:00, 2105-12-31 23:59:59]
+	if until.IsZero() && q.maxt > 0 && q.maxt <= 4291765199000 {
 		until = time.Unix(q.maxt/1000, (q.maxt%1000)*1000000)
 	}
 
