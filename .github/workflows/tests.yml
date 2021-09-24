@@ -9,6 +9,8 @@ on:
 jobs:
 
   tests:
+    env:
+      CGO_ENABLED: 0
     name: Test code
     runs-on: ubuntu-latest
     strategy:
@@ -48,6 +50,8 @@ jobs:
 
     - name: Test
       run: make test
+      env:
+        CGO_ENABLED: 1
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
