@@ -9,14 +9,16 @@ on:
 jobs:
 
   tests:
+    env:
+      CGO_ENABLED: 0
     name: Test code
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go:
-          - ^1.14
           - ^1.15
           - ^1.16
+          - ^1.17
           - ^1
     steps:
 
@@ -48,6 +50,8 @@ jobs:
 
     - name: Test
       run: make test
+      env:
+        CGO_ENABLED: 1
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1

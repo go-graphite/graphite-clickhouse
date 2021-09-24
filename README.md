@@ -20,7 +20,7 @@ Gray components are optional or alternative
 - [x] [carbonzipper](https://github.com/go-graphite/carbonzipper) (DEPRECATED, is part of carbonapi currently)
 
 ## Build
-Required golang 1.13+
+Required golang 1.15+
 ```sh
 # build binary
 git clone https://github.com/lomik/graphite-clickhouse.git

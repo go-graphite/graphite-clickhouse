@@ -15,6 +15,8 @@ else
 VERSION:=$(shell sh -c 'git describe --always --tags | sed -e "s/^v//i"')
 endif
 
+SRCS:=$(shell find . -name '*.go')
+
 all: $(NAME)
 
 .PHONY: clean
@@ -24,7 +26,7 @@ clean:
 	rm -f *deb *rpm
 	rm -f sha256sum md5sum
 
-$(NAME): $(wildcard **/*.go)
+$(NAME): $(SRCS)
 	$(GO) build $(MODULE)
 
 deploy/doc/graphite-clickhouse.conf: $(NAME)

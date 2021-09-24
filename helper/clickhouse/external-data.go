@@ -132,11 +132,7 @@ func (e *ExternalData) debugDump(ctx context.Context, u url.URL) {
 	q["query_id"] = []string{fmt.Sprintf("%v:debug", requestID)}
 	u.RawQuery = q.Encode()
 
-	// TODO: replace with u.Redacted() after support of 1.14 is dropped
-	if _, has := u.User.Password(); has {
-		u.User = url.UserPassword(u.User.Username(), "xxxxx")
-	}
-	command += "'" + u.String() + "'"
+	command += "'" + u.Redacted() + "'"
 
 	logger.Info("external-data", zap.String("debug command", command))
 }
