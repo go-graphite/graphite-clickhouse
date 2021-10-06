@@ -43,7 +43,8 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.body, err = clickhouse.Query(
 			scope.WithTable(ctx, b.table),
 			b.url,
-			fmt.Sprintf(`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path`, b.table, dateWhere, w),
+			// TODO: consider consistent query generator
+			fmt.Sprintf(`SELECT Path FROM %s PREWHERE (%s) WHERE %s GROUP BY Path FORMAT TabSeparatedRaw`, b.table, dateWhere, w),
 			b.opts,
 			nil,
 		)
@@ -51,7 +52,8 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.body, err = clickhouse.Query(
 			scope.WithTable(ctx, b.table),
 			b.url,
-			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s)`, b.table, dateWhere, w),
+			// TODO: consider consistent query generator
+			fmt.Sprintf(`SELECT DISTINCT Path FROM %s PREWHERE (%s) WHERE (%s) FORMAT TabSeparatedRaw`, b.table, dateWhere, w),
 			b.opts,
 			nil,
 		)

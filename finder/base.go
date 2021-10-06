@@ -41,7 +41,8 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 	b.body, err = clickhouse.Query(
 		scope.WithTable(ctx, b.table),
 		b.url,
-		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", b.table, w),
+		// TODO: consider consistent query generator
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path FORMAT TabSeparatedRaw", b.table, w),
 		b.opts,
 		nil,
 	)

@@ -145,6 +145,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 	idx.body, err = clickhouse.Query(
 		scope.WithTable(ctx, idx.table),
 		idx.url,
+		// TODO: consider consistent query generator
 		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path FORMAT TabSeparatedRaw", idx.table, w),
 		idx.opts,
 		nil,

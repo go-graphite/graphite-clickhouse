@@ -316,7 +316,8 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 		time.Unix(until, 0).Format("2006-01-02"),
 	)
 
-	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path", t.table, pw.PreWhereSQL(), w.SQL())
+	// TODO: consider consistent query generator
+	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, pw.PreWhereSQL(), w.SQL())
 	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
 	return err
 }

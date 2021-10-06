@@ -132,7 +132,8 @@ func (t *TagFinder) seriesSQL() (string, error) {
 	base := &BaseFinder{}
 	w.And(base.where(t.seriesQuery).String())
 
-	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path", t.table, w), nil
+	// TODO: consider consistent query generator
+	return fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, w), nil
 }
 
 func (t *TagFinder) MakeSQL(query string) (string, error) {
