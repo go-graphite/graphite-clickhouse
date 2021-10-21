@@ -12,6 +12,9 @@ Gray components are optional or alternative
 ## TL;DR
 [Preconfigured docker-compose](https://github.com/lomik/graphite-clickhouse-tldr)
 
+### Docker
+Docker images are available on [packages](https://github.com/lomik/graphite-clickhouse/pkgs/container/graphite-clickhouse) page.
+
 ## Compatibility
 - [x] [graphite-web 1.1.0](https://github.com/graphite-project/graphite-web)
 - [x] [graphite-web 0.9.15](https://github.com/graphite-project/graphite-web/tree/0.9.15)
