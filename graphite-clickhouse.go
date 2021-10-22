@@ -29,7 +29,7 @@ import (
 )
 
 // Version of graphite-clickhouse
-const Version = "0.13.1"
+const Version = "0.13.2"
 
 func init() {
 	scope.Version = Version
