@@ -21,6 +21,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/capabilities"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/helper/headers"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
@@ -59,7 +60,7 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
-func Handler(handler http.Handler) http.Handler {
+func Handler(handler http.Handler, cfg *config.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
@@ -82,6 +83,10 @@ func Handler(handler http.Handler) http.Handler {
 		carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
 		if carbonapiUUID != "" {
 			logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+		}
+		requestHeaders := headers.GetHeaders(&r.Header, cfg.Common.HeadersToLog)
+		if len(requestHeaders) > 0 {
+			logger = logger.With(zap.Any("request_headers", requestHeaders))
 		}
 
 		var peer string
@@ -184,12 +189,12 @@ func main() {
 	/* CONSOLE COMMANDS end */
 
 	mux := http.NewServeMux()
-	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
-	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
-	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
-	mux.Handle("/render/", Handler(render.NewHandler(cfg)))
-	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
-	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
+	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg), cfg))
+	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg), cfg))
+	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg), cfg))
+	mux.Handle("/render/", Handler(render.NewHandler(cfg), cfg))
+	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg), cfg))
+	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg), cfg))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
@@ -199,7 +204,7 @@ func main() {
 		w.Write(b)
 	})
 
-	mux.Handle("/", Handler(prometheus.NewHandler(cfg)))
+	mux.Handle("/", Handler(prometheus.NewHandler(cfg), cfg))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }
