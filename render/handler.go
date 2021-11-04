@@ -11,6 +11,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/headers"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
@@ -36,6 +37,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
 	if carbonapiUUID != "" {
 		logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+	}
+	requestHeaders := headers.GetHeaders(&r.Header, h.config.Common.HeadersToLog)
+	if len(requestHeaders) > 0 {
+		logger = logger.With(zap.Any("request_headers", requestHeaders))
 	}
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
