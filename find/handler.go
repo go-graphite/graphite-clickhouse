@@ -9,6 +9,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
@@ -23,6 +24,10 @@ func NewHandler(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("metrics-find")
+	carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
+	if carbonapiUUID != "" {
+		logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+	}
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	r.ParseMultipartForm(1024 * 1024)
 

@@ -33,6 +33,10 @@ func NewHandler(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("render")
+	carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
+	if carbonapiUUID != "" {
+		logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+	}
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var err error

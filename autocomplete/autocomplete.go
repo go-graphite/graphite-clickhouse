@@ -14,6 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
@@ -40,6 +41,10 @@ func NewValues(config *config.Config) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := scope.Logger(r.Context()).Named("autocomplete")
+	carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
+	if carbonapiUUID != "" {
+		logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
+	}
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	// Don't process, if the tagged table is not set
