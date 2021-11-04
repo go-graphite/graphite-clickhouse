@@ -57,7 +57,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[string]bool, error) {
 	f := r.Form["expr"]
-	expr := make([]string, 0)
+	expr := make([]string, 0, len(f))
 	for i := 0; i < len(f); i++ {
 		if f[i] != "" {
 			expr = append(expr, f[i])
