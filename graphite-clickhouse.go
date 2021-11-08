@@ -60,7 +60,11 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
-func Handler(handler http.Handler, cfg *config.Config) http.Handler {
+type App struct {
+	config *config.Config
+}
+
+func (app *App) Handler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
@@ -84,7 +88,7 @@ func Handler(handler http.Handler, cfg *config.Config) http.Handler {
 		if carbonapiUUID != "" {
 			logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
 		}
-		requestHeaders := headers.GetHeaders(&r.Header, cfg.Common.HeadersToLog)
+		requestHeaders := headers.GetHeaders(&r.Header, app.config.Common.HeadersToLog)
 		if len(requestHeaders) > 0 {
 			logger = logger.With(zap.Any("request_headers", requestHeaders))
 		}
@@ -188,13 +192,15 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
+	app := App{config: cfg}
+
 	mux := http.NewServeMux()
-	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg), cfg))
-	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg), cfg))
-	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg), cfg))
-	mux.Handle("/render/", Handler(render.NewHandler(cfg), cfg))
-	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg), cfg))
-	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg), cfg))
+	mux.Handle("/_internal/capabilities/", app.Handler(capabilities.NewHandler(cfg)))
+	mux.Handle("/metrics/find/", app.Handler(find.NewHandler(cfg)))
+	mux.Handle("/metrics/index.json", app.Handler(index.NewHandler(cfg)))
+	mux.Handle("/render/", app.Handler(render.NewHandler(cfg)))
+	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
+	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
@@ -204,7 +210,7 @@ func main() {
 		w.Write(b)
 	})
 
-	mux.Handle("/", Handler(prometheus.NewHandler(cfg), cfg))
+	mux.Handle("/", app.Handler(prometheus.NewHandler(cfg)))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }
