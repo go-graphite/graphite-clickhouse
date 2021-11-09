@@ -11,7 +11,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
-	"github.com/lomik/graphite-clickhouse/helper/headers"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
@@ -33,15 +32,8 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.Logger(r.Context()).Named("render")
-	carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
-	if carbonapiUUID != "" {
-		logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
-	}
-	requestHeaders := headers.GetHeaders(&r.Header, h.config.Common.HeadersToLog)
-	if len(requestHeaders) > 0 {
-		logger = logger.With(zap.Any("request_headers", requestHeaders))
-	}
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("render")
+
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var err error
@@ -126,5 +118,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	formatter.Reply(w, r, reply)
 	d := time.Since(start)
-	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
+	logger.Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

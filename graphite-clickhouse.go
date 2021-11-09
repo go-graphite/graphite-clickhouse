@@ -21,7 +21,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/capabilities"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
-	"github.com/lomik/graphite-clickhouse/helper/headers"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
@@ -76,21 +75,11 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
 
-		logger := scope.Logger(r.Context()).Named("http")
+		logger := scope.LoggerWithHeaders(r.Context(), r, app.config.Common.HeadersToLog).Named("http")
 
 		grafana := scope.Grafana(r.Context())
 		if grafana != "" {
 			logger = logger.With(zap.String("grafana", grafana))
-		}
-
-		// Log carbonapi request uuid for requests trace
-		carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
-		if carbonapiUUID != "" {
-			logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
-		}
-		requestHeaders := headers.GetHeaders(&r.Header, app.config.Common.HeadersToLog)
-		if len(requestHeaders) > 0 {
-			logger = logger.With(zap.Any("request_headers", requestHeaders))
 		}
 
 		var peer string

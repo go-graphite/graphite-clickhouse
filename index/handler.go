@@ -18,7 +18,7 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.Logger(r.Context()).Named("index")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("index")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	i, err := New(h.config, r.Context())
 	if err != nil {
