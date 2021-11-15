@@ -22,7 +22,7 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.Logger(r.Context()).Named("metrics-find")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("metrics-find")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 	r.ParseMultipartForm(1024 * 1024)
 

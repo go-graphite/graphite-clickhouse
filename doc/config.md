@@ -94,6 +94,8 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  # target-blacklist = []
  # daemon will return the freed memory to the OS when it>0
  memory-return-interval = "0s"
+ # additional request headers to log
+ headers-to-log = []
 
 [clickhouse]
  # see https://clickhouse.tech/docs/en/interfaces/http

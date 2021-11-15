@@ -59,7 +59,11 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
-func Handler(handler http.Handler) http.Handler {
+type App struct {
+	config *config.Config
+}
+
+func (app *App) Handler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
@@ -71,17 +75,11 @@ func Handler(handler http.Handler) http.Handler {
 		handler.ServeHTTP(writer, r)
 		d := time.Since(start)
 
-		logger := scope.Logger(r.Context()).Named("http")
+		logger := scope.LoggerWithHeaders(r.Context(), r, app.config.Common.HeadersToLog).Named("http")
 
 		grafana := scope.Grafana(r.Context())
 		if grafana != "" {
 			logger = logger.With(zap.String("grafana", grafana))
-		}
-
-		// Log carbonapi request uuid for requests trace
-		carbonapiUUID := r.Header.Get("X-Ctx-Carbonapi-Uuid")
-		if carbonapiUUID != "" {
-			logger = logger.With(zap.String("carbonapi_uuid", carbonapiUUID))
 		}
 
 		var peer string
@@ -183,13 +181,15 @@ func main() {
 
 	/* CONSOLE COMMANDS end */
 
+	app := App{config: cfg}
+
 	mux := http.NewServeMux()
-	mux.Handle("/_internal/capabilities/", Handler(capabilities.NewHandler(cfg)))
-	mux.Handle("/metrics/find/", Handler(find.NewHandler(cfg)))
-	mux.Handle("/metrics/index.json", Handler(index.NewHandler(cfg)))
-	mux.Handle("/render/", Handler(render.NewHandler(cfg)))
-	mux.Handle("/tags/autoComplete/tags", Handler(autocomplete.NewTags(cfg)))
-	mux.Handle("/tags/autoComplete/values", Handler(autocomplete.NewValues(cfg)))
+	mux.Handle("/_internal/capabilities/", app.Handler(capabilities.NewHandler(cfg)))
+	mux.Handle("/metrics/find/", app.Handler(find.NewHandler(cfg)))
+	mux.Handle("/metrics/index.json", app.Handler(index.NewHandler(cfg)))
+	mux.Handle("/render/", app.Handler(render.NewHandler(cfg)))
+	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
+	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
@@ -199,7 +199,7 @@ func main() {
 		w.Write(b)
 	})
 
-	mux.Handle("/", Handler(prometheus.NewHandler(cfg)))
+	mux.Handle("/", app.Handler(prometheus.NewHandler(cfg)))
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }

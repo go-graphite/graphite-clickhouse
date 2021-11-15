@@ -32,7 +32,8 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.Logger(r.Context()).Named("render")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("render")
+
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var err error
@@ -117,5 +118,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	formatter.Reply(w, r, reply)
 	d := time.Since(start)
-	scope.Logger(r.Context()).Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
+	logger.Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

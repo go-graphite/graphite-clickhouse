@@ -8,6 +8,7 @@ import (
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
 type Handler struct {
@@ -21,6 +22,10 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("capabilities")
+
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
+
 	r.ParseMultipartForm(1024 * 1024)
 
 	format := r.FormValue("format")

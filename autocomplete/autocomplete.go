@@ -39,7 +39,7 @@ func NewValues(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.Logger(r.Context()).Named("autocomplete")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("autocomplete")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	// Don't process, if the tagged table is not set
