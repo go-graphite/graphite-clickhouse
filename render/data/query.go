@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -120,6 +121,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 
 	cond.prepareMetricsLists()
 	if len(cond.metricsRequested) == 0 {
+		q.cStep.doneTarget()
 		return nil
 	}
 
@@ -128,6 +130,9 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 
 	cond.prepareLookup()
 	cond.setStep(q.cStep)
+	if cond.step < 1 {
+		return ErrSetStepTimeout
+	}
 	cond.setFromUntil()
 	cond.setPrewhere()
 	cond.setWhere()
@@ -288,6 +293,8 @@ func (c *conditions) prepareLookup() {
 	}
 }
 
+var ErrSetStepTimeout = errors.New("unexpected error, setStep timeout")
+
 func (c *conditions) setStep(cStep *commonStep) {
 	step := int64(0)
 	if !c.aggregated {
@@ -306,8 +313,13 @@ func (c *conditions) setStep(cStep *commonStep) {
 		step = cStep.calculateUnsafe(step, int64(s))
 	}
 	cStep.calculate(step)
-	step = dry.Max(cStep.getResult(), dry.Ceil(c.Until-c.From, c.MaxDataPoints))
-	c.step = dry.CeilToMultiplier(step, cStep.getResult())
+	rStep := cStep.getResult()
+	if rStep == -1 {
+		c.step = -1
+		return
+	}
+	step = dry.Max(rStep, dry.Ceil(c.Until-c.From, c.MaxDataPoints))
+	c.step = dry.CeilToMultiplier(step, rStep)
 	return
 }
 
