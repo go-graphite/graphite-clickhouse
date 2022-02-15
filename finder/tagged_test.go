@@ -77,6 +77,7 @@ func TestParseSeriesByTag(t *testing.T) {
 	ok := func(query string, expected []TaggedTerm) {
 		p, err := ParseSeriesByTag(query, nil)
 		assert.NoError(err)
+		assert.Equal(len(expected), len(p))
 		length := len(expected)
 		if length < len(p) {
 			length = len(p)
@@ -119,14 +120,20 @@ func TestParseSeriesByTag(t *testing.T) {
 
 }
 
+func newInt(i int) *int {
+	p := new(int)
+	*p = i
+	return p
+}
+
 func TestParseSeriesByTagWithCosts(t *testing.T) {
 	assert := assert.New(t)
 
 	taggedCosts := map[string]*config.Costs{
-		"environment": {Cost: 100},
-		"dc":          {Cost: 60},
-		"project":     {Cost: 50},
-		"__name__":    {Cost: 0, ValuesCost: map[string]int{"high_cost": 70}},
+		"environment": {Cost: newInt(100)},
+		"dc":          {Cost: newInt(60)},
+		"project":     {Cost: newInt(50)},
+		"__name__":    {Cost: newInt(0), ValuesCost: map[string]int{"high_cost": 70}},
 		"key":         {ValuesCost: map[string]int{"value2": 70, "value3": -1, "val*4": -1, "^val.*4$": -1}},
 	}
 
@@ -150,62 +157,70 @@ func TestParseSeriesByTagWithCosts(t *testing.T) {
 
 	ok(`seriesByTag('environment=production', 'dc=west', 'key=value')`, []TaggedTerm{
 		{Op: TaggedTermEq, Key: "key", Value: "value"},
-		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 	})
 
 	// Check for values cost (key=value2)
 	ok(`seriesByTag('environment=production', 'dc=west', 'key=value2')`, []TaggedTerm{
-		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60},
-		{Op: TaggedTermEq, Key: "key", Value: "value2", Cost: 70},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "key", Value: "value2", Cost: 70, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 	})
 
 	// Check for __name_ preference
 	ok(`seriesByTag('environment=production', 'dc=west', 'key=value', 'name=cpu.load_avg')`, []TaggedTerm{
-		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg"},
+		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg", Cost: 0, NonDefaultCost: true},
 		{Op: TaggedTermEq, Key: "key", Value: "value"},
-		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 	})
 
 	// Check for __name_ preference overrided
 	ok(`seriesByTag('environment=production', 'dc=west', 'name=cpu.load_avg', 'key=value3')`, []TaggedTerm{
-		{Op: TaggedTermEq, Key: "key", Value: "value3", Cost: -1},
-		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg"},
-		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "key", Value: "value3", Cost: -1, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg", Cost: 0, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 	})
 
 	// wildcard (dc=west*)
 	ok(`seriesByTag('environment=production', 'dc=west*', 'name=cpu.load_avg', 'key=value3')`, []TaggedTerm{
-		{Op: TaggedTermEq, Key: "key", Value: "value3", Cost: -1},
-		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg"},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "key", Value: "value3", Cost: -1, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg", Cost: 0, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		{Op: TaggedTermEq, Key: "dc", Value: "west*", HasWildcard: true},
 	})
 
 	// wildcard cost -1
 	ok(`seriesByTag('dc=west*', 'environment=production', 'name=cpu.load_avg', 'key=val*4')`, []TaggedTerm{
-		{Op: TaggedTermEq, Key: "key", Value: "val*4", Cost: -1, HasWildcard: true},
-		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg"},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermEq, Key: "key", Value: "val*4", Cost: -1, HasWildcard: true, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg", Cost: 0, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		{Op: TaggedTermEq, Key: "dc", Value: "west*", HasWildcard: true},
 	})
 
 	// match cost -1 - not as wildcard
 	ok(`seriesByTag('dc=~west.*', 'environment=production', 'name=cpu.load_avg', 'key=~^val.*4$')`, []TaggedTerm{
-		{Op: TaggedTermMatch, Key: "key", Value: "^val.*4$", Cost: -1},
-		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg"},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermMatch, Key: "key", Value: "^val.*4$", Cost: -1, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "__name__", Value: "cpu.load_avg", Cost: 0, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
+		{Op: TaggedTermMatch, Key: "dc", Value: "west.*"},
+	})
+
+	// match cost -1 - and no cost
+	ok(`seriesByTag('dc=~west.*', 'environment=production', 'Name=cpu.load_avg', 'key=~^val.*4$')`, []TaggedTerm{
+		{Op: TaggedTermMatch, Key: "key", Value: "^val.*4$", Cost: -1, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "Name", Value: "cpu.load_avg"},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		{Op: TaggedTermMatch, Key: "dc", Value: "west.*"},
 	})
 
 	// reduce cost for __name__
 	ok(`seriesByTag('dc=~west.*', 'environment=production', 'name=high_cost', 'key=~^val.*4$', 'key2=~^val.*4$', 'key3=val.*4')`, []TaggedTerm{
-		{Op: TaggedTermMatch, Key: "key", Value: "^val.*4$", Cost: -1},
-		{Op: TaggedTermEq, Key: "__name__", Value: "high_cost", Cost: 70},
-		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100},
+		{Op: TaggedTermMatch, Key: "key", Value: "^val.*4$", Cost: -1, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "__name__", Value: "high_cost", Cost: 70, NonDefaultCost: true},
+		{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		{Op: TaggedTermEq, Key: "key3", Value: "val.*4", HasWildcard: true},
 		{Op: TaggedTermMatch, Key: "dc", Value: "west.*"},
 		{Op: TaggedTermMatch, Key: "key2", Value: "^val.*4$"},

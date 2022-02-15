@@ -44,7 +44,7 @@ type IndexReverseRule struct {
 }
 
 type Costs struct {
-	Cost       int            `toml:"cost" json:"cost" comment:"default cost (for wildcarded equalence or matched with regex, or if no value cost set)"`
+	Cost       *int           `toml:"cost" json:"cost" comment:"default cost (for wildcarded equalence or matched with regex, or if no value cost set)"`
 	ValuesCost map[string]int `toml:"values-cost" json:"values-cost" comment:"cost with some value (for equalence without wildcards) (additional tuning, usually not needed)"`
 }
 

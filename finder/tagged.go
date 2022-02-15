@@ -31,7 +31,8 @@ type TaggedTerm struct {
 	Value       string
 	HasWildcard bool // only for TaggedTermEq
 
-	Cost int // tag cost for use ad primary filter (use tag with maximal selectivity). 0 by default, minimal is better.
+	NonDefaultCost bool
+	Cost           int // tag cost for use ad primary filter (use tag with maximal selectivity). 0 by default, minimal is better.
 	// __name__ tag is prefered, if some tag has better selectivity than name, set it cost to < 0
 	// values with wildcards or regex matching also has lower priority, set if needed it cost to < 0
 }
@@ -189,31 +190,19 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 }
 
 func setCost(term *TaggedTerm, costs *config.Costs) {
-	if len(costs.ValuesCost) > 0 {
-		if cost, ok := costs.ValuesCost[term.Value]; ok {
-			term.Cost = cost
-			return
+	if term.Op == TaggedTermEq || term.Op == TaggedTermMatch {
+		if len(costs.ValuesCost) > 0 {
+			if cost, ok := costs.ValuesCost[term.Value]; ok {
+				term.Cost = cost
+				term.NonDefaultCost = true
+				return
+			}
+		}
+		if term.Op == TaggedTermEq && !term.HasWildcard && costs.Cost != nil {
+			term.Cost = *costs.Cost // only for non-wildcared eq
+			term.NonDefaultCost = true
 		}
 	}
-	if term.Op == TaggedTermEq && !term.HasWildcard {
-		term.Cost = costs.Cost // only for non-wildcared eq
-	}
-}
-
-func lessCosts(terms []TaggedTerm, i, j int) (bool, bool) {
-	if terms[i].Cost != terms[j].Cost {
-		if terms[i].Cost == 0 && (terms[i].Op != TaggedTermEq || terms[i].HasWildcard) {
-			return false, false
-		}
-		if terms[j].Cost == 0 && (terms[j].Op != TaggedTermEq || terms[j].HasWildcard) {
-			return false, false
-		}
-
-		// compare taggs costs
-		return terms[i].Cost < terms[j].Cost, true
-	}
-
-	return false, false
 }
 
 func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.Costs) ([]TaggedTerm, error) {
@@ -274,35 +263,35 @@ func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.C
 	} else {
 		// compare with taggs costs
 		sort.Slice(terms, func(i, j int) bool {
-			eq, comparable := lessCosts(terms, i, j)
-			if comparable {
-				return eq
-			}
-
-			if terms[i].Op < terms[j].Op {
-				return true
-			}
-			if terms[i].Op > terms[j].Op {
-				return false
-			}
-
-			if terms[i].Op == TaggedTermEq && !terms[i].HasWildcard && terms[j].HasWildcard {
-				// globs as fist eq might be have a bad perfomance
-				return true
-			}
-
-			if terms[i].Key == "__name__" && terms[j].Key != "__name__" {
-				return true
-			}
-
-			if (terms[i].Cost >= 0 || terms[j].Cost >= 0) && terms[i].HasWildcard == terms[j].HasWildcard {
-				// compare taggs costs
-				if terms[i].Cost < terms[j].Cost {
-					return true
+			// compare taggs costs, if all of TaggegTerms has custom cost.
+			// this is allow overwrite operators order (Eq with or without wildcards/Match), use with carefully
+			if terms[i].Cost != terms[j].Cost {
+				if terms[i].NonDefaultCost && terms[j].NonDefaultCost ||
+					(terms[i].NonDefaultCost && terms[j].Op == TaggedTermEq && !terms[j].HasWildcard) ||
+					(terms[j].NonDefaultCost && terms[i].Op == TaggedTermEq && !terms[i].HasWildcard) {
+					return terms[i].Cost < terms[j].Cost
 				}
 			}
 
-			return false
+			if terms[i].Op == terms[j].Op {
+				if terms[i].Op == TaggedTermEq && !terms[i].HasWildcard && terms[j].HasWildcard {
+					// globs as fist eq might be have a bad perfomance
+					return true
+				}
+
+				if terms[i].Key == "__name__" && terms[j].Key != "__name__" {
+					return true
+				}
+
+				if terms[i].Cost != terms[j].Cost && terms[i].HasWildcard == terms[j].HasWildcard {
+					// compare taggs costs
+					return terms[i].Cost < terms[j].Cost
+				}
+
+				return false
+			} else {
+				return terms[i].Op < terms[j].Op
+			}
 		})
 	}
 
