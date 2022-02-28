@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -29,6 +30,11 @@ type TaggedTerm struct {
 	Op          TaggedTermOp
 	Value       string
 	HasWildcard bool // only for TaggedTermEq
+
+	NonDefaultCost bool
+	Cost           int // tag cost for use ad primary filter (use tag with maximal selectivity). 0 by default, minimal is better.
+	// __name__ tag is prefered, if some tag has better selectivity than name, set it cost to < 0
+	// values with wildcards or regex matching also has lower priority, set if needed it cost to < 0
 }
 
 type TaggedTermList []TaggedTerm
@@ -59,19 +65,22 @@ func (s TaggedTermList) Less(i, j int) bool {
 }
 
 type TaggedFinder struct {
-	url            string             // clickhouse dsn
-	table          string             // graphite_tag table
-	absKeepEncoded bool               // Abs returns url encoded value. For queries from prometheus
-	opts           clickhouse.Options // clickhouse query timeout
-	body           []byte             // clickhouse response
+	url            string                   // clickhouse dsn
+	table          string                   // graphite_tag table
+	absKeepEncoded bool                     // Abs returns url encoded value. For queries from prometheus
+	opts           clickhouse.Options       // clickhouse query timeout
+	taggedCosts    map[string]*config.Costs // costs for taggs (sor tune index search)
+
+	body []byte // clickhouse response
 }
 
-func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Options) *TaggedFinder {
+func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
 	return &TaggedFinder{
 		url:            url,
 		table:          table,
 		absKeepEncoded: absKeepEncoded,
 		opts:           opts,
+		taggedCosts:    taggedCosts,
 	}
 }
 
@@ -180,7 +189,23 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 	}
 }
 
-func ParseTaggedConditions(conditions []string) ([]TaggedTerm, error) {
+func setCost(term *TaggedTerm, costs *config.Costs) {
+	if term.Op == TaggedTermEq || term.Op == TaggedTermMatch {
+		if len(costs.ValuesCost) > 0 {
+			if cost, ok := costs.ValuesCost[term.Value]; ok {
+				term.Cost = cost
+				term.NonDefaultCost = true
+				return
+			}
+		}
+		if term.Op == TaggedTermEq && !term.HasWildcard && costs.Cost != nil {
+			term.Cost = *costs.Cost // only for non-wildcared eq
+			term.NonDefaultCost = true
+		}
+	}
+}
+
+func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.Costs) ([]TaggedTerm, error) {
 	terms := make([]TaggedTerm, len(conditions))
 
 	for i := 0; i < len(conditions); i++ {
@@ -226,14 +251,54 @@ func ParseTaggedConditions(conditions []string) ([]TaggedTerm, error) {
 		default:
 			return nil, fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
+		if len(taggedCosts) > 0 {
+			if costs, ok := taggedCosts[terms[i].Key]; ok {
+				setCost(&terms[i], costs)
+			}
+		}
 	}
 
-	sort.Sort(TaggedTermList(terms))
+	if len(taggedCosts) == 0 {
+		sort.Sort(TaggedTermList(terms))
+	} else {
+		// compare with taggs costs
+		sort.Slice(terms, func(i, j int) bool {
+			// compare taggs costs, if all of TaggegTerms has custom cost.
+			// this is allow overwrite operators order (Eq with or without wildcards/Match), use with carefully
+			if terms[i].Cost != terms[j].Cost {
+				if terms[i].NonDefaultCost && terms[j].NonDefaultCost ||
+					(terms[i].NonDefaultCost && terms[j].Op == TaggedTermEq && !terms[j].HasWildcard) ||
+					(terms[j].NonDefaultCost && terms[i].Op == TaggedTermEq && !terms[i].HasWildcard) {
+					return terms[i].Cost < terms[j].Cost
+				}
+			}
+
+			if terms[i].Op == terms[j].Op {
+				if terms[i].Op == TaggedTermEq && !terms[i].HasWildcard && terms[j].HasWildcard {
+					// globs as fist eq might be have a bad perfomance
+					return true
+				}
+
+				if terms[i].Key == "__name__" && terms[j].Key != "__name__" {
+					return true
+				}
+
+				if terms[i].Cost != terms[j].Cost && terms[i].HasWildcard == terms[j].HasWildcard {
+					// compare taggs costs
+					return terms[i].Cost < terms[j].Cost
+				}
+
+				return false
+			} else {
+				return terms[i].Op < terms[j].Op
+			}
+		})
+	}
 
 	return terms, nil
 }
 
-func ParseSeriesByTag(query string) ([]TaggedTerm, error) {
+func ParseSeriesByTag(query string, tagCosts map[string]*config.Costs) ([]TaggedTerm, error) {
 	expr, _, err := parser.ParseExpr(query)
 	if err != nil {
 		return nil, err
@@ -269,7 +334,7 @@ func ParseSeriesByTag(query string) ([]TaggedTerm, error) {
 		conditions = append(conditions, s)
 	}
 
-	return ParseTaggedConditions(conditions)
+	return ParseTaggedConditions(conditions, tagCosts)
 }
 
 func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
@@ -296,7 +361,7 @@ func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
 }
 
 func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
-	terms, err := ParseSeriesByTag(query)
+	terms, err := ParseSeriesByTag(query, t.taggedCosts)
 	if err != nil {
 		return err
 	}

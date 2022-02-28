@@ -66,6 +66,20 @@ When `reverse = true` is set for data-table, there are two possibles cases for [
 
 Depends on it for having a proper retention and aggregation you must additionally set `rollup-use-reverted = true` for the first case and `rollup-use-reverted = false` for the second.
 
+#### Additional tuning tagged find for seriesByTag and autocomplete
+Only one tag used as filter for index field Tag1, see graphite_tagged table [structure](https://github.com/lomik/carbon-clickhouse#clickhouse-configuration)
+
+So, if the first tag in filter is costly (poor selectivity), like environment (with several possible values), query perfomance will be degraded.
+Tune this with `tagged-costs` options:
+
+`
+tagged-costs = {
+    "environment" = { cost: 100 },
+    "project" = { values-cost = { "HugeProject" = 90 } } # overwrite tag value cost for some value only
+}`
+
+Default cost is 0 and positive or negative numbers can be used. So if environment is first tag filter in query, it will used as primary only if no other filters with equal operation. Costs from values-cost also applied to regex match or wilrdcarded equal.
+
 ## Carbonlink `[carbonlink]`
 The configuration to get metrics from carbon-cache. See details in [graphite-web](https://graphite.readthedocs.io/en/latest/carbon-daemons.html#carbon-relay-py) documentation.
 
@@ -131,6 +145,9 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  tagged-table = "graphite_tagged"
  # or how long the daemon will query tags during autocomplete
  tagged-autocomplete-days = 7
+
+ # costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags
+ # [clickhouse.tagged-costs]
  # old index table, DEPRECATED, see description in doc/config.md
  # tree-table = ""
  # reverse-tree-table = ""
