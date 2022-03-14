@@ -29,6 +29,9 @@ clean:
 $(NAME): $(SRCS)
 	$(GO) build $(MODULE)
 
+debug: $(SRCS)
+	$(GO) build -gcflags=all='-N -l' $(MODULE)
+
 deploy/doc/graphite-clickhouse.conf: $(NAME)
 	./$(NAME) -config-print-default > $@
 

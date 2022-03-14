@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
@@ -17,6 +20,9 @@ func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 	}
 	for _, format := range check.Formats {
 		if url, result, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
+			if check.ErrorRegexp != "" {
+				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+			}
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
@@ -29,7 +35,10 @@ func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 				}
 			}
 		} else {
-			errors = append(errors, url+": "+err.Error())
+			errStr := strings.TrimRight(err.Error(), "\n")
+			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
+				errors = append(errors, url+": "+errStr)
+			}
 		}
 	}
 
@@ -55,6 +64,9 @@ func verifyTags(address string, check *TagsCheck) []string {
 		}
 
 		if err == nil {
+			if check.ErrorRegexp != "" {
+				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+			}
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
@@ -67,7 +79,10 @@ func verifyTags(address string, check *TagsCheck) []string {
 				}
 			}
 		} else {
-			errors = append(errors, url+": "+err.Error())
+			errStr := strings.TrimRight(err.Error(), "\n")
+			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
+				errors = append(errors, url+": "+errStr)
+			}
 		}
 	}
 
@@ -84,6 +99,9 @@ func verifyRender(address string, check *RenderCheck) []string {
 			sort.Slice(result, func(i, j int) bool {
 				return result[i].Name < result[j].Name
 			})
+			if check.ErrorRegexp != "" {
+				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+			}
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
@@ -133,9 +151,30 @@ func verifyRender(address string, check *RenderCheck) []string {
 				}
 			}
 		} else {
-			errors = append(errors, url+": "+err.Error())
+			errStr := strings.TrimRight(err.Error(), "\n")
+			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
+				errors = append(errors, url+": "+errStr)
+			}
 		}
 	}
 
 	return errors
+}
+
+func debug(test *TestSchema, ch *Clickhouse, gch *GraphiteClickhouse) {
+	for {
+		cmd := gch.Cmd()
+		fmt.Println(cmd)
+		fmt.Printf("graphite-clickhouse URL: %s , clickhouse URL: %s , proxy URL: %s (delay %v)\n",
+			gch.URL(), ch.URL(), test.Proxy.URL(), test.Proxy.GetDelay())
+		fmt.Println("Some queries was failed, press y for continue after debug test, k for kill graphite-clickhouse:")
+		in := bufio.NewScanner(os.Stdin)
+		in.Scan()
+		s := in.Text()
+		if s == "y" || s == "Y" {
+			break
+		} else if s == "k" || s == "K" {
+			gch.Stop(false)
+		}
+	}
 }

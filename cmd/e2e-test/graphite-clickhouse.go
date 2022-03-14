@@ -8,8 +8,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"text/template"
+
+	"github.com/lomik/graphite-clickhouse/helper/client"
 )
 
 type GraphiteClickhouse struct {
@@ -24,7 +27,7 @@ type GraphiteClickhouse struct {
 	cmd        *exec.Cmd `toml:"-"`
 }
 
-func (c *GraphiteClickhouse) Start(testDir, clickhouseAddr string) error {
+func (c *GraphiteClickhouse) Start(testDir, clickhouseURL, chProxyURL string) error {
 	if c.cmd != nil {
 		return errors.New("carbon-clickhouse already started")
 	}
@@ -55,13 +58,15 @@ func (c *GraphiteClickhouse) Start(testDir, clickhouseAddr string) error {
 		return err
 	}
 	param := struct {
-		CLICKHOUSE_ADDR string
-		GCH_ADDR        string
-		GCH_DIR         string
+		CLICKHOUSE_URL string
+		PROXY_URL      string
+		GCH_ADDR       string
+		GCH_DIR        string
 	}{
-		CLICKHOUSE_ADDR: clickhouseAddr,
-		GCH_ADDR:        c.address,
-		GCH_DIR:         c.storeDir,
+		CLICKHOUSE_URL: clickhouseURL,
+		PROXY_URL:      chProxyURL,
+		GCH_ADDR:       c.address,
+		GCH_DIR:        c.storeDir,
 	}
 
 	c.configFile = path.Join(c.storeDir, "graphite-clickhouse.conf")
@@ -95,11 +100,8 @@ func (c *GraphiteClickhouse) Alive() bool {
 	if c.cmd == nil {
 		return false
 	}
-	req, err := http.DefaultClient.Get("http://" + c.address + "/alive")
-	if err == nil || req.StatusCode != http.StatusOK {
-		return false
-	}
-	return true
+	_, _, err := client.MetricsFind(http.DefaultClient, "http://"+c.address+"/alive", client.FormatDefault, "NonExistentTarget", 0, 0)
+	return err == nil
 }
 
 func (c *GraphiteClickhouse) Stop(cleanup bool) error {
@@ -134,6 +136,10 @@ func (c *GraphiteClickhouse) Cleanup() {
 	}
 }
 
-func (c *GraphiteClickhouse) Address() string {
-	return c.address
+func (c *GraphiteClickhouse) URL() string {
+	return "http://" + c.address
+}
+
+func (c *GraphiteClickhouse) Cmd() string {
+	return strings.Join(c.cmd.Args, " ")
 }

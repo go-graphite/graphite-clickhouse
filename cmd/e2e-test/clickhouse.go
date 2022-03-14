@@ -5,6 +5,8 @@ import (
 	"os/exec"
 )
 
+var ClickhouseContainerName = "clickhouse-server-gch-test"
+
 type Clickhouse struct {
 	Version string `toml:"version"`
 	Dir     string `toml:"dir"`
@@ -39,7 +41,7 @@ func (c *Clickhouse) Start() (error, string) {
 	}
 	c.url = "http://" + c.httpAddress
 
-	c.container = "clickhouse-server-gch-test"
+	c.container = ClickhouseContainerName
 
 	// tz, _ := localTZLocationName()
 

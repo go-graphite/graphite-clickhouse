@@ -10,6 +10,8 @@ import (
 	"text/template"
 )
 
+var CchContainerName = "carbon-clickhouse-gch-test"
+
 type CarbonClickhouse struct {
 	Version string `toml:"version"`
 
@@ -25,7 +27,7 @@ type CarbonClickhouse struct {
 	storeDir  string `toml:"-"`
 }
 
-func (c *CarbonClickhouse) Start(testDir, clickhouseAddr, clickhouseContainer string) (error, string) {
+func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (error, string) {
 	if len(c.Version) == 0 {
 		return fmt.Errorf("version not set"), ""
 	}
@@ -41,7 +43,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseAddr, clickhouseContainer st
 		return err, ""
 	}
 
-	c.container = "carbon-clickhouse-gch-test"
+	c.container = CchContainerName
 
 	c.storeDir, err = ioutil.TempDir("", "carbon-clickhouse")
 	if err != nil {
@@ -62,11 +64,11 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseAddr, clickhouseContainer st
 		return err, ""
 	}
 	param := struct {
-		CLICKHOUSE_ADDR string
-		CCH_ADDR        string
+		CLICKHOUSE_URL string
+		CCH_ADDR       string
 	}{
-		CLICKHOUSE_ADDR: clickhouseAddr,
-		CCH_ADDR:        c.address,
+		CLICKHOUSE_URL: clickhouseURL,
+		CCH_ADDR:       c.address,
 	}
 
 	configFile := path.Join(c.storeDir, "carbon-clickhouse.conf")

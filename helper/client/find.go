@@ -85,7 +85,7 @@ func MetricsFind(client *http.Client, address string, format FormatType, query s
 	if resp.StatusCode == http.StatusNotFound {
 		return queryParams, nil, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, fmt.Errorf("error with %d: %s", resp.StatusCode, string(b))
+		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var globs []FindMatch

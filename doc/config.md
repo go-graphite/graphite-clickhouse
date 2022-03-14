@@ -25,6 +25,23 @@ Useless settings:
 - `max_ast_elements`: the same
 - `max_execution_time`: with `cancel_http_readonly_queries_on_client_close=1` and `data-timeout = "1m"` it's already covered.
 
+### Query multi parameters (for overwrite default url and data-timeout)
+
+For queries with duration (until - from) >= 72 hours, use custom url and data-timeout
+
+```
+url = "http://graphite:qwerty@localhost:8123/?readonly=2&log_queries=1&max_rows_to_read=102400000&max_result_bytes=12800000&max_threads=2"
+data-timeout = "30s"
+
+query-params = [
+  {
+    duration = "72h",
+    url = "http://graphite:qwerty@localhost:8123/?readonly=2&log_queries=1&max_rows_to_read=1024000000&max_result_bytes=128000000&max_threads=1",
+    data-timeout = "60s"
+  }
+]
+```
+
 ### Index table
 See [index table](./index-table.md) documentation for details.
 
@@ -86,11 +103,12 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
 So, if the first tag in filter is costly (poor selectivity), like environment (with several possible values), query perfomance will be degraded.
 Tune this with `tagged-costs` options:
 
-`
+```
 tagged-costs = {
     "environment" = { cost: 100 },
     "project" = { values-cost = { "HugeProject" = 90 } } # overwrite tag value cost for some value only
-}`
+}
+```
 
 Default cost is 0 and positive or negative numbers can be used. So if environment is first tag filter in query, it will used as primary only if no other filters with equal operation. Costs from values-cost also applied to regex match or wilrdcarded equal.
 
@@ -126,9 +144,9 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  headers-to-log = []
 
 [clickhouse]
- # see https://clickhouse.tech/docs/en/interfaces/http
+ # default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params
  url = "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1"
- # total timeout to fetch data
+ # default total timeout to fetch data, can be overwritten with query-params
  data-timeout = "1m0s"
  # see doc/index-table.md
  index-table = "graphite_index"

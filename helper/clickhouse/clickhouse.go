@@ -50,11 +50,16 @@ func NewErrorWithCode(err string, code int) error {
 
 func (e *ErrorWithCode) Error() string { return e.err }
 
+var ErrInvalidTimeRange = errors.New("Invalid or empty time range")
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
 var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
 var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
 
 func HandleError(w http.ResponseWriter, err error) {
+	if err == ErrInvalidTimeRange {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if errors.Is(err, context.Canceled) {
 		http.Error(w, "Storage read context canceled", http.StatusGatewayTimeout)
 		return

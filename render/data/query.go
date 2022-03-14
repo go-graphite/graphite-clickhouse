@@ -47,9 +47,10 @@ const extTableName = "metrics_list"
 
 type query struct {
 	CHResponses
-	cStep            *commonStep
-	chURL            string
-	chDataTimeout    time.Duration
+	cStep *commonStep
+
+	chQueryParams []config.QueryParam
+
 	chConnectTimeout time.Duration
 	debugDir         string
 	debugExtDataPerm os.FileMode
@@ -98,8 +99,7 @@ func newQuery(cfg *config.Config, targets int) *query {
 	query := &query{
 		CHResponses:      make([]CHResponse, 0, targets),
 		cStep:            cStep,
-		chURL:            cfg.ClickHouse.URL,
-		chDataTimeout:    cfg.ClickHouse.DataTimeout,
+		chQueryParams:    cfg.ClickHouse.QueryParams,
 		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
 		debugDir:         cfg.Debug.Directory,
 		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
@@ -113,6 +113,14 @@ func (q *query) appendReply(chr CHResponse) {
 	q.lock.Lock()
 	q.CHResponses = append(q.CHResponses, chr)
 	q.lock.Unlock()
+}
+
+func (q *query) getParam(from, until int64) (string, time.Duration) {
+	duration := time.Second * time.Duration(until-from)
+
+	n := config.GetQueryParam(q.chQueryParams, duration)
+
+	return q.chQueryParams[n].URL, q.chQueryParams[n].DataTimeout
 }
 
 func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
@@ -147,12 +155,13 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 		data.wg.Add(1)
 		go func() {
 			defer data.wg.Done()
+			chURL, chDataTimeout := q.getParam(cond.from, cond.until)
 			body, err := clickhouse.Reader(
 				scope.WithTable(ctx, cond.pointsTable),
-				q.chURL,
+				chURL,
 				query,
 				clickhouse.Options{
-					Timeout:        q.chDataTimeout,
+					Timeout:        chDataTimeout,
 					ConnectTimeout: q.chConnectTimeout,
 				},
 				extData,
