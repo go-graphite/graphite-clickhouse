@@ -5,6 +5,8 @@ COPY . .
 
 ENV GOPATH=/go
 
+RUN apk add git --no-cache
+
 RUN go build -ldflags '-extldflags "-static"' github.com/lomik/graphite-clickhouse
 
 FROM alpine:latest
