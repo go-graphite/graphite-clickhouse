@@ -6,9 +6,8 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/go-graphite/carbonapi v0.0.0-20180220165555-9db1310e484a
 	github.com/go-graphite/protocol v0.4.3
-	github.com/gogo/protobuf v1.2.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.3
-	github.com/google/renameio v0.1.0 // indirect
 	github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80 // indirect
 	github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd // indirect
@@ -18,9 +17,5 @@ require (
 	github.com/prometheus/common v0.4.1
 	github.com/prometheus/prometheus v1.8.2-0.20190814100549-343d8d75fd76
 	github.com/stretchr/testify v1.7.0
-	go.uber.org/tools v0.0.0-20190618225709-2cfd321de3ee // indirect
 	go.uber.org/zap v1.17.0
-	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f // indirect; prometheus
-	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect; prometheus
-	golang.org/x/tools v0.0.0-20190312170243-e65039ee4138 // indirect; prometheus
 )

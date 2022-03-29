@@ -115,7 +115,7 @@ github.com/go-openapi/strfmt
 github.com/go-openapi/swag
 # github.com/go-openapi/validate v0.17.2
 github.com/go-openapi/validate
-# github.com/gogo/protobuf v1.2.1
+# github.com/gogo/protobuf v1.3.2
 ## explicit
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/jsonpb
@@ -141,8 +141,6 @@ github.com/golang/protobuf/ptypes/wrappers
 github.com/golang/snappy
 # github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 github.com/google/gofuzz
-# github.com/google/renameio v0.1.0
-## explicit
 # github.com/googleapis/gnostic v0.2.0
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
@@ -351,8 +349,6 @@ go.opencensus.io/trace/tracestate
 go.uber.org/atomic
 # go.uber.org/multierr v1.6.0
 go.uber.org/multierr
-# go.uber.org/tools v0.0.0-20190618225709-2cfd321de3ee
-## explicit
 # go.uber.org/zap v1.17.0
 ## explicit
 go.uber.org/zap
@@ -365,8 +361,6 @@ go.uber.org/zap/zapcore
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
-## explicit
 # golang.org/x/net v0.0.0-20210427231257-85d9c07bbe3a
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -388,8 +382,7 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
-## explicit
+# golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
@@ -407,8 +400,6 @@ golang.org/x/text/unicode/norm
 golang.org/x/text/width
 # golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
 golang.org/x/time/rate
-# golang.org/x/tools v0.0.0-20190312170243-e65039ee4138
-## explicit
 # google.golang.org/api v0.3.2
 google.golang.org/api/compute/v1
 google.golang.org/api/gensupport
