@@ -198,6 +198,10 @@ func main() {
 		}
 		w.Write(b)
 	})
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Graphite-clickhouse is alive.\n")
+	})
 
 	mux.Handle("/", app.Handler(prometheus.NewHandler(cfg)))
 
