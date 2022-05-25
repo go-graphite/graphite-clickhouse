@@ -1,7 +1,7 @@
 NAME:=graphite-clickhouse
 MAINTAINER:="Roman Lomonosov <r.lomonosov@gmail.com>"
 DESCRIPTION:="Graphite cluster backend with ClickHouse support"
-MODULE:=github.com/lomik/graphite-clickhouse
+MODULE:=github.com/go-graphite/graphite-clickhouse
 
 GO ?= go
 export GOFLAGS +=  -mod=vendor
@@ -49,7 +49,7 @@ test:
 gox-build:
 	rm -rf out
 	mkdir -p out
-	gox -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
+	gox -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}" $(MODULE)
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
 	./out/$(NAME)-linux-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
@@ -65,7 +65,7 @@ fpm-build-deb:
 	fpm -s dir -t deb -n $(NAME) -v $(VERSION) \
 		--deb-priority optional --category admin \
 		--force \
-		--url https://github.com/lomik/$(NAME) \
+		--url https://$(MODULE) \
 		--description $(DESCRIPTION) \
 		-m $(MAINTAINER) \
 		--license "MIT" \
@@ -81,7 +81,7 @@ fpm-build-rpm:
 	fpm -s dir -t rpm -n $(NAME) -v $(VERSION) \
 		--force \
 		--rpm-compression bzip2 --rpm-os linux \
-		--url https://github.com/lomik/$(NAME) \
+		--url https://$(MODULE) \
 		--description $(DESCRIPTION) \
 		-m $(MAINTAINER) \
 		--license "MIT" \
