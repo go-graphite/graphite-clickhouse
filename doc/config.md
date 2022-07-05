@@ -145,6 +145,8 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  tagged-table = "graphite_tagged"
  # or how long the daemon will query tags during autocomplete
  tagged-autocomplete-days = 7
+ # whether to use date filter when searching for the metrics in the tagged-table
+ tagged-use-daily = true
 
  # costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags
  # [clickhouse.tagged-costs]

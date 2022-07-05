@@ -70,17 +70,19 @@ type TaggedFinder struct {
 	absKeepEncoded bool                     // Abs returns url encoded value. For queries from prometheus
 	opts           clickhouse.Options       // clickhouse query timeout
 	taggedCosts    map[string]*config.Costs // costs for taggs (sor tune index search)
+	dailyEnabled   bool
 
 	body []byte // clickhouse response
 }
 
-func NewTagged(url string, table string, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
+func NewTagged(url string, table string, dailyEnabled bool, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
 	return &TaggedFinder{
 		url:            url,
 		table:          table,
 		absKeepEncoded: absKeepEncoded,
 		opts:           opts,
 		taggedCosts:    taggedCosts,
+		dailyEnabled:   dailyEnabled,
 	}
 }
 
@@ -375,11 +377,13 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 		return err
 	}
 
-	w.Andf(
-		"Date >='%s' AND Date <= '%s'",
-		time.Unix(from, 0).Format("2006-01-02"),
-		time.Unix(until, 0).Format("2006-01-02"),
-	)
+	if t.dailyEnabled {
+		w.Andf(
+			"Date >='%s' AND Date <= '%s'",
+			time.Unix(from, 0).Format("2006-01-02"),
+			time.Unix(until, 0).Format("2006-01-02"),
+		)
+	}
 
 	// TODO: consider consistent query generator
 	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, pw.PreWhereSQL(), w.SQL())
