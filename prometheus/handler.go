@@ -81,6 +81,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.URL.Path, "/api/v1") {
+		lookbackdelta := r.URL.Query().Get("lookbackdelta")
+		if lookbackdelta != "" {
+			delta, err := time.ParseDuration(lookbackdelta)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			promql.LookbackDelta = delta
+		}
 		http.StripPrefix("/api/v1", h.apiV1Router).ServeHTTP(w, r)
 		return
 	}
