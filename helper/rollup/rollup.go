@@ -34,13 +34,13 @@ func NewAuto(addr string, table string, interval time.Duration, defaultPrecision
 	return r, nil
 }
 
-func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string, auto bool) (*Rollup, error) {
 	rollupConfBody, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	rules, err := parseXML(rollupConfBody)
+	rules, err := parseXML(rollupConfBody, auto)
 	if err != nil {
 		return nil, err
 	}

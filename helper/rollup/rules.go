@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
@@ -16,7 +17,44 @@ type Retention struct {
 	Precision uint32 `json:"precision"`
 }
 
+type RuleType uint16
+
+const (
+	RuleAuto        RuleType = iota
+	RuleAll                  // rule for plain and tagged
+	RulePlain                // regex for non-tagged
+	RuleTaggedRegex          // regex for tagged
+	//RuleTagged               // complex rule for tagged, separated by tags, like name?tag1=value1&tag2=~value2_regex
+)
+
+func (n *RuleType) UnmarshalText(text []byte) error {
+	s := strings.ToLower(string(text))
+	switch s {
+	case "plain":
+		*n = RulePlain
+	case "tagged_regex":
+		*n = RuleTaggedRegex
+	// case "tagged":
+	// 	*s = RuleTagged
+	case "":
+	case "all":
+		*n = RuleAll
+	default:
+		return fmt.Errorf("not realised rule type: %s", s)
+	}
+	return nil
+}
+
+func AutoDetectRuleType(ruleRegexp string) RuleType {
+	if strings.IndexAny(ruleRegexp, "?&=") == -1 {
+		return RulePlain
+	} else {
+		return RuleTaggedRegex
+	}
+}
+
 type Pattern struct {
+	RuleType  RuleType    `json:"type"`
 	Regexp    string      `json:"regexp"`
 	Function  string      `json:"function"`
 	Retention []Retention `json:"retention"`
@@ -25,8 +63,10 @@ type Pattern struct {
 }
 
 type Rules struct {
-	Pattern []Pattern `json:"pattern"`
-	Updated int64     `json:"updated"`
+	Pattern       []Pattern `json:"pattern"`
+	patternPlain  []Pattern
+	patternTagged []Pattern
+	Updated       int64 `json:"updated"`
 }
 
 // NewMockRulles creates mock rollup for tests
@@ -87,6 +127,15 @@ func (r *Rules) compile() (*Rules, error) {
 		if err := r.Pattern[i].compile(); err != nil {
 			return r, err
 		}
+
+		if r.Pattern[i].RuleType == RulePlain {
+			r.patternPlain = append(r.patternPlain, r.Pattern[i])
+		} else if r.Pattern[i].RuleType == RuleTaggedRegex {
+			r.patternTagged = append(r.patternTagged, r.Pattern[i])
+		} else {
+			r.patternPlain = append(r.patternPlain, r.Pattern[i])
+			r.patternTagged = append(r.patternTagged, r.Pattern[i])
+		}
 	}
 
 	return r, nil
@@ -110,6 +159,7 @@ func (r *Rules) withDefault(defaultPrecision uint32, defaultFunction *Aggr) *Rul
 	}
 
 	patterns = append(patterns, Pattern{
+		RuleType:  RuleAll,
 		Regexp:    ".*",
 		Function:  defaultFunction.Name(),
 		Retention: retention,
@@ -131,7 +181,15 @@ func (r *Rules) withSuperDefault() *Rules {
 func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
 	precisionFound := false
 
-	for _, p := range r.Pattern {
+	tagged := strings.IndexAny(metric, "?&=")
+	var patterns []Pattern
+	if tagged == -1 {
+		patterns = r.patternPlain
+	} else {
+		patterns = r.patternTagged
+	}
+
+	for _, p := range patterns {
 		// pattern hasn't interested data
 		if (ag != nil || p.aggr == nil) && (precisionFound || len(p.Retention) == 0) {
 			continue

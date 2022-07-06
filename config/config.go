@@ -136,24 +136,25 @@ var knownDataTableContext = map[string]bool{
 
 // DataTable configs
 type DataTable struct {
-	Table                  string          `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
-	Reverse                bool            `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
-	MaxAge                 time.Duration   `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
-	MinAge                 time.Duration   `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
-	MaxInterval            time.Duration   `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
-	MinInterval            time.Duration   `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
-	TargetMatchAny         string          `toml:"target-match-any" json:"target-match-any" comment:"table allowed only if any metrics in target matches regexp"`
-	TargetMatchAll         string          `toml:"target-match-all" json:"target-match-all" comment:"table allowed only if all metrics in target matches regexp"`
-	TargetMatchAnyRegexp   *regexp.Regexp  `toml:"-" json:"-"`
-	TargetMatchAllRegexp   *regexp.Regexp  `toml:"-" json:"-"`
-	RollupConf             string          `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
-	RollupAutoTable        string          `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
-	RollupDefaultPrecision uint32          `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
-	RollupDefaultFunction  string          `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
-	RollupUseReverted      bool            `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
-	Context                []string        `toml:"context" json:"context" comment:"valid values are 'graphite' of 'prometheus'"`
-	ContextMap             map[string]bool `toml:"-" json:"-"`
-	Rollup                 *rollup.Rollup  `toml:"-" json:"rollup-conf"`
+	Table                    string          `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
+	Reverse                  bool            `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
+	MaxAge                   time.Duration   `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
+	MinAge                   time.Duration   `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
+	MaxInterval              time.Duration   `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
+	MinInterval              time.Duration   `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
+	TargetMatchAny           string          `toml:"target-match-any" json:"target-match-any" comment:"table allowed only if any metrics in target matches regexp"`
+	TargetMatchAll           string          `toml:"target-match-all" json:"target-match-all" comment:"table allowed only if all metrics in target matches regexp"`
+	TargetMatchAnyRegexp     *regexp.Regexp  `toml:"-" json:"-"`
+	TargetMatchAllRegexp     *regexp.Regexp  `toml:"-" json:"-"`
+	RollupConf               string          `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
+	RollupAutoTable          string          `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
+	RollupDefaultPrecision   uint32          `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
+	RollupDefaultFunction    string          `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
+	RollupUseReverted        bool            `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
+	RollupRuleTypeAutodetect bool            `toml:"rollup-rule-type-autodetect" json:"rollup-rule-type-autodetect"`
+	Context                  []string        `toml:"context" json:"context" comment:"valid values are 'graphite' of 'prometheus'"`
+	ContextMap               map[string]bool `toml:"-" json:"-"`
+	Rollup                   *rollup.Rollup  `toml:"-" json:"rollup-conf"`
 }
 
 // Debug config
@@ -460,7 +461,7 @@ func (c *Config) ProcessDataTables() (err error) {
 		} else if c.DataTable[i].RollupConf == "none" {
 			c.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
-			c.DataTable[i].Rollup, err = rollup.NewXMLFile(c.DataTable[i].RollupConf, rdp, rdf)
+			c.DataTable[i].Rollup, err = rollup.NewXMLFile(c.DataTable[i].RollupConf, rdp, rdf, c.DataTable[i].RollupRuleTypeAutodetect)
 		}
 
 		if err != nil {

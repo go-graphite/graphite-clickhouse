@@ -46,6 +46,7 @@ type RetentionXML struct {
 }
 
 type PatternXML struct {
+	RuleType  RuleType        `xml:"type"`
 	Regexp    string          `xml:"regexp"`
 	Function  string          `xml:"function"`
 	Retention []*RetentionXML `xml:"retention"`
@@ -62,6 +63,7 @@ func (r *RetentionXML) retention() Retention {
 
 func (p *PatternXML) pattern() Pattern {
 	result := Pattern{
+		RuleType:  p.RuleType,
 		Regexp:    p.Regexp,
 		Function:  p.Function,
 		Retention: make([]Retention, 0, len(p.Retention)),
@@ -74,7 +76,7 @@ func (p *PatternXML) pattern() Pattern {
 	return result
 }
 
-func parseXML(body []byte) (*Rules, error) {
+func parseXML(body []byte, auto bool) (*Rules, error) {
 	r := &RulesXML{}
 	err := xml.Unmarshal(body, r)
 	if err != nil {
@@ -94,9 +96,19 @@ func parseXML(body []byte) (*Rules, error) {
 	patterns := make([]Pattern, 0, uint64(len(r.Pattern))+4)
 	for _, p := range r.Pattern {
 		patterns = append(patterns, p.pattern())
+		for i := range patterns {
+			if patterns[i].RuleType == RuleAuto {
+				if auto {
+					patterns[i].RuleType = AutoDetectRuleType(patterns[i].Regexp)
+				} else {
+					patterns[i].RuleType = RuleAll
+				}
+			}
+		}
 	}
 
 	if r.Default != nil {
+		r.Default.RuleType = RuleAll
 		patterns = append(patterns, r.Default.pattern())
 	}
 

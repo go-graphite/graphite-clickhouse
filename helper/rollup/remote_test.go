@@ -88,8 +88,24 @@ func TestParseJson(t *testing.T) {
 			"is_default": 0
 		},
 		{
+			"type": "plain",
+			"regexp": "\\.min$",
+			"function": "min",
+			"age": "0",
+			"precision": "3600",
+			"is_default": 0
+		},
+		{
+			"type": "tagged_regex",
+			"regexp": "\\.min\\?",
+			"function": "min",
+			"age": "0",
+			"precision": "3600",
+			"is_default": 0
+		},
+		{
 			"regexp": "",
-			"function": "max",
+			"function": "avg",
 			"age": "0",
 			"precision": "60",
 			"is_default": 1
@@ -112,11 +128,13 @@ func TestParseJson(t *testing.T) {
 	total$;sum;
 	min$;min;
 	max$;max;
-	;max;0:60
+	<!PLAIN>\.min$;min;0:3600
+	<!TAG_R>\.min\?;min;0:3600	
+	;avg;0:60
 	`
 
 	assert := assert.New(t)
-	expected, err := parseCompact(compact)
+	expected, err := parseCompact(compact, false)
 	assert.NoError(err)
 
 	r, err := parseJson([]byte(response))
