@@ -239,6 +239,7 @@ index-reverses = [
 ]
 tagged-table = "graphite_tags"
 tagged-autocomplete-days = 5
+tagged-use-daily = false
 tree-table = "tree"
 reverse-tree-table = "reversed_tree"
 date-tree-table = "data_tree"

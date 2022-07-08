@@ -32,6 +32,20 @@ You can overwrite automatic behavior with `index-reverse`. Valid values are `"au
 
 If you need fine tuning for different paths, you can use `[[clickhouse.index-reverses]]` to set behavior per metrics' `prefix`, `suffix` or `regexp`.
 
+### Tags table
+By default, tags are stored in the tagged-table on the daily basis. If a metric set doesn't change much, that leads to situation when the same data stored multiple times.
+To prevent uncontrolled growth and reduce the amount of data stored in the tagged-table, the `tagged-use-daily` parameter could be set to `false` and table definition could be changed to something like:
+```
+CREATE TABLE graphite_tagged (
+  Date Date,
+  Tag1 String,
+  Path String,
+  Tags Array(String),
+  Version UInt32
+) ENGINE = ReplacingMergeTree(Version)
+ORDER BY (Tag1, Path);
+```
+
 ### ClickHouse aggregation
 For detailed description of `max-data-points` and `internal-aggregation` see [aggregation documentation](./aggregation.md).
 

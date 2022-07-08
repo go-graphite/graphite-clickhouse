@@ -78,6 +78,7 @@ type ClickHouse struct {
 	IndexTimeout         time.Duration     `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
 	TaggedTable          string            `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
 	TaggedAutocompleDays int               `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
+	TaggedUseDaily       bool              `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
 	TaggedCosts          map[string]*Costs `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
 	TreeTable            string            `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
 	ReverseTreeTable     string            `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
@@ -196,6 +197,7 @@ func New() *Config {
 			DataTimeout:          time.Minute,
 			IndexTable:           "graphite_index",
 			IndexUseDaily:        true,
+			TaggedUseDaily:       true,
 			IndexReverse:         "auto",
 			IndexReverses:        IndexReverses{},
 			IndexTimeout:         time.Minute,
