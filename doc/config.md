@@ -62,7 +62,7 @@ The rollup configuration is used for a proper  metrics pre-aggregation. It conta
 
 Historically, the way to define the config was `rollup-conf = "/path/to/the/conf/with/graphite_rollup.xml"`. The format is the same as [graphite_rollup](https://clickhouse.tech/docs/en/engines/table-engines/mergetree-family/graphitemergetree/#rollup-configuration) scheme for ClickHouse server.
 
-For a quite long time it's recommended to use `rollup-conf = "auto"` to get the configuration from remote ClickHouse server. It will update itself each minute.
+For a quite long time it's recommended to use `rollup-conf = "auto"` to get the configuration from remote ClickHouse server. It will update itself on each `rollup-auto-interval` (1 minute by default) or once on startup if set to "0s".
 
 If you don't use a `GraphiteMergeTree` family engine, you can still use `rollup-conf = "auto"` by setting `rollup-auto-table="graphiteMergeTreeTable"` and get the proper config. In this case `graphiteMergeTreeTable` is a dummy table associated with proper [graphite_rollup](https://clickhouse.tech/docs/en/engines/table-engines/mergetree-family/graphitemergetree/#rollup-configuration). The cases when you may need it:
 
@@ -205,6 +205,8 @@ It's possible to set multiple loggers. See `Config` description in [config.go](h
  rollup-conf = "auto"
  # custom table for 'rollup-conf=auto', useful for Distributed or MatView
  rollup-auto-table = ""
+ # rollup update interval for 'rollup-conf=auto'
+ rollup-auto-interval = "1m0s"
  # is used when none of rules match
  rollup-default-precision = 0
  # is used when none of rules match

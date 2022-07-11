@@ -104,8 +104,10 @@ func (r *Rollup) updateWorker() {
 		// If we still have no rules - try every second to fetch them
 		if r.rules == nil {
 			time.Sleep(1 * time.Second)
-		} else {
+		} else if r.interval != 0 {
 			time.Sleep(r.interval)
+		} else {
+			break
 		}
 	}
 }

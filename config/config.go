@@ -149,6 +149,7 @@ type DataTable struct {
 	TargetMatchAllRegexp   *regexp.Regexp  `toml:"-" json:"-"`
 	RollupConf             string          `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
 	RollupAutoTable        string          `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
+	RollupAutoInterval     *time.Duration  `toml:"rollup-auto-interval" json:"rollup-auto-interval" comment:"rollup update interval for 'rollup-conf=auto'"`
 	RollupDefaultPrecision uint32          `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
 	RollupDefaultFunction  string          `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
 	RollupUseReverted      bool            `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
@@ -272,10 +273,12 @@ func PrintDefaultConfig() error {
 	}
 
 	if len(cfg.DataTable) == 0 {
+                interval := time.Minute
 		cfg.DataTable = []DataTable{
 			{
 				Table:      "graphite_data",
 				RollupConf: "auto",
+				RollupAutoInterval: &interval,
 			},
 		}
 	}
@@ -454,11 +457,15 @@ func (c *Config) ProcessDataTables() (err error) {
 		rdf := c.DataTable[i].RollupDefaultFunction
 		if c.DataTable[i].RollupConf == "auto" || c.DataTable[i].RollupConf == "" {
 			table := c.DataTable[i].Table
+			interval := time.Minute
 			if c.DataTable[i].RollupAutoTable != "" {
 				table = c.DataTable[i].RollupAutoTable
 			}
+			if c.DataTable[i].RollupAutoInterval != nil {
+				interval = *c.DataTable[i].RollupAutoInterval
+			}
 
-			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.URL, table, time.Minute, rdp, rdf)
+			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.URL, table, interval, rdp, rdf)
 		} else if c.DataTable[i].RollupConf == "none" {
 			c.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
