@@ -3,6 +3,8 @@ package point
 import (
 	"fmt"
 	"sort"
+
+	"github.com/lomik/graphite-clickhouse/pkg/dry"
 )
 
 // Points is a structure that stores points and additional information about them, e.g. steps, aggregating functions and names.
@@ -50,8 +52,7 @@ func (pp *Points) MetricID(metricName string) uint32 {
 
 // MetricIDBytes checks if metric name already exists and returns the ID for it. If not, it creates it first.
 func (pp *Points) MetricIDBytes(metricNameBytes []byte) uint32 {
-	// @TODO: optimize?
-	return pp.MetricID(string(metricNameBytes))
+	return pp.MetricID(dry.UnsafeString(metricNameBytes))
 }
 
 // MetricName returns name for metric with given metricID or empty string when ID does not exist

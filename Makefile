@@ -21,7 +21,7 @@ all: $(NAME)
 
 .PHONY: clean
 clean:
-	rm -f $(NAME)
+	rm -f $(NAME) $(NAME)-client
 	rm -rf out
 	rm -f *deb *rpm
 	rm -f sha256sum md5sum
@@ -45,6 +45,12 @@ config: doc/config.md
 
 test:
 	$(GO) test -race ./...
+
+e2e-test: $(NAME)
+	$(GO) build $(MODULE)/cmd/e2e-test
+	
+client: $(NAME)
+	$(GO) build $(MODULE)/cmd/graphite-clickhouse-client
 
 gox-build:
 	rm -rf out

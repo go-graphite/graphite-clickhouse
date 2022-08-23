@@ -53,6 +53,11 @@ jobs:
       env:
         CGO_ENABLED: 1
 
+    - name: Integration tests
+      run: |
+        make e2e-test
+        ./e2e-test -config tests
+
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
