@@ -1,0 +1,36 @@
+<yandex>
+<graphite_rollup>
+    <!-- default to store 1 minute point up to 30 days and 1 hour point later -->
+    <default>
+        <function>avg</function>
+        <retention>
+            <age>0</age>
+            <precision>10</precision>
+        </retention>
+    </default>
+    <pattern>
+        <regexp>\.sum$</regexp>
+        <function>sum</function>
+    </pattern>
+     <pattern>
+        <regexp>\.sum\?</regexp>
+        <function>sum</function>
+    </pattern>
+    <pattern>
+        <regexp>\.min$</regexp>
+        <function>min</function>
+    </pattern>
+    <pattern>
+        <regexp>\.min\?</regexp>
+        <function>min</function>
+    </pattern>
+    <pattern>
+        <regexp>\.max$</regexp>
+        <function>max</function>
+    </pattern>
+     <pattern>
+        <regexp>\.max\?</regexp>
+        <function>max</function>
+    </pattern>    
+</graphite_rollup>
+</yandex>
