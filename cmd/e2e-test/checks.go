@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
@@ -27,8 +28,11 @@ func expandTimestamp(fs *token.FileSet, s string, now string) (int64, error) {
 
 func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
-		if url, result, err := client.MetricsFind(address, format, check.Query, check.from, check.until); err == nil {
+		if url, result, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
@@ -50,6 +54,9 @@ func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 
 func verifyTags(address string, check *TagsCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
 		var (
 			result []string
@@ -58,9 +65,9 @@ func verifyTags(address string, check *TagsCheck) []string {
 		)
 
 		if check.Names {
-			url, result, err = client.TagsNames(address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, err = client.TagsNames(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		} else {
-			url, result, err = client.TagsValues(address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, err = client.TagsValues(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		}
 
 		if err == nil {
@@ -85,8 +92,11 @@ func verifyTags(address string, check *TagsCheck) []string {
 
 func verifyRender(address string, check *RenderCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
-		if url, result, err := client.Render(address, format, check.Targets, check.from, check.until); err == nil {
+		if url, result, err := client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
 			sort.Slice(result, func(i, j int) bool {
 				return result[i].Name < result[j].Name
 			})

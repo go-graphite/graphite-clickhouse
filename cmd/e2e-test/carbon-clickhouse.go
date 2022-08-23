@@ -79,10 +79,12 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseAddr string, clickhouseConta
 		return err, ""
 	}
 
+	// tz, _ := localTZLocationName()
+
 	cchStart := []string{"run", "-d",
 		"--name", c.container,
 		"-p", c.address + ":2003",
-		//"-e", "TZ=UTC",
+		// "-e", "TZ=" + tz, // workaround for TZ=":/etc/localtime"
 		"-v", c.storeDir + ":/etc/carbon-clickhouse",
 		"--link", clickhouseContainer,
 		c.DockerImage + ":" + c.Version,

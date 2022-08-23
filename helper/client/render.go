@@ -37,7 +37,7 @@ type Metric struct {
 
 // Render do /metrics/find/ request
 // Valid formats are carbonapi_v3_pb. protobuf, pickle, json
-func Render(address string, format FormatType, targets []string, from, until int64) (string, []Metric, error) {
+func Render(client *http.Client, address string, format FormatType, targets []string, from, until int64) (string, []Metric, error) {
 	rUrl := "/render/"
 	if format == FormatDefault {
 		format = FormatPb_v3
@@ -107,7 +107,7 @@ func Render(address string, format FormatType, targets []string, from, until int
 	if err != nil {
 		return queryParams, nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return queryParams, nil, err
 	}

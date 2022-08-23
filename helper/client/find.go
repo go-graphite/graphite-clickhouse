@@ -21,7 +21,7 @@ type FindMatch struct {
 
 // MetricsFind do /metrics/find/ request
 // Valid formats are carbonapi_v3_pb. protobuf, pickle
-func MetricsFind(address string, format FormatType, query string, from, until int64) (string, []FindMatch, error) {
+func MetricsFind(client *http.Client, address string, format FormatType, query string, from, until int64) (string, []FindMatch, error) {
 	if format == FormatDefault {
 		format = FormatPb_v3
 	}
@@ -74,7 +74,7 @@ func MetricsFind(address string, format FormatType, query string, from, until in
 	if err != nil {
 		return queryParams, nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return queryParams, nil, err
 	}

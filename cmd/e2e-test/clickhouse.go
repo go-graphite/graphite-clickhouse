@@ -13,6 +13,7 @@ type Clickhouse struct {
 	DockerImage string `toml:"image"`
 
 	httpAddress string `toml:"-"`
+	url         string `toml:"-"`
 	container   string `toml:"-"`
 }
 
@@ -34,14 +35,17 @@ func (c *Clickhouse) Start() (error, string) {
 	if err != nil {
 		return err, ""
 	}
+	c.url = "http://" + c.httpAddress
 
 	c.container = "clickhouse-server-gch-test"
+
+	// tz, _ := localTZLocationName()
 
 	chStart := []string{"run", "-d",
 		"--name", c.container,
 		"--ulimit", "nofile=262144:262144",
 		"-p", c.httpAddress + ":8123",
-		//"-e", "TZ=UTC",
+		// "-e", "TZ=" + tz, // workaround for TZ=":/etc/localtime"
 		"-v", c.Dir + "/config.xml:/etc/clickhouse-server/config.xml",
 		"-v", c.Dir + "/users.xml:/etc/clickhouse-server/users.xml",
 		"-v", c.Dir + "/rollup.xml:/etc/clickhouse-server/config.d/rollup.xml",
@@ -88,8 +92,8 @@ func (c *Clickhouse) Delete() (error, string) {
 	return err, string(out)
 }
 
-func (c *Clickhouse) HttpAddress() string {
-	return c.httpAddress
+func (c *Clickhouse) URL() string {
+	return c.url
 }
 
 func (c *Clickhouse) Container() string {

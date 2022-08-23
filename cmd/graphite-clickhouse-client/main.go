@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -51,6 +52,8 @@ func main() {
 	tagsNames := flag.String("tags_names", "", "Query for /tags/autoComplete/tags (with query like '[tagPrefix];tag1=value1;tag2=~value*[' or '<>' for empty)")
 	limit := flag.Uint64("limit", 0, "limit for some queries (tags_values, tags_values)")
 
+	timeout := flag.Duration("timeout", time.Minute, "request timeout")
+
 	var targets StringSlice
 	flag.Var(&targets, "target", "Target for /render")
 
@@ -74,13 +77,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	httpClient := http.Client{
+		Timeout: *timeout,
+	}
+
 	if *metricsFind != "" {
 		formatFind := format
 		if formatFind == client.FormatDefault {
 			formatFind = client.FormatPb_v3
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.MetricsFind(*address, formatFind, *metricsFind, int64(from), int64(until))
+		queryRaw, r, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -110,7 +117,7 @@ func main() {
 			formatTags = client.FormatJSON
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsValues(*address, formatTags, *tagsValues, *limit, int64(from), int64(until))
+		queryRaw, r, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -140,7 +147,7 @@ func main() {
 			formatTags = client.FormatJSON
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsNames(*address, formatTags, *tagsNames, *limit, int64(from), int64(until))
+		queryRaw, r, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -171,7 +178,7 @@ func main() {
 			formatRender = client.FormatPb_v3
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.Render(*address, formatRender, targets, int64(from), int64(until))
+		queryRaw, r, err := client.Render(&httpClient, *address, formatRender, targets, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
