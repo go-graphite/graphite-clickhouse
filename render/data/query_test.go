@@ -428,13 +428,13 @@ func TestGenerateQuery(t *testing.T) {
 				"SELECT Path,\n arrayFilter(m->m!=0, mask) AS times,\n" +
 				" arrayFilter((v,m)->m!=0, avgResample(1, 13, 1)(Value, Time), mask) AS values\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(1) AND Date <= toDate(13)\n" +
+				"PREWHERE Date >= toDate(1, 'UTC') AND Date <= toDate(13, 'UTC')\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 1 AND Time <= 13)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
 			unaggregated: ("SELECT Path, groupArray(Time), groupArray(Value), groupArray(Timestamp)\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(1) AND Date <= toDate(13)\n" +
+				"PREWHERE Date >= toDate(1, 'UTC') AND Date <= toDate(13, 'UTC')\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 1 AND Time <= 13)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
@@ -445,13 +445,13 @@ func TestGenerateQuery(t *testing.T) {
 				"SELECT Path,\n arrayFilter(m->m!=0, mask) AS times,\n" +
 				" arrayFilter((v,m)->m!=0, minResample(11111, 33333, 11111)(Value, Time), mask) AS values\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(11111) AND Date <= toDate(33333)\n" +
+				"PREWHERE Date >= toDate(11111, 'UTC') AND Date <= toDate(33333, 'UTC')\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 11111 AND Time <= 33333)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
 			unaggregated: ("SELECT Path, groupArray(Time), groupArray(Value), groupArray(Timestamp)\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(11111) AND Date <= toDate(33333)\n" +
+				"PREWHERE Date >= toDate(11111, 'UTC') AND Date <= toDate(33333, 'UTC')\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 11111 AND Time <= 33333)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),

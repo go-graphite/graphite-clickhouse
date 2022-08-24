@@ -129,7 +129,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	queryLimit := limit + len(usedTags)
 
-	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
+	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).UTC()
 	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
@@ -235,7 +235,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		wr.And(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
 	}
 
-	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays)
+	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).UTC()
 	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s GROUP BY value ORDER BY value LIMIT %d",
