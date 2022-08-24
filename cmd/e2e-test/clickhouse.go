@@ -12,6 +12,8 @@ type Clickhouse struct {
 	Docker      string `toml:"docker"`
 	DockerImage string `toml:"image"`
 
+	TZ string `toml:"tz"` // override timezone
+
 	httpAddress string `toml:"-"`
 	url         string `toml:"-"`
 	container   string `toml:"-"`
@@ -50,8 +52,12 @@ func (c *Clickhouse) Start() (error, string) {
 		"-v", c.Dir + "/users.xml:/etc/clickhouse-server/users.xml",
 		"-v", c.Dir + "/rollup.xml:/etc/clickhouse-server/config.d/rollup.xml",
 		"-v", c.Dir + "/init.sql:/docker-entrypoint-initdb.d/init.sql",
-		c.DockerImage + ":" + c.Version,
 	}
+	if c.TZ != "" {
+		chStart = append(chStart, "-e", "TZ="+c.TZ)
+	}
+
+	chStart = append(chStart, c.DockerImage+":"+c.Version)
 
 	cmd := exec.Command(c.Docker, chStart...)
 	out, err := cmd.CombinedOutput()

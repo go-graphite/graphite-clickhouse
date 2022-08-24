@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
-	"go/types"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
+	"github.com/lomik/graphite-clickhouse/helper/tests/compare/expand"
 )
 
 type StringSlice []string
@@ -27,18 +27,6 @@ func (u *StringSlice) String() string {
 
 func (u *StringSlice) Type() string {
 	return "[]string"
-}
-
-func expandTimestamp(fs *token.FileSet, s string, now string) (uint64, error) {
-	if s == "" {
-		return 0, nil
-	}
-	s = strings.ReplaceAll(s, "now", now)
-	if tv, err := types.Eval(fs, nil, token.NoPos, s); err == nil {
-		return strconv.ParseUint(tv.Value.String(), 10, 32)
-	} else {
-		return 0, err
-	}
 }
 
 func main() {
@@ -65,13 +53,18 @@ func main() {
 	ec := 0
 
 	fs := token.NewFileSet()
-	now := strconv.FormatInt(time.Now().Truncate(time.Minute).UnixNano()/1000000000, 10)
-	from, err := expandTimestamp(fs, *fromStr, now)
+	nowTime := time.Now()
+	now := strconv.FormatInt(nowTime.Truncate(time.Minute).UnixNano()/1000000000, 10)
+	year, month, day := nowTime.Date()
+	today := strconv.FormatInt(time.Date(year, month, day, 0, 0, 0, 0, nowTime.Location()).UnixNano()/1000000000, 10)
+	timeReplace := map[string]string{"now": now, "today": today}
+
+	from, err := expand.ExpandTimestamp(fs, *fromStr, timeReplace)
 	if err != nil {
 		fmt.Printf("invalid from: %s\n", err.Error())
 		os.Exit(1)
 	}
-	until, err := expandTimestamp(fs, *untilStr, now)
+	until, err := expand.ExpandTimestamp(fs, *untilStr, timeReplace)
 	if err != nil {
 		fmt.Printf("invalid until: %s\n", err.Error())
 		os.Exit(1)

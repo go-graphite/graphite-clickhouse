@@ -1,0 +1,85 @@
+# tests for https://github.com/go-graphite/graphite-clickhouse/issues/184
+[test]
+
+[[test.clickhouse]]
+version = "latest"
+dir = "tests/clickhouse/rollup"
+delay = "10s"
+
+[test.carbon_clickhouse]
+version = "v0.11.1"
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse-internal-aggr.conf.tpl"
+
+##########################################################################
+# Check issue 184
+
+# test.today
+# now;scope=today
+
+# points for check https://github.com/go-graphite/graphite-clickhouse/issues/184
+[[test.input]]
+name = "test.today"
+points = [{value = 3.0, time = "today"}]
+
+[[test.input]]
+name = "now;scope=today"
+points = [{value = 4.0, time = "today"}]
+
+[[test.find_checks]]
+query = "test.today"
+result = [{ path = "test.today", is_leaf = true }]
+
+[[test.find_checks]]
+query = "test.today"
+from = "today"
+until = "today+60"
+result = [{ path = "test.today", is_leaf = true }]
+
+[[test.tags_checks]]
+query = "name;scope=today"
+result = [
+    "now",
+]
+
+[[test.render_checks]]
+from = "today"
+until = "today+10"
+targets = [ "test.today" ]
+
+[[test.render_checks.result]]
+name = "test.today"
+path = "test.today"
+consolidation = "avg"
+start = "today"
+stop = "today+20"
+step = 10
+req_start = "today"
+req_stop = "today+20"
+values = [3.0, nan]
+
+[[test.render_checks]]
+from = "today"
+until = "today+10"
+targets = [ 
+    "seriesByTag('scope=today')"
+]
+
+[[test.render_checks.result]]
+name = "now;scope=today"
+path = "seriesByTag('scope=today')"
+consolidation = "avg"
+start = "today"
+stop = "today+20"
+step = 10
+req_start = "today"
+req_stop = "today+20"
+values = [4.0, nan]
+
+# End - Check issue 184
+##########################################################################

@@ -70,6 +70,9 @@ points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value
 name = "test.max"
 points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
 
+######################################
+# Check metrics find
+
 [[test.find_checks]]
 formats = [ "pickle", "protobuf", "carbonapi_v3_pb" ]
 query = "test"
@@ -84,6 +87,10 @@ result = [
     { path = "test.plain1", is_leaf = true }, { path = "test.plain2", is_leaf = true }
 ]
 
+# End - Check metrics find
+######################################
+# Check tags autocomplete
+
 [[test.tags_checks]]
 query = "tag1;tag2=value21"
 result = [
@@ -96,6 +103,7 @@ result = [
     "metric1",
 ]
 
+# End - Check tags autocomplete
 ##########################################################################
 # Plain metrics (carbonapi_v3_pb)
 
@@ -396,20 +404,21 @@ values = [1.0, 4.0]
 ##########################################################################
 # Last is missed, must be NaN
 
-#[[test.render_checks]]
-#from = "now-10"
-#until = "now+10"
-#targets = [ "test.plain1" ]
+[[test.render_checks]]
+from = "now-10"
+until = "now+10"
+targets = [ "test.plain1" ]
 
-#[[test.render_checks.result]]
-#name = "test.plain1"
-#path = "test.plain1"
-#consolidation = "avg"
-#start = "now-10"
-#stop = "now+20"
-#step = 10
-#req_start = "now-10"
-#req_stop = "now+20"
-#values = [1.0, 2.0, 'nan']
+[[test.render_checks.result]]
+name = "test.plain1"
+path = "test.plain1"
+consolidation = "avg"
+start = "now-10"
+stop = "now+20"
+step = 10
+req_start = "now-10"
+req_stop = "now+20"
+values = [1.0, 2.0, nan]
 
 ##########################################################################
+

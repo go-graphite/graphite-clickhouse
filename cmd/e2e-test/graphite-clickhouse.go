@@ -16,6 +16,8 @@ type GraphiteClickhouse struct {
 	Binary    string `toml:"binary"`
 	ConfigTpl string `toml:"template"`
 
+	TZ string `toml:"tz"` // override timezone
+
 	storeDir   string    `toml:"-"`
 	configFile string    `toml:"-"`
 	address    string    `toml:"-"`
@@ -77,7 +79,9 @@ func (c *GraphiteClickhouse) Start(testDir, clickhouseAddr string) error {
 	c.cmd = exec.Command(c.Binary, "-config", c.configFile)
 	c.cmd.Stdout = os.Stdout
 	c.cmd.Stderr = os.Stderr
-	//c.cmd.Env = append(c.cmd.Env, "TZ=UTC")
+	if c.TZ != "" {
+		c.cmd.Env = append(c.cmd.Env, "TZ="+c.TZ)
+	}
 	err = c.cmd.Start()
 	if err != nil {
 		c.Cleanup()
