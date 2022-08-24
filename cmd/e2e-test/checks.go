@@ -2,42 +2,30 @@ package main
 
 import (
 	"fmt"
-	"go/token"
-	"go/types"
+	"net/http"
 	"reflect"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
 )
 
-func expandTimestamp(fs *token.FileSet, s string, now string) (int64, error) {
-	if s == "" {
-		return 0, nil
-	}
-	s = strings.ReplaceAll(s, "now", now)
-	if tv, err := types.Eval(fs, nil, token.NoPos, s); err == nil {
-		return strconv.ParseInt(tv.Value.String(), 10, 32)
-	} else {
-		return 0, err
-	}
-}
-
 func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
-		if url, result, err := client.MetricsFind(address, format, check.Query, check.from, check.until); err == nil {
+		if url, result, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.Result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
 				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				} else if result[i] != check.Result[i] {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.Result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				}
 			}
 		} else {
@@ -50,6 +38,9 @@ func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 
 func verifyTags(address string, check *TagsCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
 		var (
 			result []string
@@ -58,21 +49,21 @@ func verifyTags(address string, check *TagsCheck) []string {
 		)
 
 		if check.Names {
-			url, result, err = client.TagsNames(address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, err = client.TagsNames(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		} else {
-			url, result, err = client.TagsValues(address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, err = client.TagsValues(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		}
 
 		if err == nil {
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.Result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
 				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				} else if result[i] != check.Result[i] {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.Result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				}
 			}
 		} else {
@@ -85,20 +76,23 @@ func verifyTags(address string, check *TagsCheck) []string {
 
 func verifyRender(address string, check *RenderCheck) []string {
 	var errors []string
+	httpClient := http.Client{
+		Timeout: check.Timeout,
+	}
 	for _, format := range check.Formats {
-		if url, result, err := client.Render(address, format, check.Targets, check.from, check.until); err == nil {
+		if url, result, err := client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
 			sort.Slice(result, func(i, j int) bool {
 				return result[i].Name < result[j].Name
 			})
 			maxLen := compare.Max(len(result), len(check.Result))
 			for i := 0; i < maxLen; i++ {
 				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.result[i]))
 				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				} else if result[i].Name != check.result[i].Name {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", format.String(), i, check.result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", format.String(), i, result[i]))
+					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.result[i]))
+					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
 				} else {
 					if result[i].PathExpression != check.result[i].PathExpression {
 						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].PathExpression, got '%s', want '%s'", format.String(), result[i].Name, i, result[i].PathExpression, check.result[i].PathExpression))

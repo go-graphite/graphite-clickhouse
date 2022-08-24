@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -16,6 +16,8 @@ type GraphiteClickhouse struct {
 	Binary    string `toml:"binary"`
 	ConfigTpl string `toml:"template"`
 
+	TZ string `toml:"tz"` // override timezone
+
 	storeDir   string    `toml:"-"`
 	configFile string    `toml:"-"`
 	address    string    `toml:"-"`
@@ -24,14 +26,14 @@ type GraphiteClickhouse struct {
 
 func (c *GraphiteClickhouse) Start(testDir, clickhouseAddr string) error {
 	if c.cmd != nil {
-		return fmt.Errorf("carbon-clickhouse already started")
+		return errors.New("carbon-clickhouse already started")
 	}
 
 	if len(c.Binary) == 0 {
 		c.Binary = "./graphite-clickhouse"
 	}
 	if len(c.ConfigTpl) == 0 {
-		return fmt.Errorf("graphite-clickhouse config template not set")
+		return errors.New("graphite-clickhouse config template not set")
 	}
 
 	var err error
@@ -77,7 +79,9 @@ func (c *GraphiteClickhouse) Start(testDir, clickhouseAddr string) error {
 	c.cmd = exec.Command(c.Binary, "-config", c.configFile)
 	c.cmd.Stdout = os.Stdout
 	c.cmd.Stderr = os.Stderr
-	//c.cmd.Env = append(c.cmd.Env, "TZ=UTC")
+	if c.TZ != "" {
+		c.cmd.Env = append(c.cmd.Env, "TZ="+c.TZ)
+	}
 	err = c.cmd.Start()
 	if err != nil {
 		c.Cleanup()

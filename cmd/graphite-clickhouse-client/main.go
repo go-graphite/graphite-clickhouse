@@ -4,13 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
-	"go/types"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
+	"github.com/lomik/graphite-clickhouse/helper/tests/compare/expand"
 )
 
 type StringSlice []string
@@ -28,18 +29,6 @@ func (u *StringSlice) Type() string {
 	return "[]string"
 }
 
-func expandTimestamp(fs *token.FileSet, s string, now string) (uint64, error) {
-	if s == "" {
-		return 0, nil
-	}
-	s = strings.ReplaceAll(s, "now", now)
-	if tv, err := types.Eval(fs, nil, token.NoPos, s); err == nil {
-		return strconv.ParseUint(tv.Value.String(), 10, 32)
-	} else {
-		return 0, err
-	}
-}
-
 func main() {
 	address := flag.String("address", "http://127.0.0.1:9090", "Address of graphite-clickhouse server")
 	fromStr := flag.String("from", "0", "from")
@@ -50,6 +39,8 @@ func main() {
 	tagsValues := flag.String("tags_values", "", "Query for /tags/autoComplete/values (with query like 'searchTag[=valuePrefix];tag1=value1;tag2=~value*' or '<>' for empty)")
 	tagsNames := flag.String("tags_names", "", "Query for /tags/autoComplete/tags (with query like '[tagPrefix];tag1=value1;tag2=~value*[' or '<>' for empty)")
 	limit := flag.Uint64("limit", 0, "limit for some queries (tags_values, tags_values)")
+
+	timeout := flag.Duration("timeout", time.Minute, "request timeout")
 
 	var targets StringSlice
 	flag.Var(&targets, "target", "Target for /render")
@@ -62,16 +53,25 @@ func main() {
 	ec := 0
 
 	fs := token.NewFileSet()
-	now := strconv.FormatInt(time.Now().Truncate(time.Minute).UnixNano()/1000000000, 10)
-	from, err := expandTimestamp(fs, *fromStr, now)
+	nowTime := time.Now()
+	now := strconv.FormatInt(nowTime.Truncate(time.Minute).UnixNano()/1000000000, 10)
+	year, month, day := nowTime.Date()
+	today := strconv.FormatInt(time.Date(year, month, day, 0, 0, 0, 0, nowTime.Location()).UnixNano()/1000000000, 10)
+	timeReplace := map[string]string{"now": now, "today": today}
+
+	from, err := expand.ExpandTimestamp(fs, *fromStr, timeReplace)
 	if err != nil {
 		fmt.Printf("invalid from: %s\n", err.Error())
 		os.Exit(1)
 	}
-	until, err := expandTimestamp(fs, *untilStr, now)
+	until, err := expand.ExpandTimestamp(fs, *untilStr, timeReplace)
 	if err != nil {
 		fmt.Printf("invalid until: %s\n", err.Error())
 		os.Exit(1)
+	}
+
+	httpClient := http.Client{
+		Timeout: *timeout,
 	}
 
 	if *metricsFind != "" {
@@ -80,7 +80,7 @@ func main() {
 			formatFind = client.FormatPb_v3
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.MetricsFind(*address, formatFind, *metricsFind, int64(from), int64(until))
+		queryRaw, r, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -110,7 +110,7 @@ func main() {
 			formatTags = client.FormatJSON
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsValues(*address, formatTags, *tagsValues, *limit, int64(from), int64(until))
+		queryRaw, r, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -140,7 +140,7 @@ func main() {
 			formatTags = client.FormatJSON
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsNames(*address, formatTags, *tagsNames, *limit, int64(from), int64(until))
+		queryRaw, r, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -171,7 +171,7 @@ func main() {
 			formatRender = client.FormatPb_v3
 		}
 		fmt.Print("'")
-		queryRaw, r, err := client.Render(*address, formatRender, targets, int64(from), int64(until))
+		queryRaw, r, err := client.Render(&httpClient, *address, formatRender, targets, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {

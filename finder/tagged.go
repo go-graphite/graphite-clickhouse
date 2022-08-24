@@ -380,8 +380,8 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 	if t.dailyEnabled {
 		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
-			time.Unix(from, 0).Format("2006-01-02"),
-			time.Unix(until, 0).Format("2006-01-02"),
+			time.Unix(from, 0).UTC().Format("2006-01-02"),
+			time.Unix(until, 0).UTC().Format("2006-01-02"),
 		)
 	}
 

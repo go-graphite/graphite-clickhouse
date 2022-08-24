@@ -13,7 +13,7 @@ import (
 
 // TagsNames do  /tags/autoComplete/tags request with query like [tagPrefix];tag1=value1;tag2=~value*
 // Valid formats are json
-func TagsNames(address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
+func TagsNames(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
 	rTags := "/tags/autoComplete/tags"
 
 	if format == FormatDefault {
@@ -81,7 +81,7 @@ func TagsNames(address string, format FormatType, query string, limit uint64, fr
 	if err != nil {
 		return queryParams, nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return queryParams, nil, err
 	}
@@ -106,7 +106,7 @@ func TagsNames(address string, format FormatType, query string, limit uint64, fr
 
 // TagsValues do  /tags/autoComplete/values request with query like searchTag[=valuePrefix];tag1=value1;tag2=~value*
 // Valid formats are json
-func TagsValues(address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
+func TagsValues(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
 	rTags := "/tags/autoComplete/values"
 
 	if format == FormatDefault {

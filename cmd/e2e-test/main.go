@@ -47,7 +47,7 @@ func expandDir(dirname string, paths *[]string) error {
 	return nil
 }
 
-func expand(filename string, paths *[]string) error {
+func expandFilename(filename string, paths *[]string) error {
 	if len(filename) == 0 {
 		return nil
 	}
@@ -77,7 +77,7 @@ func main() {
 	}
 
 	var configs []string
-	err = expand(*config, &configs)
+	err = expandFilename(*config, &configs)
 	if err != nil {
 		logger.Fatal(
 			"config",

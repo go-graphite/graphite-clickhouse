@@ -1,3 +1,4 @@
+//go:build !noprom
 // +build !noprom
 
 package prometheus
@@ -43,7 +44,7 @@ func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) 
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
 
-	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[2] as value FROM %s %s GROUP BY value ORDER BY value",
@@ -76,7 +77,7 @@ func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) 
 // LabelNames returns all the unique label names present in the block in sorted order.
 func (q *Querier) LabelNames() ([]string, storage.Warnings, error) {
 	w := where.New()
-	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[1] as value FROM %s %s GROUP BY value ORDER BY value",

@@ -14,9 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/lomik/graphite-clickhouse/helper/client"
+	"github.com/lomik/graphite-clickhouse/helper/tests/compare/expand"
 	"go.uber.org/zap"
+
+	"github.com/pelletier/go-toml"
 )
 
 var ErrTimestampInvalid = errors.New("invalid timestamp")
@@ -53,6 +55,7 @@ type RenderCheck struct {
 	From    string              `toml:"from"`
 	Until   string              `toml:"until"`
 	Targets []string            `toml:"targets"`
+	Timeout time.Duration       `toml:"timeout"`
 
 	Result []Metric `toml:"result"`
 
@@ -66,6 +69,7 @@ type MetricsFindCheck struct {
 	From    string              `toml:"from"`
 	Until   string              `toml:"until"`
 	Query   string              `toml:"query"`
+	Timeout time.Duration       `toml:"timeout"`
 
 	Result []client.FindMatch `toml:"result"`
 
@@ -80,6 +84,7 @@ type TagsCheck struct {
 	Until   string              `toml:"until"`
 	Query   string              `toml:"query"`
 	Limits  uint64              `toml:"limits"`
+	Timeout time.Duration       `toml:"timeout"`
 
 	Result []string `toml:"result"`
 
@@ -198,7 +203,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 		if testSuccess {
 			stepSuccess := true
 			for _, gch := range test.Gch {
-				err = gch.Start(testDir, "http://"+clickhouse.HttpAddress())
+				err = gch.Start(testDir, clickhouse.URL())
 				if err != nil {
 					logger.Error("starting graphite-clickhouse",
 						zap.String("config", test.name),
@@ -333,6 +338,13 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 							)
 						}
 					}
+					if verifyFailed > 0 {
+						testSuccess = false
+					}
+				}
+
+				if !stepSuccess {
+					testSuccess = false
 				}
 
 				err = gch.Stop(true)
@@ -410,7 +422,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 	confShort := strings.ReplaceAll(config, rootDir+"/", "")
 
 	var cfg = MainConfig{}
-	if _, err := toml.Decode(string(d), &cfg); err != nil {
+	if err := toml.Unmarshal(d, &cfg); err != nil {
 		logger.Fatal("failed to decode config",
 			zap.String("config", confShort),
 			zap.Error(err),
@@ -425,12 +437,16 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 	}
 
 	fs := token.NewFileSet()
-	now := strconv.FormatInt(time.Now().Truncate(time.Minute).UnixNano()/1000000000, 10)
+	nowTime := time.Now()
+	now := strconv.FormatInt(nowTime.Truncate(time.Minute).UnixNano()/1000000000, 10)
+	year, month, day := nowTime.Date()
+	today := strconv.FormatInt(time.Date(year, month, day, 0, 0, 0, 0, nowTime.Location()).UnixNano()/1000000000, 10)
+	timeReplace := map[string]string{"now": now, "today": today}
 
 	// prepare
 	for n, m := range cfg.Test.Input {
 		for i := range m.Points {
-			m.Points[i].time, err = expandTimestamp(fs, m.Points[i].Time, now)
+			m.Points[i].time, err = expand.ExpandTimestamp(fs, m.Points[i].Time, timeReplace)
 			if m.Points[i].time <= 0 {
 				err = ErrTimestampInvalid
 			}
@@ -448,7 +464,10 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 		}
 	}
 	for n, find := range cfg.Test.FindChecks {
-		find.from, err = expandTimestamp(fs, find.From, now)
+		if find.Timeout == 0 {
+			find.Timeout = 10 * time.Second
+		}
+		find.from, err = expand.ExpandTimestamp(fs, find.From, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -460,7 +479,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			failed++
 			return
 		}
-		find.until, err = expandTimestamp(fs, find.Until, now)
+		find.until, err = expand.ExpandTimestamp(fs, find.Until, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -474,7 +493,10 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 		}
 	}
 	for n, tags := range cfg.Test.TagsChecks {
-		tags.from, err = expandTimestamp(fs, tags.From, now)
+		if tags.Timeout == 0 {
+			tags.Timeout = 10 * time.Second
+		}
+		tags.from, err = expand.ExpandTimestamp(fs, tags.From, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -486,7 +508,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			failed++
 			return
 		}
-		tags.until, err = expandTimestamp(fs, tags.Until, now)
+		tags.until, err = expand.ExpandTimestamp(fs, tags.Until, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -501,7 +523,10 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 		}
 	}
 	for n, r := range cfg.Test.RenderChecks {
-		r.from, err = expandTimestamp(fs, r.From, now)
+		if r.Timeout == 0 {
+			r.Timeout = 10 * time.Second
+		}
+		r.from, err = expand.ExpandTimestamp(fs, r.From, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -513,7 +538,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			failed++
 			return
 		}
-		r.until, err = expandTimestamp(fs, r.Until, now)
+		r.until, err = expand.ExpandTimestamp(fs, r.Until, timeReplace)
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -530,7 +555,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 		})
 		r.result = make([]client.Metric, len(r.Result))
 		for i, result := range r.Result {
-			r.result[i].StartTime, err = expandTimestamp(fs, result.StartTime, now)
+			r.result[i].StartTime, err = expand.ExpandTimestamp(fs, result.StartTime, timeReplace)
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -543,7 +568,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 				failed++
 				return
 			}
-			r.result[i].StopTime, err = expandTimestamp(fs, result.StopTime, now)
+			r.result[i].StopTime, err = expand.ExpandTimestamp(fs, result.StopTime, timeReplace)
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -556,7 +581,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 				failed++
 				return
 			}
-			r.result[i].RequestStartTime, err = expandTimestamp(fs, result.RequestStartTime, now)
+			r.result[i].RequestStartTime, err = expand.ExpandTimestamp(fs, result.RequestStartTime, timeReplace)
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -569,7 +594,7 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 				failed++
 				return
 			}
-			r.result[i].RequestStopTime, err = expandTimestamp(fs, result.RequestStopTime, now)
+			r.result[i].RequestStopTime, err = expand.ExpandTimestamp(fs, result.RequestStopTime, timeReplace)
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),

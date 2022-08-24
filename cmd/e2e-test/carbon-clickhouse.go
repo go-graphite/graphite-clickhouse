@@ -18,12 +18,14 @@ type CarbonClickhouse struct {
 
 	Template string `toml:"template"` // carbon-clickhouse config template
 
+	TZ string `toml:"tz"` // override timezone
+
 	address   string `toml:"-"`
 	container string `toml:"-"`
 	storeDir  string `toml:"-"`
 }
 
-func (c *CarbonClickhouse) Start(testDir, clickhouseAddr string, clickhouseContainer string) (error, string) {
+func (c *CarbonClickhouse) Start(testDir, clickhouseAddr, clickhouseContainer string) (error, string) {
 	if len(c.Version) == 0 {
 		return fmt.Errorf("version not set"), ""
 	}
@@ -79,14 +81,19 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseAddr string, clickhouseConta
 		return err, ""
 	}
 
+	// tz, _ := localTZLocationName()
+
 	cchStart := []string{"run", "-d",
 		"--name", c.container,
 		"-p", c.address + ":2003",
-		//"-e", "TZ=UTC",
 		"-v", c.storeDir + ":/etc/carbon-clickhouse",
 		"--link", clickhouseContainer,
-		c.DockerImage + ":" + c.Version,
 	}
+	if c.TZ != "" {
+		cchStart = append(cchStart, "-e", "TZ="+c.TZ)
+	}
+
+	cchStart = append(cchStart, c.DockerImage+":"+c.Version)
 
 	cmd := exec.Command(c.Docker, cchStart...)
 	out, err := cmd.CombinedOutput()
