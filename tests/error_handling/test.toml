@@ -106,17 +106,25 @@ values = [1.0, 2.0]
 
 # Check addional queryparam (storage read limit)
 [[test.render_checks]]
-from = "now-14400"
+from = "now-7190"
 until = "now"
 targets = [ "test.long" ]
 timeout = "5s"
-error_regexp = "^403: Storage read limit"
+error_regexp = "^403: Storage read limit for rows"
 
 # Check data-timeout on addional queryparam
 [[test.render_checks]]
-from = "now-14400"
+from = "now-7190"
 until = "now"
 targets = [ "test.long" ]
 timeout = "2s"
 proxy_delay = "1500ms"
 error_regexp = "^504: Storage read timeout"
+
+# Check addional queryparam (storage read limit)
+[[test.render_checks]]
+from = "now-14400"
+until = "now"
+targets = [ "test.long" ]
+timeout = "5s"
+error_regexp = "^403: Storage read limit for memory"

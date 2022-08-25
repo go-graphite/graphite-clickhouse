@@ -24,6 +24,11 @@ query-params = [
     duration = "1h",
     url = "{{ .PROXY_URL }}/?max_rows_to_read=1&max_result_bytes=1&readonly=2&log_queries=1",
     data-timeout = "5s"
+  },
+  {
+    duration = "2h",
+    url = "{{ .PROXY_URL }}/?max_memory_usage=1&max_memory_usage_for_user=1&readonly=2&log_queries=1",
+    data-timeout = "5s"
   }
 ]
 

@@ -166,16 +166,17 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 				},
 				extData,
 			)
-			if err != nil {
+			if err == nil {
+				err = data.parseResponse(queryContext, body, cond)
+				if err != nil {
+					logger.Error("reader", zap.Error(err))
+					data.e <- err
+					queryCancel()
+				}
+			} else {
 				logger.Error("reader", zap.Error(err))
-				queryCancel()
 				data.e <- err
-			}
-			err = data.parseResponse(queryContext, body, cond)
-			if err != nil {
-				logger.Error("reader", zap.Error(err))
 				queryCancel()
-				data.e <- err
 			}
 		}()
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	chtest "github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
 )
 
 func TestTagsMakeSQL(t *testing.T) {
@@ -96,7 +97,7 @@ func _TestTags(t *testing.T) {
 	for _, test := range table {
 		testName := fmt.Sprintf("query: %#v", test.query)
 
-		srv := clickhouse.NewTestServer()
+		srv := chtest.NewTestServer()
 
 		m := NewMockFinder(mockData)
 		f := WrapTag(m, srv.URL, "graphite_tag", clickhouse.Options{Timeout: time.Second, ConnectTimeout: time.Second})

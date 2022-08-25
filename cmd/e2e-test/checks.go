@@ -154,6 +154,8 @@ func verifyRender(address string, check *RenderCheck) []string {
 			errStr := strings.TrimRight(err.Error(), "\n")
 			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
 				errors = append(errors, url+": "+errStr)
+			} else {
+				fmt.Printf("EXPECTED ERROR, SUCCESS : %s\n", errStr)
 			}
 		}
 	}
