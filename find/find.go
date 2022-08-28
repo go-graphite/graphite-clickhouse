@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/msaf1980/go-stringutils"
 
 	v2pb "github.com/go-graphite/protocol/carbonapi_v2_pb"
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
@@ -18,6 +19,13 @@ type Find struct {
 	context context.Context
 	query   string // original query
 	result  finder.Result
+}
+
+func NewCached(config *config.Config, body []byte) *Find {
+	return &Find{
+		config: config,
+		result: finder.NewCachedIndex(body),
+	}
 }
 
 func New(config *config.Config, ctx context.Context, query string) (*Find, error) {
@@ -183,6 +191,52 @@ func (f *Find) WriteProtobufV3(w io.Writer) error {
 	}
 
 	w.Write(body)
+
+	return nil
+}
+
+func (f *Find) WriteJSON(w io.Writer) error {
+	rows := f.result.List()
+
+	if len(rows) == 0 { // empty
+		return nil
+	}
+
+	var numResults int
+	var sb stringutils.Builder
+
+	sb.WriteString("[")
+
+	for i := 0; i < len(rows); i++ {
+		if len(rows[i]) == 0 {
+			continue
+		}
+
+		path, isLeaf := finder.Leaf(rows[i])
+
+		if numResults == 0 {
+			sb.WriteString("{path=\"")
+		} else {
+			sb.WriteString(",{path=\"")
+		}
+
+		sb.Write(path)
+
+		if isLeaf {
+			sb.WriteString("\",leaf=1}")
+		} else {
+			sb.WriteString("\"}")
+		}
+
+		numResults++
+		if f.isResultsLimitExceeded(numResults) {
+			break
+		}
+	}
+
+	sb.WriteString("]\r\n")
+
+	w.Write(sb.Bytes())
 
 	return nil
 }

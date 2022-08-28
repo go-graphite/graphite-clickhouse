@@ -13,6 +13,7 @@ type Result interface {
 	List() [][]byte
 	Series() [][]byte
 	Abs([]byte) []byte
+	Bytes() ([]byte, error)
 }
 
 type Finder interface {
@@ -20,7 +21,7 @@ type Finder interface {
 	Execute(ctx context.Context, query string, from int64, until int64) error
 }
 
-func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64) Finder {
+func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64, useCache bool) Finder {
 	opts := clickhouse.Options{
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
@@ -49,6 +50,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 				Timeout:        config.ClickHouse.IndexTimeout,
 				ConnectTimeout: config.ClickHouse.ConnectTimeout,
 			},
+			useCache,
 		)
 	} else {
 		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
@@ -78,7 +80,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 }
 
 func Find(config *config.Config, ctx context.Context, query string, from int64, until int64) (Result, error) {
-	fnd := newPlainFinder(ctx, config, query, from, until)
+	fnd := newPlainFinder(ctx, config, query, from, until, config.Common.FindCache != nil)
 	err := fnd.Execute(ctx, query, from, until)
 	if err != nil {
 		return nil, err
@@ -102,9 +104,11 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
 
+	useCache := config.Common.FindCache != nil
+
 	plain := makePlainFromTagged(terms)
 	if plain != nil {
-		plain.wrappedPlain = newPlainFinder(ctx, config, plain.Target(), from, until)
+		plain.wrappedPlain = newPlainFinder(ctx, config, plain.Target(), from, until, useCache)
 		err := plain.Execute(ctx, plain.Target(), from, until)
 		if err != nil {
 			return nil, err

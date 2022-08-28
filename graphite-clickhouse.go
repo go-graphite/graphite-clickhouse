@@ -38,6 +38,7 @@ func init() {
 type LogResponseWriter struct {
 	http.ResponseWriter
 	status int
+	cached bool
 }
 
 func (w *LogResponseWriter) WriteHeader(status int) {
@@ -94,6 +95,8 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 			client = strings.Split(client, ", ")[0]
 		}
 
+		cachedFind := w.Header().Get("X-Cached-Find") == "true"
+
 		logger.Info("access",
 			zap.Duration("time", d),
 			zap.String("method", r.Method),
@@ -101,6 +104,7 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 			zap.String("peer", peer),
 			zap.String("client", client),
 			zap.Int("status", writer.Status()),
+			zap.Bool("find_cached", cachedFind),
 		)
 	})
 }

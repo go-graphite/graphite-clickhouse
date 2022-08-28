@@ -37,7 +37,7 @@ type Metric struct {
 
 // Render do /metrics/find/ request
 // Valid formats are carbonapi_v3_pb. protobuf, pickle, json
-func Render(client *http.Client, address string, format FormatType, targets []string, from, until int64) (string, []Metric, error) {
+func Render(client *http.Client, address string, format FormatType, targets []string, from, until int64) (string, []Metric, http.Header, error) {
 	rUrl := "/render/"
 	if format == FormatDefault {
 		format = FormatPb_v3
@@ -45,21 +45,21 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 
 	queryParams := fmt.Sprintf("%s?format=%s, from=%d, until=%d, targets [%s]", rUrl, format.String(), from, until, strings.Join(targets, ","))
 	if len(targets) == 0 {
-		return queryParams, nil, nil
+		return queryParams, nil, nil, nil
 	}
 
 	if from <= 0 {
-		return queryParams, nil, ErrInvalidFrom
+		return queryParams, nil, nil, ErrInvalidFrom
 	}
 	if until <= 0 {
-		return queryParams, nil, ErrInvalidUntil
+		return queryParams, nil, nil, ErrInvalidUntil
 	}
 	fromStr := strconv.FormatInt(from, 10)
 	untilStr := strconv.FormatInt(until, 10)
 
 	u, err := url.Parse(address + rUrl)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 
 	var v url.Values
@@ -86,7 +86,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 
 		body, err = r.Marshal()
 		if err != nil {
-			return queryParams, nil, err
+			return queryParams, nil, nil, err
 		}
 		if body != nil {
 			reader = bytes.NewReader(body)
@@ -100,25 +100,25 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		}
 		u.RawQuery = v.Encode()
 	default:
-		return queryParams, nil, ErrUnsupportedFormat
+		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
 	req, err := http.NewRequest("GET", u.String(), reader)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return queryParams, nil, nil
+		return queryParams, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
+		return queryParams, nil, resp.Header, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var metrics []Metric
@@ -128,7 +128,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		var r protov3.MultiFetchResponse
 		err = r.Unmarshal(b)
 		if err != nil {
-			return queryParams, nil, err
+			return queryParams, nil, resp.Header, err
 		}
 		metrics = make([]Metric, 0, len(r.Metrics))
 		for _, m := range r.Metrics {
@@ -151,7 +151,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		var r protov2.MultiFetchResponse
 		err = r.Unmarshal(b)
 		if err != nil {
-			return queryParams, nil, err
+			return queryParams, nil, resp.Header, err
 		}
 		metrics = make([]Metric, 0, len(r.Metrics))
 		for _, m := range r.Metrics {
@@ -174,7 +174,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		decoder := pickle.NewDecoder(reader)
 		p, err := decoder.Decode()
 		if err != nil {
-			return queryParams, nil, err
+			return queryParams, nil, resp.Header, err
 		}
 		for _, v := range p.([]interface{}) {
 			m := v.(map[interface{}]interface{})
@@ -197,8 +197,8 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 			})
 		}
 	default:
-		return queryParams, nil, ErrUnsupportedFormat
+		return queryParams, nil, resp.Header, ErrUnsupportedFormat
 	}
 
-	return queryParams, metrics, nil
+	return queryParams, metrics, resp.Header, nil
 }

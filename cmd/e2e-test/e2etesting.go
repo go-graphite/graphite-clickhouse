@@ -58,6 +58,9 @@ type RenderCheck struct {
 	Targets []string            `toml:"targets"`
 	Timeout time.Duration       `toml:"timeout"`
 
+	InCache  bool `toml:"in_cache"` // already in cache
+	CacheTTL int  `toml:"cache_ttl"`
+
 	ProxyDelay         time.Duration `toml:"proxy_delay"`
 	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
 
@@ -76,6 +79,9 @@ type MetricsFindCheck struct {
 	Until   string              `toml:"until"`
 	Query   string              `toml:"query"`
 	Timeout time.Duration       `toml:"timeout"`
+
+	InCache  bool `toml:"in_cache"` // already in cache
+	CacheTTL int  `toml:"cache_ttl"`
 
 	ProxyDelay         time.Duration `toml:"proxy_delay"`
 	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
@@ -96,6 +102,9 @@ type TagsCheck struct {
 	Query   string              `toml:"query"`
 	Limits  uint64              `toml:"limits"`
 	Timeout time.Duration       `toml:"timeout"`
+
+	InCache  bool `toml:"in_cache"` // already in cache
+	CacheTTL int  `toml:"cache_ttl"`
 
 	ProxyDelay         time.Duration `toml:"proxy_delay"`
 	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
@@ -211,7 +220,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("find", n),
+				zap.Int("number", n),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -227,7 +236,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("find", n),
+				zap.Int("number", n),
 			)
 		}
 	}
@@ -257,7 +266,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("tags", n),
+				zap.Int("number", n),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -274,7 +283,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("tags", n),
+				zap.Int("number", n),
 			)
 		}
 	}
@@ -303,7 +312,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("render", n),
+				zap.Int("number", n),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -319,7 +328,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("render", n),
+				zap.Int("number", n),
 			)
 		}
 	}
@@ -357,7 +366,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 	if !strings.HasPrefix(clickhouse.Dir, "/") {
 		clickhouse.Dir = rootDir + "/" + clickhouse.Dir
 	}
-	err, out := clickhouse.Start()
+	out, err := clickhouse.Start()
 	if err != nil {
 		logger.Error("starting clickhouse",
 			zap.String("config", test.name),
@@ -382,7 +391,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		return
 	}
 
-	err, out = test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123", clickhouse.Container())
+	out, err = test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123", clickhouse.Container())
 	if err != nil {
 		logger.Error("starting carbon-clickhouse",
 			zap.String("config", test.name),
@@ -426,7 +435,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		}
 	}
 
-	err, out = test.Cch.Stop(true)
+	out, err = test.Cch.Stop(true)
 	if err != nil {
 		logger.Error("stoping carbon-clickhouse",
 			zap.String("config", test.name),
@@ -440,7 +449,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 
 	test.Proxy.Stop()
 
-	err, out = clickhouse.Stop(true)
+	out, err = clickhouse.Stop(true)
 	if err != nil {
 		logger.Error("stoping clickhouse",
 			zap.String("config", test.name),

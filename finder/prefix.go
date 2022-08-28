@@ -110,3 +110,7 @@ func (p *PrefixFinder) Series() [][]byte {
 func (p *PrefixFinder) Abs(value []byte) []byte {
 	return bytesConcat(p.prefixBytes, p.wrapped.Abs(value))
 }
+
+func (p *PrefixFinder) Bytes() ([]byte, error) {
+	return nil, ErrNotImplemented
+}

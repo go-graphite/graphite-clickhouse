@@ -13,7 +13,7 @@ import (
 
 // TagsNames do  /tags/autoComplete/tags request with query like [tagPrefix];tag1=value1;tag2=~value*
 // Valid formats are json
-func TagsNames(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
+func TagsNames(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, http.Header, error) {
 	rTags := "/tags/autoComplete/tags"
 
 	if format == FormatDefault {
@@ -26,12 +26,12 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	case FormatJSON:
 		break
 	default:
-		return queryParams, nil, ErrUnsupportedFormat
+		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
 	u, err := url.Parse(address + rTags)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 
 	var tagPrefix string
@@ -40,7 +40,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if query != "" && query != "<>" {
 		args := strings.Split(query, ";")
 		if len(args) < 1 {
-			return queryParams, nil, ErrInvalidQuery
+			return queryParams, nil, nil, ErrInvalidQuery
 		}
 
 		exprs = make([]string, 0, len(args))
@@ -49,7 +49,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 			if i == 0 && delim == -1 {
 				tagPrefix = arg
 			} else if delim <= 0 {
-				return queryParams, nil, errors.New("invalid expr: " + arg)
+				return queryParams, nil, nil, errors.New("invalid expr: " + arg)
 			} else {
 				exprs = append(exprs, arg)
 			}
@@ -79,34 +79,34 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return u.RawQuery, nil, nil
+		return u.RawQuery, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
+		return queryParams, nil, resp.Header, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var values []string
 	err = json.Unmarshal(b, &values)
 	if err != nil {
-		return queryParams, nil, errors.New(err.Error() + ": " + string(b))
+		return queryParams, nil, resp.Header, errors.New(err.Error() + ": " + string(b))
 	}
 
-	return queryParams, values, nil
+	return queryParams, values, resp.Header, nil
 }
 
 // TagsValues do  /tags/autoComplete/values request with query like searchTag[=valuePrefix];tag1=value1;tag2=~value*
 // Valid formats are json
-func TagsValues(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, error) {
+func TagsValues(client *http.Client, address string, format FormatType, query string, limit uint64, from, until int64) (string, []string, http.Header, error) {
 	rTags := "/tags/autoComplete/values"
 
 	if format == FormatDefault {
@@ -119,12 +119,12 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	case FormatJSON:
 		break
 	default:
-		return queryParams, nil, ErrUnsupportedFormat
+		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
 	u, err := url.Parse(address + rTags)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 
 	var (
@@ -136,13 +136,13 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if query != "" && query != "<>" {
 		args := strings.Split(query, ";")
 		if len(args) < 2 {
-			return queryParams, nil, ErrInvalidQuery
+			return queryParams, nil, nil, ErrInvalidQuery
 		}
 
 		vals := strings.Split(args[0], "=")
 		tags = []string{vals[0]}
 		if len(vals) > 2 {
-			return queryParams, nil, errors.New("invalid tag: " + args[0])
+			return queryParams, nil, nil, errors.New("invalid tag: " + args[0])
 		} else if len(vals) == 2 {
 			valuePrefix = vals[1]
 		}
@@ -151,7 +151,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 		for i := 1; i < len(args); i++ {
 			expr := args[i]
 			if strings.IndexRune(expr, '=') <= 0 {
-				return queryParams, nil, errors.New("invalid expr: " + expr)
+				return queryParams, nil, nil, errors.New("invalid expr: " + expr)
 			}
 			exprs = append(exprs, expr)
 		}
@@ -183,27 +183,27 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return u.RawQuery, nil, err
+		return u.RawQuery, nil, nil, err
 	}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return queryParams, nil, err
+		return queryParams, nil, nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return queryParams, nil, nil
+		return queryParams, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
+		return queryParams, nil, resp.Header, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var values []string
 	err = json.Unmarshal(b, &values)
 	if err != nil {
-		return queryParams, nil, errors.New(err.Error() + ": " + string(b))
+		return queryParams, nil, resp.Header, errors.New(err.Error() + ": " + string(b))
 	}
 
-	return queryParams, values, nil
+	return queryParams, values, resp.Header, nil
 }

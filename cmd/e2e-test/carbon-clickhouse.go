@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -27,9 +27,9 @@ type CarbonClickhouse struct {
 	storeDir  string `toml:"-"`
 }
 
-func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (error, string) {
+func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (string, error) {
 	if len(c.Version) == 0 {
-		return fmt.Errorf("version not set"), ""
+		return "", errors.New("version not set")
 	}
 	if len(c.Docker) == 0 {
 		c.Docker = "docker"
@@ -40,20 +40,20 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 	var err error
 	c.address, err = getFreeTCPPort("")
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 
 	c.container = CchContainerName
 
 	c.storeDir, err = ioutil.TempDir("", "carbon-clickhouse")
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 
 	c.address, err = getFreeTCPPort("")
 	if err != nil {
 		c.Cleanup()
-		return err, ""
+		return "", err
 	}
 
 	name := filepath.Base(c.Template)
@@ -61,7 +61,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 	tmpl, err := template.New(name).ParseFiles(tpl)
 	if err != nil {
 		c.Cleanup()
-		return err, ""
+		return "", err
 	}
 	param := struct {
 		CLICKHOUSE_URL string
@@ -75,12 +75,12 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 	f, err := os.OpenFile(configFile, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		c.Cleanup()
-		return err, ""
+		return "", err
 	}
 	err = tmpl.ExecuteTemplate(f, name, param)
 	if err != nil {
 		c.Cleanup()
-		return err, ""
+		return "", err
 	}
 
 	// tz, _ := localTZLocationName()
@@ -100,12 +100,12 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 	cmd := exec.Command(c.Docker, cchStart...)
 	out, err := cmd.CombinedOutput()
 
-	return err, string(out)
+	return string(out), err
 }
 
-func (c *CarbonClickhouse) Stop(delete bool) (error, string) {
+func (c *CarbonClickhouse) Stop(delete bool) (string, error) {
 	if len(c.container) == 0 {
-		return nil, ""
+		return "", nil
 	}
 
 	chStop := []string{"stop", c.container}
@@ -116,12 +116,12 @@ func (c *CarbonClickhouse) Stop(delete bool) (error, string) {
 	if err == nil && delete {
 		return c.Delete()
 	}
-	return err, string(out)
+	return string(out), err
 }
 
-func (c *CarbonClickhouse) Delete() (error, string) {
+func (c *CarbonClickhouse) Delete() (string, error) {
 	if len(c.container) == 0 {
-		return nil, ""
+		return "", nil
 	}
 
 	chDel := []string{"rm", c.container}
@@ -135,7 +135,7 @@ func (c *CarbonClickhouse) Delete() (error, string) {
 
 	c.Cleanup()
 
-	return err, string(out)
+	return string(out), err
 }
 
 func (c *CarbonClickhouse) Cleanup() {

@@ -5,15 +5,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 )
 
-type TestRequest struct {
-	Query []byte
+type TestResponse struct {
+	Headers map[string]string
+	Body    []byte
+	Code    int
 }
 
 type TestHandler struct {
-	sync.Mutex
-	request []TestRequest
+	sync.RWMutex
+	responceMap map[string]*TestResponse
+	queries     uint64
 }
 
 type TestServer struct {
@@ -24,31 +28,42 @@ type TestServer struct {
 func (h *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 
-	req := TestRequest{
-		Query: body,
-	}
+	req := string(body)
 
-	h.Lock()
-	if h.request == nil {
-		h.request = make([]TestRequest, 0)
+	h.RLock()
+	resp, ok := h.responceMap[req]
+	h.RUnlock()
+
+	atomic.AddUint64(&h.queries, 1)
+
+	if ok {
+		for k, v := range resp.Headers {
+			w.Header().Set(k, v)
+		}
+		if resp.Code == 0 || resp.Code == http.StatusOK {
+			w.Write(resp.Body)
+		} else {
+			http.Error(w, string(resp.Body), http.StatusInternalServerError)
+		}
+	} else {
+		http.Error(w, "Query not added: "+req, http.StatusInternalServerError)
 	}
-	h.request = append(h.request, req)
-	h.Unlock()
 }
 
 func NewTestServer() *TestServer {
-	h := &TestHandler{
-		request: make([]TestRequest, 0),
-	}
+	h := &TestHandler{responceMap: make(map[string]*TestResponse)}
 
 	srv := httptest.NewServer(h)
 
 	return &TestServer{Server: srv, handler: h}
 }
 
-func (srv *TestServer) Requests() []TestRequest {
-	srv.handler.Lock()
-	defer srv.handler.Unlock()
+func (s *TestServer) AddResponce(request string, response *TestResponse) {
+	s.handler.Lock()
+	s.handler.responceMap[request] = response
+	s.handler.Unlock()
+}
 
-	return srv.handler.request
+func (s *TestServer) Queries() uint64 {
+	return s.handler.queries
 }

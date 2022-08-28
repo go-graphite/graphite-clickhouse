@@ -7,11 +7,59 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
 )
+
+func isFindCached(header http.Header) (string, bool) {
+	if header == nil {
+		return "", false
+	}
+	v, exist := header["X-Cached-Find"]
+	if len(v) == 0 {
+		return "", false
+	}
+	return v[0], exist
+}
+
+func requestId(header http.Header) string {
+	if header == nil {
+		return ""
+	}
+	v, exist := header["X-Gch-Request-Id"]
+	if exist && len(v) > 0 {
+		return v[0]
+	}
+	return ""
+}
+
+func compareFindMatch(errors *[]string, name, url string, actual, expected []client.FindMatch, findCached bool, cacheTTL int, header http.Header) {
+	var cacheTTLStr string
+	if findCached {
+		cacheTTLStr = strconv.Itoa(cacheTTL)
+	}
+	id := requestId(header)
+	if header != nil {
+		v, actualFindCached := isFindCached(header)
+		if actualFindCached != findCached || cacheTTLStr != v {
+			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
+		}
+	}
+	maxLen := compare.Max(len(expected), len(actual))
+	for i := 0; i < maxLen; i++ {
+		if i > len(actual)-1 {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+		} else if i > len(expected)-1 {
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		} else if expected[i] != actual[i] {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		}
+	}
+}
 
 func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 	var errors []string
@@ -19,30 +67,59 @@ func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
 		Timeout: check.Timeout,
 	}
 	for _, format := range check.Formats {
-		if url, result, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
+		name := ""
+		if url, result, respHeader, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
 			if check.ErrorRegexp != "" {
-				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
 			}
-			maxLen := compare.Max(len(result), len(check.Result))
-			for i := 0; i < maxLen; i++ {
-				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
-				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
-				} else if result[i] != check.Result[i] {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
+			compareFindMatch(&errors, name, url, result, check.Result, check.InCache, check.CacheTTL, respHeader)
+
+			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
+				// second query must be find-cached
+				name = "cache"
+				if url, result, respHeader, err = client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
+					compareFindMatch(&errors, name, url, result, check.Result, true, check.CacheTTL, respHeader)
+				} else {
+					errStr := strings.TrimRight(err.Error(), "\n")
+					errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: %s", name, requestId(respHeader), url, errStr))
 				}
 			}
 		} else {
 			errStr := strings.TrimRight(err.Error(), "\n")
 			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
-				errors = append(errors, url+": "+errStr)
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s', got '%s'", "", requestId(respHeader), url, check.ErrorRegexp, errStr))
+			} else {
+				fmt.Printf("EXPECTED ERROR, SUCCESS %s : %s\n", url, errStr)
 			}
 		}
 	}
 
 	return errors
+}
+
+func compareTags(errors *[]string, name, url string, actual, expected []string, findCached bool, cacheTTL int, header http.Header) {
+	var cacheTTLStr string
+	if findCached {
+		cacheTTLStr = strconv.Itoa(cacheTTL)
+	}
+	id := requestId(header)
+	if header != nil {
+		v, actualFindCached := isFindCached(header)
+		if actualFindCached != findCached || cacheTTLStr != v {
+			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
+		}
+	}
+	maxLen := compare.Max(len(expected), len(actual))
+	for i := 0; i < maxLen; i++ {
+		if i > len(actual)-1 {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+		} else if i > len(expected)-1 {
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		} else if expected[i] != actual[i] {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		}
+	}
 }
 
 func verifyTags(address string, check *TagsCheck) []string {
@@ -52,41 +129,116 @@ func verifyTags(address string, check *TagsCheck) []string {
 	}
 	for _, format := range check.Formats {
 		var (
-			result []string
-			err    error
-			url    string
+			result     []string
+			err        error
+			url        string
+			respHeader http.Header
 		)
 
+		name := ""
 		if check.Names {
-			url, result, err = client.TagsNames(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, respHeader, err = client.TagsNames(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		} else {
-			url, result, err = client.TagsValues(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
+			url, result, respHeader, err = client.TagsValues(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
 		}
 
 		if err == nil {
 			if check.ErrorRegexp != "" {
-				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
 			}
-			maxLen := compare.Max(len(result), len(check.Result))
-			for i := 0; i < maxLen; i++ {
-				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
-				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
-				} else if result[i] != check.Result[i] {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.Result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
+			compareTags(&errors, name, url, result, check.Result, check.InCache, check.CacheTTL, respHeader)
+
+			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
+				// second query must be find-cached
+				name = "cache"
+				if check.Names {
+					url, result, respHeader, err = client.TagsNames(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
+				} else {
+					url, result, respHeader, err = client.TagsValues(&httpClient, address, format, check.Query, check.Limits, check.from, check.until)
+				}
+				if err == nil {
+					compareTags(&errors, name, url, result, check.Result, true, check.CacheTTL, respHeader)
+				} else {
+					errStr := strings.TrimRight(err.Error(), "\n")
+					errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: %s", name, requestId(respHeader), url, errStr))
 				}
 			}
 		} else {
 			errStr := strings.TrimRight(err.Error(), "\n")
 			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
-				errors = append(errors, url+": "+errStr)
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s', got '%s'", "", requestId(respHeader), url, check.ErrorRegexp, errStr))
+			} else {
+				fmt.Printf("EXPECTED ERROR, SUCCESS %s : %s\n", url, errStr)
 			}
 		}
 	}
 
 	return errors
+}
+
+func compareRender(errors *[]string, name, url string, actual, expected []client.Metric, findCached bool, header http.Header, cacheTTL int) {
+	var cacheTTLStr string
+	if findCached {
+		cacheTTLStr = strconv.Itoa(cacheTTL)
+	}
+	sort.Slice(actual, func(i, j int) bool {
+		return actual[i].Name < actual[j].Name
+	})
+	id := requestId(header)
+	if header != nil {
+		v, actualFindCached := isFindCached(header)
+		if actualFindCached != findCached || cacheTTLStr != v {
+			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
+		}
+	}
+	maxLen := compare.Max(len(expected), len(actual))
+	for i := 0; i < maxLen; i++ {
+		if i > len(actual)-1 {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+		} else if i > len(expected)-1 {
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		} else if actual[i].Name != expected[i].Name {
+			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
+			*errors = append(*errors, fmt.Sprintf("+ TRY[%s] %s %s [%d] = %+v", name, id, url, i, actual[i]))
+		} else {
+			if actual[i].PathExpression != expected[i].PathExpression {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].PathExpression, got '%s', want '%s'", name, id, url, actual[i].Name, i, actual[i].PathExpression, expected[i].PathExpression))
+			}
+			if actual[i].ConsolidationFunc != expected[i].ConsolidationFunc {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].ConsolidationFunc, got '%s', want '%s'", name, id, url, actual[i].Name, i, actual[i].ConsolidationFunc, expected[i].ConsolidationFunc))
+			}
+			if actual[i].ConsolidationFunc != expected[i].ConsolidationFunc {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].ConsolidationFunc, got '%s', want '%s'", name, id, url, actual[i].Name, i, actual[i].ConsolidationFunc, expected[i].ConsolidationFunc))
+			}
+			if actual[i].StartTime != expected[i].StartTime {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].StartTime, got %d, want %d", name, id, url, actual[i].Name, i, actual[i].StartTime, expected[i].StartTime))
+			}
+			if actual[i].StopTime != expected[i].StopTime {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].StopTime, got %d, want %d", name, id, url, actual[i].Name, i, actual[i].StopTime, expected[i].StopTime))
+			}
+			if actual[i].StepTime != expected[i].StepTime {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].StepTime, got %d, want %d", name, id, url, actual[i].Name, i, actual[i].StepTime, expected[i].StepTime))
+			}
+			if actual[i].RequestStartTime != expected[i].RequestStartTime {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].RequestStartTime, got %d, want %d", name, id, url, actual[i].Name, i, actual[i].RequestStartTime, expected[i].RequestStartTime))
+			}
+			if actual[i].RequestStopTime != expected[i].RequestStopTime {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].RequestStopTime, got %d, want %d", name, id, url, actual[i].Name, i, actual[i].RequestStopTime, expected[i].RequestStopTime))
+			}
+			if actual[i].HighPrecisionTimestamps != expected[i].HighPrecisionTimestamps {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].HighPrecisionTimestamps, got %v, want %v", name, id, url, actual[i].Name, i, actual[i].HighPrecisionTimestamps, expected[i].HighPrecisionTimestamps))
+			}
+			if !reflect.DeepEqual(actual[i].AppliedFunctions, expected[i].AppliedFunctions) {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].AppliedFunctions, got '%s', want '%s'", name, id, url, actual[i].Name, i, actual[i].AppliedFunctions, expected[i].AppliedFunctions))
+			}
+			if !compare.NearlyEqual(float64(actual[i].XFilesFactor), float64(expected[i].XFilesFactor)) {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].XFilesFactor, got %g, want %g", name, id, url, actual[i].Name, i, actual[i].XFilesFactor, expected[i].XFilesFactor))
+			}
+			if !compare.NearlyEqualSlice(actual[i].Values, expected[i].Values) {
+				*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s '%s': mismatch [%d].Values, got %g, want %g", name, id, url, actual[i].Name, i, actual[i].Values, expected[i].Values))
+			}
+		}
+	}
 }
 
 func verifyRender(address string, check *RenderCheck) []string {
@@ -95,65 +247,27 @@ func verifyRender(address string, check *RenderCheck) []string {
 		Timeout: check.Timeout,
 	}
 	for _, format := range check.Formats {
-		if url, result, err := client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
-			sort.Slice(result, func(i, j int) bool {
-				return result[i].Name < result[j].Name
-			})
+		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
+			name := ""
 			if check.ErrorRegexp != "" {
-				errors = append(errors, url+": want error with '"+check.ErrorRegexp+"'")
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
 			}
-			maxLen := compare.Max(len(result), len(check.Result))
-			for i := 0; i < maxLen; i++ {
-				if i > len(result)-1 {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.result[i]))
-				} else if i > len(check.Result)-1 {
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
-				} else if result[i].Name != check.result[i].Name {
-					errors = append(errors, fmt.Sprintf("- %s [%d] = %+v", url, i, check.result[i]))
-					errors = append(errors, fmt.Sprintf("+ %s [%d] = %+v", url, i, result[i]))
+			compareRender(&errors, name, url, result, check.result, check.InCache, respHeader, check.CacheTTL)
+
+			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
+				// second query must be find-cached
+				name = "cache"
+				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
+					compareRender(&errors, name, url, result, check.result, true, respHeader, check.CacheTTL)
 				} else {
-					if result[i].PathExpression != check.result[i].PathExpression {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].PathExpression, got '%s', want '%s'", format.String(), result[i].Name, i, result[i].PathExpression, check.result[i].PathExpression))
-					}
-					if result[i].ConsolidationFunc != check.result[i].ConsolidationFunc {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].ConsolidationFunc, got '%s', want '%s'", format.String(), result[i].Name, i, result[i].ConsolidationFunc, check.result[i].ConsolidationFunc))
-					}
-					if result[i].ConsolidationFunc != check.result[i].ConsolidationFunc {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].ConsolidationFunc, got '%s', want '%s'", format.String(), result[i].Name, i, result[i].ConsolidationFunc, check.result[i].ConsolidationFunc))
-					}
-					if result[i].StartTime != check.result[i].StartTime {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].StartTime, got %d, want %d", format.String(), result[i].Name, i, result[i].StartTime, check.result[i].StartTime))
-					}
-					if result[i].StopTime != check.result[i].StopTime {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].StopTime, got %d, want %d", format.String(), result[i].Name, i, result[i].StopTime, check.result[i].StopTime))
-					}
-					if result[i].StepTime != check.result[i].StepTime {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].StepTime, got %d, want %d", format.String(), result[i].Name, i, result[i].StepTime, check.result[i].StepTime))
-					}
-					if result[i].RequestStartTime != check.result[i].RequestStartTime {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].RequestStartTime, got %d, want %d", format.String(), result[i].Name, i, result[i].RequestStartTime, check.result[i].RequestStartTime))
-					}
-					if result[i].RequestStopTime != check.result[i].RequestStopTime {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].RequestStopTime, got %d, want %d", format.String(), result[i].Name, i, result[i].RequestStopTime, check.result[i].RequestStopTime))
-					}
-					if result[i].HighPrecisionTimestamps != check.result[i].HighPrecisionTimestamps {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].HighPrecisionTimestamps, got %v, want %v", format.String(), result[i].Name, i, result[i].HighPrecisionTimestamps, check.result[i].HighPrecisionTimestamps))
-					}
-					if !reflect.DeepEqual(result[i].AppliedFunctions, check.result[i].AppliedFunctions) {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].AppliedFunctions, got '%s', want '%s'", format.String(), result[i].Name, i, result[i].AppliedFunctions, check.result[i].AppliedFunctions))
-					}
-					if !compare.NearlyEqual(float64(result[i].XFilesFactor), float64(check.result[i].XFilesFactor)) {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].XFilesFactor, got %g, want %g", format.String(), result[i].Name, i, result[i].XFilesFactor, check.result[i].XFilesFactor))
-					}
-					if !compare.NearlyEqualSlice(result[i].Values, check.result[i].Values) {
-						errors = append(errors, fmt.Sprintf("%s '%s': mismatch [%d].Values, got %g, want %g", format.String(), result[i].Name, i, result[i].Values, check.result[i].Values))
-					}
+					errStr := strings.TrimRight(err.Error(), "\n")
+					errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: %s", name, requestId(respHeader), url, errStr))
 				}
 			}
 		} else {
 			errStr := strings.TrimRight(err.Error(), "\n")
 			if check.errorRegexp == nil || !check.errorRegexp.MatchString(errStr) {
-				errors = append(errors, url+": "+errStr)
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s', got '%s'", "", requestId(respHeader), url, check.ErrorRegexp, errStr))
 			} else {
 				fmt.Printf("EXPECTED ERROR, SUCCESS %s : %s\n", url, errStr)
 			}

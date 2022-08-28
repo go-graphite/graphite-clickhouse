@@ -79,8 +79,12 @@ func main() {
 		if formatFind == client.FormatDefault {
 			formatFind = client.FormatPb_v3
 		}
+
+		queryRaw, r, respHeader, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, int64(from), int64(until))
+		if respHeader != nil {
+			fmt.Printf("Responce header: %+v\n", respHeader)
+		}
 		fmt.Print("'")
-		queryRaw, r, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -109,8 +113,11 @@ func main() {
 		if formatTags == client.FormatDefault {
 			formatTags = client.FormatJSON
 		}
+		queryRaw, r, respHeader, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, int64(from), int64(until))
+		if respHeader != nil {
+			fmt.Printf("Responce header: %+v\n", respHeader)
+		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -139,8 +146,11 @@ func main() {
 		if formatTags == client.FormatDefault {
 			formatTags = client.FormatJSON
 		}
+		queryRaw, r, respHeader, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, int64(from), int64(until))
+		if respHeader != nil {
+			fmt.Printf("Responce header: %+v\n", respHeader)
+		}
 		fmt.Print("'")
-		queryRaw, r, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {
@@ -170,8 +180,11 @@ func main() {
 		if formatRender == client.FormatDefault {
 			formatRender = client.FormatPb_v3
 		}
+		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, int64(from), int64(until))
+		if respHeader != nil {
+			fmt.Printf("Responce header: %+v\n", respHeader)
+		}
 		fmt.Print("'")
-		queryRaw, r, err := client.Render(&httpClient, *address, formatRender, targets, int64(from), int64(until))
 		fmt.Print(queryRaw)
 		fmt.Print("' = ")
 		if err == nil {

@@ -80,7 +80,7 @@ func (f *plainFromTaggedFinder) Abs(value []byte) []byte {
 	name := "graphite"
 	path := string(value)
 	lb := []taggedLabel{
-		taggedLabel{"metric", path},
+		{"metric", path},
 	}
 	if f.metricName != "" {
 		name = f.metricName
@@ -116,4 +116,8 @@ func (f *plainFromTaggedFinder) Abs(value []byte) []byte {
 
 func (f *plainFromTaggedFinder) List() [][]byte {
 	return f.wrappedPlain.List()
+}
+
+func (f *plainFromTaggedFinder) Bytes() ([]byte, error) {
+	return nil, ErrNotImplemented
 }

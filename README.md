@@ -56,6 +56,7 @@ Some HTTP headers are processed specially by the service
 #### Response headers
 
 - `X-Gch-Request-Id` - the current request ID.
+- `X-Cached-Find`    - Flag for find cache hit.
 
 ## Run on same host with old graphite-web 0.9.x
 By default graphite-web won't connect to CLUSTER_SERVER on localhost. Cheat:

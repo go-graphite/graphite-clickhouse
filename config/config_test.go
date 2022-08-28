@@ -322,6 +322,11 @@ sample-thereafter = 12
 		TargetBlacklist:        []string{"^blacklisted"},
 		Blacklist:              make([]*regexp.Regexp, 1),
 		MemoryReturnInterval:   12150000000,
+		FindCacheConfig: CacheConfig{
+			Type:              "null",
+			DefaultTimeoutSec: 0,
+			ShortTimeoutSec:   0,
+		},
 	}
 	r, _ := regexp.Compile(expected.Common.TargetBlacklist[0])
 	expected.Common.Blacklist[0] = r
