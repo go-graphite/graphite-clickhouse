@@ -14,6 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/msaf1980/go-stringutils"
@@ -153,7 +154,9 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		key, _ = taggedKey("tags;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, "", exprs, "tagPrefix="+tagPrefix, limit)
 		body, err = h.config.Common.FindCache.Get(key)
 		if err == nil {
-			// metrics.FindCacheMetrics.CacheHits.Add(1)
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheHits.Add(1)
+			}
 			findCache = true
 			w.Header().Set("X-Cached-Find", strconv.Itoa(int(h.config.Common.FindCacheConfig.FindTimeoutSec)))
 		}
@@ -207,8 +210,10 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if useCache {
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheMisses.Add(1)
+			}
 			h.config.Common.FindCache.Set(key, body, h.config.Common.FindCacheConfig.FindTimeoutSec)
-			// metrics.FindCacheMetrics.CacheMisses.Add(1)
 		}
 	}
 
@@ -303,7 +308,9 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		key, _ = taggedKey("values;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, tag, r.Form["expr"], "valuePrefix="+valuePrefix, limit)
 		body, err = h.config.Common.FindCache.Get(key)
 		if err == nil {
-			// metrics.FindCacheMetrics.CacheHits.Add(1)
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheHits.Add(1)
+			}
 			findCache = true
 			w.Header().Set("X-Cached-Find", strconv.Itoa(int(h.config.Common.FindCacheConfig.FindTimeoutSec)))
 		}
@@ -351,8 +358,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if useCache {
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheMisses.Add(1)
+			}
 			h.config.Common.FindCache.Set(key, body, h.config.Common.FindCacheConfig.FindTimeoutSec)
-			// metrics.FindCacheMetrics.CacheMisses.Add(1)
 		}
 	}
 

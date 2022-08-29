@@ -12,6 +12,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
 )
@@ -80,6 +81,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		key = "1970-02-12;query=" + query + ";ts=" + strconv.FormatInt(ts, 10)
 		body, err := h.config.Common.FindCache.Get(key)
 		if err == nil {
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheHits.Add(1)
+			}
 			w.Header().Set("X-Cached-Find", strconv.Itoa(int(h.config.Common.FindCacheConfig.FindTimeoutSec)))
 			f := NewCached(h.config, body)
 			logger.Info("finder", zap.String("get_cache", key),
@@ -99,6 +103,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if useCache {
 		if body, err := f.result.Bytes(); err == nil {
+			if metrics.FinderCacheMetrics != nil {
+				metrics.FinderCacheMetrics.CacheMisses.Add(1)
+			}
 			h.config.Common.FindCache.Set(key, body, h.config.Common.FindCacheConfig.FindTimeoutSec)
 			logger.Info("finder", zap.String("set_cache", key),
 				zap.Int("metrics", len(f.result.List())), zap.Bool("find_cached", false),

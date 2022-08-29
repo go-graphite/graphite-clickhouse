@@ -109,6 +109,8 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 	})
 }
 
+var BuildVersion = "(development build)"
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -151,6 +153,16 @@ func main() {
 	if err = zapwriter.ApplyConfig(cfg.Logging); err != nil {
 		log.Fatal(err)
 	}
+
+	localManager, err := zapwriter.NewManager(cfg.Logging)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := localManager.Logger("start")
+	logger.Info("starting graphite-clickhouse",
+		zap.String("build_version", BuildVersion),
+		zap.Any("config", cfg),
+	)
 
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 

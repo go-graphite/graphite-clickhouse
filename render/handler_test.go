@@ -68,7 +68,7 @@ func Test_getCacheTimeout(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getCacheTimeout(tt.now, tt.from, tt.until, &cacheConfig); got != tt.want {
+			if got, _ := getCacheTimeout(tt.now, tt.from, tt.until, &cacheConfig); got != tt.want {
 				t.Errorf("getCacheTimeout() = %v, want %v", got, tt.want)
 			}
 		})

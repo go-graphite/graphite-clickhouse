@@ -15,6 +15,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
@@ -39,13 +40,13 @@ func targetKey(from, until int64, target, ttl string) string {
 	return time.Unix(from, 0).Format("2006-01-02") + ";" + time.Unix(until, 0).Format("2006-01-02") + ";" + target + ";ttl=" + ttl
 }
 
-func getCacheTimeout(now time.Time, from, until int64, cacheConfig *config.CacheConfig) int32 {
+func getCacheTimeout(now time.Time, from, until int64, cacheConfig *config.CacheConfig) (int32, *metrics.CacheMetric) {
 	duration := time.Second * time.Duration(until-from)
 	if duration > cacheConfig.ShortDuration || now.Unix()-until > 120 {
-		return cacheConfig.DefaultTimeoutSec
+		return cacheConfig.DefaultTimeoutSec, metrics.DefaultCacheMetrics
 	}
 	// short cache ttl
-	return cacheConfig.ShortTimeoutSec
+	return cacheConfig.ShortTimeoutSec, metrics.ShortCacheMetrics
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -109,11 +110,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				var cacheTimeout int32
 				var cacheTimeoutStr string
+				var m *metrics.CacheMetric
 				var key string
 				var ts int64
 
 				if useCache {
-					cacheTimeout = getCacheTimeout(now, tf.From, tf.Until, &h.config.Common.FindCacheConfig)
+					cacheTimeout, m = getCacheTimeout(now, tf.From, tf.Until, &h.config.Common.FindCacheConfig)
 					if cacheTimeout > 0 {
 						cacheTimeoutStr = strconv.Itoa(int(cacheTimeout))
 						if maxCacheTimeout < cacheTimeout {
@@ -124,6 +126,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						key = targetKey(tf.From, tf.Until, target, cacheTimeoutStr)
 						body, err := h.config.Common.FindCache.Get(key)
 						if err == nil {
+							if m != nil {
+								m.CacheHits.Add(1)
+							}
 							cachedFind = true
 							if len(body) > 0 {
 								// ApiMetrics.RequestCacheHits.Add(1)
@@ -160,6 +165,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				body := am.MergeTarget(fndResult, target, useCache)
 				if useCache && cacheTimeout > 0 {
+					if m != nil {
+						m.CacheMisses.Add(1)
+					}
 					h.config.Common.FindCache.Set(key, body, cacheTimeout)
 					logger.Info("finder", zap.String("set_cache", key), zap.Time("timestamp_cached", time.Unix(ts, 0)),
 						zap.Int("metrics", am.Len()), zap.Bool("find_cached", false),

@@ -12,11 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/msaf1980/g2g"
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/cache"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
 )
 
@@ -33,9 +35,12 @@ type CacheConfig struct {
 
 // Common config
 type Common struct {
-	// MetricPrefix   string    `toml:"metric-prefix"`
-	// MetricInterval *Duration `toml:"metric-interval"`
-	// MetricEndpoint string    `toml:"metric-endpoint"`
+	MetricEndpoint  string        `toml:"metric-endpoint" json:"metric-endpoint" comment:"graphite relay address"`
+	MetricInterval  time.Duration `toml:"metric-interval" json:"metric-interval" comment:"graphite metrics send interval"`
+	MetricTimeout   time.Duration `toml:"metric-timeout" json:"metric-timeout" comment:"graphite metrics send timeout"`
+	MetricPrefix    string        `toml:"metric-prefix" json:"metric-prefix" comment:"graphite metrics prefix"`
+	MetricBatchSize int           `toml:"metric-batch-size" json:"metric-batch-size" comment:"graphite send batch size"`
+
 	Listen                 string           `toml:"listen" json:"listen" comment:"general listener"`
 	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen" comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
@@ -46,8 +51,10 @@ type Common struct {
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log" json:"headers-to-log" comment:"additional request headers to log"`
 	FindCacheConfig        CacheConfig      `toml:"find-cache" json:"find-cache" comment:"find cache config"`
-	FindCache              cache.BytesCache `toml:"-" json:"-"`
-	TaggedCache            cache.BytesCache `toml:"-" json:"-"`
+
+	FindCache   cache.BytesCache `toml:"-" json:"-"`
+	TaggedCache cache.BytesCache `toml:"-" json:"-"`
+	Graphite    *g2g.Graphite    `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -531,6 +538,8 @@ func Unmarshal(body []byte) (*Config, error) {
 		}
 	}
 
+	cfg.setupGraphiteMetrics()
+
 	return cfg, nil
 }
 
@@ -628,5 +637,28 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("%s: unknown cache type '%s', known_cache_types 'null', 'mem', 'memcache'", cacheName, cacheConfig.Type)
+	}
+}
+
+func (c *Config) setupGraphiteMetrics() {
+	if c.Common.MetricEndpoint != "" {
+		if c.Common.MetricInterval == 0 {
+			c.Common.MetricInterval = 60 * time.Second
+		}
+		if c.Common.MetricTimeout == 0 {
+			c.Common.MetricTimeout = time.Second
+		}
+		// register our metrics with graphite
+		c.Common.Graphite = g2g.NewGraphiteBatch(c.Common.MetricEndpoint, c.Common.MetricInterval, c.Common.MetricTimeout, c.Common.MetricBatchSize)
+
+		hostname, _ := os.Hostname()
+		fqdn := strings.ReplaceAll(hostname, ".", "_")
+		hostname = strings.Split(hostname, ".")[0]
+
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{prefix}", c.Common.MetricPrefix)
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{fqdn}", fqdn)
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{host}", hostname)
+
+		metrics.InitFindCacheMetrics(c.Common.Graphite, c.Common.MetricPrefix)
 	}
 }

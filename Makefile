@@ -27,10 +27,10 @@ clean:
 	rm -f sha256sum md5sum
 
 $(NAME): $(SRCS)
-	$(GO) build $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' $(MODULE)
 
 debug: $(SRCS)
-	$(GO) build -gcflags=all='-N -l' $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' -gcflags=all='-N -l' $(MODULE)
 
 deploy/doc/graphite-clickhouse.conf: $(NAME)
 	./$(NAME) -config-print-default > $@
@@ -58,7 +58,7 @@ client: $(NAME)
 gox-build:
 	rm -rf out
 	mkdir -p out
-	gox -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
+	gox -ldflags '-X main.BuildVersion=$(VERSION)' -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
 	./out/$(NAME)-linux-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
