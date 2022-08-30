@@ -2,6 +2,13 @@
 
 ## Common  `[common]`
 
+Send internal metrics to graphite relay
+ - `metric-endpoint`   - graphite relay address
+ - `metric-interval`   - graphite metrics send interval
+ - `metric-prefix`     - graphite metrics prefix 
+ - `metric-timeout`    - graphite metrics send timeout
+ - `metric-batch-size` - graphite send batch size
+
 ### Finder cache
 
 Specify what storage to use for finder cache. This cache stores finder results (metrics find/tags autocomplete/render).
@@ -27,36 +34,6 @@ memcachedServers = [ "127.0.0.1:1234", "127.0.0.2:1235" ]
 defaultTimeoutSec = 10800
 shortTimeoutSec = 300
 findTimeoutSec = 600
-```
-
-## Common  `[common]`
-
-### Finder cache
-
-Specify what storage to use for finder cache. This cache stores finder results (metrics find/tags autocomplete/render).
-
-Supported cache types:
- - `mem` - will use integrated in-memory cache. Not distributed. Fast.
- - `memcache` - will use specified memcache servers. Could be shared. Slow.
- - `null` - disable cache
-
-Extra options:
- - `memcached-servers` - memcached servers
- - `size-mb` - specify max size of cache, in MiB
- - `default-timeout` - specify default cache ttl.
- - `short-timeout` - cache ttl for short duration intervals of render queries (duration <= shortDuration && now-until <= 61) (if 0, disable this cache)
- - `find-timeout` - cache ttl for finder/tags autocompleter queries (if 0, disable this cache)
- - `short-duration` - maximum duration for render queries, which use shortTimeoutSec duration
-
-### Example
-```yaml
-[common.find-cache]
-type = "memcache"
-size-mb = 0
-memcached-servers = [ "127.0.0.1:1234", "127.0.0.2:1235" ]
-default-timeout = 10800
-short-timeout = 300
-find-timeout = 600
 ```
 
 ## ClickHouse `[clickhouse]`
