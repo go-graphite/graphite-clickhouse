@@ -1,19 +1,28 @@
 package finder
 
 import (
+	"bytes"
 	"context"
+	"strings"
 )
 
 // MockFinder is used for testing purposes
 type MockFinder struct {
-	result [][]byte // from new
-	query  string   // logged from execute
+	fnd   Finder
+	query string // logged from execute
 }
 
 // NewMockFinder returns new MockFinder object with given result
 func NewMockFinder(result [][]byte) *MockFinder {
 	return &MockFinder{
-		result: result,
+		fnd: NewCachedIndex(bytes.Join(result, []byte{'\n'})),
+	}
+}
+
+// NewMockTagged returns new MockFinder object with given result
+func NewMockTagged(result [][]byte) *MockFinder {
+	return &MockFinder{
+		fnd: NewCachedTags(bytes.Join(result, []byte{'\n'})),
 	}
 }
 
@@ -25,24 +34,25 @@ func (m *MockFinder) Execute(ctx context.Context, query string, from int64, unti
 
 // List returns the result
 func (m *MockFinder) List() [][]byte {
-	return m.result
+	return m.fnd.List()
 }
 
 // Series returns the result
 func (m *MockFinder) Series() [][]byte {
-	return m.result
+	return m.fnd.Series()
 }
 
 // Abs returns the same given v
 func (m *MockFinder) Abs(v []byte) []byte {
-	return v
+	return m.fnd.Abs(v)
+}
+
+func (m *MockFinder) Bytes() ([]byte, error) {
+	return m.fnd.Bytes()
 }
 
 // Strings returns the result converted to []string
-func (m *MockFinder) Strings() (result []string) {
-	result = make([]string, len(m.result))
-	for i := range m.result {
-		result[i] = string(m.result[i])
-	}
-	return
+func (m *MockFinder) Strings() []string {
+	body, _ := m.fnd.Bytes()
+	return strings.Split(string(body), "\n")
 }

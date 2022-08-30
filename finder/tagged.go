@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -14,6 +13,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
+
+	"github.com/msaf1980/go-stringutils"
 )
 
 type TaggedTermOp int
@@ -362,6 +363,12 @@ func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
 	return w, pw, nil
 }
 
+func NewCachedTags(body []byte) *TaggedFinder {
+	return &TaggedFinder{
+		body: body,
+	}
+}
+
 func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
 	terms, err := ParseSeriesByTag(query, t.taggedCosts)
 	if err != nil {
@@ -418,25 +425,52 @@ func (t *TaggedFinder) Series() [][]byte {
 	return t.List()
 }
 
+func tagsParse(path string) (string, []string, error) {
+	name, args, n := stringutils.Split2(path, "?")
+	if n == 1 || args == "" {
+		return name, nil, fmt.Errorf("incomplete tags in '%s'", path)
+	}
+	tags := strings.Split(args, "&")
+	return name, tags, nil
+}
+
+func TaggedDecode(v []byte) []byte {
+	s := stringutils.UnsafeString(v)
+	name, tags, err := tagsParse(s)
+	if err != nil {
+		return v
+	}
+
+	if len(tags) == 0 {
+		return stringutils.UnsafeStringBytes(&name)
+	}
+	sort.Strings(tags)
+
+	var sb stringutils.Builder
+
+	length := len(name)
+	for _, tag := range tags {
+		length += len(tag) + 1
+	}
+
+	sb.Grow(length)
+
+	sb.WriteString(name)
+	for _, tag := range tags {
+		sb.WriteString(";")
+		sb.WriteString(tag)
+	}
+	return sb.Bytes()
+}
+
 func (t *TaggedFinder) Abs(v []byte) []byte {
 	if t.absKeepEncoded {
 		return v
 	}
 
-	u, err := url.Parse(string(v))
-	if err != nil {
-		return v
-	}
+	return TaggedDecode(v)
+}
 
-	tags := make([]string, 0, len(u.Query()))
-	for k, v := range u.Query() {
-		tags = append(tags, fmt.Sprintf("%s=%s", k, v[0]))
-	}
-
-	sort.Strings(tags)
-	if len(tags) == 0 {
-		return []byte(u.Path)
-	}
-
-	return []byte(fmt.Sprintf("%s;%s", u.Path, strings.Join(tags, ";")))
+func (t *TaggedFinder) Bytes() ([]byte, error) {
+	return nil, ErrNotImplemented
 }

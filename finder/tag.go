@@ -317,3 +317,7 @@ func (t *TagFinder) Abs(v []byte) []byte {
 
 	return bytesConcat(t.tagPrefix, v)
 }
+
+func (t *TagFinder) Bytes() ([]byte, error) {
+	return nil, ErrNotImplemented
+}

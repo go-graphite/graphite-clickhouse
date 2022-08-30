@@ -34,10 +34,22 @@ type IndexFinder struct {
 	confReverses config.IndexReverses
 	reverse      uint8  // calculated in IndexFinder.useReverse only once
 	body         []byte // clickhouse response body
+	rows         [][]byte
+	useCache     bool // rotate body if needed (for store in cache)
 	useDaily     bool
 }
 
-func NewIndex(url string, table string, dailyEnabled bool, reverse string, reverses config.IndexReverses, opts clickhouse.Options) Finder {
+func NewCachedIndex(body []byte) Finder {
+	idx := &IndexFinder{
+		body:    body,
+		reverse: queryDirect,
+	}
+	idx.bodySplit()
+
+	return idx
+}
+
+func NewIndex(url string, table string, dailyEnabled bool, reverse string, reverses config.IndexReverses, opts clickhouse.Options, useCache bool) Finder {
 	return &IndexFinder{
 		url:          url,
 		table:        table,
@@ -45,6 +57,7 @@ func NewIndex(url string, table string, dailyEnabled bool, reverse string, rever
 		dailyEnabled: dailyEnabled,
 		confReverse:  config.IndexReverse[reverse],
 		confReverses: reverses,
+		useCache:     useCache,
 	}
 }
 
@@ -150,6 +163,9 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		idx.opts,
 		nil,
 	)
+	if err == nil {
+		idx.bodySplit()
+	}
 
 	return
 }
@@ -158,34 +174,38 @@ func (idx *IndexFinder) Abs(v []byte) []byte {
 	return v
 }
 
+func (idx *IndexFinder) bodySplit() {
+	idx.rows = bytes.Split(idx.body, []byte{'\n'})
+
+	if idx.useReverse("") {
+		// rotate names for reduce
+		var buf bytes.Buffer
+		if idx.useCache {
+			buf.Grow(len(idx.body))
+		}
+		for i := 0; i < len(idx.rows); i++ {
+			idx.rows[i] = ReverseBytes(idx.rows[i])
+			if idx.useCache {
+				buf.Write(idx.rows[i])
+				buf.WriteByte('\n')
+			}
+		}
+		if idx.useCache {
+			idx.body = buf.Bytes()
+			idx.reverse = queryDirect
+		}
+	}
+}
+
 func (idx *IndexFinder) makeList(onlySeries bool) [][]byte {
-	if idx.body == nil {
+	if len(idx.rows) == 0 {
 		return [][]byte{}
 	}
 
-	rows := bytes.Split(idx.body, []byte{'\n'})
+	rows := make([][]byte, len(idx.rows))
 
-	skip := 0
-	for i := 0; i < len(rows); i++ {
-		if len(rows[i]) == 0 {
-			skip++
-			continue
-		}
-		if onlySeries && rows[i][len(rows[i])-1] == '.' {
-			skip++
-			continue
-		}
-		if skip > 0 {
-			rows[i-skip] = rows[i]
-		}
-	}
-
-	rows = rows[:len(rows)-skip]
-
-	if idx.useReverse("") {
-		for i := 0; i < len(rows); i++ {
-			rows[i] = ReverseBytes(rows[i])
-		}
+	for i := 0; i < len(idx.rows); i++ {
+		rows[i] = idx.rows[i]
 	}
 
 	return rows
@@ -197,4 +217,8 @@ func (idx *IndexFinder) List() [][]byte {
 
 func (idx *IndexFinder) Series() [][]byte {
 	return idx.makeList(true)
+}
+
+func (idx *IndexFinder) Bytes() ([]byte, error) {
+	return idx.body, nil
 }

@@ -38,6 +38,7 @@ func init() {
 type LogResponseWriter struct {
 	http.ResponseWriter
 	status int
+	cached bool
 }
 
 func (w *LogResponseWriter) WriteHeader(status int) {
@@ -94,6 +95,8 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 			client = strings.Split(client, ", ")[0]
 		}
 
+		cachedFind := w.Header().Get("X-Cached-Find") == "true"
+
 		logger.Info("access",
 			zap.Duration("time", d),
 			zap.String("method", r.Method),
@@ -101,9 +104,12 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 			zap.String("peer", peer),
 			zap.String("client", client),
 			zap.Int("status", writer.Status()),
+			zap.Bool("find_cached", cachedFind),
 		)
 	})
 }
+
+var BuildVersion = "(development build)"
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -147,6 +153,16 @@ func main() {
 	if err = zapwriter.ApplyConfig(cfg.Logging); err != nil {
 		log.Fatal(err)
 	}
+
+	localManager, err := zapwriter.NewManager(cfg.Logging)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := localManager.Logger("start")
+	logger.Info("starting graphite-clickhouse",
+		zap.String("build_version", BuildVersion),
+		zap.Any("config", cfg),
+	)
 
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 

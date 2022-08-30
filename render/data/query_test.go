@@ -28,7 +28,7 @@ var finderResult *finder.MockFinder = finder.NewMockFinder([][]byte{
 
 func newAM() *alias.Map {
 	am := alias.New()
-	am.MergeTarget(finderResult, "*.name.*")
+	am.MergeTarget(finderResult, "*.name.*", false)
 	return am
 }
 

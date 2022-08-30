@@ -12,18 +12,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/msaf1980/g2g"
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
+	"github.com/lomik/graphite-clickhouse/cache"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
 )
 
+// Cache config
+type CacheConfig struct {
+	Type              string        `toml:"type" json:"type" comment:"cache type"`
+	Size              int           `toml:"size-mb" json:"size-mb" comment:"cache size"`
+	MemcachedServers  []string      `toml:"memcached-servers" json:"memcached-servers" comment:"memcached servers"`
+	DefaultTimeoutSec int32         `toml:"default-timeout" json:"default-timeout" comment:"default cache ttl"`
+	ShortTimeoutSec   int32         `toml:"short-timeout" json:"short-timeout" comment:"short-time cache ttl"`
+	FindTimeoutSec    int32         `toml:"find-timeout" json:"find-timeout" comment:"finder/tags autocompleter cache ttl"`
+	ShortDuration     time.Duration `toml:"short-duration" json:"short-duration" comment:"maximum diration, used with short_timeout"`
+}
+
 // Common config
 type Common struct {
-	// MetricPrefix   string    `toml:"metric-prefix"`
-	// MetricInterval *Duration `toml:"metric-interval"`
-	// MetricEndpoint string    `toml:"metric-endpoint"`
+	MetricEndpoint  string        `toml:"metric-endpoint" json:"metric-endpoint" comment:"graphite relay address"`
+	MetricInterval  time.Duration `toml:"metric-interval" json:"metric-interval" comment:"graphite metrics send interval"`
+	MetricTimeout   time.Duration `toml:"metric-timeout" json:"metric-timeout" comment:"graphite metrics send timeout"`
+	MetricPrefix    string        `toml:"metric-prefix" json:"metric-prefix" comment:"graphite metrics prefix"`
+	MetricBatchSize int           `toml:"metric-batch-size" json:"metric-batch-size" comment:"graphite send batch size"`
+
 	Listen                 string           `toml:"listen" json:"listen" comment:"general listener"`
 	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen" comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
@@ -33,6 +50,11 @@ type Common struct {
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log" json:"headers-to-log" comment:"additional request headers to log"`
+	FindCacheConfig        CacheConfig      `toml:"find-cache" json:"find-cache" comment:"find cache config"`
+
+	FindCache   cache.BytesCache `toml:"-" json:"-"`
+	TaggedCache cache.BytesCache `toml:"-" json:"-"`
+	Graphite    *g2g.Graphite    `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -70,7 +92,7 @@ var IndexReverseNames = []string{"auto", "direct", "reversed"}
 
 type QueryParam struct {
 	Duration    time.Duration `toml:"duration" json:"duration" comment:"minimal duration (beetween from/until) for select query params"`
-	URL         string        `toml:"url" json:"url" comment:"url for queries with durations greater or equal than "`
+	URL         string        `toml:"url" json:"url" comment:"url for queries with durations greater or equal than"`
 	DataTimeout time.Duration `toml:"data-timeout" json:"data-timeout" comment:"total timeout to fetch data"`
 	// TODO (msaf1980): may be implement queue limiter queue (like carbonapi. but per query param for prevent overloading with long range queries)
 }
@@ -234,6 +256,12 @@ func New() *Config {
 			MaxMetricsInFindAnswer: 0,
 			MaxMetricsPerTarget:    15000, // This is arbitrary value to protect CH from overload
 			MemoryReturnInterval:   0,
+			FindCacheConfig: CacheConfig{
+				Type:              "null",
+				DefaultTimeoutSec: 0,
+				ShortTimeoutSec:   0,
+				FindTimeoutSec:    0,
+			},
 		},
 		ClickHouse: ClickHouse{
 			URL:                  "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1",
@@ -301,10 +329,8 @@ func newLoggingConfig() zapwriter.Config {
 	return cfg
 }
 
-// PrintDefaultConfig prints the default config with some additions to be useful
-func PrintDefaultConfig() error {
+func DefaultConfig() (*Config, error) {
 	cfg := New()
-	buf := new(bytes.Buffer)
 
 	if cfg.Logging == nil {
 		cfg.Logging = make([]zapwriter.Config, 0)
@@ -333,8 +359,19 @@ func PrintDefaultConfig() error {
 		}
 		err := cfg.ClickHouse.IndexReverses.Compile()
 		if err != nil {
-			return err
+			return nil, err
 		}
+	}
+
+	return cfg, nil
+}
+
+// PrintDefaultConfig prints the default config with some additions to be useful
+func PrintDefaultConfig() error {
+	buf := new(bytes.Buffer)
+	cfg, err := DefaultConfig()
+	if err != nil {
+		return err
 	}
 
 	encoder := toml.NewEncoder(buf).Indentation(" ").Order(toml.OrderPreserve).CompactComments(true)
@@ -439,6 +476,20 @@ func Unmarshal(body []byte) (*Config, error) {
 		return nil, err
 	}
 
+	if cfg.Common.FindCache, err = CreateCache("index", &cfg.Common.FindCacheConfig); err == nil {
+		if cfg.Common.FindCacheConfig.Type != "null" {
+
+			localManager, err := zapwriter.NewManager(cfg.Logging)
+			if err != nil {
+				return nil, err
+			}
+			logger := localManager.Logger("config")
+			logger.Error("enable find cache", zap.String("type", cfg.Common.FindCacheConfig.Type))
+		}
+	} else {
+		return nil, err
+	}
+
 	l := len(cfg.Common.TargetBlacklist)
 	if l > 0 {
 		cfg.Common.Blacklist = make([]*regexp.Regexp, l)
@@ -486,6 +537,8 @@ func Unmarshal(body []byte) (*Config, error) {
 			logger.Error(name, zap.Error(message))
 		}
 	}
+
+	cfg.setupGraphiteMetrics()
 
 	return cfg, nil
 }
@@ -558,5 +611,54 @@ func (c *Config) ProcessDataTables() (err error) {
 func checkDeprecations(cfg *Config, d map[string]error) {
 	if cfg.ClickHouse.DataTableLegacy != "" {
 		d["data-table"] = fmt.Errorf("data-table parameter in [clickhouse] is deprecated; use [[data-table]]")
+	}
+}
+
+func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, error) {
+	if cacheConfig.DefaultTimeoutSec <= 0 && cacheConfig.ShortTimeoutSec <= 0 && cacheConfig.FindTimeoutSec <= 0 {
+		return nil, nil
+	}
+	if cacheConfig.DefaultTimeoutSec < cacheConfig.ShortTimeoutSec {
+		cacheConfig.DefaultTimeoutSec = cacheConfig.ShortTimeoutSec
+	}
+	if cacheConfig.ShortDuration == 0 {
+		cacheConfig.ShortDuration = 3 * time.Hour
+	}
+	switch cacheConfig.Type {
+	case "memcache":
+		if len(cacheConfig.MemcachedServers) == 0 {
+			return nil, fmt.Errorf(cacheName + ": memcache cache requested but no memcache servers provided")
+		}
+		return cache.NewMemcached("gch-"+cacheName, cacheConfig.MemcachedServers...), nil
+	case "mem":
+		return cache.NewExpireCache(uint64(cacheConfig.Size * 1024 * 1024)), nil
+	case "null":
+		// defaults
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("%s: unknown cache type '%s', known_cache_types 'null', 'mem', 'memcache'", cacheName, cacheConfig.Type)
+	}
+}
+
+func (c *Config) setupGraphiteMetrics() {
+	if c.Common.MetricEndpoint != "" {
+		if c.Common.MetricInterval == 0 {
+			c.Common.MetricInterval = 60 * time.Second
+		}
+		if c.Common.MetricTimeout == 0 {
+			c.Common.MetricTimeout = time.Second
+		}
+		// register our metrics with graphite
+		c.Common.Graphite = g2g.NewGraphiteBatch(c.Common.MetricEndpoint, c.Common.MetricInterval, c.Common.MetricTimeout, c.Common.MetricBatchSize)
+
+		hostname, _ := os.Hostname()
+		fqdn := strings.ReplaceAll(hostname, ".", "_")
+		hostname = strings.Split(hostname, ".")[0]
+
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{prefix}", c.Common.MetricPrefix)
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{fqdn}", fqdn)
+		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{host}", hostname)
+
+		metrics.InitFindCacheMetrics(c.Common.Graphite, c.Common.MetricPrefix)
 	}
 }

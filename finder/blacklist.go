@@ -49,3 +49,7 @@ func (p *BlacklistFinder) Series() [][]byte {
 func (p *BlacklistFinder) Abs(v []byte) []byte {
 	return p.wrapped.Abs(v)
 }
+
+func (p *BlacklistFinder) Bytes() ([]byte, error) {
+	return nil, ErrNotImplemented
+}

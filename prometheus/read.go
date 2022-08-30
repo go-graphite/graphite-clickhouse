@@ -30,7 +30,7 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) (*alias.Map, erro
 	}
 
 	am := alias.New()
-	am.Merge(fndResult)
+	am.Merge(fndResult, false)
 	return am, nil
 }
 

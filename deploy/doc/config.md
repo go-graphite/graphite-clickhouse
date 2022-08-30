@@ -1,5 +1,41 @@
 # Configuration
 
+## Common  `[common]`
+
+Send internal metrics to graphite relay
+ - `metric-endpoint`   - graphite relay address
+ - `metric-interval`   - graphite metrics send interval
+ - `metric-prefix`     - graphite metrics prefix 
+ - `metric-timeout`    - graphite metrics send timeout
+ - `metric-batch-size` - graphite send batch size
+
+### Finder cache
+
+Specify what storage to use for finder cache. This cache stores finder results (metrics find/tags autocomplete/render).
+
+Supported cache types:
+ - `mem` - will use integrated in-memory cache. Not distributed. Fast.
+ - `memcache` - will use specified memcache servers. Could be shared. Slow.
+ - `null` - disable cache
+
+Extra options:
+ - `size_mb` - specify max size of cache, in MiB
+ - `defaultTimeoutSec` - specify default cache ttl.
+ - `shortTimeoutSec` - cache ttl for short duration intervals of render queries (duration <= shortDuration && now-until <= 61) (if 0, disable this cache)
+ - `findTimeoutSec` - cache ttl for finder/tags autocompleter queries (if 0, disable this cache)
+ - `shortDuration` - maximum duration for render queries, which use shortTimeoutSec duration
+
+### Example
+```yaml
+[common.find-cache]
+type = "memcache"
+size_mb = 0
+memcachedServers = [ "127.0.0.1:1234", "127.0.0.2:1235" ]
+defaultTimeoutSec = 10800
+shortTimeoutSec = 300
+findTimeoutSec = 600
+```
+
 ## ClickHouse `[clickhouse]`
 
 ### URL `url`

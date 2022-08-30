@@ -1,6 +1,7 @@
 package alias
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/lomik/graphite-clickhouse/finder"
@@ -28,14 +29,21 @@ func New() *Map {
 }
 
 // Merge data from finder.Result into aliases map
-func (m *Map) Merge(r finder.Result) {
-	m.MergeTarget(r, "")
+func (m *Map) Merge(r finder.Result, useCache bool) {
+	m.MergeTarget(r, "", useCache)
 }
 
 // MergeTarget data from finder.Result into aliases map
-func (m *Map) MergeTarget(r finder.Result, target string) {
+func (m *Map) MergeTarget(r finder.Result, target string, saveCache bool) []byte {
+	var buf bytes.Buffer
+
 	series := r.Series()
+	buf.Grow(len(series) * 24)
 	for i := 0; i < len(series); i++ {
+		if saveCache {
+			buf.Write(series[i])
+			buf.WriteByte('\n')
+		}
 		key := string(series[i])
 		if len(key) == 0 {
 			continue
@@ -48,6 +56,12 @@ func (m *Map) MergeTarget(r finder.Result, target string) {
 			m.data[key] = []Value{{Target: target, DisplayName: abs}}
 		}
 		m.lock.Unlock()
+	}
+
+	if saveCache {
+		return buf.Bytes()
+	} else {
+		return nil
 	}
 }
 

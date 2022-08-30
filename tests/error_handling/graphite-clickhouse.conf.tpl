@@ -4,16 +4,6 @@ max-cpu = 0
 max-metrics-in-render-answer = 10000
 max-metrics-per-target = 10000
 headers-to-log = [ "X-Ctx-Carbonapi-Uuid" ]
-#return-empty-series = true
-[common.find-cache]
-# Type of caching. Valid: "mem", "memcache", "null"
-type = "mem"
-# Cache limit in megabytes
-size_mb = 2
-# Default cache timeout value. Identical to DEFAULT_CACHE_DURATION in graphite-web.
-default_timeout = 1
-short_timeout = 2
-find_timeout = 2
 
 [clickhouse]
 url = "{{ .PROXY_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"

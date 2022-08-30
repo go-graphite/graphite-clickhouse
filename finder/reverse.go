@@ -91,3 +91,7 @@ func (r *ReverseFinder) Series() [][]byte {
 func (r *ReverseFinder) Abs(v []byte) []byte {
 	return v
 }
+
+func (f *ReverseFinder) Bytes() ([]byte, error) {
+	return f.wrapped.Bytes()
+}

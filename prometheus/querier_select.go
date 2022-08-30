@@ -26,7 +26,7 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 	}
 
 	am := alias.New()
-	am.Merge(fndResult)
+	am.Merge(fndResult, false)
 	return am, nil
 }
 

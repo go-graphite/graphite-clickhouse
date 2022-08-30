@@ -3,6 +3,7 @@ package finder
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
+
+var ErrNotImplemented = errors.New("not implemented")
 
 type BaseFinder struct {
 	url   string             // clickhouse dsn
@@ -87,4 +90,8 @@ func (b *BaseFinder) Series() [][]byte {
 
 func (b *BaseFinder) Abs(v []byte) []byte {
 	return v
+}
+
+func (b *BaseFinder) Bytes() ([]byte, error) {
+	return b.body, nil
 }

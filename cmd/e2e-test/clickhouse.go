@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os/exec"
 )
 
@@ -21,12 +21,12 @@ type Clickhouse struct {
 	container   string `toml:"-"`
 }
 
-func (c *Clickhouse) Start() (error, string) {
+func (c *Clickhouse) Start() (string, error) {
 	if len(c.Version) == 0 {
-		return fmt.Errorf("version not set"), ""
+		return "", errors.New("version not set")
 	}
 	if len(c.Dir) == 0 {
-		return fmt.Errorf("dir not set"), ""
+		return "", errors.New("dir not set")
 	}
 	if len(c.Docker) == 0 {
 		c.Docker = "docker"
@@ -37,7 +37,7 @@ func (c *Clickhouse) Start() (error, string) {
 	var err error
 	c.httpAddress, err = getFreeTCPPort("")
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 	c.url = "http://" + c.httpAddress
 
@@ -64,12 +64,12 @@ func (c *Clickhouse) Start() (error, string) {
 	cmd := exec.Command(c.Docker, chStart...)
 	out, err := cmd.CombinedOutput()
 
-	return err, string(out)
+	return string(out), err
 }
 
-func (c *Clickhouse) Stop(delete bool) (error, string) {
+func (c *Clickhouse) Stop(delete bool) (string, error) {
 	if len(c.container) == 0 {
-		return nil, ""
+		return "", nil
 	}
 
 	chStop := []string{"stop", c.container}
@@ -80,12 +80,12 @@ func (c *Clickhouse) Stop(delete bool) (error, string) {
 	if err == nil && delete {
 		return c.Delete()
 	}
-	return err, string(out)
+	return string(out), err
 }
 
-func (c *Clickhouse) Delete() (error, string) {
+func (c *Clickhouse) Delete() (string, error) {
 	if len(c.container) == 0 {
-		return nil, ""
+		return "", nil
 	}
 
 	chDel := []string{"rm", c.container}
@@ -97,7 +97,7 @@ func (c *Clickhouse) Delete() (error, string) {
 		c.container = ""
 	}
 
-	return err, string(out)
+	return string(out), err
 }
 
 func (c *Clickhouse) URL() string {
