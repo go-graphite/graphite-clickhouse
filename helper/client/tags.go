@@ -92,7 +92,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if resp.StatusCode == http.StatusNotFound {
 		return u.RawQuery, nil, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, fmt.Errorf("error with %d: %s", resp.StatusCode, string(b))
+		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var values []string
@@ -196,7 +196,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if resp.StatusCode == http.StatusNotFound {
 		return queryParams, nil, nil
 	} else if resp.StatusCode != http.StatusOK {
-		return queryParams, nil, fmt.Errorf("error with %d: %s", resp.StatusCode, string(b))
+		return queryParams, nil, NewHttpError(resp.StatusCode, string(b))
 	}
 
 	var values []string

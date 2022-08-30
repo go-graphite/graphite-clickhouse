@@ -16,12 +16,25 @@ short_timeout = 2
 find_timeout = 2
 
 [clickhouse]
-url = "{{ .CLICKHOUSE_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"
-data-timeout = "30s"
+url = "{{ .PROXY_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"
+data-timeout = "1s"
+
+query-params = [
+  {
+    duration = "1h",
+    url = "{{ .PROXY_URL }}/?max_rows_to_read=1&max_result_bytes=1&readonly=2&log_queries=1",
+    data-timeout = "5s"
+  },
+  {
+    duration = "2h",
+    url = "{{ .PROXY_URL }}/?max_memory_usage=1&max_memory_usage_for_user=1&readonly=2&log_queries=1",
+    data-timeout = "5s"
+  }
+]
 
 index-table = "graphite_index"
 index-use-daily = true
-index-timeout = "1m"
+index-timeout = "1s"
 internal-aggregation = false
 
 tagged-table = "graphite_tags"

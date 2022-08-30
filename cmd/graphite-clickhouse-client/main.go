@@ -100,7 +100,7 @@ func main() {
 			}
 		} else {
 			ec = 1
-			fmt.Printf("'%s'\n", err.Error())
+			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))
 		}
 	}
 
@@ -130,7 +130,7 @@ func main() {
 			}
 		} else {
 			ec = 1
-			fmt.Printf("'%s'\n", err.Error())
+			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))
 		}
 	}
 
@@ -161,7 +161,7 @@ func main() {
 
 		} else {
 			ec = 1
-			fmt.Printf("'%s'\n", err.Error())
+			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))
 		}
 	}
 
@@ -196,7 +196,7 @@ func main() {
 
 		} else {
 			ec = 1
-			fmt.Printf("'%s'\n", err.Error())
+			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))
 		}
 	}
 

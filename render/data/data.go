@@ -137,12 +137,12 @@ func (d *data) setSteps(cond *conditions) {
 func splitErrorHandler(data *[]byte, atEOF bool, tokenLen int, err error) (int, []byte, error) {
 	if err == clickhouse.ErrUvarintRead {
 		if atEOF {
-			return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(*data))
+			return 0, nil, clickhouse.NewErrWithDescr(errClickHouseResponse.Error(), string(*data))
 		}
 		// signal for read more
 		return 0, nil, nil
 	} else if err != nil || (len(*data) < tokenLen && atEOF) {
-		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error(), string(*data))
+		return 0, nil, clickhouse.NewErrWithDescr(errClickHouseResponse.Error(), string(*data))
 	}
 	// signal for read more
 	return 0, nil, nil
@@ -174,7 +174,7 @@ func dataSplitAggregated(data []byte, atEOF bool) (advance int, token []byte, er
 	}
 
 	if timeLen != valueLen {
-		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error()+": Different amount of Times and Values", string(data))
+		return 0, nil, clickhouse.NewErrWithDescr(errClickHouseResponse.Error()+": Different amount of Times and Values", string(data))
 	}
 
 	return tokenLen, data[:tokenLen], nil
@@ -212,7 +212,7 @@ func dataSplitUnaggregated(data []byte, atEOF bool) (advance int, token []byte, 
 	}
 
 	if timeLen != valueLen || timeLen != timestampLen {
-		return 0, nil, clickhouse.NewErrDataParse(errClickHouseResponse.Error()+": Different amount of Values, Times and Timestamps", string(data))
+		return 0, nil, clickhouse.NewErrWithDescr(errClickHouseResponse.Error()+": Different amount of Values, Times and Timestamps", string(data))
 	}
 
 	return tokenLen, data[:tokenLen], nil
@@ -316,9 +316,9 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 
 	err := scanner.Err()
 	if err != nil {
-		dataErr, ok := err.(*clickhouse.ErrDataParse)
+		dataErr, ok := err.(*clickhouse.ErrWithDescr)
 		if ok {
-			// format full error string
+			// format full error string, sometimes parse not failed at start orf error string
 			dataErr.PrependDescription(string(rowStart))
 		}
 		bodyReader.Close()

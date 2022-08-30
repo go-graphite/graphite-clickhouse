@@ -16,7 +16,7 @@ short_timeout = 2
 find_timeout = 2
 
 [clickhouse]
-url = "{{ .CLICKHOUSE_ADDR }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"
+url = "{{ .CLICKHOUSE_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"
 data-timeout = "30s"
 
 index-table = "graphite_index"

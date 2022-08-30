@@ -71,6 +71,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var metricsLen int
 	for tf, target := range fetchRequests {
 		for _, expr := range target.List {
+			if tf.From >= tf.Until {
+				// wrong duration
+				lock.Lock()
+				errors = append(errors, clickhouse.ErrInvalidTimeRange)
+				lock.Unlock()
+				break
+			}
 			wg.Add(1)
 			go func(tf data.TimeFrame, target string, am *alias.Map) {
 				defer wg.Done()

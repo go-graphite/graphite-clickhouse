@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,11 +58,16 @@ type RenderCheck struct {
 	Targets []string            `toml:"targets"`
 	Timeout time.Duration       `toml:"timeout"`
 
-	Result []Metric `toml:"result"`
+	ProxyDelay         time.Duration `toml:"proxy_delay"`
+	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
 
-	result []client.Metric `toml:"-"`
-	from   int64           `toml:"-"`
-	until  int64           `toml:"-"`
+	Result      []Metric `toml:"result"`
+	ErrorRegexp string   `toml:"error_regexp"`
+
+	from        int64           `toml:"-"`
+	until       int64           `toml:"-"`
+	errorRegexp *regexp.Regexp  `toml:"-"`
+	result      []client.Metric `toml:"-"`
 }
 
 type MetricsFindCheck struct {
@@ -71,10 +77,15 @@ type MetricsFindCheck struct {
 	Query   string              `toml:"query"`
 	Timeout time.Duration       `toml:"timeout"`
 
-	Result []client.FindMatch `toml:"result"`
+	ProxyDelay         time.Duration `toml:"proxy_delay"`
+	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
 
-	from  int64 `toml:"-"`
-	until int64 `toml:"-"`
+	Result      []client.FindMatch `toml:"result"`
+	ErrorRegexp string             `toml:"error_regexp"`
+
+	from        int64          `toml:"-"`
+	until       int64          `toml:"-"`
+	errorRegexp *regexp.Regexp `toml:"-"`
 }
 
 type TagsCheck struct {
@@ -86,15 +97,21 @@ type TagsCheck struct {
 	Limits  uint64              `toml:"limits"`
 	Timeout time.Duration       `toml:"timeout"`
 
-	Result []string `toml:"result"`
+	ProxyDelay         time.Duration `toml:"proxy_delay"`
+	ProxyBreakWithCode int           `toml:"proxy_break_with_code"`
 
-	from  int64 `toml:"-"`
-	until int64 `toml:"-"`
+	Result      []string `toml:"result"`
+	ErrorRegexp string   `toml:"error_regexp"`
+
+	from        int64          `toml:"-"`
+	until       int64          `toml:"-"`
+	errorRegexp *regexp.Regexp `toml:"-"`
 }
 
 type TestSchema struct {
 	Input      []InputMetric        `toml:"input"` // carbon-clickhouse input
 	Clickhouse []Clickhouse         `toml:"clickhouse"`
+	Proxy      HttpReverseProxy     `toml:"clickhouse_proxy"`
 	Cch        CarbonClickhouse     `toml:"carbon_clickhouse"`
 	Gch        []GraphiteClickhouse `toml:"graphite_clickhouse"`
 
@@ -147,7 +164,193 @@ func sendPlain(network, address string, metrics []InputMetric) error {
 	}
 }
 
-func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, rootDir string, verbose bool, logger *zap.Logger) (testSuccess bool) {
+func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickhouse *Clickhouse, testDir, clickhouseDir string, verbose, breakOnError bool, logger *zap.Logger) (testSuccess bool, verifyCount, verifyFailed int) {
+	testSuccess = true
+	err := gch.Start(testDir, clickhouse.URL(), test.Proxy.URL())
+	if err != nil {
+		logger.Error("starting graphite-clickhouse",
+			zap.String("config", test.name),
+			zap.String("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouseDir),
+			zap.String("graphite-clickhouse config", gch.ConfigTpl),
+			zap.Error(err),
+		)
+		testSuccess = false
+		return
+	}
+
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		if gch.Alive() {
+			break
+		}
+	}
+
+	// start tests
+	for n, check := range test.FindChecks {
+		verifyCount++
+
+		test.Proxy.SetDelay(check.ProxyDelay)
+		test.Proxy.SetBreakStatusCode(check.ProxyBreakWithCode)
+
+		if len(check.Formats) == 0 {
+			check.Formats = []client.FormatType{client.FormatPb_v3}
+		}
+		if errs := verifyMetricsFind(gch.URL(), check); len(errs) > 0 {
+			verifyFailed++
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, e)
+			}
+			logger.Error("verify metrics find",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.String("query", check.Query),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("find", n),
+			)
+			if breakOnError {
+				debug(test, clickhouse, gch)
+			}
+		} else if verbose {
+			logger.Info("verify metrics find",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.String("query", check.Query),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("find", n),
+			)
+		}
+	}
+
+	for n, check := range test.TagsChecks {
+		verifyCount++
+
+		test.Proxy.SetDelay(check.ProxyDelay)
+		test.Proxy.SetBreakStatusCode(check.ProxyBreakWithCode)
+
+		if len(check.Formats) == 0 {
+			check.Formats = []client.FormatType{client.FormatJSON}
+		}
+		if errs := verifyTags(gch.URL(), check); len(errs) > 0 {
+			verifyFailed++
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, e)
+			}
+			logger.Error("verify tags",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.Bool("name", check.Names),
+				zap.String("query", check.Query),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("tags", n),
+			)
+			if breakOnError {
+				debug(test, clickhouse, gch)
+			}
+		} else if verbose {
+			logger.Info("verify tags",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.Bool("name", check.Names),
+				zap.String("query", check.Query),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("tags", n),
+			)
+		}
+	}
+
+	for n, check := range test.RenderChecks {
+		verifyCount++
+
+		test.Proxy.SetDelay(check.ProxyDelay)
+		test.Proxy.SetBreakStatusCode(check.ProxyBreakWithCode)
+
+		if len(check.Formats) == 0 {
+			check.Formats = []client.FormatType{client.FormatPb_v3}
+		}
+		if errs := verifyRender(gch.URL(), check); len(errs) > 0 {
+			verifyFailed++
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, e)
+			}
+			logger.Error("verify render",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.Strings("targets", check.Targets),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("render", n),
+			)
+			if breakOnError {
+				debug(test, clickhouse, gch)
+			}
+		} else if verbose {
+			logger.Info("verify render",
+				zap.String("config", test.name),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouseDir),
+				zap.String("graphite-clickhouse config", gch.ConfigTpl),
+				zap.Strings("targets", check.Targets),
+				zap.String("from_raw", check.From),
+				zap.String("until_raw", check.Until),
+				zap.Int64("from", check.from),
+				zap.Int64("until", check.until),
+				zap.Int("render", n),
+			)
+		}
+	}
+	if verifyFailed > 0 {
+		testSuccess = false
+		logger.Error("verify",
+			zap.String("config", test.name),
+			zap.String("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouseDir),
+			zap.String("graphite-clickhouse config", gch.ConfigTpl),
+			zap.Int64("count", int64(verifyCount)),
+			zap.Int64("failed", int64(verifyFailed)),
+		)
+	}
+
+	err = gch.Stop(true)
+	if err != nil {
+		logger.Error("stoping graphite-clickhouse",
+			zap.String("config", test.name),
+			zap.String("gch", gch.ConfigTpl),
+			zap.String("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouseDir),
+			zap.Error(err),
+		)
+		testSuccess = false
+	}
+
+	return
+}
+
+func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, rootDir string, verbose, breakOnError bool, logger *zap.Logger) (testSuccess bool, verifyCount, verifyFailed int) {
 	testSuccess = true
 
 	clickhouseDir := clickhouse.Dir // for logging
@@ -162,6 +365,17 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 			zap.String("clickhouse config", clickhouseDir),
 			zap.Error(err),
 			zap.String("out", out),
+		)
+		testSuccess = false
+		clickhouse.Stop(true)
+		return
+	}
+	if err = test.Proxy.Start(clickhouse.URL()); err != nil {
+		logger.Error("starting clickhouse proxy",
+			zap.String("config", test.name),
+			zap.Any("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouseDir),
+			zap.Error(err),
 		)
 		testSuccess = false
 		clickhouse.Stop(true)
@@ -201,162 +415,11 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 		}
 
 		if testSuccess {
-			stepSuccess := true
 			for _, gch := range test.Gch {
-				err = gch.Start(testDir, clickhouse.URL())
-				if err != nil {
-					logger.Error("starting graphite-clickhouse",
-						zap.String("config", test.name),
-						zap.String("clickhouse version", clickhouse.Version),
-						zap.String("clickhouse config", clickhouseDir),
-						zap.String("graphite-clickhouse config", gch.ConfigTpl),
-						zap.Error(err),
-						zap.String("out", out),
-					)
-					stepSuccess = false
-				}
-
-				if stepSuccess {
-					for i := 0; i < 10; i++ {
-						time.Sleep(time.Second)
-						if gch.Alive() {
-							break
-						}
-					}
-
-					// start tests
-					verifyFailed := 0
-					for n, check := range test.FindChecks {
-						if len(check.Formats) == 0 {
-							check.Formats = []client.FormatType{client.FormatPb_v3}
-						}
-						if errs := verifyMetricsFind("http://"+gch.Address(), check); len(errs) > 0 {
-							verifyFailed++
-							for _, e := range errs {
-								fmt.Fprintln(os.Stderr, e)
-							}
-							logger.Error("verify metrics find",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.String("query", check.Query),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("find", n),
-							)
-						} else if verbose {
-							logger.Info("verify metrics find",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.String("query", check.Query),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("find", n),
-							)
-						}
-					}
-
-					for n, check := range test.TagsChecks {
-						if len(check.Formats) == 0 {
-							check.Formats = []client.FormatType{client.FormatJSON}
-						}
-						if errs := verifyTags("http://"+gch.Address(), check); len(errs) > 0 {
-							verifyFailed++
-							for _, e := range errs {
-								fmt.Fprintln(os.Stderr, e)
-							}
-							logger.Error("verify tags",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.Bool("name", check.Names),
-								zap.String("query", check.Query),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("tags", n),
-							)
-						} else if verbose {
-							logger.Info("verify tags",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.Bool("name", check.Names),
-								zap.String("query", check.Query),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("tags", n),
-							)
-						}
-					}
-
-					for n, check := range test.RenderChecks {
-						if len(check.Formats) == 0 {
-							check.Formats = []client.FormatType{client.FormatPb_v3}
-						}
-						if errs := verifyRender("http://"+gch.Address(), check); len(errs) > 0 {
-							verifyFailed++
-							for _, e := range errs {
-								fmt.Fprintln(os.Stderr, e)
-							}
-							logger.Error("verify render",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.Strings("targets", check.Targets),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("render", n),
-							)
-						} else if verbose {
-							logger.Info("verify render",
-								zap.String("config", test.name),
-								zap.String("clickhouse version", clickhouse.Version),
-								zap.String("clickhouse config", clickhouseDir),
-								zap.String("graphite-clickhouse config", gch.ConfigTpl),
-								zap.Strings("targets", check.Targets),
-								zap.String("from_raw", check.From),
-								zap.String("until_raw", check.Until),
-								zap.Int64("from", check.from),
-								zap.Int64("until", check.until),
-								zap.Int("render", n),
-							)
-						}
-					}
-					if verifyFailed > 0 {
-						testSuccess = false
-					}
-				}
-
+				stepSuccess, vCount, vFailed := verifyGraphiteClickhouse(test, &gch, clickhouse, testDir, clickhouseDir, verbose, breakOnError, logger)
+				verifyCount += vCount
+				verifyFailed += vFailed
 				if !stepSuccess {
-					testSuccess = false
-				}
-
-				err = gch.Stop(true)
-				if err != nil {
-					logger.Error("stoping graphite-clickhouse",
-						zap.String("config", test.name),
-						zap.String("gch", gch.ConfigTpl),
-						zap.String("clickhouse version", clickhouse.Version),
-						zap.String("clickhouse config", clickhouseDir),
-						zap.Error(err),
-						zap.String("out", out),
-					)
 					testSuccess = false
 				}
 			}
@@ -374,6 +437,8 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 		)
 		testSuccess = false
 	}
+
+	test.Proxy.Stop()
 
 	err, out = clickhouse.Stop(true)
 	if err != nil {
@@ -406,7 +471,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse Clickhouse, testDir, ro
 	return
 }
 
-func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (failed, total int) {
+func runTest(config string, rootDir string, verbose, breakOnError bool, logger *zap.Logger) (failed, total, verifyCount, verifyFailed int) {
 	testDir := path.Dir(config)
 	d, err := ioutil.ReadFile(config)
 	if err != nil {
@@ -491,6 +556,9 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			failed++
 			return
 		}
+		if find.ErrorRegexp != "" {
+			find.errorRegexp = regexp.MustCompile(find.ErrorRegexp)
+		}
 	}
 	for n, tags := range cfg.Test.TagsChecks {
 		if tags.Timeout == 0 {
@@ -521,6 +589,9 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			failed++
 			return
 		}
+		if tags.ErrorRegexp != "" {
+			tags.errorRegexp = regexp.MustCompile(tags.ErrorRegexp)
+		}
 	}
 	for n, r := range cfg.Test.RenderChecks {
 		if r.Timeout == 0 {
@@ -549,6 +620,9 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 			)
 			failed++
 			return
+		}
+		if r.ErrorRegexp != "" {
+			r.errorRegexp = regexp.MustCompile(r.ErrorRegexp)
 		}
 		sort.Slice(r.Result, func(i, j int) bool {
 			return r.Result[i].Name < r.Result[j].Name
@@ -619,10 +693,32 @@ func runTest(config string, rootDir string, verbose bool, logger *zap.Logger) (f
 	}
 
 	for _, clickhouse := range cfg.Test.Clickhouse {
+		var isRunning bool
 		total++
-		if !testGraphiteClickhouse(cfg.Test, clickhouse, testDir, rootDir, verbose, logger) {
+		if exist, out := containerExist(clickhouse.Docker, ClickhouseContainerName); exist {
+			logger.Error("clickhouse already exist",
+				zap.String("container", ClickhouseContainerName),
+				zap.String("out", out),
+			)
+			isRunning = true
+		}
+		if exist, out := containerExist(cfg.Test.Cch.Docker, CchContainerName); exist {
+			logger.Error("carbon-clickhouse already exist",
+				zap.String("container", CchContainerName),
+				zap.String("out", out),
+			)
+			isRunning = true
+		}
+		if isRunning {
+			failed++
+			return
+		}
+		success, vCount, vFailed := testGraphiteClickhouse(cfg.Test, &clickhouse, testDir, rootDir, verbose, breakOnError, logger)
+		if !success {
 			failed++
 		}
+		verifyCount += vCount
+		verifyFailed += vFailed
 	}
 
 	return

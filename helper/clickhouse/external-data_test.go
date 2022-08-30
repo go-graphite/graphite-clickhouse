@@ -30,7 +30,7 @@ func getTestCases() (tables []ExternalTable) {
 				},
 			},
 			Format: "TSV",
-			Data: []byte(`f	3`),
+			Data:   []byte(`f	3`),
 		},
 		{
 			Name: "test2",
@@ -45,7 +45,7 @@ func getTestCases() (tables []ExternalTable) {
 				},
 			},
 			Format: "TSKV",
-			Data: []byte(`aFloat=13.13	aDate=2013-12-13`),
+			Data:   []byte(`aFloat=13.13	aDate=2013-12-13`),
 		},
 	}
 	return

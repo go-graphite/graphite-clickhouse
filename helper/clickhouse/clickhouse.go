@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,20 +23,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type ErrDataParse struct {
+type ErrWithDescr struct {
 	err  string
 	data string
 }
 
-func NewErrDataParse(err string, data string) error {
-	return &ErrDataParse{err, data}
+func NewErrWithDescr(err string, data string) error {
+	return &ErrWithDescr{err, data}
 }
 
-func (e *ErrDataParse) Error() string {
-	return fmt.Sprintf("%s: %s", e.err, e.data)
+func (e *ErrWithDescr) Error() string {
+	return e.err + ": " + e.data
 }
 
-func (e *ErrDataParse) PrependDescription(test string) {
+func (e *ErrWithDescr) PrependDescription(test string) {
 	e.data = test + e.data
 }
 
@@ -50,26 +51,53 @@ func NewErrorWithCode(err string, code int) error {
 
 func (e *ErrorWithCode) Error() string { return e.err }
 
+var ErrInvalidTimeRange = errors.New("Invalid or empty time range")
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
 var ErrUvarintOverflow = errors.New("ReadUvarint: varint overflows a 64-bit integer")
 var ErrClickHouseResponse = errors.New("Malformed response from clickhouse")
 
+func extractClickhouseError(e string) (int, string) {
+	if strings.HasPrefix(e, "clickhouse response status 500: Code:") || strings.HasPrefix(e, "Malformed response from clickhouse") {
+		if start := strings.Index(e, ": Limit for "); start != -1 {
+			e := e[start+8:]
+			if end := strings.Index(e, " (version "); end != -1 {
+				e = e[0:end]
+			}
+			return http.StatusForbidden, "Storage read limit " + e
+		} else if start := strings.Index(e, ": Memory limit "); start != -1 {
+			return http.StatusForbidden, "Storage read limit for memory"
+		} else if strings.HasPrefix(e, "clickhouse response status 500: Code: 170,") {
+			// distributed table configuration error
+			// clickhouse response status 500: Code: 170, e.displayText() = DB::Exception: Requested cluster 'cluster' not found
+			return http.StatusServiceUnavailable, "Storage configuration error"
+		}
+	}
+	return http.StatusInternalServerError, "Storage error"
+}
+
 func HandleError(w http.ResponseWriter, err error) {
-	if errors.Is(err, context.Canceled) {
-		http.Error(w, "Storage read context canceled", http.StatusGatewayTimeout)
+	errStr := err.Error()
+	if err == ErrInvalidTimeRange {
+		http.Error(w, errStr, http.StatusBadRequest)
+		return
+	}
+	if _, ok := err.(*ErrWithDescr); ok {
+		status, message := extractClickhouseError(errStr)
+		http.Error(w, message, status)
 		return
 	}
 	netErr, ok := err.(net.Error)
 	if ok {
 		if netErr.Timeout() {
 			http.Error(w, "Storage read timeout", http.StatusGatewayTimeout)
-		} else if strings.HasSuffix(err.Error(), "connect: no route to host") ||
-			strings.HasSuffix(err.Error(), "connect: connection refused") ||
-			strings.HasSuffix(err.Error(), ": connection reset by peer") ||
-			strings.HasPrefix(err.Error(), "dial tcp: lookup ") { // DNS lookup
-			http.Error(w, "Storage error", http.StatusServiceUnavailable)
+		} else if strings.HasSuffix(errStr, "connect: no route to host") ||
+			strings.HasPrefix(errStr, "dial tcp: lookup ") { // DNS lookup
+			http.Error(w, "Storage route error", http.StatusServiceUnavailable)
+		} else if strings.HasSuffix(errStr, "connect: connection refused") ||
+			strings.HasSuffix(errStr, ": connection reset by peer") {
+			http.Error(w, "Storage connect error", http.StatusServiceUnavailable)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Storage network error", http.StatusServiceUnavailable)
 		}
 		return
 	}
@@ -77,25 +105,17 @@ func HandleError(w http.ResponseWriter, err error) {
 	if ok {
 		if (errCode.Code > 500 && errCode.Code < 512) ||
 			errCode.Code == http.StatusBadRequest || errCode.Code == http.StatusForbidden {
-			http.Error(w, html.EscapeString(errCode.Error()), errCode.Code)
+			http.Error(w, html.EscapeString(errStr), errCode.Code)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, html.EscapeString(errStr), http.StatusInternalServerError)
 		}
 		return
 	}
-	_, ok = err.(*ErrDataParse)
-	if ok || strings.HasPrefix(err.Error(), "clickhouse response status 500: Code:") {
-		if strings.Contains(err.Error(), ": Limit for ") {
-			//logger.Info("limit", zap.Error(err))
-			http.Error(w, "Storage read limit", http.StatusForbidden)
-		} else if !ok && strings.HasPrefix(err.Error(), "clickhouse response status 500: Code: 170,") {
-			// distributed table configuration error
-			// clickhouse response status 500: Code: 170, e.displayText() = DB::Exception: Requested cluster 'cluster' not found
-			http.Error(w, "Storage configuration error", http.StatusServiceUnavailable)
-		}
+	if errors.Is(err, context.Canceled) {
+		http.Error(w, "Storage read context canceled", http.StatusGatewayTimeout)
 	} else {
 		//logger.Debug("query", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, html.EscapeString(errStr), http.StatusInternalServerError)
 	}
 }
 
@@ -273,7 +293,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	} else if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
-		err = fmt.Errorf("clickhouse response status %d: %s", resp.StatusCode, string(body))
+		err = NewErrWithDescr("clickhouse response status "+strconv.Itoa(resp.StatusCode), string(body))
 		return
 	}
 

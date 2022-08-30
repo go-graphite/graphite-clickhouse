@@ -9,6 +9,7 @@ import (
 	"regexp/syntax"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/lomik/zapwriter"
 	"github.com/stretchr/testify/assert"
@@ -328,8 +329,15 @@ sample-thereafter = 12
 
 	// ClickHouse
 	expected.ClickHouse = ClickHouse{
-		URL:                  "http://somehost:8123",
-		DataTimeout:          64000000000,
+		URL:         "http://somehost:8123",
+		DataTimeout: 64000000000,
+		QueryParams: []QueryParam{
+			{
+				Duration:    0,
+				URL:         "http://somehost:8123",
+				DataTimeout: 64000000000,
+			},
+		},
 		IndexTable:           "graphite_index",
 		IndexReverse:         "direct",
 		IndexReverses:        make(IndexReverses, 2),
@@ -398,4 +406,207 @@ sample-thereafter = 12
 		SampleThereafter: 12,
 	}
 	assert.Equal(t, expected.Logging, config.Logging)
+}
+
+func TestGetQueryParamBroken(t *testing.T) {
+	config :=
+		[]byte(`
+			[clickhouse]
+			url = "http://localhost:8123/?max_rows_to_read=1000"
+			data-timeout = "20s"
+			query-params = [
+			  {
+				duration = "72h",
+				url = "http://localhost:8123/?max_rows_to_read=20000",
+			  },
+			]`)
+
+	_, err := Unmarshal(config)
+	assert.Error(t, err)
+
+	config =
+		[]byte(`
+			[clickhouse]
+			url = "http://localhost:8123/?max_rows_to_read=1000"
+			data-timeout = "20s"
+			query-params = [
+			  {
+				url = "http://localhost:8123/?max_rows_to_read=20000",
+				data-timeout = "60s"
+			  },
+			]`)
+
+	_, err = Unmarshal(config)
+	assert.Error(t, err)
+}
+
+func TestGetQueryParam(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     []byte
+		durations  []time.Duration
+		wantParams []QueryParam
+	}{
+		{
+			name: "Only default",
+			config: []byte(`
+			[clickhouse]
+			url = "http://localhost:8123/?max_rows_to_read=1000"
+			data-timeout = "20s"
+			`),
+			durations: []time.Duration{
+				-time.Minute, // only for safety
+				0,            // only for safety
+				time.Minute,
+			},
+			wantParams: []QueryParam{
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+			},
+		},
+		{
+			name: "two params",
+			config: []byte(`
+			[clickhouse]
+			url = "http://localhost:8123/?max_rows_to_read=1000"
+			data-timeout = "20s"
+			query-params = [
+			  {
+				duration = "72h",
+				url = "http://localhost:8123/?max_rows_to_read=20000",
+				data-timeout = "40s"
+			  },
+			]`),
+			durations: []time.Duration{
+				-time.Minute, // only for safety
+				0,            // only for safety
+				time.Minute,
+				72*time.Hour - time.Second,
+				72 * time.Hour,
+				2160 * time.Hour,
+			},
+			wantParams: []QueryParam{
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    72 * time.Hour,
+					URL:         "http://localhost:8123/?max_rows_to_read=20000",
+					DataTimeout: 40 * time.Second,
+				},
+				{
+					Duration:    72 * time.Hour,
+					URL:         "http://localhost:8123/?max_rows_to_read=20000",
+					DataTimeout: 40 * time.Second,
+				},
+			},
+		},
+		{
+			name: "serveral params",
+			config: []byte(`
+			[clickhouse]
+			url = "http://localhost:8123/?max_rows_to_read=1000"
+			data-timeout = "20s"
+			query-params = [
+			  {
+				duration = "72h",
+				url = "http://localhost:8123/?max_rows_to_read=20000",
+				data-timeout = "40s"
+			  },
+			  {
+				duration = "2160h",
+				data-timeout = "60s"
+			  }
+			]`),
+			durations: []time.Duration{
+				-time.Minute, // only for safety
+				0,            // only for safety
+				time.Minute,
+				72*time.Hour - time.Second,
+				72 * time.Hour,
+				2160 * time.Hour,
+				4000 * time.Hour,
+			},
+			wantParams: []QueryParam{
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    0,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 20 * time.Second,
+				},
+				{
+					Duration:    72 * time.Hour,
+					URL:         "http://localhost:8123/?max_rows_to_read=20000",
+					DataTimeout: 40 * time.Second,
+				},
+				{
+					Duration:    2160 * time.Hour,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 60 * time.Second,
+				},
+				{
+					Duration:    2160 * time.Hour,
+					URL:         "http://localhost:8123/?max_rows_to_read=1000",
+					DataTimeout: 60 * time.Second,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if config, err := Unmarshal(tt.config); err == nil {
+				for i, duration := range tt.durations {
+					if got := GetQueryParam(config.ClickHouse.QueryParams, duration); config.ClickHouse.QueryParams[got] != tt.wantParams[i] {
+						t.Errorf("[%d] GetQueryParam(%v) = %+v, want %+v", i, duration, config.ClickHouse.QueryParams[got], tt.wantParams[i])
+					}
+				}
+			} else {
+				t.Errorf("Load config error = %v", err)
+			}
+		})
+	}
 }
