@@ -178,7 +178,7 @@ func InTable(field string, table string) string {
 
 func DateBetween(field string, from int64, until int64) string {
 	return fmt.Sprintf(
-		"%s >= toDate(%d, 'UTC') AND %s <= toDate(%d, 'UTC')",
+		"%s >= toDate(%d) AND %s <= toDate(%d)",
 		field, from, field, until,
 	)
 }

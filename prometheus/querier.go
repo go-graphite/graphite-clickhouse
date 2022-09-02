@@ -44,7 +44,7 @@ func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) 
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
 
-	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
+	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
 	sql := fmt.Sprintf("SELECT splitByChar('=', Tag1)[2] as value FROM %s %s GROUP BY value ORDER BY value",
