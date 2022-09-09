@@ -41,10 +41,3 @@ func NearlyEqual(a, b float64) bool {
 
 	return true
 }
-
-func Max(a, b int) int {
-	if a >= b {
-		return a
-	}
-	return b
-}

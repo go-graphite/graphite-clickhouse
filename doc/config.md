@@ -102,6 +102,17 @@ For detailed description of `max-data-points` and `internal-aggregation` see [ag
 
 ## Data tables `[[data-table]]`
 
+Experemental future for autoselect direct/reverse table
+For some cases, when query large metrics with small count of uniq last nodes (like `test.metricA.name`, `test.metricB.name`, etc)
+read from reverse table have a high cost.
+```
+direct-table = "graphite",
+reverse-table = "graphite_reverse",
+min-metrics = 256, // set if need to enable this future on metrics set greater or equal this
+rev-density = 20,   // if uniq last nodes count pcnt > rev-density, select direct table (10 by default)
+auto-samples = 20000 // use no more  auto-samples metrics for autodetect (for better perfomance on large metric set)
+```
+
 ### Rollup
 The rollup configuration is used for a proper  metrics pre-aggregation. It contains two rules types:
 
@@ -293,8 +304,18 @@ Send internal metrics to graphite relay
 [[data-table]]
  # data table from carbon-clickhouse
  table = "graphite_data"
- # if it stores direct or reversed metrics
+ # if it stores direct or reversed metrics or set default type for autodetect
  reverse = false
+ # direct data table from carbon-clickhouse
+ direct-table = ""
+ # reverse data table from carbon-clickhouse
+ reverse-table = ""
+ # minumum metrics for try autodetect
+ auto-metrics = 0
+ # minimal reverse density for autodetect reverse table
+ auto-rev-dencity = 0
+ # use no more if metrics (for netter perfomance on large set)
+ auto-samples = 0
  # maximum age stored in the table
  max-age = "0s"
  # minimum age stored in the table

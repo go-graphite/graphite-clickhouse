@@ -93,7 +93,7 @@ func TestSelectDataTableTime(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d-%s", i+1, test.DataTable.Table), func(t *testing.T) {
-			err := tg.selectDataTable(cfg, test.TimeFrame, config.ContextGraphite)
+			err := tg.selectDataTable(cfg, test.TimeFrame, config.ContextGraphite, nil)
 			assert.Equal(t, test.err, err)
 			assert.Equal(t, test.DataTable.Table, tg.pointsTable)
 		})
@@ -143,7 +143,7 @@ func TestSelectDataTableMatch(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d-%s", i+1, test.DataTable.Table), func(t *testing.T) {
-			err := test.Targets.selectDataTable(cfg, tf, config.ContextGraphite)
+			err := test.Targets.selectDataTable(cfg, tf, config.ContextGraphite, nil)
 			assert.Equal(t, test.err, err)
 			assert.Equal(t, test.DataTable.Table, test.Targets.pointsTable)
 		})

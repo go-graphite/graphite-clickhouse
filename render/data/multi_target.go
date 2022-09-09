@@ -104,7 +104,7 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 		if cond.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < cond.MaxDataPoints {
 			cond.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
-		err := cond.selectDataTable(cfg, cond.TimeFrame, chContext)
+		err := cond.selectDataTable(cfg, cond.TimeFrame, chContext, targets.AM)
 		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)

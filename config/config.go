@@ -199,8 +199,15 @@ var knownDataTableContext = map[string]bool{
 
 // DataTable configs
 type DataTable struct {
+	// default table, if plain or direct table usage can't be autoselected select (or not set)
 	Table                  string                `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
-	Reverse                bool                  `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
+	Reverse                bool                  `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics or set default type for autodetect"`
+	DirectTable            string                `toml:"direct-table" json:"direct-table" comment:"direct data table from carbon-clickhouse"`
+	ReverseTable           string                `toml:"reverse-table" json:"reverse-table" comment:"reverse data table from carbon-clickhouse"`
+	AutoMinMetrics         int                   `toml:"auto-metrics" json:"auto-min-metrics" comment:"minumum metrics for try autodetect"`
+	AutoRevDensity         int                   `toml:"auto-rev-dencity" json:"auto-rev-dencity" comment:"minimal reverse density for autodetect reverse table"`
+	AutoSamples            int                   `toml:"auto-samples" json:"auto-samples" comment:"use no more if metrics (for netter perfomance on large set)"`
+	AutoDetect             bool                  `toml:"-" json:"-"` // enable direct/reverse autodetect
 	MaxAge                 time.Duration         `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
 	MinAge                 time.Duration         `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
 	MaxInterval            time.Duration         `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
@@ -619,6 +626,18 @@ func (c *Config) ProcessDataTables() (err error) {
 					return fmt.Errorf("unknown context %#v", ctx)
 				}
 				c.DataTable[i].ContextMap[ctx] = true
+			}
+		}
+
+		if c.DataTable[i].Reverse && c.DataTable[i].ReverseTable == "" && c.DataTable[i].DirectTable != "" {
+			c.DataTable[i].ReverseTable = c.DataTable[i].Table
+		} else if !c.DataTable[i].Reverse && c.DataTable[i].DirectTable == "" && c.DataTable[i].ReverseTable != "" {
+			c.DataTable[i].DirectTable = c.DataTable[i].Table
+		}
+		if c.DataTable[i].DirectTable != "" && c.DataTable[i].ReverseTable != "" {
+			c.DataTable[i].AutoDetect = true
+			if c.DataTable[i].AutoRevDensity <= 0 {
+				c.DataTable[i].AutoRevDensity = 10
 			}
 		}
 	}

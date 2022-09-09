@@ -2,6 +2,7 @@ package alias
 
 import (
 	"sort"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -157,5 +158,165 @@ func Benchmark_MergeTargetFinder(b *testing.B) {
 		am := createAM()
 		am.MergeTarget(finder.NewMockFinder(result), findTarget, false)
 		_ = am
+	}
+}
+
+func TestMap_IsReversePrefered(t *testing.T) {
+	tests := []struct {
+		name                string
+		input               [][]byte
+		defaultReverseOrder bool
+		minMetrics          int
+		revDensity          int
+		want                bool
+	}{
+		{
+			name: "direct #1",
+			input: [][]byte{
+				[]byte("test.metric.total.avg"),
+				[]byte("test.metric.total.p95"),
+				[]byte("test.metric.0.avg"),
+				[]byte("test.metric.0.p95"),
+				[]byte("test.metric.1.avg"),
+				[]byte("test.metric.1.p95"),
+			},
+			defaultReverseOrder: true,
+			minMetrics:          2,
+			revDensity:          5, // 2 * 5 > 6
+			want:                false,
+		},
+		{
+			name: "reverse #1",
+			input: [][]byte{
+				[]byte("test.metric.total.avg"),
+				[]byte("test.metric.total.p95"),
+				[]byte("test.metric.0.avg"),
+				[]byte("test.metric.0.p95"),
+				[]byte("test.metric.1.avg"),
+				[]byte("test.metric.1.p95"),
+			},
+			defaultReverseOrder: true,
+			minMetrics:          2,
+			revDensity:          2, // 2 * 2 < 6
+			want:                true,
+		},
+		{
+			name: "reverse #2",
+			input: [][]byte{
+				[]byte("test.A.metric.total.avg"),
+				[]byte("test.B.metric.total.avg"),
+				[]byte("test.BC.metric.total.avg"),
+			},
+			defaultReverseOrder: false,
+			want:                true,
+		},
+		{
+			name: "default = false",
+			input: [][]byte{
+				[]byte("test.A.metric.total.avg"),
+				[]byte("test.BC.metric.total.p95"),
+			},
+			defaultReverseOrder: true,
+			minMetrics:          3,
+			want:                true,
+		},
+		{
+			name: "default = true",
+			input: [][]byte{
+				[]byte("test.A.metric.total.avg"),
+				[]byte("test.BC.metric.total.p95"),
+			},
+			defaultReverseOrder: false,
+			minMetrics:          3,
+			want:                false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			am := New()
+			am.MergeTarget(finder.NewMockFinder(tt.input), "test.*.metric.total.*", false)
+			assert.Equal(t, len(tt.input), am.Len())
+			assert.Equal(t, tt.want, am.IsReversePrefered(tt.defaultReverseOrder, tt.minMetrics, tt.revDensity, 0))
+		})
+	}
+}
+
+func Benchmark_IsReversePrefered2000(b *testing.B) {
+	result := make([][]byte, 0, 2000)
+	for n := 0; n < 20; n++ {
+		nStr := strconv.Itoa(n)
+		for i := 0; i < 1000; i++ {
+			result = append(result, []byte("test.metric"+strconv.Itoa(i)+".sum"+nStr))
+		}
+	}
+
+	am := createAM()
+	am.MergeTarget(finder.NewMockFinder(result), findTarget, false)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if !am.IsReversePrefered(false, 0, 10, 0) {
+			b.Fatal("reverse not detect")
+		}
+	}
+}
+
+func Benchmark_IsReversePrefered20000(b *testing.B) {
+	result := make([][]byte, 0, 20000)
+	for n := 0; n < 20; n++ {
+		nStr := strconv.Itoa(n)
+		for i := 0; i < 1000; i++ {
+			result = append(result, []byte("test.metric"+strconv.Itoa(i)+".sum"+nStr))
+		}
+	}
+
+	am := createAM()
+	am.MergeTarget(finder.NewMockFinder(result), findTarget, false)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if !am.IsReversePrefered(false, 0, 10, 0) {
+			b.Fatal("reverse not detect")
+		}
+	}
+}
+
+func Benchmark_IsReversePrefered200000(b *testing.B) {
+	result := make([][]byte, 0, 200000)
+	for n := 0; n < 20; n++ {
+		nStr := strconv.Itoa(n)
+		for i := 0; i < 20000; i++ {
+			result = append(result, []byte("test.metric"+strconv.Itoa(i)+".sum"+nStr))
+		}
+	}
+
+	am := createAM()
+	am.MergeTarget(finder.NewMockFinder(result), findTarget, false)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if !am.IsReversePrefered(false, 0, 10, 0) {
+			b.Fatal("reverse not detect")
+		}
+	}
+}
+
+func Benchmark_IsReversePrefered200000_Sampled(b *testing.B) {
+	result := make([][]byte, 0, 200000)
+	for n := 0; n < 20; n++ {
+		nStr := strconv.Itoa(n)
+		for i := 0; i < 20000; i++ {
+			result = append(result, []byte("test.metric"+strconv.Itoa(i)+".sum"+nStr))
+		}
+	}
+
+	am := createAM()
+	am.MergeTarget(finder.NewMockFinder(result), findTarget, false)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if !am.IsReversePrefered(false, 0, 10, 20000) {
+			b.Fatal("reverse not detect")
+		}
 	}
 }

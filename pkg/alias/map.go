@@ -2,9 +2,11 @@ package alias
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 
 	"github.com/lomik/graphite-clickhouse/finder"
+	"github.com/lomik/graphite-clickhouse/helper/utils"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 )
 
@@ -110,4 +112,48 @@ func (m *Map) DisplayNames() []string {
 // Get returns aliases for metric
 func (m *Map) Get(metric string) []Value {
 	return m.data[metric]
+}
+
+// TODO (msaf1980): may be more effectuve way for select optimal datable type for  best query perfomance
+// naive algorithm, based on names prefix intersections length and last node density
+func (m *Map) IsReversePrefered(defaultRevOrder bool, minMetrics, revDensity, autoSamples int) bool {
+	if len(m.data) < minMetrics || len(m.data) == 0 {
+		return defaultRevOrder
+	}
+	if autoSamples <= 0 {
+		autoSamples = len(m.data)
+	}
+
+	// var prefix, firstName string
+	var uniqLastNodes map[string]struct{}
+	n := 0
+	for k := range m.data {
+		if uniqLastNodes == nil {
+			if strings.IndexByte(k, '?') > -1 {
+				// tagged
+				return defaultRevOrder
+			}
+			uniqLastNodes = make(map[string]struct{})
+			// 	prefix = k
+			// 	firstName = k
+			// } else {
+			// 	prefix = utils.IntersectionPrefix(prefix, k)
+		}
+		if n >= autoSamples {
+			break
+		}
+		n++
+		lastNode := utils.LastNode(k)
+		if _, ok := uniqLastNodes[lastNode]; !ok {
+			uniqLastNodes[lastNode] = struct{}{}
+		}
+		if len(uniqLastNodes)*revDensity > len(m.data) {
+			// break scan, select direct table
+			return false
+		}
+	}
+
+	// uniq_count_of_last_nodes > metrcis_count / density
+	// low density (many uniq count last nodes), use direct tables
+	return len(uniqLastNodes)*revDensity <= len(m.data)
 }

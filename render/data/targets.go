@@ -23,7 +23,7 @@ type Targets struct {
 	queryMetrics      *metrics.QueryMetrics
 }
 
-func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string) error {
+func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string, am *alias.Map) error {
 	now := time.Now().Unix()
 
 TableLoop:
@@ -73,8 +73,17 @@ TableLoop:
 				continue TableLoop
 			}
 		}
-		tt.pointsTable = t.Table
-		tt.isReverse = t.Reverse
+		if t.AutoDetect {
+			tt.isReverse = am.IsReversePrefered(t.Reverse, t.AutoMinMetrics, t.AutoRevDensity, t.AutoSamples)
+			if tt.isReverse {
+				tt.pointsTable = t.ReverseTable
+			} else {
+				tt.pointsTable = t.DirectTable
+			}
+		} else {
+			tt.pointsTable = t.Table
+			tt.isReverse = t.Reverse
+		}
 		tt.rollupUseReverted = t.RollupUseReverted
 		tt.rollupRules = t.Rollup.Rules()
 		tt.queryMetrics = t.QueryMetrics

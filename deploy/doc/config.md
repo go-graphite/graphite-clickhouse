@@ -99,6 +99,17 @@ For detailed description of `max-data-points` and `internal-aggregation` see [ag
 
 ## Data tables `[[data-table]]`
 
+Experemental future for autoselect direct/reverse table
+For some cases, when query large metrics with small count of uniq last nodes (like `test.metricA.name`, `test.metricB.name`, etc)
+read from reverse table have a high cost.
+```
+direct-table = "graphite",
+reverse-table = "graphite_reverse",
+min-metrics = 256, // set if need to enable this future on metrics set greater or equal this
+rev-density = 20,   // if uniq last nodes count pcnt > rev-density, select direct table (10 by default)
+auto-samples = 20000 // use no more  auto-samples metrics for autodetect (for better perfomance on large metric set)
+```
+
 ### Rollup
 The rollup configuration is used for a proper  metrics pre-aggregation. It contains two rules types:
 

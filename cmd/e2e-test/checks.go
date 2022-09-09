@@ -14,6 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/datetime"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
+	"github.com/lomik/graphite-clickhouse/helper/utils"
 )
 
 func isFindCached(header http.Header) (string, bool) {
@@ -50,7 +51,7 @@ func compareFindMatch(errors *[]string, name, url string, actual, expected []cli
 			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
 		}
 	}
-	maxLen := compare.Max(len(expected), len(actual))
+	maxLen := utils.Max(len(expected), len(actual))
 	for i := 0; i < maxLen; i++ {
 		if i > len(actual)-1 {
 			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
@@ -125,7 +126,7 @@ func compareTags(errors *[]string, name, url string, actual, expected []string, 
 			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
 		}
 	}
-	maxLen := compare.Max(len(expected), len(actual))
+	maxLen := utils.Max(len(expected), len(actual))
 	for i := 0; i < maxLen; i++ {
 		if i > len(actual)-1 {
 			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
@@ -221,7 +222,7 @@ func compareRender(errors *[]string, name, url string, actual, expected []client
 			*errors = append(*errors, fmt.Sprintf("TRY[%s] %s %s: X-Cached-Find want '%s', got '%s'", name, id, url, cacheTTLStr, v))
 		}
 	}
-	maxLen := compare.Max(len(expected), len(actual))
+	maxLen := utils.Max(len(expected), len(actual))
 	for i := 0; i < maxLen; i++ {
 		if i > len(actual)-1 {
 			*errors = append(*errors, fmt.Sprintf("- TRY[%s] %s %s [%d] = %+v", name, id, url, i, expected[i]))
