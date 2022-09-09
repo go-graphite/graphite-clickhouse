@@ -125,6 +125,7 @@ func main() {
 	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ")
 
 	printVersion := flag.Bool("version", false, "Print version")
+	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
 
 	flag.Parse()
 
@@ -159,10 +160,16 @@ func main() {
 		log.Fatal(err)
 	}
 	logger := localManager.Logger("start")
-	logger.Info("starting graphite-clickhouse",
-		zap.String("build_version", BuildVersion),
-		zap.Any("config", cfg),
-	)
+	if *verbose {
+		logger.Info("starting graphite-clickhouse",
+			zap.String("build_version", BuildVersion),
+			zap.Any("config", cfg),
+		)
+	} else {
+		logger.Info("starting graphite-clickhouse",
+			zap.String("build_version", BuildVersion),
+		)
+	}
 
 	runtime.GOMAXPROCS(cfg.Common.MaxCPU)
 
