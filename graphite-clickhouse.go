@@ -22,6 +22,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/index"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
@@ -227,6 +228,10 @@ func main() {
 	})
 
 	mux.Handle("/", app.Handler(prometheus.NewHandler(cfg)))
+
+	if metrics.Graphite != nil {
+		metrics.Graphite.Start(nil)
+	}
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
 }

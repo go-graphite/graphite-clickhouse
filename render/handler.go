@@ -50,6 +50,14 @@ func getCacheTimeout(now time.Time, from, until int64, cacheConfig *config.Cache
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		rangeS      int64
+		metricsLen  int
+		pointsCount int64
+		fetchStart  time.Time
+	)
+	start := time.Now()
+	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("render")
 
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
@@ -58,27 +66,32 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
 			logger.Error("panic during eval:",
 				zap.String("requestID", scope.String(r.Context(), "requestID")),
 				zap.Any("reason", rec),
 				zap.Stack("stack"),
 			)
 			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
-			http.Error(w, answer, http.StatusInternalServerError)
+			http.Error(w, answer, status)
 		}
+		end := time.Now()
+		metrics.SendRenderMetrics(metrics.RenderRequestMetric, status, start, fetchStart, end, rangeS, h.config.Metrics.ExtendedStat, int64(metricsLen), pointsCount)
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	formatter, err := reply.GetFormatter(r)
 	if err != nil {
+		status = http.StatusBadRequest
 		logger.Error("formatter", zap.Error(err))
-		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), status)
 		return
 	}
 
 	fetchRequests, err := formatter.ParseRequest(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), http.StatusBadRequest)
+		status = http.StatusBadRequest
+		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), status)
 		return
 	}
 
@@ -90,8 +103,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var maxCacheTimeoutStr string
 	errors := make([]error, 0, len(fetchRequests))
 	useCache := h.config.Common.FindCache != nil && !parser.TruthyBool(r.FormValue("noCache"))
-	now := time.Now()
-	var metricsLen int
 	for tf, target := range fetchRequests {
 		for _, expr := range target.List {
 			if tf.From >= tf.Until {
@@ -100,6 +111,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				errors = append(errors, clickhouse.ErrInvalidTimeRange)
 				lock.Unlock()
 				break
+			}
+			rS := tf.Until - tf.From
+			if rangeS < rS {
+				rangeS = rS
 			}
 			wg.Add(1)
 			go func(tf data.TimeFrame, target string, am *alias.Map) {
@@ -115,7 +130,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				var ts int64
 
 				if useCache {
-					cacheTimeout, m = getCacheTimeout(now, tf.From, tf.Until, &h.config.Common.FindCacheConfig)
+					cacheTimeout, m = getCacheTimeout(start, tf.From, tf.Until, &h.config.Common.FindCacheConfig)
 					if cacheTimeout > 0 {
 						cacheTimeoutStr = strconv.Itoa(int(cacheTimeout))
 						if maxCacheTimeout < cacheTimeout {
@@ -181,7 +196,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 	if len(errors) != 0 {
-		clickhouse.HandleError(w, errors[0])
+		status = clickhouse.HandleError(w, errors[0])
 		return
 	}
 
@@ -190,25 +205,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if cachedFind {
 		w.Header().Set("X-Cached-Find", maxCacheTimeoutStr)
 	}
-
 	if metricsLen == 0 {
+		status = http.StatusNotFound
 		formatter.Reply(w, r, data.EmptyResponse())
 		return
 	}
 
+	fetchStart = time.Now()
+
 	reply, err := fetchRequests.Fetch(r.Context(), h.config, config.ContextGraphite)
 	if err != nil {
-		clickhouse.HandleError(w, err)
+		status = clickhouse.HandleError(w, err)
 		return
 	}
 
 	if len(reply) == 0 {
+		status = http.StatusNotFound
 		formatter.Reply(w, r, data.EmptyResponse())
 		return
 	}
 
-	start := time.Now()
+	for i := range reply {
+		pointsCount += int64(reply[i].Data.Len())
+	}
+	rStart := time.Now()
 	formatter.Reply(w, r, reply)
-	d := time.Since(start)
+	d := time.Since(rStart)
 	logger.Debug("reply", zap.String("runtime", d.String()), zap.Duration("runtime_ns", d))
 }

@@ -65,29 +65,35 @@ func extractClickhouseError(e string) (int, string) {
 	return http.StatusInternalServerError, "Storage error"
 }
 
-func HandleError(w http.ResponseWriter, err error) {
+func HandleError(w http.ResponseWriter, err error) (status int) {
+	status = http.StatusOK
 	errStr := err.Error()
 	if err == ErrInvalidTimeRange {
-		http.Error(w, errStr, http.StatusBadRequest)
+		status = http.StatusBadRequest
+		http.Error(w, errStr, status)
 		return
 	}
 	if _, ok := err.(*ErrWithDescr); ok {
-		status, message := extractClickhouseError(errStr)
-		http.Error(w, message, status)
+		status, errStr = extractClickhouseError(errStr)
+		http.Error(w, errStr, status)
 		return
 	}
 	netErr, ok := err.(net.Error)
 	if ok {
 		if netErr.Timeout() {
-			http.Error(w, "Storage read timeout", http.StatusGatewayTimeout)
+			status = http.StatusGatewayTimeout
+			http.Error(w, "Storage read timeout", status)
 		} else if strings.HasSuffix(errStr, "connect: no route to host") ||
 			strings.HasPrefix(errStr, "dial tcp: lookup ") { // DNS lookup
-			http.Error(w, "Storage route error", http.StatusServiceUnavailable)
+			status = http.StatusServiceUnavailable
+			http.Error(w, "Storage route error", status)
 		} else if strings.HasSuffix(errStr, "connect: connection refused") ||
 			strings.HasSuffix(errStr, ": connection reset by peer") {
-			http.Error(w, "Storage connect error", http.StatusServiceUnavailable)
+			status = http.StatusServiceUnavailable
+			http.Error(w, "Storage connect error", status)
 		} else {
-			http.Error(w, "Storage network error", http.StatusServiceUnavailable)
+			status = http.StatusServiceUnavailable
+			http.Error(w, "Storage network error", status)
 		}
 		return
 	}
@@ -95,18 +101,23 @@ func HandleError(w http.ResponseWriter, err error) {
 	if ok {
 		if (errCode.Code > 500 && errCode.Code < 512) ||
 			errCode.Code == http.StatusBadRequest || errCode.Code == http.StatusForbidden {
-			http.Error(w, html.EscapeString(errStr), errCode.Code)
+			status = errCode.Code
+			http.Error(w, html.EscapeString(errStr), status)
 		} else {
-			http.Error(w, html.EscapeString(errStr), http.StatusInternalServerError)
+			status = http.StatusInternalServerError
+			http.Error(w, html.EscapeString(errStr), status)
 		}
 		return
 	}
 	if errors.Is(err, context.Canceled) {
-		http.Error(w, "Storage read context canceled", http.StatusGatewayTimeout)
+		status = http.StatusGatewayTimeout
+		http.Error(w, "Storage read context canceled", status)
 	} else {
 		//logger.Debug("query", zap.Error(err))
-		http.Error(w, html.EscapeString(errStr), http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, html.EscapeString(errStr), status)
 	}
+	return
 }
 
 type Options struct {

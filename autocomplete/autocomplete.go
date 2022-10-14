@@ -124,8 +124,27 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	status := http.StatusOK
+	var metricsCount int64
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
+
 	var err error
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, status)
+		}
+		d := time.Since(start).Milliseconds()
+		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	tagPrefix := r.FormValue("tagPrefix")
@@ -135,7 +154,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, err.Error(), status)
 			return
 		}
 	}
@@ -164,7 +184,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	wr, pw, usedTags, err := h.requestExpr(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		status = http.StatusBadRequest
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -205,7 +226,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			nil,
 		)
 		if err != nil {
-			clickhouse.HandleError(w, err)
+			status = clickhouse.HandleError(w, err)
 			return
 		}
 
@@ -264,17 +285,38 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	b, err := json.Marshal(tags)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, err.Error(), status)
 		return
 	}
+
+	metricsCount = int64(len(tags))
 
 	w.Write(b)
 }
 
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	status := http.StatusOK
+	var metricsCount int64
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 
 	var err error
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, status)
+		}
+		d := time.Since(start).Milliseconds()
+		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	tag := r.FormValue("tag")
@@ -289,14 +331,14 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, err.Error(), status)
 			return
 		}
 	}
 
-	now := time.Now()
-	fromDate := now.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := now.Format("2006-01-02")
+	fromDate := start.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
+	untilDate := start.Format("2006-01-02")
 
 	var key string
 	var body []byte
@@ -319,6 +361,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	if !findCache {
 		wr, pw, usedTags, err := h.requestExpr(r)
 		if err != nil {
+			status = http.StatusBadRequest
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -353,7 +396,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			nil,
 		)
 		if err != nil {
-			clickhouse.HandleError(w, err)
+			status = clickhouse.HandleError(w, err)
 			return
 		}
 
@@ -371,6 +414,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		if len(rows) > 0 && rows[len(rows)-1] == "" {
 			rows = rows[:len(rows)-1]
 		}
+		metricsCount = int64(len(rows))
 	}
 
 	if useCache {
@@ -387,7 +431,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	b, err := json.Marshal(rows)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, err.Error(), status)
 		return
 	}
 

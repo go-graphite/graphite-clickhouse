@@ -12,7 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/msaf1980/g2g"
+	"github.com/cactus/go-statsd-client/v5/statsd"
+	"github.com/msaf1980/go-metrics/graphite"
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
@@ -35,12 +36,6 @@ type CacheConfig struct {
 
 // Common config
 type Common struct {
-	MetricEndpoint  string        `toml:"metric-endpoint" json:"metric-endpoint" comment:"graphite relay address"`
-	MetricInterval  time.Duration `toml:"metric-interval" json:"metric-interval" comment:"graphite metrics send interval"`
-	MetricTimeout   time.Duration `toml:"metric-timeout" json:"metric-timeout" comment:"graphite metrics send timeout"`
-	MetricPrefix    string        `toml:"metric-prefix" json:"metric-prefix" comment:"graphite metrics prefix"`
-	MetricBatchSize int           `toml:"metric-batch-size" json:"metric-batch-size" comment:"graphite send batch size"`
-
 	Listen                 string           `toml:"listen" json:"listen" comment:"general listener"`
 	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen" comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
@@ -54,7 +49,6 @@ type Common struct {
 
 	FindCache   cache.BytesCache `toml:"-" json:"-"`
 	TaggedCache cache.BytesCache `toml:"-" json:"-"`
-	Graphite    *g2g.Graphite    `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -234,6 +228,7 @@ type Debug struct {
 // Config is the daemon configuration
 type Config struct {
 	Common     Common             `toml:"common" json:"common"`
+	Metrics    metrics.Config     `toml:"metrics" json:"metrics"`
 	ClickHouse ClickHouse         `toml:"clickhouse" json:"clickhouse"`
 	DataTable  []DataTable        `toml:"data-table" json:"data-table" comment:"data tables, see doc/config.md for additional info"`
 	Tags       Tags               `toml:"tags" json:"tags" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
@@ -641,24 +636,42 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 }
 
 func (c *Config) setupGraphiteMetrics() {
-	if c.Common.MetricEndpoint != "" {
-		if c.Common.MetricInterval == 0 {
-			c.Common.MetricInterval = 60 * time.Second
+	if c.Metrics.MetricEndpoint == "" {
+		metrics.DisableMetrics()
+	} else {
+		if c.Metrics.MetricInterval == 0 {
+			c.Metrics.MetricInterval = 60 * time.Second
 		}
-		if c.Common.MetricTimeout == 0 {
-			c.Common.MetricTimeout = time.Second
+		if c.Metrics.MetricTimeout == 0 {
+			c.Metrics.MetricTimeout = time.Second
 		}
-		// register our metrics with graphite
-		c.Common.Graphite = g2g.NewGraphiteBatch(c.Common.MetricEndpoint, c.Common.MetricInterval, c.Common.MetricTimeout, c.Common.MetricBatchSize)
-
 		hostname, _ := os.Hostname()
 		fqdn := strings.ReplaceAll(hostname, ".", "_")
 		hostname = strings.Split(hostname, ".")[0]
 
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{prefix}", c.Common.MetricPrefix)
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{fqdn}", fqdn)
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{host}", hostname)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{prefix}", c.Metrics.MetricPrefix)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{fqdn}", fqdn)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{host}", hostname)
 
-		metrics.InitFindCacheMetrics(c.Common.Graphite, c.Common.MetricPrefix)
+		// register our metrics with graphite
+		metrics.Graphite = graphite.New(c.Metrics.MetricInterval, c.Metrics.MetricPrefix, c.Metrics.MetricEndpoint, c.Metrics.MetricTimeout)
+
+		if c.Metrics.Statsd != "" && c.Metrics.ExtendedStat {
+			var err error
+			config := &statsd.ClientConfig{
+				Address:       c.Metrics.Statsd,
+				Prefix:        c.Metrics.MetricPrefix,
+				ResInterval:   5 * time.Minute,
+				UseBuffered:   true,
+				FlushInterval: 300 * time.Millisecond,
+			}
+			metrics.Gstatsd, err = statsd.NewClientWithConfig(config)
+			if err != nil {
+				metrics.Gstatsd = metrics.NullSender{}
+				fmt.Fprintf(os.Stderr, "statsd init: %v\n", err)
+			}
+		}
+
+		metrics.InitMetrics(&c.Metrics)
 	}
 }
