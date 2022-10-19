@@ -28,8 +28,8 @@ func NewCached(config *config.Config, body []byte) *Find {
 	}
 }
 
-func New(config *config.Config, ctx context.Context, query string) (*Find, error) {
-	res, err := finder.Find(config, ctx, query, 0, 0)
+func New(config *config.Config, ctx context.Context, query string, stat *finder.FinderStat) (*Find, error) {
+	res, err := finder.Find(config, ctx, query, 0, 0, stat)
 	if err != nil {
 		return nil, err
 	}

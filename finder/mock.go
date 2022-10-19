@@ -27,9 +27,9 @@ func NewMockTagged(result [][]byte) *MockFinder {
 }
 
 // Execute assigns given query to the query field
-func (m *MockFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
+func (m *MockFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	m.query = query
-	return nil
+	return
 }
 
 // List returns the result

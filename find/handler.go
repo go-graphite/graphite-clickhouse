@@ -10,6 +10,7 @@ import (
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -18,21 +19,27 @@ import (
 )
 
 type Handler struct {
-	config *config.Config
+	config  *config.Config
+	qMetric *metrics.QueryMetrics
 }
 
 func NewHandler(config *config.Config) *Handler {
 	return &Handler{
-		config: config,
+		config:  config,
+		qMetric: metrics.InitQueryMetrics("find", &config.Metrics),
 	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	status := http.StatusOK
-	var metricsCount int64
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("metrics-find")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
+
+	var (
+		metricsCount int64
+		stat         finder.FinderStat
+	)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -47,6 +54,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		d := time.Since(start).Milliseconds()
 		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if stat.ChReadRows > 0 && stat.ChReadBytes > 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.FindQMetric, 0, 0, d, metricsCount, stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, errored)
+		}
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
@@ -120,7 +131,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	f, err := New(h.config, r.Context(), query)
+	f, err := New(h.config, r.Context(), query, &stat)
 	if err != nil {
 		status = clickhouse.HandleError(w, err)
 		return

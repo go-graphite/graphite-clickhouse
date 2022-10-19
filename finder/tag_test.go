@@ -102,7 +102,8 @@ func _TestTags(t *testing.T) {
 		m := NewMockFinder(mockData)
 		f := WrapTag(m, srv.URL, "graphite_tag", clickhouse.Options{Timeout: time.Second, ConnectTimeout: time.Second})
 
-		f.Execute(context.Background(), test.query, 0, 0)
+		var stat FinderStat
+		f.Execute(context.Background(), test.query, 0, 0, &stat)
 
 		list := make([]string, 0)
 		for _, r := range f.List() {

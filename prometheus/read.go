@@ -1,3 +1,4 @@
+//go:build !noprom
 // +build !noprom
 
 package prometheus
@@ -23,7 +24,8 @@ func (h *Handler) series(ctx context.Context, q *prompb.Query) (*alias.Map, erro
 	if err != nil {
 		return nil, err
 	}
-	fndResult, err := finder.FindTagged(h.config, ctx, terms, q.StartTimestampMs/1000, q.EndTimestampMs/1000)
+	var stat finder.FinderStat
+	fndResult, err := finder.FindTagged(h.config, ctx, terms, q.StartTimestampMs/1000, q.EndTimestampMs/1000, &stat)
 
 	if err != nil {
 		return nil, err

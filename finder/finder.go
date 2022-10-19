@@ -16,9 +16,16 @@ type Result interface {
 	Bytes() ([]byte, error)
 }
 
+type FinderStat struct {
+	ReadBytes   int64
+	ChReadRows  int64
+	ChReadBytes int64
+	Table       string
+}
+
 type Finder interface {
 	Result
-	Execute(ctx context.Context, query string, from int64, until int64) error
+	Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error
 }
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64, useCache bool) Finder {
@@ -79,13 +86,12 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 	return f
 }
 
-func Find(config *config.Config, ctx context.Context, query string, from int64, until int64) (Result, error) {
+func Find(config *config.Config, ctx context.Context, query string, from int64, until int64, stat *FinderStat) (Result, error) {
 	fnd := newPlainFinder(ctx, config, query, from, until, config.Common.FindCache != nil)
-	err := fnd.Execute(ctx, query, from, until)
+	err := fnd.Execute(ctx, query, from, until, stat)
 	if err != nil {
 		return nil, err
 	}
-
 	return fnd.(Result), nil
 }
 
@@ -98,7 +104,7 @@ func Leaf(value []byte) ([]byte, bool) {
 	return value, true
 }
 
-func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64) (Result, error) {
+func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) (Result, error) {
 	opts := clickhouse.Options{
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
@@ -109,7 +115,7 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 	plain := makePlainFromTagged(terms)
 	if plain != nil {
 		plain.wrappedPlain = newPlainFinder(ctx, config, plain.Target(), from, until, useCache)
-		err := plain.Execute(ctx, plain.Target(), from, until)
+		err := plain.Execute(ctx, plain.Target(), from, until, stat)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +124,7 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 
 	fnd := NewTagged(config.ClickHouse.URL, config.ClickHouse.TaggedTable, config.ClickHouse.TaggedUseDaily, true, opts, config.ClickHouse.TaggedCosts)
 
-	err := fnd.ExecutePrepared(ctx, terms, from, until)
+	err := fnd.ExecutePrepared(ctx, terms, from, until, stat)
 	if err != nil {
 		return nil, err
 	}

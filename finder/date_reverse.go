@@ -25,7 +25,7 @@ func NewDateFinderV3(url string, table string, opts clickhouse.Options) Finder {
 	return &DateFinderV3{b}
 }
 
-func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := f.where(ReverseString(query))
 
 	dateWhere := where.New()
@@ -35,7 +35,7 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 		time.Unix(until, 0).Format("2006-01-02"),
 	)
 
-	f.body, err = clickhouse.Query(
+	f.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, f.table),
 		f.url,
 		// TODO: consider consistent query generator
@@ -43,6 +43,8 @@ func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, un
 		f.opts,
 		nil,
 	)
+	stat.Table = f.table
+	stat.ReadBytes = int64(len(f.body))
 
 	return
 }

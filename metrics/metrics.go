@@ -512,6 +512,8 @@ type rangeName struct {
 
 func InitMetrics(c *Config) {
 	if c != nil && Graphite != nil {
+		metrics.RegisterRuntimeMemStats(nil)
+		go metrics.CaptureRuntimeMemStats(c.MetricInterval)
 		if len(c.BucketsWidth) == 0 {
 			c.BucketsWidth = []int64{200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000}
 		}

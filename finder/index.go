@@ -117,7 +117,7 @@ func (idx *IndexFinder) useReverse(query string) bool {
 	return idx.useReverse(query)
 }
 
-func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	idx.useReverse(query)
 
 	if idx.dailyEnabled && from > 0 && until > 0 {
@@ -155,7 +155,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		w.And(where.Eq("Date", DefaultTreeDate))
 	}
 
-	idx.body, err = clickhouse.Query(
+	idx.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, idx.table),
 		idx.url,
 		// TODO: consider consistent query generator
@@ -163,7 +163,9 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 		idx.opts,
 		nil,
 	)
+	stat.Table = idx.table
 	if err == nil {
+		stat.ReadBytes = int64(len(idx.body))
 		idx.bodySplit()
 	}
 

@@ -19,7 +19,8 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 	if err != nil {
 		return nil, err
 	}
-	fndResult, err := finder.FindTagged(q.config, q.ctx, terms, from.Unix(), until.Unix())
+	var stat finder.FinderStat
+	fndResult, err := finder.FindTagged(q.config, q.ctx, terms, from.Unix(), until.Unix(), &stat)
 
 	if err != nil {
 		return nil, err

@@ -52,7 +52,7 @@ func (q *Querier) LabelValues(label string) ([]string, storage.Warnings, error) 
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(
+	body, _, _, err := clickhouse.Query(
 		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
 		q.config.ClickHouse.URL,
 		sql,
@@ -85,7 +85,7 @@ func (q *Querier) LabelNames() ([]string, storage.Warnings, error) {
 		w.SQL(),
 	)
 
-	body, err := clickhouse.Query(
+	body, _, _, err := clickhouse.Query(
 		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
 		q.config.ClickHouse.URL,
 		sql,

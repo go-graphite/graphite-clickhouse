@@ -29,7 +29,7 @@ func NewDateFinder(url string, table string, tableVersion int, opts clickhouse.O
 	return &DateFinder{b, tableVersion}
 }
 
-func (b *DateFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func (b *DateFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := b.where(query)
 
 	dateWhere := where.New()
@@ -40,7 +40,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 	)
 
 	if b.tableVersion == 2 {
-		b.body, err = clickhouse.Query(
+		b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 			scope.WithTable(ctx, b.table),
 			b.url,
 			// TODO: consider consistent query generator
@@ -49,7 +49,7 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			nil,
 		)
 	} else {
-		b.body, err = clickhouse.Query(
+		b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 			scope.WithTable(ctx, b.table),
 			b.url,
 			// TODO: consider consistent query generator
@@ -58,6 +58,8 @@ func (b *DateFinder) Execute(ctx context.Context, query string, from int64, unti
 			nil,
 		)
 	}
+	stat.ReadBytes = int64(len(b.body))
+	stat.Table = b.table
 
 	return
 }

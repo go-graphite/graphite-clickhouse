@@ -125,15 +125,17 @@ type Options struct {
 	ConnectTimeout time.Duration
 }
 
-type loggedReader struct {
-	reader   io.ReadCloser
-	logger   *zap.Logger
-	start    time.Time
-	finished bool
-	queryID  string
+type LoggedReader struct {
+	reader     io.ReadCloser
+	logger     *zap.Logger
+	start      time.Time
+	finished   bool
+	queryID    string
+	read_rows  int64
+	read_bytes int64
 }
 
-func (r *loggedReader) Read(p []byte) (int, error) {
+func (r *LoggedReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err != nil && !r.finished {
 		r.finished = true
@@ -142,13 +144,21 @@ func (r *loggedReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (r *loggedReader) Close() error {
+func (r *LoggedReader) Close() error {
 	err := r.reader.Close()
 	if !r.finished {
 		r.finished = true
 		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
 	return err
+}
+
+func (r *LoggedReader) ChReadRows() int64 {
+	return r.read_rows
+}
+
+func (r *LoggedReader) ChReadBytes() int64 {
+	return r.read_bytes
 }
 
 func formatSQL(q string) string {
@@ -160,23 +170,23 @@ func formatSQL(q string) string {
 	return strings.Join(s, " ")
 }
 
-func Query(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) ([]byte, error) {
+func Query(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
 	return Post(ctx, dsn, query, nil, opts, extData)
 }
 
-func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, error) {
+func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
 	return do(ctx, dsn, query, postBody, false, opts, extData)
 }
 
-func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, error) {
+func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
 	return do(ctx, dsn, query, postBody, true, opts, extData)
 }
 
-func Reader(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) (io.ReadCloser, error) {
+func Reader(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) (*LoggedReader, error) {
 	return reader(ctx, dsn, query, nil, false, opts, extData)
 }
 
-func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) (bodyReader io.ReadCloser, err error) {
+func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) (bodyReader *LoggedReader, err error) {
 	if postBody != nil && extData != nil {
 		err = fmt.Errorf("postBody and extData could not be passed in one request")
 		return
@@ -269,6 +279,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
 
 	summaryHeader := resp.Header.Get("X-Clickhouse-Summary")
+	read_rows := int64(-1)
+	read_bytes := int64(-1)
 	if len(summaryHeader) > 0 {
 		summary := make(map[string]string)
 		err = json.Unmarshal([]byte(summaryHeader), &summary)
@@ -277,6 +289,12 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 			fields := make([]zapcore.Field, 0, len(summary))
 			for k, v := range summary {
 				fields = append(fields, zap.String(k, v))
+				switch k {
+				case "read_rows":
+					read_rows, _ = strconv.ParseInt(v, 10, 64)
+				case "read_bytes":
+					read_bytes, _ = strconv.ParseInt(v, 10, 64)
+				}
 			}
 			logger = logger.With(fields...)
 		} else {
@@ -298,29 +316,31 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		return
 	}
 
-	bodyReader = &loggedReader{
-		reader:  resp.Body,
-		logger:  logger,
-		start:   start,
-		queryID: chQueryID,
+	bodyReader = &LoggedReader{
+		reader:     resp.Body,
+		logger:     logger,
+		start:      start,
+		queryID:    chQueryID,
+		read_rows:  read_rows,
+		read_bytes: read_bytes,
 	}
 
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) ([]byte, error) {
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
 	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, opts, extData)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 
 	body, err := ioutil.ReadAll(bodyReader)
 	bodyReader.Close()
 	if err != nil {
-		return nil, err
+		return nil, bodyReader.ChReadRows(), bodyReader.ChReadBytes(), err
 	}
 
-	return body, nil
+	return body, bodyReader.ChReadRows(), bodyReader.ChReadBytes(), nil
 }
 
 func ReadUvarint(array []byte) (uint64, int, error) {

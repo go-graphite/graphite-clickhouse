@@ -141,12 +141,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						key = targetKey(tf.From, tf.Until, target, cacheTimeoutStr)
 						body, err := h.config.Common.FindCache.Get(key)
 						if err == nil {
-							if m != nil {
-								m.CacheHits.Add(1)
-							}
-							cachedFind = true
 							if len(body) > 0 {
-								// ApiMetrics.RequestCacheHits.Add(1)
+								cachedFind = true
+								m.CacheHits.Add(1)
 								var f finder.Finder
 								if !strings.Contains(target, "seriesByTag(") {
 									f = finder.NewCachedIndex(body)
@@ -169,28 +166,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Search in small index table first
-				fndResult, err = finder.Find(h.config, r.Context(), target, tf.From, tf.Until)
+				var stat finder.FinderStat
+				fStart := time.Now()
+				fndResult, err = finder.Find(h.config, r.Context(), target, tf.From, tf.Until, &stat)
+				d := time.Since(fStart).Milliseconds()
 				if err != nil {
+					metrics.SendQueryReadByTable(stat.Table, tf.From, tf.Until, d, 0, 0, stat.ChReadRows, stat.ChReadBytes, true)
 					logger.Error("find", zap.Error(err))
 					lock.Lock()
 					errors = append(errors, err)
 					lock.Unlock()
 					return
 				}
-
 				body := am.MergeTarget(fndResult, target, useCache)
 				if useCache && cacheTimeout > 0 {
-					if m != nil {
-						m.CacheMisses.Add(1)
-					}
+					m.CacheMisses.Add(1)
 					h.config.Common.FindCache.Set(key, body, cacheTimeout)
 					logger.Info("finder", zap.String("set_cache", key), zap.Time("timestamp_cached", time.Unix(ts, 0)),
 						zap.Int("metrics", am.Len()), zap.Bool("find_cached", false),
 						zap.String("ttl", cacheTimeoutStr))
 				}
 				lock.Lock()
-				metricsLen += am.Len()
+				rows := am.Len()
 				lock.Unlock()
+				metricsLen += rows
+				metrics.SendQueryReadByTable(stat.Table, tf.From, tf.Until, d, int64(rows), stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, false)
 			}(tf, expr, target.AM)
 		}
 	}

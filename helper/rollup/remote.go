@@ -128,7 +128,7 @@ func remoteLoad(addr string, table string) (*Rules, error) {
 	FORMAT JSON
 	`, db, table)
 
-	body, err := clickhouse.Query(
+	body, _, _, err := clickhouse.Query(
 		scope.New(context.Background()).WithLogger(zapwriter.Logger("rollup")).WithTable("system.graphite_retentions"),
 		addr,
 		query,

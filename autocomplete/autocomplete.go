@@ -126,10 +126,16 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	status := http.StatusOK
-	var metricsCount int64
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 
-	var err error
+	var (
+		err          error
+		chReadRows   int64
+		chReadBytes  int64
+		metricsCount int64
+		readBytes    int64
+		findCache    bool
+	)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -144,12 +150,18 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 		d := time.Since(start).Milliseconds()
 		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if !findCache && chReadRows != 0 && chReadBytes != 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, readBytes, chReadRows, chReadBytes, errored)
+		}
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	tagPrefix := r.FormValue("tagPrefix")
 	limitStr := r.FormValue("limit")
 	limit := 10000
+
+	var body []byte
 
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
@@ -165,8 +177,6 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	untilDate := now.Format("2006-01-02")
 
 	var key string
-	var body []byte
-	var findCache bool
 
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
@@ -215,7 +225,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			queryLimit,
 		)
 
-		body, err := clickhouse.Query(
+		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
@@ -229,6 +239,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			status = clickhouse.HandleError(w, err)
 			return
 		}
+		readBytes = int64(len(body))
 
 		if useCache {
 			if metrics.FinderCacheMetrics != nil {
@@ -298,10 +309,16 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	status := http.StatusOK
-	var metricsCount int64
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 
-	var err error
+	var (
+		err          error
+		body         []byte
+		chReadRows   int64
+		chReadBytes  int64
+		metricsCount int64
+		findCache    bool
+	)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -316,6 +333,10 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 		d := time.Since(start).Milliseconds()
 		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if !findCache && chReadRows > 0 && chReadBytes > 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, int64(len(body)), chReadRows, chReadBytes, errored)
+		}
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
@@ -341,8 +362,6 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	untilDate := start.Format("2006-01-02")
 
 	var key string
-	var body []byte
-	var findCache bool
 
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
@@ -385,7 +404,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			limit,
 		)
 
-		body, err = clickhouse.Query(
+		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
