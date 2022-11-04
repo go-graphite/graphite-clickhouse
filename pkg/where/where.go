@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 )
 
 func unsafeString(b []byte) string {
@@ -28,10 +28,10 @@ func GlobExpandSimple(value, prefix string, result *[]string) error {
 	} else {
 		end := strings.Index(value[start:], "}")
 		if end <= 1 {
-			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+			return errs.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
 		}
 		if end == -1 || strings.IndexAny(value[start+1:start+end], "{}") != -1 {
-			return clickhouse.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
+			return errs.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
 		}
 		if start > 0 {
 			prefix = prefix + value[0:start]
