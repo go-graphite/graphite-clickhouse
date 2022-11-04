@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 
 	"go.uber.org/zap"
@@ -39,17 +40,6 @@ func (e *ErrWithDescr) Error() string {
 func (e *ErrWithDescr) PrependDescription(test string) {
 	e.data = test + e.data
 }
-
-type ErrorWithCode struct {
-	err  string
-	Code int // error code
-}
-
-func NewErrorWithCode(err string, code int) error {
-	return &ErrorWithCode{err, code}
-}
-
-func (e *ErrorWithCode) Error() string { return e.err }
 
 var ErrInvalidTimeRange = errors.New("Invalid or empty time range")
 var ErrUvarintRead = errors.New("ReadUvarint: Malformed array")
@@ -101,7 +91,7 @@ func HandleError(w http.ResponseWriter, err error) {
 		}
 		return
 	}
-	errCode, ok := err.(*ErrorWithCode)
+	errCode, ok := err.(*errs.ErrorWithCode)
 	if ok {
 		if (errCode.Code > 500 && errCode.Code < 512) ||
 			errCode.Code == http.StatusBadRequest || errCode.Code == http.StatusForbidden {
@@ -288,7 +278,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	if resp.StatusCode > 500 && resp.StatusCode < 512 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
-		err = NewErrorWithCode(string(body), resp.StatusCode)
+		err = errs.NewErrorWithCode(string(body), resp.StatusCode)
 		return
 	} else if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)

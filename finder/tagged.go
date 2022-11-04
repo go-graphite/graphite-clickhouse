@@ -3,7 +3,9 @@ package finder
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -11,11 +13,14 @@ import (
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 
 	"github.com/msaf1980/go-stringutils"
 )
+
+var ErrEmptyArgs = errors.New("empty arguments")
 
 type TaggedTermOp int
 
@@ -301,30 +306,27 @@ func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.C
 	return terms, nil
 }
 
+var ErrInvalidSeriesByTag = errs.NewErrorWithCode("wrong seriesByTag call", http.StatusBadRequest)
+
 func ParseSeriesByTag(query string, tagCosts map[string]*config.Costs) ([]TaggedTerm, error) {
 	expr, _, err := parser.ParseExpr(query)
 	if err != nil {
 		return nil, err
 	}
 
-	validationError := fmt.Errorf("wrong seriesByTag call: %#v", query)
-
 	// check
-	if !expr.IsFunc() {
-		return nil, validationError
-	}
-	if expr.Target() != "seriesByTag" {
-		return nil, validationError
+	if !expr.IsFunc() || expr.Target() != "seriesByTag" {
+		return nil, ErrInvalidSeriesByTag
 	}
 
 	args := expr.Args()
 	if len(args) < 1 {
-		return nil, validationError
+		return nil, ErrInvalidSeriesByTag
 	}
 
 	for i := 0; i < len(args); i++ {
 		if !args[i].IsString() {
-			return nil, validationError
+			return nil, ErrInvalidSeriesByTag
 		}
 	}
 

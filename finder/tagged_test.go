@@ -5,11 +5,14 @@ import (
 	"testing"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTaggedWhere(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	table := []struct {
 		query    string
@@ -17,6 +20,8 @@ func TestTaggedWhere(t *testing.T) {
 		prewhere string
 		isErr    bool
 	}{
+		// test for issue #195
+		{"seriesByTag()", "", "", true},
 		// info about _tag "directory"
 		{"seriesByTag('key=value')", "Tag1='key=value'", "", false},
 		// test case for wildcarded name, must be not first check
@@ -54,10 +59,12 @@ func TestTaggedWhere(t *testing.T) {
 		terms, err := ParseSeriesByTag(test.query, nil)
 
 		if !test.isErr {
-			assert.NoError(err, testName+", err")
+			require.NoError(err, testName+", err")
 		}
-
-		w, pw, err := TaggedWhere(terms)
+		var w, pw *where.Where
+		if err == nil {
+			w, pw, err = TaggedWhere(terms)
+		}
 
 		if test.isErr {
 			assert.Error(err, testName+", err")

@@ -9,7 +9,7 @@ import (
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
@@ -53,7 +53,7 @@ func (m *MultiTarget) checkMetricsLimitExceeded(num int) error {
 	}
 	for _, t := range *m {
 		if num < t.AM.Len() {
-			return clickhouse.NewErrorWithCode(fmt.Sprintf("metrics limit exceeded: %d < %d", num, t.AM.Len()), http.StatusForbidden)
+			return errs.NewErrorWithCode(fmt.Sprintf("metrics limit exceeded: %d < %d", num, t.AM.Len()), http.StatusForbidden)
 		}
 	}
 	return nil
