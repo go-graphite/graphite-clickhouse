@@ -65,7 +65,6 @@ type FindMetrics struct {
 type RenderMetric struct {
 	ReqMetric
 	FinderH metrics.Histogram
-	FetchH  metrics.Histogram
 }
 
 type RenderMetrics struct {
@@ -226,10 +225,8 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 	if c != nil && Graphite != nil {
 		requestMetric.RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 		requestMetric.FinderH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
-		requestMetric.FetchH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 		metrics.Register(scope+".all.requests", requestMetric.RequestsH)
 		metrics.Register(scope+".all.requests_finder", requestMetric.FinderH)
-		metrics.Register(scope+".all.requests_fetch", requestMetric.FetchH)
 		metrics.Register(scope+".all.errors", requestMetric.Errors)
 		if c.ExtendedStat {
 			metrics.Register(scope+".all.requests_status_code.200", requestMetric.Requests200)
@@ -249,13 +246,11 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 			for i := range c.RangeS {
 				requestMetric.RangeMetrics[i].RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 				requestMetric.RangeMetrics[i].FinderH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
-				requestMetric.RangeMetrics[i].FetchH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 				requestMetric.RangeMetrics[i].Errors = metrics.NewCounter()
 				requestMetric.RangeMetrics[i].MetricsCountName = scope + "." + requestMetric.RangeNames[i] + ".metrics"
 				requestMetric.RangeMetrics[i].PointsCountName = scope + "." + requestMetric.RangeNames[i] + ".points"
 				metrics.Register(scope+"."+c.RangeNames[i]+".requests", requestMetric.RangeMetrics[i].RequestsH)
 				metrics.Register(scope+"."+c.RangeNames[i]+".requests_finder", requestMetric.RangeMetrics[i].FinderH)
-				metrics.Register(scope+"."+c.RangeNames[i]+".requests_fetch", requestMetric.RangeMetrics[i].FetchH)
 				metrics.Register(scope+"."+c.RangeNames[i]+".errors", requestMetric.RangeMetrics[i].Errors)
 				if c.ExtendedStat {
 					requestMetric.RangeMetrics[i].Requests200 = metrics.NewCounter()
@@ -282,7 +277,6 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 	} else {
 		requestMetric.RequestsH = metrics.NilHistogram{}
 		requestMetric.FinderH = metrics.NilHistogram{}
-		requestMetric.FetchH = metrics.NilHistogram{}
 	}
 
 	return requestMetric
@@ -399,10 +393,6 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		fetchMs := fetch.UnixMilli()
 		durFinderMs = fetchMs - startMs
 		durFetchMs = endMs - fetchMs
-		r.FetchH.Add(durFetchMs)
-		if fromPos >= 0 {
-			r.RangeMetrics[fromPos].FetchH.Add(durFetchMs)
-		}
 	}
 	r.RequestsH.Add(durMs)
 	r.FinderH.Add(durFinderMs)
@@ -420,7 +410,6 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 				r.RangeMetrics[fromPos].Requests200.Add(1)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
 				if durFetchMs > 0 {
-					r.RangeMetrics[fromPos].FetchH.Add(durFetchMs)
 					Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
 				}
 				r.RangeMetrics[fromPos].FinderH.Add(durFinderMs)
@@ -453,7 +442,6 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
 				if durFetchMs > 0 {
-					r.RangeMetrics[fromPos].FetchH.Add(durFetchMs)
 					Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
 				}
 				r.RangeMetrics[fromPos].FinderH.Add(durFinderMs)

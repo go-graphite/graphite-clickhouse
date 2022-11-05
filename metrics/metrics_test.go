@@ -485,7 +485,6 @@ func TestInitMetrics(t *testing.T) {
 			// RenderRequestH
 			compareInterface(t, "render.all.requests", RenderRequestMetric.RequestsH, true)
 			compareInterface(t, "render.all.requests_finder", RenderRequestMetric.FinderH, true)
-			compareInterface(t, "render.all.requests_fetch", RenderRequestMetric.FetchH, true)
 			// RenderRequestCount
 			compareInterface(t, "render.all.requests_status_code.200", RenderRequestMetric.Requests200, c.ExtendedStat)
 			compareInterface(t, "render.all.requests_status_code.400", RenderRequestMetric.Requests400, c.ExtendedStat)
@@ -505,7 +504,6 @@ func TestInitMetrics(t *testing.T) {
 					// FindRequestH
 					compareInterface(t, "render."+c.RangeNames[i]+".requests", RenderRequestMetric.RangeMetrics[i].RequestsH, true)
 					compareInterface(t, "render."+c.RangeNames[i]+".requests_finder", RenderRequestMetric.RangeMetrics[i].FinderH, true)
-					compareInterface(t, "render."+c.RangeNames[i]+".requests_fetch", RenderRequestMetric.RangeMetrics[i].FetchH, true)
 					// FindRequestCount
 					compareInterface(t, "render."+c.RangeNames[i]+".requests_status_code.200", RenderRequestMetric.RangeMetrics[i].Requests200, c.ExtendedStat)
 					compareInterface(t, "render."+c.RangeNames[i]+".requests_status_code.400", RenderRequestMetric.RangeMetrics[i].Requests400, c.ExtendedStat)
