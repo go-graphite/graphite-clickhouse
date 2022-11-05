@@ -433,6 +433,7 @@ func TestInitMetrics(t *testing.T) {
 	for n, tt := range tests {
 		t.Run(tt.name+"#"+strconv.Itoa(n), func(t *testing.T) {
 			FindRequestMetric = nil
+			TagsRequestMetric = nil
 			RenderRequestMetric = nil
 			UnregisterAll()
 			c := tt.c

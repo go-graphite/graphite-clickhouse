@@ -77,6 +77,7 @@ type RenderMetrics struct {
 
 var RenderRequestMetric *RenderMetrics
 var FindRequestMetric *FindMetrics
+var TagsRequestMetric *FindMetrics
 
 func initFindCacheMetrics(c *Config) {
 	FinderCacheMetrics = &CacheMetric{
@@ -581,6 +582,7 @@ func InitMetrics(c *Config) {
 	}
 	initFindCacheMetrics(c)
 	FindRequestMetric = initFindMetrics("find", c)
+	TagsRequestMetric = initFindMetrics("tags", c)
 	RenderRequestMetric = initRenderMetrics("render", c)
 }
 

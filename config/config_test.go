@@ -659,6 +659,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Logging, config.Logging)
 
 	metrics.FindRequestMetric = nil
+	metrics.TagsRequestMetric = nil
 	metrics.RenderRequestMetric = nil
 	metrics.UnregisterAll()
 }
