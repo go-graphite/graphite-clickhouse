@@ -198,32 +198,33 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	return t.seriesSQL()
 }
 
-func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
+func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	t.state = TagSkip
 
 	if query == "" {
-		return t.wrapped.Execute(ctx, query, from, until)
+		return t.wrapped.Execute(ctx, query, from, until, stat)
 	}
 
 	if query == "*" {
 		t.state = TagRoot
-		return t.wrapped.Execute(ctx, query, from, until)
+		return t.wrapped.Execute(ctx, query, from, until, stat)
 	}
 
 	if !strings.HasPrefix(query, "_tag.") && query != "_tag" {
-		return t.wrapped.Execute(ctx, query, from, until)
+		return t.wrapped.Execute(ctx, query, from, until, stat)
 	}
 
-	sql, err := t.MakeSQL(query)
-	if err != nil {
-		return err
+	var sql string
+	sql, err = t.MakeSQL(query)
+	if err != nil || sql == "" {
+		return
 	}
 
-	if sql != "" {
-		t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
-	}
+	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
+	stat.Table = t.table
+	stat.ReadBytes = int64(len(t.body))
 
-	return err
+	return
 }
 
 func (t *TagFinder) List() [][]byte {

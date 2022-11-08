@@ -62,8 +62,8 @@ func (f *plainFromTaggedFinder) Target() string {
 	return f.target
 }
 
-func (f *plainFromTaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
-	return f.wrappedPlain.Execute(ctx, query, from, until)
+func (f *plainFromTaggedFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error {
+	return f.wrappedPlain.Execute(ctx, query, from, until, stat)
 }
 
 // For Render

@@ -16,7 +16,7 @@ query-params = [
     data-timeout = "5s"
   },
   {
-    duration = "2h",
+    duration = "7h",
     url = "{{ .PROXY_URL }}/?max_memory_usage=1&max_memory_usage_for_user=1&readonly=2&log_queries=1",
     data-timeout = "5s"
   }

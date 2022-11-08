@@ -18,15 +18,15 @@ func WrapBlacklist(f Finder, blacklist []*regexp.Regexp) *BlacklistFinder {
 	}
 }
 
-func (p *BlacklistFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
+func (p *BlacklistFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	for i := 0; i < len(p.blacklist); i++ {
 		if p.blacklist[i].MatchString(query) {
 			p.matched = true
-			return nil
+			return
 		}
 	}
 
-	return p.wrapped.Execute(ctx, query, from, until)
+	return p.wrapped.Execute(ctx, query, from, until, stat)
 }
 
 func (p *BlacklistFinder) List() [][]byte {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -50,6 +51,7 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 }
 
 func TestHandler_ServeValues(t *testing.T) {
+	metrics.DisableMetrics()
 	srv := clickhouse.NewTestServer()
 	defer srv.Close()
 
@@ -151,7 +153,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 			assert.Equal(t, uint64(1), srv.Queries()-queries)
 
 			// wait for expire cache
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			testResponce(t, 2, h, &tt, "")
 
 			assert.Equal(t, uint64(2), srv.Queries()-queries)

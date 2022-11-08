@@ -12,7 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/msaf1980/g2g"
+	"github.com/cactus/go-statsd-client/v5/statsd"
+	"github.com/msaf1980/go-metrics/graphite"
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
@@ -35,12 +36,6 @@ type CacheConfig struct {
 
 // Common config
 type Common struct {
-	MetricEndpoint  string        `toml:"metric-endpoint" json:"metric-endpoint" comment:"graphite relay address"`
-	MetricInterval  time.Duration `toml:"metric-interval" json:"metric-interval" comment:"graphite metrics send interval"`
-	MetricTimeout   time.Duration `toml:"metric-timeout" json:"metric-timeout" comment:"graphite metrics send timeout"`
-	MetricPrefix    string        `toml:"metric-prefix" json:"metric-prefix" comment:"graphite metrics prefix"`
-	MetricBatchSize int           `toml:"metric-batch-size" json:"metric-batch-size" comment:"graphite send batch size"`
-
 	Listen                 string           `toml:"listen" json:"listen" comment:"general listener"`
 	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen" comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
@@ -54,7 +49,6 @@ type Common struct {
 
 	FindCache   cache.BytesCache `toml:"-" json:"-"`
 	TaggedCache cache.BytesCache `toml:"-" json:"-"`
-	Graphite    *g2g.Graphite    `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -201,25 +195,26 @@ var knownDataTableContext = map[string]bool{
 
 // DataTable configs
 type DataTable struct {
-	Table                  string          `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
-	Reverse                bool            `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
-	MaxAge                 time.Duration   `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
-	MinAge                 time.Duration   `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
-	MaxInterval            time.Duration   `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
-	MinInterval            time.Duration   `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
-	TargetMatchAny         string          `toml:"target-match-any" json:"target-match-any" comment:"table allowed only if any metrics in target matches regexp"`
-	TargetMatchAll         string          `toml:"target-match-all" json:"target-match-all" comment:"table allowed only if all metrics in target matches regexp"`
-	TargetMatchAnyRegexp   *regexp.Regexp  `toml:"-" json:"-"`
-	TargetMatchAllRegexp   *regexp.Regexp  `toml:"-" json:"-"`
-	RollupConf             string          `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
-	RollupAutoTable        string          `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
-	RollupAutoInterval     *time.Duration  `toml:"rollup-auto-interval" json:"rollup-auto-interval" comment:"rollup update interval for 'rollup-conf=auto'"`
-	RollupDefaultPrecision uint32          `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
-	RollupDefaultFunction  string          `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
-	RollupUseReverted      bool            `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
-	Context                []string        `toml:"context" json:"context" comment:"valid values are 'graphite' of 'prometheus'"`
-	ContextMap             map[string]bool `toml:"-" json:"-"`
-	Rollup                 *rollup.Rollup  `toml:"-" json:"rollup-conf"`
+	Table                  string                `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
+	Reverse                bool                  `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
+	MaxAge                 time.Duration         `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
+	MinAge                 time.Duration         `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
+	MaxInterval            time.Duration         `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
+	MinInterval            time.Duration         `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
+	TargetMatchAny         string                `toml:"target-match-any" json:"target-match-any" comment:"table allowed only if any metrics in target matches regexp"`
+	TargetMatchAll         string                `toml:"target-match-all" json:"target-match-all" comment:"table allowed only if all metrics in target matches regexp"`
+	TargetMatchAnyRegexp   *regexp.Regexp        `toml:"-" json:"-"`
+	TargetMatchAllRegexp   *regexp.Regexp        `toml:"-" json:"-"`
+	RollupConf             string                `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
+	RollupAutoTable        string                `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
+	RollupAutoInterval     *time.Duration        `toml:"rollup-auto-interval" json:"rollup-auto-interval" comment:"rollup update interval for 'rollup-conf=auto'"`
+	RollupDefaultPrecision uint32                `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
+	RollupDefaultFunction  string                `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
+	RollupUseReverted      bool                  `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
+	Context                []string              `toml:"context" json:"context" comment:"valid values are 'graphite' of 'prometheus'"`
+	ContextMap             map[string]bool       `toml:"-" json:"-"`
+	Rollup                 *rollup.Rollup        `toml:"-" json:"rollup-conf"`
+	QueryMetrics           *metrics.QueryMetrics `toml:"-" json:"-"`
 }
 
 // Debug config
@@ -234,6 +229,7 @@ type Debug struct {
 // Config is the daemon configuration
 type Config struct {
 	Common     Common             `toml:"common" json:"common"`
+	Metrics    metrics.Config     `toml:"metrics" json:"metrics"`
 	ClickHouse ClickHouse         `toml:"clickhouse" json:"clickhouse"`
 	DataTable  []DataTable        `toml:"data-table" json:"data-table" comment:"data tables, see doc/config.md for additional info"`
 	Tags       Tags               `toml:"tags" json:"tags" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
@@ -641,24 +637,54 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 }
 
 func (c *Config) setupGraphiteMetrics() {
-	if c.Common.MetricEndpoint != "" {
-		if c.Common.MetricInterval == 0 {
-			c.Common.MetricInterval = 60 * time.Second
+	if c.Metrics.MetricEndpoint == "" {
+		metrics.DisableMetrics()
+	} else {
+		if c.Metrics.MetricInterval == 0 {
+			c.Metrics.MetricInterval = 60 * time.Second
 		}
-		if c.Common.MetricTimeout == 0 {
-			c.Common.MetricTimeout = time.Second
+		if c.Metrics.MetricTimeout == 0 {
+			c.Metrics.MetricTimeout = time.Second
 		}
-		// register our metrics with graphite
-		c.Common.Graphite = g2g.NewGraphiteBatch(c.Common.MetricEndpoint, c.Common.MetricInterval, c.Common.MetricTimeout, c.Common.MetricBatchSize)
-
 		hostname, _ := os.Hostname()
 		fqdn := strings.ReplaceAll(hostname, ".", "_")
 		hostname = strings.Split(hostname, ".")[0]
 
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{prefix}", c.Common.MetricPrefix)
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{fqdn}", fqdn)
-		c.Common.MetricPrefix = strings.ReplaceAll(c.Common.MetricPrefix, "{host}", hostname)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{prefix}", c.Metrics.MetricPrefix)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{fqdn}", fqdn)
+		c.Metrics.MetricPrefix = strings.ReplaceAll(c.Metrics.MetricPrefix, "{host}", hostname)
 
-		metrics.InitFindCacheMetrics(c.Common.Graphite, c.Common.MetricPrefix)
+		// register our metrics with graphite
+		metrics.Graphite = graphite.New(c.Metrics.MetricInterval, c.Metrics.MetricPrefix, c.Metrics.MetricEndpoint, c.Metrics.MetricTimeout)
+
+		if c.Metrics.Statsd != "" && c.Metrics.ExtendedStat {
+			var err error
+			config := &statsd.ClientConfig{
+				Address:       c.Metrics.Statsd,
+				Prefix:        c.Metrics.MetricPrefix,
+				ResInterval:   5 * time.Minute,
+				UseBuffered:   true,
+				FlushInterval: 300 * time.Millisecond,
+			}
+			metrics.Gstatsd, err = statsd.NewClientWithConfig(config)
+			if err != nil {
+				metrics.Gstatsd = metrics.NullSender{}
+				fmt.Fprintf(os.Stderr, "statsd init: %v\n", err)
+			}
+		}
+
+		metrics.InitMetrics(&c.Metrics)
+	}
+
+	metrics.AutocompleteQMetric = metrics.InitQueryMetrics("tags", &c.Metrics)
+	metrics.FindQMetric = metrics.InitQueryMetrics("find", &c.Metrics)
+	for i := 0; i < len(c.DataTable); i++ {
+		c.DataTable[i].QueryMetrics = metrics.InitQueryMetrics(c.DataTable[i].Table, &c.Metrics)
+	}
+	if c.ClickHouse.IndexTable != "" {
+		metrics.InitQueryMetrics(c.ClickHouse.IndexTable, &c.Metrics)
+	}
+	if c.ClickHouse.TaggedTable != "" {
+		metrics.InitQueryMetrics(c.ClickHouse.TaggedTable, &c.Metrics)
 	}
 }

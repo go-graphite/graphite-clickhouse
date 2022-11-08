@@ -6,6 +6,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
@@ -19,6 +20,7 @@ type Targets struct {
 	isReverse         bool
 	rollupRules       *rollup.Rules
 	rollupUseReverted bool
+	queryMetrics      *metrics.QueryMetrics
 }
 
 func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string) error {
@@ -75,6 +77,7 @@ TableLoop:
 		tt.isReverse = t.Reverse
 		tt.rollupUseReverted = t.RollupUseReverted
 		tt.rollupRules = t.Rollup.Rules()
+		tt.queryMetrics = t.QueryMetrics
 		return nil
 	}
 

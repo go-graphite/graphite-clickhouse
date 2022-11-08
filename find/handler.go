@@ -10,6 +10,7 @@ import (
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -18,18 +19,47 @@ import (
 )
 
 type Handler struct {
-	config *config.Config
+	config  *config.Config
+	qMetric *metrics.QueryMetrics
 }
 
 func NewHandler(config *config.Config) *Handler {
 	return &Handler{
-		config: config,
+		config:  config,
+		qMetric: metrics.InitQueryMetrics("find", &config.Metrics),
 	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("metrics-find")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
+
+	var (
+		metricsCount int64
+		stat         finder.FinderStat
+	)
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, status)
+		}
+		d := time.Since(start).Milliseconds()
+		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if stat.ChReadRows > 0 && stat.ChReadBytes > 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.FindQMetric, 0, 0, d, metricsCount, stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, errored)
+		}
+	}()
+
 	r.ParseMultipartForm(1024 * 1024)
 
 	var query string
@@ -38,18 +68,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if format == "carbonapi_v3_pb" {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), status)
 			return
 		}
 
 		var pv3Request v3pb.MultiGlobRequest
 		if err := pv3Request.Unmarshal(body); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, fmt.Sprintf("Failed to unmarshal request: %v", err), status)
 			return
 		}
 
 		if len(pv3Request.Metrics) != 1 {
-			http.Error(w, fmt.Sprintf("Multiple metrics in same find request is not supported yet: %v", err), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, fmt.Sprintf("Multiple metrics in same find request is not supported yet: %v", err), status)
 			return
 		}
 
@@ -64,13 +97,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "protobuf":
 		default:
 			logger.Error("unsupported formatter")
-			http.Error(w, "Failed to parse request: unsupported formatter", http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, "Failed to parse request: unsupported formatter", status)
 			return
 		}
 		query = r.FormValue("query")
 	}
 	if len(query) == 0 {
-		http.Error(w, "Query not set", http.StatusBadRequest)
+		status = http.StatusBadRequest
+		http.Error(w, "Query not set", status)
 		return
 	}
 
@@ -86,8 +121,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Header().Set("X-Cached-Find", strconv.Itoa(int(h.config.Common.FindCacheConfig.FindTimeoutSec)))
 			f := NewCached(h.config, body)
+			metricsCount = int64(len(f.result.List()))
 			logger.Info("finder", zap.String("get_cache", key),
-				zap.Int("metrics", len(f.result.List())), zap.Bool("find_cached", true),
+				zap.Int64("metrics", metricsCount), zap.Bool("find_cached", true),
 				zap.Int32("ttl", h.config.Common.FindCacheConfig.FindTimeoutSec))
 
 			h.Reply(w, r, f)
@@ -95,9 +131,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	f, err := New(h.config, r.Context(), query)
+	f, err := New(h.config, r.Context(), query, &stat)
 	if err != nil {
-		clickhouse.HandleError(w, err)
+		status = clickhouse.HandleError(w, err)
 		return
 	}
 
@@ -113,10 +149,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.Reply(w, r, f)
+	metricsCount = int64(len(f.result.List()))
+	status = h.Reply(w, r, f)
 }
 
-func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) {
+func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) (status int) {
+	status = http.StatusOK
 	switch r.FormValue("format") {
 	case "json":
 		f.WriteJSON(w)
@@ -129,6 +167,8 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request, f *Find) {
 		w.Header().Set("Content-Type", "application/x-protobuf")
 		f.WriteProtobufV3(w)
 	default:
-		http.Error(w, "Failed to parse request: unhandled formatter", http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, "Failed to parse request: unhandled formatter", status)
 	}
+	return
 }

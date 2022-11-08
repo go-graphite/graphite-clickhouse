@@ -371,16 +371,16 @@ func NewCachedTags(body []byte) *TaggedFinder {
 	}
 }
 
-func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64) error {
+func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error {
 	terms, err := ParseSeriesByTag(query, t.taggedCosts)
 	if err != nil {
 		return err
 	}
 
-	return t.ExecutePrepared(ctx, terms, from, until)
+	return t.ExecutePrepared(ctx, terms, from, until, stat)
 }
 
-func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
+func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) error {
 	w, pw, err := TaggedWhere(terms)
 	if err != nil {
 		return err
@@ -396,7 +396,9 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 
 	// TODO: consider consistent query generator
 	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, pw.PreWhereSQL(), w.SQL())
-	t.body, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
+	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
+	stat.Table = t.table
+	stat.ReadBytes = int64(len(t.body))
 	return err
 }
 

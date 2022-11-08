@@ -7,10 +7,12 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -149,6 +151,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 	defer queryCancel()
 	data := prepareData(queryContext, len(cond.extDataBodies), carbonlinkResponseRead)
 
+	var ch_read_bytes, ch_read_rows int64
 	for agg, extTableBody := range cond.extDataBodies {
 		extData := q.metricsListExtData(extTableBody)
 		query := cond.generateQuery(agg)
@@ -167,6 +170,8 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 				extData,
 			)
 			if err == nil {
+				atomic.AddInt64(&ch_read_bytes, body.ChReadBytes())
+				atomic.AddInt64(&ch_read_rows, body.ChReadRows())
 				err = data.parseResponse(queryContext, body, cond)
 				if err != nil {
 					logger.Error("reader", zap.Error(err))
@@ -182,6 +187,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 	}
 
 	err = data.wait(queryContext)
+	metrics.SendQueryRead(cond.queryMetrics, cond.from, cond.until, data.spent.Milliseconds(), int64(data.Points.Len()), int64(data.length), ch_read_rows, ch_read_bytes, err != nil)
 	if err != nil {
 		logger.Error(
 			"data_parser", zap.Error(err), zap.Int("read_bytes", data.length),

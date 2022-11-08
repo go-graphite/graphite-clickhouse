@@ -114,7 +114,7 @@ func Make(cfg *config.Config) error {
 			extraWhere = fmt.Sprintf("AND (%s)", cfg.Tags.ExtraWhere)
 		}
 		for i := 0; i < SelectChunksCount; i++ {
-			bodies[i], err = clickhouse.Query(
+			bodies[i], _, _, err = clickhouse.Query(
 				scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.IndexTable),
 				cfg.ClickHouse.URL,
 				fmt.Sprintf(
@@ -344,7 +344,7 @@ func Make(cfg *config.Config) error {
 		end()
 	} else {
 		begin("upload to clickhouse")
-		_, err = clickhouse.PostGzip(
+		_, _, _, err = clickhouse.PostGzip(
 			scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.TagTable),
 			cfg.ClickHouse.URL,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),

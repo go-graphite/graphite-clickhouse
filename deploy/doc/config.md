@@ -2,13 +2,6 @@
 
 ## Common  `[common]`
 
-Send internal metrics to graphite relay
- - `metric-endpoint`   - graphite relay address
- - `metric-interval`   - graphite metrics send interval
- - `metric-prefix`     - graphite metrics prefix 
- - `metric-timeout`    - graphite metrics send timeout
- - `metric-batch-size` - graphite send batch size
-
 ### Finder cache
 
 Specify what storage to use for finder cache. This cache stores finder results (metrics find/tags autocomplete/render).
@@ -152,6 +145,18 @@ The configuration to get metrics from carbon-cache. See details in [graphite-web
 
 ## Logging `[logging]`
 It's possible to set multiple loggers. See `Config` description in [config.go](https://github.com/lomik/zapwriter/blob/master/config.go) for details.
+
+## Metrics `[metrics]`
+
+Send internal metrics to graphite relay
+ - `metric-endpoint`   - graphite relay address
+ - `statsd-endpoint`   - StatsD aggregator address
+ - `metric-interval`   - graphite metrics send interval
+ - `metric-prefix`     - graphite metrics prefix 
+ - `metric-timeout`    - graphite metrics send timeout
+ - `ranges`            - separate stat for render query (and internal clickhouse queries) until-from ranges, for example { "1d" = "24h", "7d" = "168h", "90d" = "2160h" }
+ - `request-buckets`   - request historgram buckets widths, by default [200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000]
+ - `request-labels`    - optional request historgram buckets labels
 
 [//]: # (!!!DO NOT EDIT FOLLOWING LINES!!!)
 

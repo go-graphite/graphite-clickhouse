@@ -10,6 +10,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,11 +38,11 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 
 	if w.Code == http.StatusOK {
 		if tt.wantContent != "" {
-			contentType := w.HeaderMap["Content-Type"]
+			contentType := w.Result().Header["Content-Type"]
 			assert.Equalf(t, []string{tt.wantContent}, contentType, "content type mismatch, step %d", step)
 		}
 
-		cachedFind := w.HeaderMap.Get("X-Cached-Find")
+		cachedFind := w.Result().Header.Get("X-Cached-Find")
 		assert.Equalf(t, cachedFind, wantCachedFind, "cached find mismatch, step %d", step)
 
 		assert.Equalf(t, tt.want, s, "Step %d", step)
@@ -49,6 +50,7 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 }
 
 func TestHandler_ServeValuesJSON(t *testing.T) {
+	metrics.DisableMetrics()
 	srv := clickhouse.NewTestServer()
 	defer srv.Close()
 

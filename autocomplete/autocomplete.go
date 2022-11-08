@@ -124,18 +124,50 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
-	var err error
+
+	var (
+		err          error
+		chReadRows   int64
+		chReadBytes  int64
+		metricsCount int64
+		readBytes    int64
+		findCache    bool
+	)
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, status)
+		}
+		d := time.Since(start).Milliseconds()
+		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if !findCache && chReadRows != 0 && chReadBytes != 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, readBytes, chReadRows, chReadBytes, errored)
+		}
+	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	tagPrefix := r.FormValue("tagPrefix")
 	limitStr := r.FormValue("limit")
 	limit := 10000
 
+	var body []byte
+
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, err.Error(), status)
 			return
 		}
 	}
@@ -145,8 +177,6 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	untilDate := now.Format("2006-01-02")
 
 	var key string
-	var body []byte
-	var findCache bool
 
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
@@ -164,7 +194,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	wr, pw, usedTags, err := h.requestExpr(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		status = http.StatusBadRequest
+		http.Error(w, err.Error(), status)
 		return
 	}
 
@@ -194,7 +225,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			queryLimit,
 		)
 
-		body, err := clickhouse.Query(
+		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
@@ -205,9 +236,10 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			nil,
 		)
 		if err != nil {
-			clickhouse.HandleError(w, err)
+			status = clickhouse.HandleError(w, err)
 			return
 		}
+		readBytes = int64(len(body))
 
 		if useCache {
 			if metrics.FinderCacheMetrics != nil {
@@ -264,17 +296,48 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	b, err := json.Marshal(tags)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, err.Error(), status)
 		return
 	}
+
+	metricsCount = int64(len(tags))
 
 	w.Write(b)
 }
 
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 
-	var err error
+	var (
+		err          error
+		body         []byte
+		chReadRows   int64
+		chReadBytes  int64
+		metricsCount int64
+		findCache    bool
+	)
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			status = http.StatusInternalServerError
+			logger.Error("panic during eval:",
+				zap.String("requestID", scope.String(r.Context(), "requestID")),
+				zap.Any("reason", rec),
+				zap.Stack("stack"),
+			)
+			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
+			http.Error(w, answer, status)
+		}
+		d := time.Since(start).Milliseconds()
+		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		if !findCache && chReadRows > 0 && chReadBytes > 0 {
+			errored := status != http.StatusOK && status != http.StatusNotFound
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, int64(len(body)), chReadRows, chReadBytes, errored)
+		}
+	}()
 
 	r.ParseMultipartForm(1024 * 1024)
 	tag := r.FormValue("tag")
@@ -289,18 +352,16 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			status = http.StatusBadRequest
+			http.Error(w, err.Error(), status)
 			return
 		}
 	}
 
-	now := time.Now()
-	fromDate := now.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := now.Format("2006-01-02")
+	fromDate := start.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
+	untilDate := start.Format("2006-01-02")
 
 	var key string
-	var body []byte
-	var findCache bool
 
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
@@ -319,6 +380,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	if !findCache {
 		wr, pw, usedTags, err := h.requestExpr(r)
 		if err != nil {
+			status = http.StatusBadRequest
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -342,7 +404,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			limit,
 		)
 
-		body, err = clickhouse.Query(
+		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
@@ -353,7 +415,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			nil,
 		)
 		if err != nil {
-			clickhouse.HandleError(w, err)
+			status = clickhouse.HandleError(w, err)
 			return
 		}
 
@@ -371,6 +433,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		if len(rows) > 0 && rows[len(rows)-1] == "" {
 			rows = rows[:len(rows)-1]
 		}
+		metricsCount = int64(len(rows))
 	}
 
 	if useCache {
@@ -387,7 +450,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	b, err := json.Marshal(rows)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status = http.StatusInternalServerError
+		http.Error(w, err.Error(), status)
 		return
 	}
 

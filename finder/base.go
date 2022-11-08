@@ -38,10 +38,9 @@ func (b *BaseFinder) where(query string) *where.Where {
 	return w
 }
 
-func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64) (err error) {
+func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := b.where(query)
-
-	b.body, err = clickhouse.Query(
+	b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, b.table),
 		b.url,
 		// TODO: consider consistent query generator
@@ -49,7 +48,8 @@ func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, unti
 		b.opts,
 		nil,
 	)
-
+	stat.Table = b.table
+	stat.ReadBytes = int64(len(b.body))
 	return
 }
 
