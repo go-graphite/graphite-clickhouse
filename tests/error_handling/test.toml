@@ -85,7 +85,10 @@ error_regexp = "^504: Storage read timeout"
 name = "test.long"
 points = [
     {value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 2.0, time = "now"},
-    {value = 3.0, time = "now-14400"}, {value = 3.0, time = "now-3600"}
+    {value = 3.0, time = "now-14400"},
+    {value = 3.0, time = "now-3600"}, {value = 3.0, time = "now-3590"}, {value = 3.0, time = "now-3580"}, {value = 3.0, time = "now-3570"},
+    {value = 3.0, time = "now-3560"}, {value = 3.0, time = "now-3550"}, {value = 3.0, time = "now-3540"}, {value = 3.0, time = "now-3530"},
+    {value = 3.0, time = "now-3520"}, {value = 3.0, time = "now-3510"}, {value = 3.0, time = "now-3500"}, {value = 3.0, time = "now-3490"}
 ]
 
 [[test.render_checks]]
@@ -123,7 +126,7 @@ error_regexp = "^504: Storage read timeout"
 
 # Check addional queryparam (storage read limit)
 [[test.render_checks]]
-from = "now-36000"
+from = "now-360000"
 until = "now"
 targets = [ "test.long" ]
 timeout = "5s"
