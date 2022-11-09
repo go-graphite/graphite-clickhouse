@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-graphite/carbonapi/pkg/parser"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
@@ -308,35 +307,68 @@ func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.C
 
 var ErrInvalidSeriesByTag = errs.NewErrorWithCode("wrong seriesByTag call", http.StatusBadRequest)
 
+func parseString(s string) (string, string, error) {
+	if s[0] != '\'' && s[0] != '"' {
+		panic("string should start with open quote")
+	}
+
+	match := s[0]
+
+	s = s[1:]
+
+	var i int
+	for i < len(s) && s[i] != match {
+		i++
+	}
+
+	if i == len(s) {
+		return "", "", errs.NewErrorfWithCode(http.StatusBadRequest, "seriesByTag arg missing quote %q'", s)
+	}
+
+	return s[:i], s[i+1:], nil
+}
+
+func seriesByTagArgs(query string) ([]string, error) {
+	var err error
+	args := make([]string, 0, 8)
+
+	// trim spaces
+	e := strings.Trim(query, " ")
+	if !strings.HasPrefix(e, "seriesByTag(") {
+		return nil, ErrInvalidSeriesByTag
+	}
+	if e[len(e)-1] != ')' {
+		return nil, ErrInvalidSeriesByTag
+	}
+	e = e[12 : len(e)-1]
+
+	for len(e) > 0 {
+		var arg string
+		if e[0] == '\'' || e[0] == '"' {
+			if arg, e, err = parseString(e); err != nil {
+				return nil, err
+			}
+			// skip empty arg
+			if arg != "" {
+				args = append(args, arg)
+			}
+		} else if e[0] == ' ' || e[0] == ',' {
+			e = e[1:]
+		} else {
+			return nil, errs.NewErrorfWithCode(http.StatusBadRequest, "seriesByTag arg missing quote %q", e)
+		}
+	}
+	return args, nil
+}
+
 func ParseSeriesByTag(query string, tagCosts map[string]*config.Costs) ([]TaggedTerm, error) {
-	expr, _, err := parser.ParseExpr(query)
+	conditions, err := seriesByTagArgs(query)
 	if err != nil {
 		return nil, err
 	}
 
-	// check
-	if !expr.IsFunc() || expr.Target() != "seriesByTag" {
+	if len(conditions) < 1 {
 		return nil, ErrInvalidSeriesByTag
-	}
-
-	args := expr.Args()
-	if len(args) < 1 {
-		return nil, ErrInvalidSeriesByTag
-	}
-
-	for i := 0; i < len(args); i++ {
-		if !args[i].IsString() {
-			return nil, ErrInvalidSeriesByTag
-		}
-	}
-
-	conditions := make([]string, 0, len(args))
-	for i := 0; i < len(args); i++ {
-		s := args[i].StringValue()
-		if s == "" {
-			continue
-		}
-		conditions = append(conditions, s)
 	}
 
 	return ParseTaggedConditions(conditions, tagCosts)

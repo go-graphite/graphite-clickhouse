@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -22,6 +23,11 @@ func TestTaggedWhere(t *testing.T) {
 	}{
 		// test for issue #195
 		{"seriesByTag()", "", "", true},
+		{"seriesByTag('')", "", "", true},
+		// incomplete
+		{"seriesByTag('key=value)", "", "", true},
+		// missing quote
+		{"seriesByTag(key=value)", "", "", true},
 		// info about _tag "directory"
 		{"seriesByTag('key=value')", "Tag1='key=value'", "", false},
 		// test case for wildcarded name, must be not first check
@@ -44,7 +50,7 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name={avg,max}')", "Tag1 IN ('__name__=avg','__name__=max')", "", false},
 		{"seriesByTag('name=m{in}')", "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", "Tag1 IN ('__name__=min','__name__=max')", "", false},
-		{"seriesByTag('name=m{in,ax')", "Tag1='__name__=m{in,ax'", "", true},
+		{"seriesByTag('name=m{in,ax')", "", "", true},
 		{"seriesByTag('name=value','what={avg,max}')", "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		{"seriesByTag('name=value','what!={avg,max}')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
@@ -53,28 +59,34 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=value','what=~')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 	}
 
-	for _, test := range table {
-		testName := fmt.Sprintf("query: %#v", test.query)
+	for i, test := range table {
+		t.Run(test.query+"#"+strconv.Itoa(i), func(t *testing.T) {
+			testName := fmt.Sprintf("query: %#v", test.query)
 
-		terms, err := ParseSeriesByTag(test.query, nil)
+			terms, err := ParseSeriesByTag(test.query, nil)
 
-		if !test.isErr {
+			if test.isErr {
+				if err != nil {
+					return
+				}
+			}
 			require.NoError(err, testName+", err")
-		}
-		var w, pw *where.Where
-		if err == nil {
-			w, pw, err = TaggedWhere(terms)
-		}
 
-		if test.isErr {
-			assert.Error(err, testName+", err")
-			continue
-		} else {
-			assert.NoError(err, testName+", err")
-		}
+			var w, pw *where.Where
+			if err == nil {
+				w, pw, err = TaggedWhere(terms)
+			}
 
-		assert.Equal(test.where, w.String(), testName+", where")
-		assert.Equal(test.prewhere, pw.String(), testName+", prewhere")
+			if test.isErr {
+				require.Error(err, testName+", err")
+				return
+			} else {
+				assert.NoError(err, testName+", err")
+			}
+
+			assert.Equal(test.where, w.String(), testName+", where")
+			assert.Equal(test.prewhere, pw.String(), testName+", prewhere")
+		})
 	}
 }
 
@@ -232,4 +244,19 @@ func TestParseSeriesByTagWithCosts(t *testing.T) {
 		{Op: TaggedTermMatch, Key: "dc", Value: "west.*"},
 		{Op: TaggedTermMatch, Key: "key2", Value: "^val.*4$"},
 	})
+}
+
+func BenchmarkParseSeriesByTag(b *testing.B) {
+	benchmarks := []string{
+		"seriesByTag('key=value')",
+		"seriesByTag('name=*', 'key=value')",
+		"seriesByTag('name=value', '')",
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, _ = ParseSeriesByTag(bm, nil)
+			}
+		})
+	}
 }
