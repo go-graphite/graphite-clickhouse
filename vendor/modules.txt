@@ -26,9 +26,13 @@ github.com/PuerkitoBio/purell
 github.com/PuerkitoBio/urlesc
 # github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d
 github.com/alecthomas/units
+# github.com/ansel1/merry v1.6.2
+github.com/ansel1/merry
+# github.com/ansel1/merry/v2 v2.0.1
+github.com/ansel1/merry/v2
 # github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6
 ## explicit
-# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
+# github.com/armon/go-metrics v0.3.10
 github.com/armon/go-metrics
 # github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf
 github.com/asaskevich/govalidator
@@ -118,10 +122,12 @@ github.com/dgryski/go-expirecache
 ## explicit
 # github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4
 ## explicit
+# github.com/fatih/color v1.13.0
+github.com/fatih/color
 # github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 github.com/globalsign/mgo/bson
 github.com/globalsign/mgo/internal/json
-# github.com/go-graphite/carbonapi v0.0.0-20180220165555-9db1310e484a
+# github.com/go-graphite/carbonapi v0.15.7-0.20221103163928-b07075b57524
 ## explicit
 github.com/go-graphite/carbonapi/pkg/parser
 # github.com/go-graphite/protocol v1.0.0
@@ -164,7 +170,7 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
-# github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
+# github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
 github.com/golang/protobuf/descriptor
@@ -212,18 +218,20 @@ github.com/gophercloud/gophercloud/pagination
 github.com/grpc-ecosystem/grpc-gateway/internal
 github.com/grpc-ecosystem/grpc-gateway/runtime
 github.com/grpc-ecosystem/grpc-gateway/utilities
-# github.com/hashicorp/consul/api v1.1.0
+# github.com/hashicorp/consul/api v1.12.0
 github.com/hashicorp/consul/api
-# github.com/hashicorp/go-cleanhttp v0.5.1
+# github.com/hashicorp/go-cleanhttp v0.5.2
 github.com/hashicorp/go-cleanhttp
-# github.com/hashicorp/go-immutable-radix v1.0.0
+# github.com/hashicorp/go-hclog v1.2.0
+github.com/hashicorp/go-hclog
+# github.com/hashicorp/go-immutable-radix v1.3.1
 github.com/hashicorp/go-immutable-radix
-# github.com/hashicorp/go-rootcerts v1.0.0
+# github.com/hashicorp/go-rootcerts v1.0.2
 github.com/hashicorp/go-rootcerts
-# github.com/hashicorp/golang-lru v0.5.1
+# github.com/hashicorp/golang-lru v0.5.4
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
-# github.com/hashicorp/serf v0.8.2
+# github.com/hashicorp/serf v0.9.7
 github.com/hashicorp/serf/coordinate
 # github.com/jmespath/go-jmespath v0.0.0-20160803190731-bd40a432e4c7
 github.com/jmespath/go-jmespath
@@ -231,7 +239,7 @@ github.com/jmespath/go-jmespath
 ## explicit
 # github.com/jpillora/backoff v1.0.0
 github.com/jpillora/backoff
-# github.com/json-iterator/go v1.1.10
+# github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
 # github.com/julienschmidt/httprouter v1.3.0
 github.com/julienschmidt/httprouter
@@ -252,18 +260,21 @@ github.com/lomik/zapwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-colorable v0.1.12
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.14
+github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/miekg/dns v1.1.10
-## explicit
+# github.com/miekg/dns v1.1.41
 github.com/miekg/dns
-# github.com/mitchellh/go-homedir v1.0.0
+# github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
-# github.com/mitchellh/mapstructure v1.1.2
+# github.com/mitchellh/mapstructure v1.5.0
 github.com/mitchellh/mapstructure
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 github.com/modern-go/concurrent
-# github.com/modern-go/reflect2 v1.0.1
+# github.com/modern-go/reflect2 v1.0.2
 github.com/modern-go/reflect2
 # github.com/msaf1980/go-metrics v0.0.14
 ## explicit
@@ -298,7 +309,7 @@ github.com/pkg/errors
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/alertmanager v0.17.0
 github.com/prometheus/alertmanager/api/v2/models
-# github.com/prometheus/client_golang v1.7.1
+# github.com/prometheus/client_golang v1.11.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promauto
@@ -314,7 +325,7 @@ github.com/prometheus/common/model
 github.com/prometheus/common/route
 github.com/prometheus/common/server
 github.com/prometheus/common/version
-# github.com/prometheus/procfs v0.1.3
+# github.com/prometheus/procfs v0.6.0
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -424,9 +435,9 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# go.uber.org/atomic v1.7.0
+# go.uber.org/atomic v1.9.0
 go.uber.org/atomic
-# go.uber.org/multierr v1.6.0
+# go.uber.org/multierr v1.8.0
 go.uber.org/multierr
 # go.uber.org/tools v0.0.0-20190618225709-2cfd321de3ee
 ## explicit
@@ -438,11 +449,9 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
-golang.org/x/crypto/ed25519
-golang.org/x/crypto/ed25519/internal/edwards25519
+# golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
+# golang.org/x/net v0.0.0-20220531201128-c960675eff93
 golang.org/x/net/bpf
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -467,7 +476,7 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
+# golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
@@ -512,14 +521,14 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
+# google.golang.org/genproto v0.0.0-20220602131408-e326c6e8e9c8
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.46.2
+# google.golang.org/grpc v1.47.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -607,9 +616,9 @@ google.golang.org/protobuf/types/known/wrapperspb
 gopkg.in/fsnotify/fsnotify.v1
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
-# gopkg.in/yaml.v2 v2.3.0
+# gopkg.in/yaml.v2 v2.4.0
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+# gopkg.in/yaml.v3 v3.0.1
 gopkg.in/yaml.v3
 # k8s.io/api v0.0.0-20190409021203-6e4e0e4f393b
 k8s.io/api/admissionregistration/v1beta1
@@ -755,5 +764,5 @@ k8s.io/klog
 k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/trace
-# sigs.k8s.io/yaml v1.1.0
+# sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml

@@ -2,12 +2,19 @@ package parser
 
 import (
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 
 	"runtime/debug"
 )
 
 func (e *expr) doGetIntArg() (int, error) {
 	if e.etype != EtConst {
+		if e.etype == EtString {
+			f, err := strconv.ParseInt(e.valStr, 0, 32)
+			return int(f), err
+		}
 		return 0, ErrBadType
 	}
 
@@ -24,6 +31,12 @@ func (e *expr) getNamedArg(name string) *expr {
 
 func (e *expr) doGetFloatArg() (float64, error) {
 	if e.etype != EtConst {
+		if e.etype == EtString {
+			f, err := strconv.ParseFloat(e.valStr, 64)
+			return f, err
+		} else if e.etype == EtName && strings.ToLower(e.Target()) == "inf" {
+			return math.Inf(1), nil
+		}
 		return 0, ErrBadType
 	}
 
@@ -39,15 +52,14 @@ func (e *expr) doGetStringArg() (string, error) {
 }
 
 func (e *expr) doGetBoolArg() (bool, error) {
-	if e.etype != EtName {
+	if e.etype != EtString && e.etype != EtBool && e.etype != EtConst {
 		return false, ErrBadType
 	}
 
-	// names go into 'target'
-	switch e.target {
-	case "False", "false":
+	switch e.valStr {
+	case "False", "false", "0":
 		return false, nil
-	case "True", "true":
+	case "True", "true", "1":
 		return true, nil
 	}
 
@@ -60,16 +72,15 @@ func (e *expr) toExpr() interface{} {
 
 func mergeNamedArgs(arg1, arg2 map[string]*expr) map[string]*expr {
 	res := make(map[string]*expr)
-	if arg1 != nil {
-		for k, v := range arg1 {
-			res[k] = v
-		}
+
+	for k, v := range arg1 {
+		res[k] = v
 	}
-	if arg2 != nil {
-		for k, v := range arg2 {
-			res[k] = v
-		}
+
+	for k, v := range arg2 {
+		res[k] = v
 	}
+
 	return res
 }
 
@@ -88,10 +99,10 @@ func sliceExpr(args []interface{}) ([]*expr, map[string]*expr) {
 			res = append(res, NewConstExpr(float64(v)).toExpr().(*expr))
 		case string:
 			res = append(res, NewTargetExpr(v).toExpr().(*expr))
-		case Expr:
-			res = append(res, v.toExpr().(*expr))
 		case *expr:
 			res = append(res, v)
+		case Expr:
+			res = append(res, v.toExpr().(*expr))
 		case NamedArgs:
 			nArgsNew := mapExpr(v)
 			nArgs = mergeNamedArgs(nArgs, nArgsNew)
@@ -122,8 +133,6 @@ func mapExpr(m NamedArgs) map[string]*expr {
 			res[k] = NewTargetExpr(v).toExpr().(*expr)
 		case Expr:
 			res[k] = v.toExpr().(*expr)
-		case *expr:
-			res[k] = v
 		default:
 			return nil
 		}
