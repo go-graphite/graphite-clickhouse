@@ -9,8 +9,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
+	"github.com/lomik/graphite-clickhouse/helper/datetime"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
 )
 
@@ -241,13 +243,15 @@ func compareRender(errors *[]string, name, url string, actual, expected []client
 	}
 }
 
-func verifyRender(address string, check *RenderCheck) []string {
+func verifyRender(address string, check *RenderCheck, defaultPreision time.Duration) []string {
 	var errors []string
 	httpClient := http.Client{
 		Timeout: check.Timeout,
 	}
+	from := datetime.TimestampTruncate(check.from, defaultPreision)
+	until := datetime.TimestampTruncate(check.until, defaultPreision)
 	for _, format := range check.Formats {
-		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
+		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, from, until); err == nil {
 			name := ""
 			if check.ErrorRegexp != "" {
 				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
@@ -257,7 +261,7 @@ func verifyRender(address string, check *RenderCheck) []string {
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached
 				name = "cache"
-				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, check.from, check.until); err == nil {
+				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, from, until); err == nil {
 					compareRender(&errors, name, url, result, check.result, true, respHeader, check.CacheTTL)
 				} else {
 					errStr := strings.TrimRight(err.Error(), "\n")
@@ -283,6 +287,8 @@ func debug(test *TestSchema, ch *Clickhouse, gch *GraphiteClickhouse) {
 		fmt.Println(cmd)
 		fmt.Printf("graphite-clickhouse URL: %s , clickhouse URL: %s , proxy URL: %s (delay %v)\n",
 			gch.URL(), ch.URL(), test.Proxy.URL(), test.Proxy.GetDelay())
+		fmt.Printf("graphite-clickhouse log: %s , clickhouse container: %s\n",
+			gch.storeDir+"/graphite-clickhouse.log", ch.container)
 		fmt.Println("Some queries was failed, press y for continue after debug test, k for kill graphite-clickhouse:")
 		in := bufio.NewScanner(os.Stdin)
 		in.Scan()

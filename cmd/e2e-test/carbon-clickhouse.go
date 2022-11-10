@@ -15,7 +15,6 @@ var CchContainerName = "carbon-clickhouse-gch-test"
 type CarbonClickhouse struct {
 	Version string `toml:"version"`
 
-	Docker      string `toml:"docker"`
 	DockerImage string `toml:"image"`
 
 	Template string `toml:"template"` // carbon-clickhouse config template
@@ -30,9 +29,6 @@ type CarbonClickhouse struct {
 func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (string, error) {
 	if len(c.Version) == 0 {
 		return "", errors.New("version not set")
-	}
-	if len(c.Docker) == 0 {
-		c.Docker = "docker"
 	}
 	if len(c.DockerImage) == 0 {
 		c.DockerImage = "lomik/carbon-clickhouse"
@@ -97,7 +93,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 
 	cchStart = append(cchStart, c.DockerImage+":"+c.Version)
 
-	cmd := exec.Command(c.Docker, cchStart...)
+	cmd := exec.Command(DockerBinary, cchStart...)
 	out, err := cmd.CombinedOutput()
 
 	return string(out), err
@@ -110,7 +106,7 @@ func (c *CarbonClickhouse) Stop(delete bool) (string, error) {
 
 	chStop := []string{"stop", c.container}
 
-	cmd := exec.Command(c.Docker, chStop...)
+	cmd := exec.Command(DockerBinary, chStop...)
 	out, err := cmd.CombinedOutput()
 
 	if err == nil && delete {
@@ -126,7 +122,7 @@ func (c *CarbonClickhouse) Delete() (string, error) {
 
 	chDel := []string{"rm", c.container}
 
-	cmd := exec.Command(c.Docker, chDel...)
+	cmd := exec.Command(DockerBinary, chDel...)
 	out, err := cmd.CombinedOutput()
 
 	if err == nil {

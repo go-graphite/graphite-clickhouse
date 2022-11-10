@@ -2,7 +2,7 @@
 
 [data]
 path = "/etc/carbon-clickhouse/data"
-chunk-interval = "5s"
+chunk-interval = "1s"
 chunk-auto-interval = ""
 
 [upload.graphite_index]

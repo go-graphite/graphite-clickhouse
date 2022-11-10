@@ -3,15 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go/token"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
-	"github.com/lomik/graphite-clickhouse/helper/tests/compare/expand"
+	"github.com/lomik/graphite-clickhouse/helper/datetime"
 )
 
 type StringSlice []string
@@ -32,7 +30,7 @@ func (u *StringSlice) Type() string {
 func main() {
 	address := flag.String("address", "http://127.0.0.1:9090", "Address of graphite-clickhouse server")
 	fromStr := flag.String("from", "0", "from")
-	untilStr := flag.String("until", "0", "until")
+	untilStr := flag.String("until", "", "until")
 
 	metricsFind := flag.String("find", "", "Query for /metrics/find/ , valid formats are carbonapi_v3_pb. protobuf, pickle")
 
@@ -52,21 +50,25 @@ func main() {
 
 	ec := 0
 
-	fs := token.NewFileSet()
-	nowTime := time.Now()
-	now := strconv.FormatInt(nowTime.Truncate(time.Minute).UnixNano()/1000000000, 10)
-	year, month, day := nowTime.Date()
-	today := strconv.FormatInt(time.Date(year, month, day, 0, 0, 0, 0, nowTime.Location()).UnixNano()/1000000000, 10)
-	timeReplace := map[string]string{"now": now, "today": today}
-
-	from, err := expand.ExpandTimestamp(fs, *fromStr, timeReplace)
+	tz, err := datetime.Timezone("")
 	if err != nil {
-		fmt.Printf("invalid from: %s\n", err.Error())
+		fmt.Printf("can't get timezone: %s\n", err.Error())
 		os.Exit(1)
 	}
-	until, err := expand.ExpandTimestamp(fs, *untilStr, timeReplace)
-	if err != nil {
-		fmt.Printf("invalid until: %s\n", err.Error())
+	now := time.Now()
+
+	from := datetime.DateParamToEpoch(*fromStr, tz, now, 0)
+	if from == 0 {
+		fmt.Printf("invalid from: %s\n", *fromStr)
+		os.Exit(1)
+	}
+	var until int64
+	if *untilStr == "" {
+		*untilStr = "now"
+	}
+	until = datetime.DateParamToEpoch(*untilStr, tz, now, 0)
+	if until == 0 {
+		fmt.Printf("invalid until: %s\n", *untilStr)
 		os.Exit(1)
 	}
 

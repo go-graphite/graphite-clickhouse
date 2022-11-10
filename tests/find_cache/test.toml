@@ -1,4 +1,5 @@
 [test]
+precision = "10s"
 
 [[test.clickhouse]]
 version = "latest"
@@ -18,11 +19,11 @@ template = "graphite-clickhouse-internal-aggr-cached.conf.tpl"
 ##########################################################################
 [[test.input]]
 name = "test.cache"
-points = [{value = 1.0, time = "today-270"}, {value = 3.0, time = "now"}]
+points = [{value = 1.0, time = "midnight-270s"}, {value = 3.0, time = "now"}]
 
 [[test.input]]
 name = "cache;scope=test"
-points = [{value = 2.0, time = "today-270"}, {value = 4.0, time = "now"}]
+points = [{value = 2.0, time = "midnight-270s"}, {value = 4.0, time = "now"}]
 
 ##########################################################################
 [[test.find_checks]]
@@ -48,8 +49,8 @@ result = [
 # Short cache  TTL
 
 [[test.render_checks]]
-from = "now"
-until = "now+10"
+from = "rnow"
+until = "rnow+10"
 cache_ttl = 60
 targets = [ "test.cache" ]
 
@@ -57,17 +58,17 @@ targets = [ "test.cache" ]
 name = "test.cache"
 path = "test.cache"
 consolidation = "avg"
-start = "now"
-stop = "now+20"
+start = "rnow"
+stop = "rnow+20"
 step = 10
-req_start = "now"
-req_stop = "now+20"
+req_start = "rnow"
+req_stop = "rnow+20"
 values = [3.0, nan]
 
 # Already in find cache
 [[test.render_checks]]
-from = "now"
-until = "now+20"
+from = "rnow"
+until = "rnow+20"
 in_cache = true
 cache_ttl = 60
 targets = [ "test.cache" ]
@@ -76,19 +77,19 @@ targets = [ "test.cache" ]
 name = "test.cache"
 path = "test.cache"
 consolidation = "avg"
-start = "now"
-stop = "now+30"
+start = "rnow"
+stop = "rnow+30"
 step = 10
-req_start = "now"
-req_stop = "now+30"
+req_start = "rnow"
+req_stop = "rnow+30"
 values = [3.0, nan, nan]
 
 ##########################################################################
 # Short cache  TTL
 
 [[test.render_checks]]
-from = "now"
-until = "now+10"
+from = "rnow"
+until = "rnow+10"
 cache_ttl = 60
 targets = [ 
     "seriesByTag('scope=test')"
@@ -98,17 +99,17 @@ targets = [
 name = "cache;scope=test"
 path = "seriesByTag('scope=test')"
 consolidation = "avg"
-start = "now"
-stop = "now+20"
+start = "rnow"
+stop = "rnow+20"
 step = 10
-req_start = "now"
-req_stop = "now+20"
+req_start = "rnow"
+req_stop = "rnow+20"
 values = [4.0, nan]
 
 # Already in find cache
 [[test.render_checks]]
-from = "now"
-until = "now+20"
+from = "rnow"
+until = "rnow+20"
 in_cache = true
 cache_ttl = 60
 targets = [ 
@@ -119,19 +120,19 @@ targets = [
 name = "cache;scope=test"
 path = "seriesByTag('scope=test')"
 consolidation = "avg"
-start = "now"
-stop = "now+30"
+start = "rnow"
+stop = "rnow+30"
 step = 10
-req_start = "now"
-req_stop = "now+30"
+req_start = "rnow"
+req_stop = "rnow+30"
 values = [4.0, nan, nan]
 
 ##########################################################################
 # Default cache  TTL
 
 [[test.render_checks]]
-from = "today-270"
-until = "today-20"
+from = "midnight-270s"
+until = "midnight-20s"
 cache_ttl = 300
 targets = [ "test.cache" ]
 
@@ -139,17 +140,17 @@ targets = [ "test.cache" ]
 name = "test.cache"
 path = "test.cache"
 consolidation = "avg"
-start = "today-270"
-stop = "today-10"
+start = "midnight-270s"
+stop = "midnight-10s"
 step = 10
-req_start = "today-270"
-req_stop = "today-10"
+req_start = "midnight-270s"
+req_stop = "midnight-10s"
 values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
 
 # Already in find cache
 [[test.render_checks]]
-from = "today-270"
-until = "today-10"
+from = "midnight-270s"
+until = "midnight-10s"
 in_cache = true
 cache_ttl = 300
 targets = [ "test.cache" ]
@@ -158,17 +159,17 @@ targets = [ "test.cache" ]
 name = "test.cache"
 path = "test.cache"
 consolidation = "avg"
-start = "today-270"
-stop = "today"
+start = "midnight-270s"
+stop = "midnight"
 step = 10
-req_start = "today-270"
-req_stop = "today"
+req_start = "midnight-270s"
+req_stop = "midnight"
 values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
 
 # Fetch points from 2 days, not in cache
 [[test.render_checks]]
-from = "today-270"
-until = "today"
+from = "midnight-270s"
+until = "midnight"
 cache_ttl = 300
 targets = [ "test.cache" ]
 
@@ -176,11 +177,11 @@ targets = [ "test.cache" ]
 name = "test.cache"
 path = "test.cache"
 consolidation = "avg"
-start = "today-270"
-stop = "today+10"
+start = "midnight-270s"
+stop = "midnight+10s"
 step = 10
-req_start = "today-270"
-req_stop = "today+10"
+req_start = "midnight-270s"
+req_stop = "midnight+10s"
 values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
 
 ##########################################################################

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"go/token"
 	"io/ioutil"
 	"net"
 	"os"
@@ -16,7 +15,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
-	"github.com/lomik/graphite-clickhouse/helper/tests/compare/expand"
+	"github.com/lomik/graphite-clickhouse/helper/datetime"
 	"go.uber.org/zap"
 
 	"github.com/pelletier/go-toml"
@@ -25,15 +24,17 @@ import (
 var ErrTimestampInvalid = errors.New("invalid timestamp")
 
 type Point struct {
-	Value float64 `toml:"value"`
-	Time  string  `toml:"time"`
+	Value float64       `toml:"value"`
+	Time  string        `toml:"time"`
+	Delay time.Duration `toml:"delay"`
 
 	time int64 `toml:"-"`
 }
 
 type InputMetric struct {
-	Name   string  `toml:"name"`
-	Points []Point `toml:"points"`
+	Name   string        `toml:"name"`
+	Points []Point       `toml:"points"`
+	Round  time.Duration `toml:"round"`
 }
 
 type Metric struct {
@@ -52,11 +53,14 @@ type Metric struct {
 }
 
 type RenderCheck struct {
+	Name    string              `toml:"name"`
 	Formats []client.FormatType `toml:"formats"`
 	From    string              `toml:"from"`
 	Until   string              `toml:"until"`
 	Targets []string            `toml:"targets"`
 	Timeout time.Duration       `toml:"timeout"`
+
+	Optimize []string `toml:"optimize"` // optimize tables before run tests
 
 	InCache  bool `toml:"in_cache"` // already in cache
 	CacheTTL int  `toml:"cache_ttl"`
@@ -74,6 +78,7 @@ type RenderCheck struct {
 }
 
 type MetricsFindCheck struct {
+	Name    string              `toml:"name"`
 	Formats []client.FormatType `toml:"formats"`
 	From    string              `toml:"from"`
 	Until   string              `toml:"until"`
@@ -95,6 +100,7 @@ type MetricsFindCheck struct {
 }
 
 type TagsCheck struct {
+	Name    string              `toml:"name"`
 	Names   bool                `toml:"names"` // TagNames or TagValues
 	Formats []client.FormatType `toml:"formats"`
 	From    string              `toml:"from"`
@@ -127,6 +133,8 @@ type TestSchema struct {
 	FindChecks   []*MetricsFindCheck `toml:"find_checks"`
 	TagsChecks   []*TagsCheck        `toml:"tags_checks"`
 	RenderChecks []*RenderCheck      `toml:"render_checks"`
+
+	Precision time.Duration `toml:"precision"`
 
 	name string `toml:"-"` // test alias (from config name)
 	// input map[string][]Point `toml:"-"`
@@ -162,6 +170,13 @@ func sendPlain(network, address string, metrics []InputMetric) error {
 				if _, err = fmt.Fprintf(bw, "%s %f %d\n", m.Name, point.Value, point.time); err != nil {
 					conn.Close()
 					return err
+				}
+				if point.Delay > 0 {
+					if err = bw.Flush(); err != nil {
+						conn.Close()
+						return err
+					}
+					time.Sleep(point.Delay)
 				}
 			}
 		}
@@ -220,7 +235,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -236,7 +251,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 		}
 	}
@@ -266,7 +281,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -283,7 +298,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 		}
 	}
@@ -297,7 +312,28 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 		if len(check.Formats) == 0 {
 			check.Formats = []client.FormatType{client.FormatPb_v3}
 		}
-		if errs := verifyRender(gch.URL(), check); len(errs) > 0 {
+		if len(check.Optimize) > 0 {
+			for _, table := range check.Optimize {
+				if success, out := clickhouse.Exec("OPTIMIZE TABLE " + table + " FINAL"); !success {
+					logger.Error("optimize table",
+						zap.String("config", test.name),
+						zap.String("clickhouse version", clickhouse.Version),
+						zap.String("clickhouse config", clickhouseDir),
+						zap.String("graphite-clickhouse config", gch.ConfigTpl),
+						zap.Strings("targets", check.Targets),
+						zap.String("from_raw", check.From),
+						zap.String("until_raw", check.Until),
+						zap.Int64("from", check.from),
+						zap.Int64("until", check.until),
+						zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
+						zap.String("table", table),
+						zap.String("out", out),
+					)
+					time.Sleep(5 * time.Second)
+				}
+			}
+		}
+		if errs := verifyRender(gch.URL(), check, test.Precision); len(errs) > 0 {
 			verifyFailed++
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, e)
@@ -312,7 +348,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 			if breakOnError {
 				debug(test, clickhouse, gch)
@@ -328,7 +364,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
 				zap.Int64("until", check.until),
-				zap.Int("number", n),
+				zap.String("name", check.Name+"["+strconv.Itoa(n)+"]"),
 			)
 		}
 	}
@@ -481,6 +517,12 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 }
 
 func runTest(config string, rootDir string, verbose, breakOnError bool, logger *zap.Logger) (failed, total, verifyCount, verifyFailed int) {
+	tz, err := datetime.Timezone("")
+	if err != nil {
+		fmt.Printf("can't get timezone: %s\n", err.Error())
+		os.Exit(1)
+	}
+
 	testDir := path.Dir(config)
 	d, err := ioutil.ReadFile(config)
 	if err != nil {
@@ -510,18 +552,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		)
 	}
 
-	fs := token.NewFileSet()
-	nowTime := time.Now()
-	now := strconv.FormatInt(nowTime.Truncate(time.Minute).UnixNano()/1000000000, 10)
-	year, month, day := nowTime.Date()
-	today := strconv.FormatInt(time.Date(year, month, day, 0, 0, 0, 0, nowTime.Location()).UnixNano()/1000000000, 10)
-	timeReplace := map[string]string{"now": now, "today": today}
+	now := time.Now()
 
 	// prepare
 	for n, m := range cfg.Test.Input {
 		for i := range m.Points {
-			m.Points[i].time, err = expand.ExpandTimestamp(fs, m.Points[i].Time, timeReplace)
-			if m.Points[i].time <= 0 {
+			m.Points[i].time = datetime.DateParamToEpoch(m.Points[i].Time, tz, now, cfg.Test.Precision)
+			if m.Points[i].time == 0 {
 				err = ErrTimestampInvalid
 			}
 			if err != nil {
@@ -531,6 +568,7 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 					zap.String("input", m.Name),
 					zap.Int("metric", n),
 					zap.Int("point", i),
+					zap.String("time", m.Points[i].Time),
 				)
 				failed++
 				return
@@ -541,7 +579,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		if find.Timeout == 0 {
 			find.Timeout = 10 * time.Second
 		}
-		find.from, err = expand.ExpandTimestamp(fs, find.From, timeReplace)
+		find.from = datetime.DateParamToEpoch(find.From, tz, now, cfg.Test.Precision)
+		if find.from == 0 && find.From != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -553,7 +594,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			failed++
 			return
 		}
-		find.until, err = expand.ExpandTimestamp(fs, find.Until, timeReplace)
+		find.until = datetime.DateParamToEpoch(find.Until, tz, now, cfg.Test.Precision)
+		if find.until == 0 && find.Until != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -573,7 +617,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		if tags.Timeout == 0 {
 			tags.Timeout = 10 * time.Second
 		}
-		tags.from, err = expand.ExpandTimestamp(fs, tags.From, timeReplace)
+		tags.from = datetime.DateParamToEpoch(tags.From, tz, now, cfg.Test.Precision)
+		if tags.from == 0 && tags.From != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -585,7 +632,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			failed++
 			return
 		}
-		tags.until, err = expand.ExpandTimestamp(fs, tags.Until, timeReplace)
+		tags.until = datetime.DateParamToEpoch(tags.Until, tz, now, cfg.Test.Precision)
+		if tags.until == 0 && tags.Until != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -606,7 +656,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		if r.Timeout == 0 {
 			r.Timeout = 10 * time.Second
 		}
-		r.from, err = expand.ExpandTimestamp(fs, r.From, timeReplace)
+		r.from = datetime.DateParamToEpoch(r.From, tz, now, cfg.Test.Precision)
+		if r.from == 0 && r.From != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -618,7 +671,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			failed++
 			return
 		}
-		r.until, err = expand.ExpandTimestamp(fs, r.Until, timeReplace)
+		r.until = datetime.DateParamToEpoch(r.Until, tz, now, cfg.Test.Precision)
+		if r.until == 0 && r.Until != "" {
+			err = ErrTimestampInvalid
+		}
 		if err != nil {
 			logger.Error("failed to read config",
 				zap.String("config", config),
@@ -638,7 +694,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		})
 		r.result = make([]client.Metric, len(r.Result))
 		for i, result := range r.Result {
-			r.result[i].StartTime, err = expand.ExpandTimestamp(fs, result.StartTime, timeReplace)
+			r.result[i].StartTime = datetime.DateParamToEpoch(result.StartTime, tz, now, cfg.Test.Precision)
+			if r.result[i].StartTime == 0 && result.StartTime != "" {
+				err = ErrTimestampInvalid
+			}
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -651,7 +710,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 				failed++
 				return
 			}
-			r.result[i].StopTime, err = expand.ExpandTimestamp(fs, result.StopTime, timeReplace)
+			r.result[i].StopTime = datetime.DateParamToEpoch(result.StopTime, tz, now, cfg.Test.Precision)
+			if r.result[i].StopTime == 0 && result.StopTime != "" {
+				err = ErrTimestampInvalid
+			}
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -664,7 +726,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 				failed++
 				return
 			}
-			r.result[i].RequestStartTime, err = expand.ExpandTimestamp(fs, result.RequestStartTime, timeReplace)
+			r.result[i].RequestStartTime = datetime.DateParamToEpoch(result.RequestStartTime, tz, now, cfg.Test.Precision)
+			if r.result[i].RequestStartTime == 0 && result.RequestStartTime != "" {
+				err = ErrTimestampInvalid
+			}
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -677,7 +742,10 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 				failed++
 				return
 			}
-			r.result[i].RequestStopTime, err = expand.ExpandTimestamp(fs, result.RequestStopTime, timeReplace)
+			r.result[i].RequestStopTime = datetime.DateParamToEpoch(result.RequestStopTime, tz, now, cfg.Test.Precision)
+			if r.result[i].RequestStopTime == 0 && result.RequestStopTime != "" {
+				err = ErrTimestampInvalid
+			}
 			if err != nil {
 				logger.Error("failed to read config",
 					zap.String("config", config),
@@ -704,14 +772,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 	for _, clickhouse := range cfg.Test.Clickhouse {
 		var isRunning bool
 		total++
-		if exist, out := containerExist(clickhouse.Docker, ClickhouseContainerName); exist {
+		if exist, out := containerExist(ClickhouseContainerName); exist {
 			logger.Error("clickhouse already exist",
 				zap.String("container", ClickhouseContainerName),
 				zap.String("out", out),
 			)
 			isRunning = true
 		}
-		if exist, out := containerExist(cfg.Test.Cch.Docker, CchContainerName); exist {
+		if exist, out := containerExist(CchContainerName); exist {
 			logger.Error("carbon-clickhouse already exist",
 				zap.String("container", CchContainerName),
 				zap.String("out", out),

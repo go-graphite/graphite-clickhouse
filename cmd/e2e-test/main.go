@@ -71,10 +71,37 @@ func main() {
 	config := flag.String("config", "", "toml configuration file or dir where toml files is searched (recursieve)")
 	verbose := flag.Bool("verbose", false, "verbose")
 	breakOnError := flag.Bool("break", false, "break and wait user response if request failed")
+	cleanup := flag.Bool("cleanup", false, "delete containers if exists before start")
 	flag.Parse()
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	DockerBinary = os.Getenv("DOCKER_E2E")
+	if DockerBinary == "" {
+		DockerBinary = "docker"
+	}
+	if *cleanup {
+		if exist, _ := containerExist(CchContainerName); exist {
+			if ok, out := containerRemove(CchContainerName); !ok {
+				logger.Fatal("failed to cleanup",
+					zap.String("container", CchContainerName),
+					zap.String("error", out),
+				)
+			}
+		}
+		if exist, _ := containerExist(ClickhouseContainerName); exist {
+			if ok, out := containerRemove(ClickhouseContainerName); !ok {
+				logger.Fatal("failed to cleanup",
+					zap.String("container", ClickhouseContainerName),
+					zap.String("error", out),
+				)
+			}
+		}
+		if *config == "" {
+			return
+		}
 	}
 
 	var configs []string

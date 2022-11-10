@@ -6,14 +6,13 @@ import "strings"
 // RFC 6895. This allows one to experiment with new RR types, without requesting an
 // official type code. Also see dns.PrivateHandle and dns.PrivateHandleRemove.
 type PrivateRdata interface {
-	// String returns the text presentaton of the Rdata of the Private RR.
+	// String returns the text presentation of the Rdata of the Private RR.
 	String() string
 	// Parse parses the Rdata of the private RR.
 	Parse([]string) error
 	// Pack is used when packing a private RR into a buffer.
 	Pack([]byte) (int, error)
 	// Unpack is used when unpacking a private RR from a buffer.
-	// TODO(miek): diff. signature than Pack, see edns0.go for instance.
 	Unpack([]byte) (int, error)
 	// Copy copies the Rdata into the PrivateRdata argument.
 	Copy(PrivateRdata) error
@@ -68,7 +67,7 @@ func (r *PrivateRR) unpack(msg []byte, off int) (int, error) {
 	return off, err
 }
 
-func (r *PrivateRR) parse(c *zlexer, origin, file string) *ParseError {
+func (r *PrivateRR) parse(c *zlexer, origin string) *ParseError {
 	var l lex
 	text := make([]string, 0, 2) // could be 0..N elements, median is probably 1
 Fetch:
@@ -85,7 +84,7 @@ Fetch:
 
 	err := r.Data.Parse(text)
 	if err != nil {
-		return &ParseError{file, err.Error(), l}
+		return &ParseError{"", err.Error(), l}
 	}
 
 	return nil

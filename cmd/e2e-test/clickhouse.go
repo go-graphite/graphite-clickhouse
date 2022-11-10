@@ -11,7 +11,6 @@ type Clickhouse struct {
 	Version string `toml:"version"`
 	Dir     string `toml:"dir"`
 
-	Docker      string `toml:"docker"`
 	DockerImage string `toml:"image"`
 
 	TZ string `toml:"tz"` // override timezone
@@ -27,9 +26,6 @@ func (c *Clickhouse) Start() (string, error) {
 	}
 	if len(c.Dir) == 0 {
 		return "", errors.New("dir not set")
-	}
-	if len(c.Docker) == 0 {
-		c.Docker = "docker"
 	}
 	if len(c.DockerImage) == 0 {
 		c.DockerImage = "yandex/clickhouse-server"
@@ -61,7 +57,7 @@ func (c *Clickhouse) Start() (string, error) {
 
 	chStart = append(chStart, c.DockerImage+":"+c.Version)
 
-	cmd := exec.Command(c.Docker, chStart...)
+	cmd := exec.Command(DockerBinary, chStart...)
 	out, err := cmd.CombinedOutput()
 
 	return string(out), err
@@ -74,7 +70,7 @@ func (c *Clickhouse) Stop(delete bool) (string, error) {
 
 	chStop := []string{"stop", c.container}
 
-	cmd := exec.Command(c.Docker, chStop...)
+	cmd := exec.Command(DockerBinary, chStop...)
 	out, err := cmd.CombinedOutput()
 
 	if err == nil && delete {
@@ -90,7 +86,7 @@ func (c *Clickhouse) Delete() (string, error) {
 
 	chDel := []string{"rm", c.container}
 
-	cmd := exec.Command(c.Docker, chDel...)
+	cmd := exec.Command(DockerBinary, chDel...)
 	out, err := cmd.CombinedOutput()
 
 	if err == nil {
@@ -106,4 +102,8 @@ func (c *Clickhouse) URL() string {
 
 func (c *Clickhouse) Container() string {
 	return c.container
+}
+
+func (c *Clickhouse) Exec(sql string) (bool, string) {
+	return containerExec(c.container, []string{"sh", "-c", "clickhouse-client -q '" + sql + "'"})
 }

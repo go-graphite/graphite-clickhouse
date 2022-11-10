@@ -1,4 +1,5 @@
 [test]
+precision = "10s"
 
 [[test.clickhouse]]
 version = "20.3"
@@ -28,47 +29,31 @@ template = "graphite-clickhouse-internal-aggr.conf.tpl"
 
 [[test.input]]
 name = "test.plain1"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 2.0, time = "now"}]
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 2.0, time = "rnow"}]
 
 [[test.input]]
 name = "test.plain2"
-points = [{value = 2.0, time = "now-30"}, {value = 1.0, time = "now-20"}, {value = 1.5, time = "now-10"}, {value = 2.5, time = "now"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 1.5, time = "rnow-10"}, {value = 2.5, time = "rnow"}]
 
 [[test.input]]
 name = "test2.plain"
-points = [{value = 1.0, time = "now-30"}, {value = 2.0, time = "now-20"}, {value = 2.5, time = "now-10"}, {value = 3.5, time = "now"}]
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 2.5, time = "rnow-10"}, {value = 3.5, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag1=value1;tag2=value21;tag3=value3"
-points = [{value = 2.0, time = "now-30"}, {value = 2.5, time = "now-20"}, {value = 2.0, time = "now-10"}, {value = 3.0, time = "now"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 2.5, time = "rnow-20"}, {value = 2.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag2=value22;tag4=value4"
-points = [{value = 1.0, time = "now-30"}, {value = 2.0, time = "now-20"}, {value = 0.0, time = "now-10"}, {value = 1.0, time = "now"}]
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag1=value1;tag2=value23;tag3=value3"
-points = [{value = 0.5, time = "now-30"}, {value = 1.5, time = "now-20"}, {value = 4.0, time = "now-10"}, {value = 3.0, time = "now"}]
+points = [{value = 0.5, time = "rnow-30"}, {value = 1.5, time = "rnow-20"}, {value = 4.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric2;tag2=value21;tag4=value4"
-points = [{value = 2.0, time = "now-30"}, {value = 1.0, time = "now-20"}, {value = 0.0, time = "now-10"}, {value = 1.0, time = "now"}]
-
-[[test.input]]
-name = "test.avg"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.sum"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.min"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.max"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
 
 ######################################
 # Check metrics find
@@ -112,8 +97,8 @@ result = [
 # test2.plain
 
 [[test.render_checks]]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow"
 targets = [ 
     "test.plain*",
     "test{1,2}.plain"
@@ -123,33 +108,33 @@ targets = [
 name = "test.plain1"
 path = "test.plain*"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [1.0, 2.0]
 
 [[test.render_checks.result]]
 name = "test.plain2"
 path = "test.plain*"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [1.5, 2.5]
 
 [[test.render_checks.result]]
 name = "test2.plain"
 path = "test{1,2}.plain"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [2.5, 3.5]
 
 # End - Plain metrics (carbonapi_v3_pb)
@@ -158,8 +143,8 @@ values = [2.5, 3.5]
 
 [[test.render_checks]]
 formats = [ "protobuf", "carbonapi_v2_pb" ]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ 
     "test.plain*",
     "test{1,2}.plain"
@@ -167,22 +152,22 @@ targets = [
 
 [[test.render_checks.result]]
 name = "test.plain1"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [1.0, 2.0]
 
 [[test.render_checks.result]]
 name = "test.plain2"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [1.5, 2.5]
 
 [[test.render_checks.result]]
 name = "test2.plain"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [2.5, 3.5]
 
@@ -192,8 +177,8 @@ values = [2.5, 3.5]
 
 [[test.render_checks]]
 formats = [ "pickle" ]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ 
     "test.plain*",
     "test{1,2}.plain"
@@ -202,24 +187,24 @@ targets = [
 [[test.render_checks.result]]
 name = "test.plain1"
 path = "test.plain*"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [1.0, 2.0]
 
 [[test.render_checks.result]]
 name = "test.plain2"
 path = "test.plain*"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [1.5, 2.5]
 
 [[test.render_checks.result]]
 name = "test2.plain"
 path = "test{1,2}.plain"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [2.5, 3.5]
 
@@ -233,8 +218,8 @@ values = [2.5, 3.5]
 # metric2;tag2=value21;tag4=value4
 
 [[test.render_checks]]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ 
     "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
     "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
@@ -244,33 +229,33 @@ targets = [
 name = "metric1;tag1=value1;tag2=value21;tag3=value3"
 path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [2.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric1;tag1=value1;tag2=value23;tag3=value3"
 path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [4.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric2;tag2=value21;tag4=value4"
 path = "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [0.0, 1.0]
 
 # End - Tagged metrics (carbonapi_v3_pb)
@@ -279,8 +264,8 @@ values = [0.0, 1.0]
 
 [[test.render_checks]]
 formats = [ "protobuf", "carbonapi_v2_pb" ]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ 
     "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
     "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
@@ -288,22 +273,22 @@ targets = [
 
 [[test.render_checks.result]]
 name = "metric1;tag1=value1;tag2=value21;tag3=value3"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [2.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric1;tag1=value1;tag2=value23;tag3=value3"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [4.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric2;tag2=value21;tag4=value4"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [0.0, 1.0]
 
@@ -313,8 +298,8 @@ values = [0.0, 1.0]
 
 [[test.render_checks]]
 formats = [ "pickle" ]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ 
     "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
     "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
@@ -323,102 +308,26 @@ targets = [
 [[test.render_checks.result]]
 name = "metric1;tag1=value1;tag2=value21;tag3=value3"
 path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [2.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric1;tag1=value1;tag2=value23;tag3=value3"
 path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [4.0, 3.0]
 
 [[test.render_checks.result]]
 name = "metric2;tag2=value21;tag4=value4"
 path = "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
 values = [0.0, 1.0]
 
 # End - Tagged metrics (pickle)
 ##########################################################################
-# Test rollup
-# points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.render_checks]]
-from = "now-10"
-until = "now+1"
-targets = [ 
-    "test.{avg,min,max,sum}"
-]
-
-[[test.render_checks.result]]
-name = "test.avg"
-path = "test.{avg,min,max,sum}"
-consolidation = "avg"
-start = "now-10"
-stop = "now+10"
-step = 10
-req_start = "now-10"
-req_stop = "now+10"
-values = [0.5, 3.0]
-
-[[test.render_checks.result]]
-name = "test.sum"
-path = "test.{avg,min,max,sum}"
-consolidation = "sum"
-start = "now-10"
-stop = "now+10"
-step = 10
-req_start = "now-10"
-req_stop = "now+10"
-values = [1.0, 6.0]
-
-[[test.render_checks.result]]
-name = "test.min"
-path = "test.{avg,min,max,sum}"
-consolidation = "min"
-start = "now-10"
-stop = "now+10"
-step = 10
-req_start = "now-10"
-req_stop = "now+10"
-values = [0.0, 2.0]
-
-[[test.render_checks.result]]
-name = "test.max"
-path = "test.{avg,min,max,sum}"
-consolidation = "max"
-start = "now-10"
-stop = "now+10"
-step = 10
-req_start = "now-10"
-req_stop = "now+10"
-values = [1.0, 4.0]
-
-# End - Test rollup
-##########################################################################
-# Last is missed, must be NaN
-
-[[test.render_checks]]
-from = "now-10"
-until = "now+10"
-targets = [ "test.plain1" ]
-
-[[test.render_checks.result]]
-name = "test.plain1"
-path = "test.plain1"
-consolidation = "avg"
-start = "now-10"
-stop = "now+20"
-step = 10
-req_start = "now-10"
-req_stop = "now+20"
-values = [1.0, 2.0, nan]
-
-##########################################################################
-

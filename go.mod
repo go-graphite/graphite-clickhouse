@@ -23,7 +23,7 @@ require (
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/stats v0.0.0-20151006221625-1b76add642e4 // indirect
 	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
-	github.com/go-graphite/carbonapi v0.0.0-20180220165555-9db1310e484a
+	github.com/go-graphite/carbonapi v0.15.7-0.20221103163928-b07075b57524
 	github.com/go-graphite/protocol v1.0.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.3
@@ -36,7 +36,6 @@ require (
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80 // indirect
 	github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd // indirect
 	github.com/lomik/zapwriter v0.0.0-20210624082824-c1161d1eb463
-	github.com/miekg/dns v1.1.10 // indirect
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.2
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
