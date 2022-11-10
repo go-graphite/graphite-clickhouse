@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -256,6 +259,58 @@ func BenchmarkParseSeriesByTag(b *testing.B) {
 		b.Run(bm, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, _ = ParseSeriesByTag(bm, nil)
+			}
+		})
+	}
+}
+
+func TestTaggedFinder_whereFilter(t *testing.T) {
+	tests := []struct {
+		name         string
+		query        string
+		from         int64
+		until        int64
+		dailyEnabled bool
+		taggedCosts  map[string]*config.Costs
+		want         string
+		wantPre      string
+	}{
+		{
+			name:         "nodaily",
+			query:        "seriesByTag('name=metric')",
+			from:         1668106860, // 2022-11-11 00:01:00 +05:00
+			until:        1668106870, // 2022-11-11 00:01:10 +05:00
+			dailyEnabled: false,
+			want:         "Tag1='__name__=metric'",
+			wantPre:      "",
+		},
+		{
+			name:         "midnight at utc (direct)",
+			query:        "seriesByTag('name=metric')",
+			from:         1668124800, // 2022-11-11 00:00:00 UTC
+			until:        1668124810, // 2022-11-11 00:00:10 UTC
+			dailyEnabled: true,
+			want: "(Tag1='__name__=metric') AND (Date >='" +
+				date.FromTimestampToDaysFormat(1668124800) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(1668124810) + "')",
+			wantPre: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+" "+time.Unix(tt.from, 0).Format(time.RFC3339), func(t *testing.T) {
+			terms, err := ParseSeriesByTag(tt.query, tt.taggedCosts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f := NewTagged("http://localhost:8123/", "graphite_tags", tt.dailyEnabled, false, clickhouse.Options{}, tt.taggedCosts)
+			got, gotDate, err := f.whereFilter(terms, tt.from, tt.until)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.String() != tt.want {
+				t.Errorf("TaggedFinder.whereFilter()[0] = %v, want %v", got, tt.want)
+			}
+			if gotDate.String() != tt.wantPre {
+				t.Errorf("TaggedFinder.whereFilter()[1] = %v, want %v", gotDate, tt.wantPre)
 			}
 		})
 	}

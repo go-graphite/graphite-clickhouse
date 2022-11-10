@@ -5,10 +5,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -117,8 +117,11 @@ func (idx *IndexFinder) useReverse(query string) bool {
 	return idx.useReverse(query)
 }
 
-func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
-	idx.useReverse(query)
+func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *where.Where {
+	reverse := idx.useReverse(query)
+	if reverse {
+		query = ReverseString(query)
+	}
 
 	if idx.dailyEnabled && from > 0 && until > 0 {
 		idx.useDaily = true
@@ -128,32 +131,30 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 
 	var levelOffset int
 	if idx.useDaily {
-		if idx.useReverse(query) {
+		if reverse {
 			levelOffset = ReverseLevelOffset
 		}
+	} else if reverse {
+		levelOffset = ReverseTreeLevelOffset
 	} else {
-		if idx.useReverse(query) {
-			levelOffset = ReverseTreeLevelOffset
-		} else {
-			levelOffset = TreeLevelOffset
-		}
-	}
-
-	if idx.useReverse(query) {
-		query = ReverseString(query)
+		levelOffset = TreeLevelOffset
 	}
 
 	w := idx.where(query, levelOffset)
-
 	if idx.useDaily {
 		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
-			time.Unix(from, 0).Format("2006-01-02"),
-			time.Unix(until, 0).Format("2006-01-02"),
+			date.FromTimestampToDaysFormat(from),
+			date.UntilTimestampToDaysFormat(until),
 		)
 	} else {
 		w.And(where.Eq("Date", DefaultTreeDate))
 	}
+	return w
+}
+
+func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+	w := idx.whereFilter(query, from, until)
 
 	idx.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, idx.table),

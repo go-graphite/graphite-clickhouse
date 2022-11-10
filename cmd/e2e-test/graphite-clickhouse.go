@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/lomik/graphite-clickhouse/helper/client"
+	"github.com/msaf1980/go-stringutils"
 )
 
 type GraphiteClickhouse struct {
@@ -142,4 +144,9 @@ func (c *GraphiteClickhouse) URL() string {
 
 func (c *GraphiteClickhouse) Cmd() string {
 	return strings.Join(c.cmd.Args, " ")
+}
+
+func (c *GraphiteClickhouse) Grep(s string) {
+	out, _ := exec.Command("grep", "-F", s, c.storeDir+"/graphite-clickhouse.log").Output()
+	fmt.Fprintf(os.Stderr, "GREP %s", stringutils.UnsafeString(out))
 }

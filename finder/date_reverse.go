@@ -3,9 +3,9 @@ package finder
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -25,16 +25,21 @@ func NewDateFinderV3(url string, table string, opts clickhouse.Options) Finder {
 	return &DateFinderV3{b}
 }
 
-func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (f *DateFinderV3) whereFilter(query string, from int64, until int64) (*where.Where, *where.Where) {
 	w := f.where(ReverseString(query))
 
 	dateWhere := where.New()
 	dateWhere.Andf(
 		"Date >='%s' AND Date <= '%s'",
-		time.Unix(from, 0).Format("2006-01-02"),
-		time.Unix(until, 0).Format("2006-01-02"),
+		date.FromTimestampToDaysFormat(from),
+		date.UntilTimestampToDaysFormat(until),
 	)
 
+	return w, dateWhere
+}
+
+func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+	w, dateWhere := f.whereFilter(query, from, until)
 	f.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, f.table),
 		f.url,

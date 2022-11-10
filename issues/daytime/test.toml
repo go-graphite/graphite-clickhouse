@@ -2,23 +2,13 @@
 precision = "10s"
 
 [[test.clickhouse]]
-version = "20.3"
-dir = "tests/clickhouse/rollup"
-
-[[test.clickhouse]]
-version = "20.8"
-dir = "tests/clickhouse/rollup"
-
-[[test.clickhouse]]
-version = "21.3"
-dir = "tests/clickhouse/rollup"
-
-[[test.clickhouse]]
 version = "latest"
 dir = "tests/clickhouse/rollup"
 
 [test.carbon_clickhouse]
-version = "v0.11.1"
+#version = "v0.11.1"
+image = "msaf1980/carbon-clickhouse"
+version = "tz"
 template = "carbon-clickhouse.conf.tpl"
 
 [[test.graphite_clickhouse]]
@@ -396,7 +386,10 @@ from = "midnight+60s"
 until = "midnight+70s"
 targets = [ 
     "*test.midnight",
- ]
+]
+dump_if_empty = [
+    "SELECT Date, Path FROM graphite_index WHERE ((Level=2) AND (Path LIKE 'test.midnight%')) GROUP BY Date, Path"
+]
 
 [[test.render_checks.result]]
 name = "test.midnight"
@@ -454,6 +447,9 @@ query = "name;scope=23h"
 result = [
     "now",
 ]
+dump_if_empty = [
+    "SELECT Date, Tags FROM graphite_tags WHERE ((Tag1='scope=23h') AND (arrayJoin(Tags) LIKE '__name__=%')) GROUP BY Date, Tags ORDER BY Date, Tags"
+]
 
 [[test.render_checks]]
 name = "Day end"
@@ -462,7 +458,10 @@ from = "midnight+1380m"
 until = "midnight+1380m+10s"
 targets = [ 
     "test.23h",
- ]
+]
+dump_if_empty = [
+    "SELECT Date, Path FROM graphite_index WHERE ((Level=2) AND (Path IN ('test.23h','test.23h.'))) GROUP BY Date, Path"
+]
 
 [[test.render_checks.result]]
 name = "test.23h"

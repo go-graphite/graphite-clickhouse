@@ -53,12 +53,13 @@ type Metric struct {
 }
 
 type RenderCheck struct {
-	Name    string              `toml:"name"`
-	Formats []client.FormatType `toml:"formats"`
-	From    string              `toml:"from"`
-	Until   string              `toml:"until"`
-	Targets []string            `toml:"targets"`
-	Timeout time.Duration       `toml:"timeout"`
+	Name        string              `toml:"name"`
+	Formats     []client.FormatType `toml:"formats"`
+	From        string              `toml:"from"`
+	Until       string              `toml:"until"`
+	Targets     []string            `toml:"targets"`
+	Timeout     time.Duration       `toml:"timeout"`
+	DumpIfEmpty []string            `toml:"dump_if_empty"`
 
 	Optimize []string `toml:"optimize"` // optimize tables before run tests
 
@@ -85,6 +86,8 @@ type MetricsFindCheck struct {
 	Query   string              `toml:"query"`
 	Timeout time.Duration       `toml:"timeout"`
 
+	DumpIfEmpty []string `toml:"dump_if_empty"`
+
 	InCache  bool `toml:"in_cache"` // already in cache
 	CacheTTL int  `toml:"cache_ttl"`
 
@@ -108,6 +111,8 @@ type TagsCheck struct {
 	Query   string              `toml:"query"`
 	Limits  uint64              `toml:"limits"`
 	Timeout time.Duration       `toml:"timeout"`
+
+	DumpIfEmpty []string `toml:"dump_if_empty"`
 
 	InCache  bool `toml:"in_cache"` // already in cache
 	CacheTTL int  `toml:"cache_ttl"`
@@ -220,7 +225,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 		if len(check.Formats) == 0 {
 			check.Formats = []client.FormatType{client.FormatPb_v3}
 		}
-		if errs := verifyMetricsFind(gch.URL(), check); len(errs) > 0 {
+		if errs := verifyMetricsFind(clickhouse, gch, check); len(errs) > 0 {
 			verifyFailed++
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, e)
@@ -265,7 +270,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 		if len(check.Formats) == 0 {
 			check.Formats = []client.FormatType{client.FormatJSON}
 		}
-		if errs := verifyTags(gch.URL(), check); len(errs) > 0 {
+		if errs := verifyTags(clickhouse, gch, check); len(errs) > 0 {
 			verifyFailed++
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, e)
@@ -333,7 +338,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				}
 			}
 		}
-		if errs := verifyRender(gch.URL(), check, test.Precision); len(errs) > 0 {
+		if errs := verifyRender(clickhouse, gch, check, test.Precision); len(errs) > 0 {
 			verifyFailed++
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, e)
@@ -445,18 +450,39 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 			zap.String("clickhouse version", clickhouse.Version),
 			zap.String("clickhouse config", clickhouseDir),
 		)
-		time.Sleep(2 * time.Second)
-
-		// Populate test data
-		err = sendPlain("tcp", test.Cch.address, test.Input)
-		if err != nil {
-			logger.Error("send plain to carbon-clickhouse",
+		time.Sleep(500 * time.Millisecond)
+		for i := 200; i < 2000; i += 200 {
+			if clickhouse.IsUp() {
+				break
+			}
+			time.Sleep(time.Duration(i) * time.Millisecond)
+		}
+		if !clickhouse.IsUp() {
+			logger.Error("starting clickhouse",
 				zap.String("config", test.name),
-				zap.String("clickhouse version", clickhouse.Version),
+				zap.Any("clickhouse version", clickhouse.Version),
 				zap.String("clickhouse config", clickhouseDir),
-				zap.Error(err),
+				zap.String("error", "clickhouse is down"),
 			)
+			clickhouse.Logs()
 			testSuccess = false
+		}
+
+		if testSuccess {
+			// Populate test data
+			err = sendPlain("tcp", test.Cch.address, test.Input)
+			if err != nil {
+				logger.Error("send plain to carbon-clickhouse",
+					zap.String("config", test.name),
+					zap.String("clickhouse version", clickhouse.Version),
+					zap.String("clickhouse config", clickhouseDir),
+					zap.Error(err),
+				)
+				testSuccess = false
+			}
+			if testSuccess {
+				time.Sleep(2 * time.Second)
+			}
 		}
 
 		if testSuccess {

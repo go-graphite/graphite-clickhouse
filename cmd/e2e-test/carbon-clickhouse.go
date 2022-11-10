@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -79,22 +81,29 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 		return "", err
 	}
 
-	// tz, _ := localTZLocationName()
+	tz := os.Getenv("TZ")
 
 	cchStart := []string{"run", "-d",
 		"--name", c.container,
 		"-p", c.address + ":2003",
 		"-v", c.storeDir + ":/etc/carbon-clickhouse",
+		// TZ, need to be same as graphite-clickhouse for prevent bugs, ike issue #184
+		"-v", "/etc/timezone:/etc/timezone:ro",
+		"-v", "/etc/localtime:/etc/localtime:ro",
+		"-e", "TZ=" + tz,
 		"--link", clickhouseContainer,
-	}
-	if c.TZ != "" {
-		cchStart = append(cchStart, "-e", "TZ="+c.TZ)
 	}
 
 	cchStart = append(cchStart, c.DockerImage+":"+c.Version)
 
 	cmd := exec.Command(DockerBinary, cchStart...)
 	out, err := cmd.CombinedOutput()
+	if err == nil {
+		dateLocal, _ := exec.Command("date").Output()
+		dateLocalStr := strings.TrimRight(string(dateLocal), "\n")
+		_, dateOnCCH := containerExec(c.container, []string{"date"})
+		fmt.Printf("date local %s, on carbon-clickhouse %s\n", dateLocalStr, dateOnCCH)
+	}
 
 	return string(out), err
 }

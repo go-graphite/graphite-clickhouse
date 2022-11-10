@@ -13,6 +13,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -41,6 +42,12 @@ func NewValues(config *config.Config) *Handler {
 	}
 
 	return h
+}
+
+func dateString(autocompleteDays int, tm time.Time) (string, string) {
+	fromDate := date.FromTimeToDaysFormat(tm.AddDate(0, 0, -autocompleteDays))
+	untilDate := date.UntilTimeToDaysFormat(tm)
+	return fromDate, untilDate
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -172,9 +179,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	now := time.Now()
-	fromDate := now.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := now.Format("2006-01-02")
+	// TODO (msaf1980) fix for disable daily
+	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string
 
@@ -358,8 +364,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fromDate := start.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := start.Format("2006-01-02")
+	// TODO (msaf1980) fix for disable daily
+	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string
 

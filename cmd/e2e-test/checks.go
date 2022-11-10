@@ -63,18 +63,32 @@ func compareFindMatch(errors *[]string, name, url string, actual, expected []cli
 	}
 }
 
-func verifyMetricsFind(address string, check *MetricsFindCheck) []string {
+func verifyMetricsFind(ch *Clickhouse, gch *GraphiteClickhouse, check *MetricsFindCheck) []string {
 	var errors []string
 	httpClient := http.Client{
 		Timeout: check.Timeout,
 	}
+	address := gch.URL()
 	for _, format := range check.Formats {
 		name := ""
 		if url, result, respHeader, err := client.MetricsFind(&httpClient, address, format, check.Query, check.from, check.until); err == nil {
+			id := requestId(respHeader)
 			if check.ErrorRegexp != "" {
-				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", id, url, check.ErrorRegexp))
 			}
 			compareFindMatch(&errors, name, url, result, check.Result, check.InCache, check.CacheTTL, respHeader)
+			if len(result) == 0 && len(check.Result) > 0 {
+				gch.Grep(id)
+				if len(check.DumpIfEmpty) > 0 {
+					for _, q := range check.DumpIfEmpty {
+						if out, err := ch.Query(q); err == nil {
+							fmt.Fprintf(os.Stderr, "%s\n%s", q, out)
+						} else {
+							fmt.Fprintf(os.Stderr, "%s: %s\n", err.Error(), q)
+						}
+					}
+				}
+			}
 
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached
@@ -124,11 +138,12 @@ func compareTags(errors *[]string, name, url string, actual, expected []string, 
 	}
 }
 
-func verifyTags(address string, check *TagsCheck) []string {
+func verifyTags(ch *Clickhouse, gch *GraphiteClickhouse, check *TagsCheck) []string {
 	var errors []string
 	httpClient := http.Client{
 		Timeout: check.Timeout,
 	}
+	address := gch.URL()
 	for _, format := range check.Formats {
 		var (
 			result     []string
@@ -145,10 +160,23 @@ func verifyTags(address string, check *TagsCheck) []string {
 		}
 
 		if err == nil {
+			id := requestId(respHeader)
 			if check.ErrorRegexp != "" {
-				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", id, url, check.ErrorRegexp))
 			}
 			compareTags(&errors, name, url, result, check.Result, check.InCache, check.CacheTTL, respHeader)
+			if len(result) == 0 && len(check.Result) > 0 {
+				gch.Grep(id)
+				if len(check.DumpIfEmpty) > 0 {
+					for _, q := range check.DumpIfEmpty {
+						if out, err := ch.Query(q); err == nil {
+							fmt.Fprintf(os.Stderr, "%s\n%s", q, out)
+						} else {
+							fmt.Fprintf(os.Stderr, "%s: %s\n", err.Error(), q)
+						}
+					}
+				}
+			}
 
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached
@@ -243,20 +271,34 @@ func compareRender(errors *[]string, name, url string, actual, expected []client
 	}
 }
 
-func verifyRender(address string, check *RenderCheck, defaultPreision time.Duration) []string {
+func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, defaultPreision time.Duration) []string {
 	var errors []string
 	httpClient := http.Client{
 		Timeout: check.Timeout,
 	}
+	address := gch.URL()
 	from := datetime.TimestampTruncate(check.from, defaultPreision)
 	until := datetime.TimestampTruncate(check.until, defaultPreision)
 	for _, format := range check.Formats {
 		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, from, until); err == nil {
+			id := requestId(respHeader)
 			name := ""
 			if check.ErrorRegexp != "" {
-				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", requestId(respHeader), url, check.ErrorRegexp))
+				errors = append(errors, fmt.Sprintf("TRY[%s] %s %s: want error with '%s'", "", id, url, check.ErrorRegexp))
 			}
 			compareRender(&errors, name, url, result, check.result, check.InCache, respHeader, check.CacheTTL)
+			if len(result) == 0 && len(check.result) > 0 {
+				gch.Grep(id)
+				if len(check.DumpIfEmpty) > 0 {
+					for _, q := range check.DumpIfEmpty {
+						if out, err := ch.Query(q); err == nil {
+							fmt.Fprintf(os.Stderr, "%s\n%s", q, out)
+						} else {
+							fmt.Fprintf(os.Stderr, "%s: %s\n", err.Error(), q)
+						}
+					}
+				}
+			}
 
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached

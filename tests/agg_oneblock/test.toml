@@ -53,6 +53,9 @@ until = "rnow+10"
 targets = [ 
     "test.{avg,min,max,sum}"
 ]
+dump_if_empty = [
+    "SELECT Date, Path FROM graphite_index WHERE ((Level=2) AND (Path LIKE 'test.%' AND match(Path, '^test[.](avg|min|max|sum)[.]?$'))) GROUP BY Date, Path"
+]
 
 [[test.render_checks.result]]
 name = "test.avg"

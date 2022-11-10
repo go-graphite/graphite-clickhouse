@@ -98,7 +98,6 @@ func DateParamToEpoch(s string, tz *time.Location, now time.Time, truncate time.
 			ds = s
 		} else {
 			ds = s[:delim]
-			ts = s[delim:]
 			switch ds {
 			case "now", "today":
 				t = now
@@ -117,16 +116,28 @@ func DateParamToEpoch(s string, tz *time.Location, now time.Time, truncate time.
 				return 0
 			}
 
-			offset, err := parser.IntervalString(ts, 1)
-			if err != nil {
-				offset64, err := strconv.ParseInt(ts, 10, 32)
-				if err != nil {
-					return 0
+			s = s[delim:]
+			for len(s) > 0 {
+				delim := strings.IndexAny(s[1:], "+-")
+				if delim == -1 {
+					ts = s
+					s = s[:0]
+				} else {
+					ts = s[:delim+1]
+					s = s[delim+1:]
 				}
-				offset = int32(offset64)
+				offset, err := parser.IntervalString(ts, 1)
+				if err != nil {
+					offset64, err := strconv.ParseInt(ts, 10, 32)
+					if err != nil {
+						return 0
+					}
+					offset = int32(offset64)
+				}
+				t = t.Add(time.Duration(offset) * time.Second)
 			}
 
-			return t.Add(time.Duration(offset) * time.Second).Unix()
+			return t.Unix()
 		}
 	case len(split) == 2:
 		ts, ds = split[0], split[1]

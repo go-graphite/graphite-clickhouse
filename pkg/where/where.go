@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 )
 
@@ -178,8 +179,8 @@ func InTable(field string, table string) string {
 
 func DateBetween(field string, from int64, until int64) string {
 	return fmt.Sprintf(
-		"%s >= toDate(%d) AND %s <= toDate(%d)",
-		field, from, field, until,
+		"%s >= '%s' AND %s <= '%s'",
+		field, date.FromTimestampToDaysFormat(from), field, date.UntilTimestampToDaysFormat(until),
 	)
 }
 

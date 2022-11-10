@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/cache"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
@@ -129,6 +130,7 @@ type ClickHouse struct {
 	URL                  string            `toml:"url" json:"url" comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
 	DataTimeout          time.Duration     `toml:"data-timeout" json:"data-timeout" comment:"default total timeout to fetch data, can be overwritten with query-params"`
 	QueryParams          []QueryParam      `toml:"query-params" json:"query-params" comment:"customized query params (url, data timeout) for durations greater or equal"`
+	DateFormat           string            `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
 	IndexTable           string            `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
 	IndexUseDaily        bool              `toml:"index-use-daily" json:"index-use-daily"`
 	IndexReverse         string            `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
@@ -536,6 +538,17 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 			} else {
 				logger.Error(name, zap.Error(message))
 			}
+		}
+	}
+
+	switch strings.ToLower(cfg.ClickHouse.DateFormat) {
+	case "utc":
+		date.SetUTC()
+	case "both":
+		date.SetBoth()
+	default:
+		if cfg.ClickHouse.DateFormat != "" && cfg.ClickHouse.DateFormat != "default" {
+			return nil, fmt.Errorf("unsupported date-format: %s", cfg.ClickHouse.DateFormat)
 		}
 	}
 

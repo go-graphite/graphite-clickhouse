@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/finder"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
@@ -423,19 +424,19 @@ func TestGenerateQuery(t *testing.T) {
 		unaggregated string
 	}{
 		{
-			in: in{1, 13, 1, "avg"},
-			aggregated: ("WITH anyResample(1, 13, 1)(toUInt32(intDiv(Time, 1)*1), Time) AS mask\n" +
+			in: in{1668124800, 1668325322, 1, "avg"},
+			aggregated: ("WITH anyResample(1668124800, 1668325322, 1)(toUInt32(intDiv(Time, 1)*1), Time) AS mask\n" +
 				"SELECT Path,\n arrayFilter(m->m!=0, mask) AS times,\n" +
-				" arrayFilter((v,m)->m!=0, avgResample(1, 13, 1)(Value, Time), mask) AS values\n" +
+				" arrayFilter((v,m)->m!=0, avgResample(1668124800, 1668325322, 1)(Value, Time), mask) AS values\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(1) AND Date <= toDate(13)\n" +
-				"WHERE (Path in metrics_list) AND (Time >= 1 AND Time <= 13)\n" +
+				"PREWHERE Date >= '" + date.FromTimestampToDaysFormat(1668124800) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(1668325322) + "'\n" +
+				"WHERE (Path in metrics_list) AND (Time >= 1668124800 AND Time <= 1668325322)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
 			unaggregated: ("SELECT Path, groupArray(Time), groupArray(Value), groupArray(Timestamp)\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(1) AND Date <= toDate(13)\n" +
-				"WHERE (Path in metrics_list) AND (Time >= 1 AND Time <= 13)\n" +
+				"PREWHERE Date >= '" + date.FromTimestampToDaysFormat(1668124800) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(1668325322) + "'\n" +
+				"WHERE (Path in metrics_list) AND (Time >= 1668124800 AND Time <= 1668325322)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
 		},
@@ -445,13 +446,13 @@ func TestGenerateQuery(t *testing.T) {
 				"SELECT Path,\n arrayFilter(m->m!=0, mask) AS times,\n" +
 				" arrayFilter((v,m)->m!=0, minResample(11111, 33333, 11111)(Value, Time), mask) AS values\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(11111) AND Date <= toDate(33333)\n" +
+				"PREWHERE Date >= '" + date.FromTimestampToDaysFormat(11111) + "' AND Date <= '" + date.FromTimestampToDaysFormat(33333) + "'\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 11111 AND Time <= 33333)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
 			unaggregated: ("SELECT Path, groupArray(Time), groupArray(Value), groupArray(Timestamp)\n" +
 				"FROM graphite.table\n" +
-				"PREWHERE Date >= toDate(11111) AND Date <= toDate(33333)\n" +
+				"PREWHERE Date >= '" + date.FromTimestampToDaysFormat(11111) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(33333) + "'\n" +
 				"WHERE (Path in metrics_list) AND (Time >= 11111 AND Time <= 33333)\n" +
 				"GROUP BY Path\n" +
 				"FORMAT RowBinary"),
