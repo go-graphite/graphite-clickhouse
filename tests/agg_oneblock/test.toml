@@ -1,0 +1,102 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "20.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "20.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "latest"
+dir = "tests/clickhouse/rollup"
+
+[test.carbon_clickhouse]
+version = "v0.11.1"
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse-internal-aggr.conf.tpl"
+
+[[test.input]]
+name = "test.avg"
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 0.0, time = "rnow-1"}, {value = 2.0, time = "rnow"}, {value = 4.0, time = "rnow+1"}]
+
+[[test.input]]
+name = "test.sum"
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 0.0, time = "rnow-1"}, {value = 2.0, time = "rnow"}, {value = 4.0, time = "rnow+1"}]
+
+[[test.input]]
+name = "test.min"
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 0.0, time = "rnow-1"}, {value = 2.0, time = "rnow"}, {value = 4.0, time = "rnow+1"}]
+
+[[test.input]]
+name = "test.max"
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 0.0, time = "rnow-1"}, {value = 2.0, time = "rnow"}, {value = 4.0, time = "rnow+1"}]
+
+##########################################################################
+# Aggregated, Deduplication not work at one block
+##########################################################################
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+10"
+targets = [ 
+    "test.{avg,min,max,sum}"
+]
+
+[[test.render_checks.result]]
+name = "test.avg"
+path = "test.{avg,min,max,sum}"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+20"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+20"
+values = [0.5, 3.0, nan]
+
+[[test.render_checks.result]]
+name = "test.sum"
+path = "test.{avg,min,max,sum}"
+consolidation = "sum"
+start = "rnow-10"
+stop = "rnow+20"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+20"
+values = [1.0, 6.0, nan]
+
+[[test.render_checks.result]]
+name = "test.min"
+path = "test.{avg,min,max,sum}"
+consolidation = "min"
+start = "rnow-10"
+stop = "rnow+20"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+20"
+values = [0.0, 2.0, nan]
+
+[[test.render_checks.result]]
+name = "test.max"
+path = "test.{avg,min,max,sum}"
+consolidation = "max"
+start = "rnow-10"
+stop = "rnow+20"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+20"
+values = [1.0, 4.0, nan]
+
+# End - Test rollup
+##########################################################################

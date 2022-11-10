@@ -1,4 +1,5 @@
 [test]
+precision = "10s"
 
 [[test.clickhouse]]
 version = "latest"
@@ -13,47 +14,31 @@ template = "graphite-clickhouse.conf.tpl"
 
 [[test.input]]
 name = "test.plain1"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 2.0, time = "now"}]
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 2.0, time = "rnow"}]
 
 [[test.input]]
 name = "test.plain2"
-points = [{value = 2.0, time = "now-30"}, {value = 1.0, time = "now-20"}, {value = 1.5, time = "now-10"}, {value = 2.5, time = "now"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 1.5, time = "rnow-10"}, {value = 2.5, time = "rnow"}]
 
 [[test.input]]
 name = "test2.plain"
-points = [{value = 1.0, time = "now-30"}, {value = 2.0, time = "now-20"}, {value = 2.5, time = "now-10"}, {value = 3.5, time = "now"}]
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 2.5, time = "rnow-10"}, {value = 3.5, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag1=value1;tag2=value21;tag3=value3"
-points = [{value = 2.0, time = "now-30"}, {value = 2.5, time = "now-20"}, {value = 2.0, time = "now-10"}, {value = 3.0, time = "now"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 2.5, time = "rnow-20"}, {value = 2.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag2=value22;tag4=value4"
-points = [{value = 1.0, time = "now-30"}, {value = 2.0, time = "now-20"}, {value = 0.0, time = "now-10"}, {value = 1.0, time = "now"}]
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric1;tag1=value1;tag2=value23;tag3=value3"
-points = [{value = 0.5, time = "now-30"}, {value = 1.5, time = "now-20"}, {value = 4.0, time = "now-10"}, {value = 3.0, time = "now"}]
+points = [{value = 0.5, time = "rnow-30"}, {value = 1.5, time = "rnow-20"}, {value = 4.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
 
 [[test.input]]
 name = "metric2;tag2=value21;tag4=value4"
-points = [{value = 2.0, time = "now-30"}, {value = 1.0, time = "now-20"}, {value = 0.0, time = "now-10"}, {value = 1.0, time = "now"}]
-
-[[test.input]]
-name = "test.avg"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.sum"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.min"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
-
-[[test.input]]
-name = "test.max"
-points = [{value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 0.0, time = "now-1"}, {value = 2.0, time = "now"}, {value = 4.0, time = "now+1"}]
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
 
 [[test.find_checks]]
 query = "test"
@@ -84,41 +69,41 @@ error_regexp = "^504: Storage read timeout"
 [[test.input]]
 name = "test.long"
 points = [
-    {value = 3.0, time = "now-30"}, {value = 0.0, time = "now-20"}, {value = 1.0, time = "now-10"}, {value = 2.0, time = "now"},
-    {value = 3.0, time = "now-14400"},
-    {value = 3.0, time = "now-3600"}, {value = 3.0, time = "now-3590"}, {value = 3.0, time = "now-3580"}, {value = 3.0, time = "now-3570"},
-    {value = 3.0, time = "now-3560"}, {value = 3.0, time = "now-3550"}, {value = 3.0, time = "now-3540"}, {value = 3.0, time = "now-3530"},
-    {value = 3.0, time = "now-3520"}, {value = 3.0, time = "now-3510"}, {value = 3.0, time = "now-3500"}, {value = 3.0, time = "now-3490"}
+    {value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 2.0, time = "rnow"},
+    {value = 3.0, time = "rnow-14400"},
+    {value = 3.0, time = "rnow-3600"}, {value = 3.0, time = "rnow-3590"}, {value = 3.0, time = "rnow-3580"}, {value = 3.0, time = "rnow-3570"},
+    {value = 3.0, time = "rnow-3560"}, {value = 3.0, time = "rnow-3550"}, {value = 3.0, time = "rnow-3540"}, {value = 3.0, time = "rnow-3530"},
+    {value = 3.0, time = "rnow-3520"}, {value = 3.0, time = "rnow-3510"}, {value = 3.0, time = "rnow-3500"}, {value = 3.0, time = "rnow-3490"}
 ]
 
 [[test.render_checks]]
-from = "now-10"
-until = "now+1"
+from = "rnow-10"
+until = "rnow+1"
 targets = [ "test.long" ]
 
 [[test.render_checks.result]]
 name = "test.long"
 path = "test.long"
 consolidation = "avg"
-start = "now-10"
-stop = "now+10"
+start = "rnow-10"
+stop = "rnow+10"
 step = 10
-req_start = "now-10"
-req_stop = "now+10"
+req_start = "rnow-10"
+req_stop = "rnow+10"
 values = [1.0, 2.0]
 
 # Check addional queryparam (storage read limit)
 [[test.render_checks]]
-from = "now-14200"
-until = "now"
+from = "rnow-14200"
+until = "rnow"
 targets = [ "test.long" ]
 timeout = "5s"
 error_regexp = "^403: Storage read limit for rows"
 
 # Check data-timeout on addional queryparam
 [[test.render_checks]]
-from = "now-14200"
-until = "now"
+from = "rnow-14200"
+until = "rnow"
 targets = [ "test.long" ]
 timeout = "2s"
 proxy_delay = "1500ms"
@@ -126,8 +111,8 @@ error_regexp = "^504: Storage read timeout"
 
 # Check addional queryparam (storage read limit)
 [[test.render_checks]]
-from = "now-360000"
-until = "now"
+from = "rnow-360000"
+until = "rnow"
 targets = [ "test.long" ]
 timeout = "5s"
 error_regexp = "^403: Storage read limit for memory"

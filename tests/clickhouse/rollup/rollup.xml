@@ -1,6 +1,5 @@
 <yandex>
 <graphite_rollup>
-    <!-- default to store 1 minute point up to 30 days and 1 hour point later -->
     <default>
         <function>avg</function>
         <retention>
