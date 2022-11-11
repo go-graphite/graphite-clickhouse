@@ -312,7 +312,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, err := Unmarshal(body)
+	config, err := Unmarshal(body, false)
 	expected := New()
 	require.NoError(t, err)
 
@@ -516,7 +516,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, err := Unmarshal(body)
+	config, err := Unmarshal(body, false)
 	expected := New()
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
@@ -677,7 +677,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, err := Unmarshal(config)
+	_, err := Unmarshal(config, false)
 	assert.Error(t, err)
 
 	config =
@@ -692,7 +692,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, err = Unmarshal(config)
+	_, err = Unmarshal(config, false)
 	assert.Error(t, err)
 }
 
@@ -854,7 +854,7 @@ func TestGetQueryParam(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if config, err := Unmarshal(tt.config); err == nil {
+			if config, err := Unmarshal(tt.config, false); err == nil {
 				for i, duration := range tt.durations {
 					if got := GetQueryParam(config.ClickHouse.QueryParams, duration); config.ClickHouse.QueryParams[got] != tt.wantParams[i] {
 						t.Errorf("[%d] GetQueryParam(%v) = %+v, want %+v", i, duration, config.ClickHouse.QueryParams[got], tt.wantParams[i])

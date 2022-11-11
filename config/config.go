@@ -383,7 +383,7 @@ func PrintDefaultConfig() error {
 }
 
 // ReadConfig reads the content of the file with given name and process it to the *Config
-func ReadConfig(filename string) (*Config, error) {
+func ReadConfig(filename string, noLog bool) (*Config, error) {
 	var err error
 	var body []byte
 	if filename != "" {
@@ -393,11 +393,11 @@ func ReadConfig(filename string) (*Config, error) {
 		}
 	}
 
-	return Unmarshal(body)
+	return Unmarshal(body, noLog)
 }
 
 // Unmarshal process the body to *Config
-func Unmarshal(body []byte) (*Config, error) {
+func Unmarshal(body []byte, noLog bool) (*Config, error) {
 	var err error
 	deprecations := make(map[string]error)
 
@@ -474,13 +474,14 @@ func Unmarshal(body []byte) (*Config, error) {
 
 	if cfg.Common.FindCache, err = CreateCache("index", &cfg.Common.FindCacheConfig); err == nil {
 		if cfg.Common.FindCacheConfig.Type != "null" {
-
-			localManager, err := zapwriter.NewManager(cfg.Logging)
-			if err != nil {
-				return nil, err
+			if !noLog {
+				localManager, err := zapwriter.NewManager(cfg.Logging)
+				if err != nil {
+					return nil, err
+				}
+				logger := localManager.Logger("config")
+				logger.Info("enable find cache", zap.String("type", cfg.Common.FindCacheConfig.Type))
 			}
-			logger := localManager.Logger("config")
-			logger.Error("enable find cache", zap.String("type", cfg.Common.FindCacheConfig.Type))
 		}
 	} else {
 		return nil, err
@@ -530,7 +531,11 @@ func Unmarshal(body []byte) (*Config, error) {
 		}
 		logger := localManager.Logger("config deprecation")
 		for name, message := range deprecations {
-			logger.Error(name, zap.Error(message))
+			if noLog {
+				fmt.Fprintf(os.Stderr, "config deprecation %s: %s\n", name, message)
+			} else {
+				logger.Error(name, zap.Error(message))
+			}
 		}
 	}
 
