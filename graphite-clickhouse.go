@@ -142,7 +142,7 @@ func main() {
 		return
 	}
 
-	cfg, err := config.ReadConfig(*configFile)
+	cfg, err := config.ReadConfig(*configFile, *checkConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
