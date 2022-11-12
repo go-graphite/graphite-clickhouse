@@ -148,8 +148,8 @@ func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, u
 	if idx.useDaily {
 		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
-			time.Unix(from, 0).UTC().Format("2006-01-02"),
-			time.Unix(until, 0).UTC().Format("2006-01-02"),
+			time.Unix(from, 0).Format("2006-01-02"),
+			time.Unix(until, 0).Format("2006-01-02"),
 		)
 	} else {
 		w.And(where.Eq("Date", DefaultTreeDate))
