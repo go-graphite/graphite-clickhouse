@@ -1,8 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/msaf1980/go-stringutils"
 )
 
 var ClickhouseContainerName = "clickhouse-server-gch-test"
@@ -106,4 +115,51 @@ func (c *Clickhouse) Container() string {
 
 func (c *Clickhouse) Exec(sql string) (bool, string) {
 	return containerExec(c.container, []string{"sh", "-c", "clickhouse-client -q '" + sql + "'"})
+}
+
+func (c *Clickhouse) Query(sql string) (string, error) {
+	reader := strings.NewReader(sql)
+	request, err := http.NewRequest("POST", c.URL(), reader)
+	if err != nil {
+		return "", err
+	}
+
+	httpClient := http.Client{
+		Timeout: time.Minute,
+	}
+	resp, err := httpClient.Do(request)
+	if err != nil {
+		return "", err
+	}
+	msg, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(resp.Status + ": " + string(bytes.TrimRight(msg, "\n")))
+	}
+	return string(msg), nil
+}
+
+func (c *Clickhouse) IsUp() bool {
+	if len(c.container) == 0 {
+		return false
+	}
+	req, err := http.DefaultClient.Get(c.url)
+	if err != nil {
+		return false
+	}
+	return req.StatusCode == http.StatusOK
+}
+
+func (c *Clickhouse) Logs() {
+	if len(c.container) == 0 {
+		return
+	}
+
+	chArgs := []string{"logs", c.container}
+
+	cmd := exec.Command(DockerBinary, chArgs...)
+	out, _ := cmd.CombinedOutput()
+	fmt.Fprintln(os.Stderr, stringutils.UnsafeString(out))
 }

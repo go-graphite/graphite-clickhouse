@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -412,20 +412,27 @@ func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, un
 	return t.ExecutePrepared(ctx, terms, from, until, stat)
 }
 
-func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) error {
+func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) (*where.Where, *where.Where, error) {
 	w, pw, err := TaggedWhere(terms)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	if t.dailyEnabled {
 		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
-			time.Unix(from, 0).Format("2006-01-02"),
-			time.Unix(until, 0).Format("2006-01-02"),
+			date.FromTimestampToDaysFormat(from),
+			date.UntilTimestampToDaysFormat(until),
 		)
 	}
+	return w, pw, nil
+}
 
+func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) error {
+	w, pw, err := t.whereFilter(terms, from, until)
+	if err != nil {
+		return err
+	}
 	// TODO: consider consistent query generator
 	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, pw.PreWhereSQL(), w.SQL())
 	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)

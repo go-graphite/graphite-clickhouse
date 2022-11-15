@@ -54,10 +54,38 @@ jobs:
       env:
         CGO_ENABLED: 1
 
+    - name: Test (with GMT-5)
+      run: |
+        go clean -testcache
+        TZ=Etc/GMT-5 make test
+      env:
+        CGO_ENABLED: 1
+
+    - name: Test (with GMT+5)
+      run: |
+        go clean -testcache
+        TZ=Etc/GMT+5 make test
+      env:
+        CGO_ENABLED: 1
+
     - name: Integration tests
       run: |
         make e2e-test
         ./e2e-test -config tests
+
+    # TODO (msaf1980): find a way to set TZ in carbon-clickhouse docker (or run locally)
+    # run with clickhouse.date-format = "both"
+    # - name: Integration tests (with Etc/GMT-5)
+    #   run: |
+    #     make e2e-test
+    #     sudo timedatectl set-timezone Etc/GMT-5
+    #     ./e2e-test -config issues/daytime
+
+    # - name: Integration tests (with Etc/GMT+5)
+    #   run: |
+    #     make e2e-test
+    #     sudo timedatectl set-timezone Etc/GMT+5
+    #     ./e2e-test -config issues/daytime
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1

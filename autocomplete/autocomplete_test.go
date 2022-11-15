@@ -10,8 +10,8 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
+	chtest "github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
 	"github.com/lomik/graphite-clickhouse/metrics"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,7 +52,7 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 
 func TestHandler_ServeValues(t *testing.T) {
 	metrics.DisableMetrics()
-	srv := clickhouse.NewTestServer()
+	srv := chtest.NewTestServer()
 	defer srv.Close()
 
 	cfg, _ := config.DefaultConfig()
@@ -60,11 +60,10 @@ func TestHandler_ServeValues(t *testing.T) {
 
 	h := NewTags(cfg)
 
-	from := "1636432127"
-	until := "1636442929"
-
-	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := time.Now().Format("2006-01-02")
+	now := time.Now()
+	until := strconv.FormatInt(now.Unix(), 10)
+	from := strconv.FormatInt(now.Add(-time.Minute).Unix(), 10)
+	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
 
 	srv.AddResponce(
 		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
@@ -98,6 +97,7 @@ func TestHandler_ServeValues(t *testing.T) {
 }
 
 func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
+	metrics.DisableMetrics()
 	srv := clickhouse.NewTestServer()
 	defer srv.Close()
 
@@ -118,11 +118,10 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 
 	h := NewTags(cfg)
 
-	from := "1636432127"
-	until := "1636442929"
-
-	fromDate := time.Now().AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Format("2006-01-02")
-	untilDate := time.Now().Format("2006-01-02")
+	now := time.Now()
+	until := strconv.FormatInt(now.Unix(), 10)
+	from := strconv.FormatInt(now.Add(-time.Minute).Unix(), 10)
+	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
 
 	srv.AddResponce(
 		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+

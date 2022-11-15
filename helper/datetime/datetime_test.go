@@ -32,6 +32,7 @@ func TestDateParamToEpoch(t *testing.T) {
 		{"midnight-10", "23:59:50 1994-Aug-15"},
 		{"midnight-1s", "23:59:59 1994-Aug-15"},
 		{"midnight-1day", "00:00:00 1994-Aug-15"},
+		{"midnight-1day+1s", "00:00:01 1994-Aug-15"},
 	}
 
 	for _, tt := range tests {

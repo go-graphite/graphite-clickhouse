@@ -230,6 +230,8 @@ Send internal metrics to graphite relay
  url = "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1"
  # default total timeout to fetch data, can be overwritten with query-params
  data-timeout = "1m0s"
+ # Date format (default, utc, both)
+ date-format = ""
  # see doc/index-table.md
  index-table = "graphite_index"
  index-use-daily = true
