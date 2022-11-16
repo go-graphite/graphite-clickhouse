@@ -179,7 +179,6 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO (msaf1980) fix for disable daily
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string
@@ -364,7 +363,6 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO (msaf1980) fix for disable daily
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string

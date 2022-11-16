@@ -7,7 +7,6 @@ dir = "tests/clickhouse/rollup"
 delay = "10s"
 
 [test.carbon_clickhouse]
-version = "v0.11.1"
 template = "carbon-clickhouse.conf.tpl"
 
 [[test.graphite_clickhouse]]
