@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -30,10 +29,10 @@ type CarbonClickhouse struct {
 
 func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (string, error) {
 	if len(c.Version) == 0 {
-		return "", errors.New("version not set")
+		c.Version = "0.11.3"
 	}
 	if len(c.DockerImage) == 0 {
-		c.DockerImage = "lomik/carbon-clickhouse"
+		c.DockerImage = "ghcr.io/go-graphite/carbon-clickhouse"
 	}
 	var err error
 	c.address, err = getFreeTCPPort("")

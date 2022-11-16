@@ -18,7 +18,6 @@ dir = "tests/clickhouse/rollup"
 #dir = "tests/clickhouse/rollup"
 
 [test.carbon_clickhouse]
-version = "v0.11.1"
 template = "carbon-clickhouse.conf.tpl"
 
 [[test.graphite_clickhouse]]
