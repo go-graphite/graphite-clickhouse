@@ -91,9 +91,11 @@ CREATE TABLE graphite_tagged (
   Path String,
   Tags Array(String),
   Version UInt32
-) ENGINE = ReplacingMergeTree(Version)
+) ENGINE = ReplacingMergeTree(Date)
 ORDER BY (Tag1, Path);
 ```
+
+`ReplacingMergeTree(Date)` prevent broken tags autocomplete with default `ReplacingMergeTree(Version)`, when write to the past.
 
 ### ClickHouse aggregation
 For detailed description of `max-data-points` and `internal-aggregation` see [aggregation documentation](./aggregation.md).
