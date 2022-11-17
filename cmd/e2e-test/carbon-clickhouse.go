@@ -29,7 +29,7 @@ type CarbonClickhouse struct {
 
 func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (string, error) {
 	if len(c.Version) == 0 {
-		c.Version = "0.11.3"
+		c.Version = "0.11.4"
 	}
 	if len(c.DockerImage) == 0 {
 		c.DockerImage = "ghcr.io/go-graphite/carbon-clickhouse"
