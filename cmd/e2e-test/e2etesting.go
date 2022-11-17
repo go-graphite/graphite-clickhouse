@@ -452,12 +452,12 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		)
 		time.Sleep(500 * time.Millisecond)
 		for i := 200; i < 2000; i += 200 {
-			if clickhouse.IsUp() {
+			if clickhouse.Alive() {
 				break
 			}
 			time.Sleep(time.Duration(i) * time.Millisecond)
 		}
-		if !clickhouse.IsUp() {
+		if !clickhouse.Alive() {
 			logger.Error("starting clickhouse",
 				zap.String("config", test.name),
 				zap.Any("clickhouse version", clickhouse.Version),

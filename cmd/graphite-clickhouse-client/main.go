@@ -58,16 +58,16 @@ func main() {
 	now := time.Now()
 
 	from := datetime.DateParamToEpoch(*fromStr, tz, now, 0)
-	if from == 0 {
+	if from == 0 && len(targets) > 0 {
 		fmt.Printf("invalid from: %s\n", *fromStr)
 		os.Exit(1)
 	}
 	var until int64
-	if *untilStr == "" {
+	if *untilStr == "" && len(targets) > 0 {
 		*untilStr = "now"
 	}
 	until = datetime.DateParamToEpoch(*untilStr, tz, now, 0)
-	if until == 0 {
+	if until == 0 && len(targets) > 0 {
 		fmt.Printf("invalid until: %s\n", *untilStr)
 		os.Exit(1)
 	}
