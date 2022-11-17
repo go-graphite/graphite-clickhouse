@@ -141,7 +141,7 @@ func (c *Clickhouse) Query(sql string) (string, error) {
 	return string(msg), nil
 }
 
-func (c *Clickhouse) IsUp() bool {
+func (c *Clickhouse) Alive() bool {
 	if len(c.container) == 0 {
 		return false
 	}

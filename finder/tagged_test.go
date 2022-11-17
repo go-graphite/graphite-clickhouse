@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -311,6 +312,44 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 			}
 			if gotDate.String() != tt.wantPre {
 				t.Errorf("TaggedFinder.whereFilter()[1] = %v, want %v", gotDate, tt.wantPre)
+			}
+		})
+	}
+}
+
+func TestTaggedFinder_Abs(t *testing.T) {
+	tests := []struct {
+		name   string
+		v      []byte
+		cached bool
+		want   []byte
+	}{
+		{
+			name:   "cached",
+			v:      []byte("test_metric;colon=:;forward=/;hash=#;host=127.0.0.1;minus=-;percent=%;plus=+;underscore=_"),
+			cached: true,
+			want:   []byte("test_metric;colon=:;forward=/;hash=#;host=127.0.0.1;minus=-;percent=%;plus=+;underscore=_"),
+		},
+		{
+			name: "escaped",
+			v: []byte(url.QueryEscape("instance:cpu_utilization?ratio_avg") +
+				"?" + url.QueryEscape("dc") + "=" + url.QueryEscape("qwe+1") +
+				"&" + url.QueryEscape("fqdn") + "=" + url.QueryEscape("asd&a") +
+				"&" + url.QueryEscape("instance") + "=" + url.QueryEscape("10.33.10.10:9100") +
+				"&" + url.QueryEscape("job") + "=" + url.QueryEscape("node&a")),
+			want: []byte("instance:cpu_utilization?ratio_avg;dc=qwe+1;fqdn=asd&a;instance=10.33.10.10:9100;job=node&a"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tf *TaggedFinder
+			if tt.cached {
+				tf = NewCachedTags(nil)
+			} else {
+				tf = NewTagged("http:/127.0.0.1:8123", "graphite_tags", true, false, clickhouse.Options{}, nil)
+			}
+			if got := string(tf.Abs(tt.v)); got != string(tt.want) {
+				t.Errorf("TaggedDecode() =\n%q\nwant\n%q", got, string(tt.want))
 			}
 		})
 	}

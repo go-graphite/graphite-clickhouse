@@ -54,6 +54,10 @@ points = [{value = 0.5, time = "rnow-30"}, {value = 1.5, time = "rnow-20"}, {val
 name = "metric2;tag2=value21;tag4=value4"
 points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
 
+[[test.input]]
+name = "test_metric;minus=-;plus=+;percent=%;underscore=_;colon=:;hash=#;forward=/;host=127.0.0.1"
+points = [{value = 2.1, time = "rnow-30"}, {value = 0.1, time = "rnow-20"}, {value = 0.2, time = "rnow-10"}, {value = 1.5, time = "rnow"}]
+
 ######################################
 # Check metrics find
 
@@ -85,6 +89,12 @@ result = [
 query = "name;tag2=value21;tag1=~value"
 result = [
     "metric1",
+]
+
+[[test.tags_checks]]
+query = "colon;percent=%"
+result = [
+    ":",
 ]
 
 # End - Check tags autocomplete
@@ -327,6 +337,25 @@ start = "rnow-10"
 stop = "rnow+10"
 step = 10
 values = [0.0, 1.0]
+
+# End - Tagged metrics (pickle)
+##########################################################################
+# Unescape
+
+[[test.render_checks]]
+formats = [ "protobuf", "carbonapi_v2_pb" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "seriesByTag('percent=%')",
+]
+
+[[test.render_checks.result]]
+name = "test_metric;colon=:;forward=/;hash=#;host=127.0.0.1;minus=-;percent=%;plus=+;underscore=_"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [0.2, 1.5]
 
 # End - Tagged metrics (pickle)
 ##########################################################################

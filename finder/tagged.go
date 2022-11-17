@@ -474,7 +474,10 @@ func tagsParse(path string) (string, []string, error) {
 		return name, nil, fmt.Errorf("incomplete tags in '%s'", path)
 	}
 	tags := strings.Split(args, "&")
-	return name, tags, nil
+	for i := range tags {
+		tags[i] = unescape(tags[i])
+	}
+	return unescape(name), tags, nil
 }
 
 func TaggedDecode(v []byte) []byte {
