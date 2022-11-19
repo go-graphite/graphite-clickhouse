@@ -10,7 +10,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/render/data"
-	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 )
 
@@ -32,14 +32,14 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 }
 
 // Select returns a set of series that matches the given label matchers.
-func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
 	var from, until time.Time
 
-	if from.IsZero() && selectParams != nil && selectParams.Start != 0 {
-		from = time.Unix(selectParams.Start/1000, (selectParams.Start%1000)*1000000)
+	if from.IsZero() && hints != nil && hints.Start != 0 {
+		from = time.Unix(hints.Start/1000, (hints.Start%1000)*1000000)
 	}
-	if until.IsZero() && selectParams != nil && selectParams.End != 0 {
-		until = time.Unix(selectParams.End/1000, (selectParams.End%1000)*1000000)
+	if until.IsZero() && hints != nil && hints.End != 0 {
+		until = time.Unix(hints.End/1000, (hints.End%1000)*1000000)
 	}
 
 	if from.IsZero() && q.mint > 0 {
@@ -59,21 +59,21 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 
 	am, err := q.lookup(from, until, labelsMatcher...)
 	if err != nil {
-		return nil, nil, err
+		return nil //, nil, err @TODO
 	}
 
 	if am.Len() == 0 {
-		return emptySeriesSet(), nil, nil
+		return emptySeriesSet()
 	}
 
-	if selectParams == nil {
+	if hints == nil {
 		// /api/v1/series?match[]=...
-		return newMetricsSet(am.DisplayNames()), nil, nil
+		return newMetricsSet(am.DisplayNames()) //, nil, nil
 	}
 
 	var step int64 = 60000
-	if selectParams.Step != 0 {
-		step = selectParams.Step
+	if hints.Step != 0 {
+		step = hints.Step
 	}
 
 	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)
@@ -87,17 +87,17 @@ func (q *Querier) Select(selectParams *storage.SelectParams, labelsMatcher ...*l
 	}
 	reply, err := multiTarget.Fetch(q.ctx, q.config, config.ContextPrometheus)
 	if err != nil {
-		return nil, nil, err
+		return nil // , nil, err @TODO
 	}
 
 	if len(reply) == 0 {
-		return emptySeriesSet(), nil, nil
+		return emptySeriesSet() //, nil, nil
 	}
 
 	ss, err := makeSeriesSet(reply[0].Data)
 	if err != nil {
-		return nil, nil, err
+		return nil // , nil, err @TODO
 	}
 
-	return ss, nil, nil
+	return ss //, nil, nil
 }

@@ -1,3 +1,4 @@
+//go:build !noprom
 // +build !noprom
 
 package prometheus
@@ -7,7 +8,7 @@ import (
 	"sort"
 
 	"github.com/lomik/graphite-clickhouse/finder"
-	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
 )
 
