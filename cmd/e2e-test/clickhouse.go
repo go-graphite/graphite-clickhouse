@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -152,14 +153,46 @@ func (c *Clickhouse) Alive() bool {
 	return req.StatusCode == http.StatusOK
 }
 
-func (c *Clickhouse) Logs() {
+func (c *Clickhouse) CopyLog(destDir string, tail uint64) error {
 	if len(c.container) == 0 {
-		return
+		return nil
 	}
+	dest := destDir + "/clickhouse-server.log"
 
-	chArgs := []string{"logs", c.container}
+	chArgs := []string{"cp", c.container + ":/var/log/clickhouse-server/clickhouse-server.log", dest}
 
 	cmd := exec.Command(DockerBinary, chArgs...)
-	out, _ := cmd.CombinedOutput()
-	fmt.Fprintln(os.Stderr, stringutils.UnsafeString(out))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.New(err.Error() + ": " + string(bytes.TrimRight(out, "\n")))
+	}
+
+	if tail > 0 {
+		out, _ := exec.Command("tail", "-"+strconv.FormatUint(tail, 10), dest).Output()
+		fmt.Fprintf(os.Stderr, "CLICKHOUSE-SERVER.LOG %s", stringutils.UnsafeString(out))
+	}
+
+	return nil
+}
+
+func (c *Clickhouse) CopyErrLog(destDir string, tail uint64) error {
+	if len(c.container) == 0 {
+		return nil
+	}
+	dest := destDir + "/clickhouse-server.err.log"
+
+	chArgs := []string{"cp", c.container + ":/var/log/clickhouse-server/clickhouse-server.err.log", dest}
+
+	cmd := exec.Command(DockerBinary, chArgs...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.New(err.Error() + ": " + string(bytes.TrimRight(out, "\n")))
+	}
+
+	if tail > 0 {
+		out, _ := exec.Command("tail", "-"+strconv.FormatUint(tail, 10), dest).Output()
+		fmt.Fprintf(os.Stderr, "CLICKHOUSE-SERVER.ERR %s", stringutils.UnsafeString(out))
+	}
+
+	return nil
 }

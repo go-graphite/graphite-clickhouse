@@ -464,7 +464,6 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 				zap.String("clickhouse config", clickhouseDir),
 				zap.String("error", "clickhouse is down"),
 			)
-			clickhouse.Logs()
 			testSuccess = false
 		}
 
@@ -510,6 +509,10 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 	}
 
 	test.Proxy.Stop()
+
+	if !clickhouse.Alive() {
+		clickhouse.CopyLog(os.TempDir(), 10)
+	}
 
 	out, err = clickhouse.Stop(true)
 	if err != nil {
