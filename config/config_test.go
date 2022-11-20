@@ -383,7 +383,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9090", "https://server:3456/uri", nil, "Prometheus Time Series"}
+	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series"}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
@@ -622,7 +622,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9090", "https://server:3456/uri", nil, "Prometheus Time Series"}
+	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series"}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)

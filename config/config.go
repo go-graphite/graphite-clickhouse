@@ -291,7 +291,7 @@ func New() *Config {
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
 			PageTitle:      "Prometheus Time Series Collection and Processing Server",
-			Listen:         ":9090",
+			Listen:         ":9092",
 		},
 		Debug: Debug{
 			Directory:        "",
