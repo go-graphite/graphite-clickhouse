@@ -62,6 +62,7 @@ func Run(config *config.Config) error {
 		Gatherer:        &nopGatherer{},
 		Notifier:        notifierManager,
 		CORSOrigin:      corsOrigin,
+		PageTitle:       config.Prometheus.PageTitle,
 	})
 
 	promHandler.ApplyConfig(&promConfig.Config{})
