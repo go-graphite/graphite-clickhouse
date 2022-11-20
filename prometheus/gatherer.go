@@ -1,3 +1,6 @@
+//go:build !noprom
+// +build !noprom
+
 package prometheus
 
 import (
