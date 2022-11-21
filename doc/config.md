@@ -337,6 +337,8 @@ Send internal metrics to graphite relay
  total-timeout = "500ms"
 
 [prometheus]
+ # listen addr for prometheus ui and api
+ listen = ":9092"
  # allows to set URL for redirect manually
  external-url = ""
  page-title = "Prometheus Time Series Collection and Processing Server"

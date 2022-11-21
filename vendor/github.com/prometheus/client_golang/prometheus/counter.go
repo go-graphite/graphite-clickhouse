@@ -51,7 +51,7 @@ type Counter interface {
 // will lead to a valid (label-less) exemplar. But if Labels is nil, the current
 // exemplar is left in place. AddWithExemplar panics if the value is < 0, if any
 // of the provided labels are invalid, or if the provided labels contain more
-// than 64 runes in total.
+// than 128 runes in total.
 type ExemplarAdder interface {
 	AddWithExemplar(value float64, exemplar Labels)
 }
@@ -133,15 +133,20 @@ func (c *counter) Inc() {
 	atomic.AddUint64(&c.valInt, 1)
 }
 
-func (c *counter) Write(out *dto.Metric) error {
+func (c *counter) get() float64 {
 	fval := math.Float64frombits(atomic.LoadUint64(&c.valBits))
 	ival := atomic.LoadUint64(&c.valInt)
-	val := fval + float64(ival)
+	return fval + float64(ival)
+}
 
+func (c *counter) Write(out *dto.Metric) error {
+	// Read the Exemplar first and the value second. This is to avoid a race condition
+	// where users see an exemplar for a not-yet-existing observation.
 	var exemplar *dto.Exemplar
 	if e := c.exemplar.Load(); e != nil {
 		exemplar = e.(*dto.Exemplar)
 	}
+	val := c.get()
 
 	return populateMetric(CounterValue, val, c.labelPairs, exemplar, out)
 }

@@ -1,13 +1,18 @@
+//go:build !noprom
 // +build !noprom
 
 package prometheus
 
 import (
+	"log"
+
 	"github.com/lomik/graphite-clickhouse/helper/point"
 
 	"github.com/lomik/graphite-clickhouse/render/data"
-	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/model/histogram"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 // SeriesIterator iterates over the data of a time series.
@@ -67,7 +72,7 @@ func emptySeriesSet() storage.SeriesSet {
 
 // Seek advances the iterator forward to the value at or after
 // the given timestamp.
-func (sit *seriesIterator) Seek(t int64) bool {
+func (sit *seriesIterator) Seek(t int64) chunkenc.ValueType {
 	tt := uint32(t / 1000)
 	if t%1000 != 0 {
 		tt++
@@ -76,12 +81,12 @@ func (sit *seriesIterator) Seek(t int64) bool {
 	for ; sit.current < len(sit.points); sit.current++ {
 		if sit.points[sit.current].Time >= tt {
 			// sit.logger().Debug("seriesIterator.Seek", zap.Int64("t", t), zap.Bool("ret", true))
-			return true
+			return chunkenc.ValFloat
 		}
 	}
 
 	// sit.logger().Debug("seriesIterator.Seek", zap.Int64("t", t), zap.Bool("ret", false))
-	return false
+	return chunkenc.ValNone
 }
 
 // At returns the current timestamp/value pair.
@@ -95,15 +100,40 @@ func (sit *seriesIterator) At() (t int64, v float64) {
 	return int64(p.Time) * 1000, p.Value
 }
 
+// AtHistogram returns the current timestamp/value pair if the value is
+// a histogram with integer counts. Before the iterator has advanced,
+// the behaviour is unspecified.
+func (sit *seriesIterator) AtHistogram() (int64, *histogram.Histogram) {
+	log.Fatal("seriesIterator.AtHistogram not implemented")
+	return 0, nil // @TODO
+}
+
+// AtFloatHistogram returns the current timestamp/value pair if the
+// value is a histogram with floating-point counts. It also works if the
+// value is a histogram with integer counts, in which case a
+// FloatHistogram copy of the histogram is returned. Before the iterator
+// has advanced, the behaviour is unspecified.
+func (sit *seriesIterator) AtFloatHistogram() (int64, *histogram.FloatHistogram) {
+	log.Fatal("seriesIterator.AtFloatHistogram not implemented")
+	return 0, nil // @TODO
+}
+
+// AtT returns the current timestamp.
+// Before the iterator has advanced, the behaviour is unspecified.
+func (sit *seriesIterator) AtT() int64 {
+	t, _ := sit.At()
+	return t
+}
+
 // Next advances the iterator by one.
-func (sit *seriesIterator) Next() bool {
+func (sit *seriesIterator) Next() chunkenc.ValueType {
 	if sit.current+1 < len(sit.points) {
 		sit.current++
 		// sit.logger().Debug("seriesIterator.Next", zap.Bool("ret", true))
-		return true
+		return chunkenc.ValFloat
 	}
 	// sit.logger().Debug("seriesIterator.Next", zap.Bool("ret", false))
-	return false
+	return chunkenc.ValNone
 }
 
 // Err returns the current error.
@@ -133,8 +163,13 @@ func (ss *seriesSet) Next() bool {
 	return true
 }
 
+// Warnings ...
+func (s *seriesSet) Warnings() storage.Warnings {
+	return nil
+}
+
 // Iterator returns a new iterator of the data of the series.
-func (s *series) Iterator() storage.SeriesIterator {
+func (s *series) Iterator() chunkenc.Iterator {
 	return &seriesIterator{metricName: s.metricName, points: s.points, current: -1}
 }
 

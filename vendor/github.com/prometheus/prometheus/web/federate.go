@@ -18,18 +18,22 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 
-	"github.com/prometheus/prometheus/pkg/labels"
-	"github.com/prometheus/prometheus/pkg/timestamp"
-	"github.com/prometheus/prometheus/pkg/value"
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/model/timestamp"
+	"github.com/prometheus/prometheus/model/value"
 	"github.com/prometheus/prometheus/promql"
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 var (
@@ -43,6 +47,10 @@ var (
 	})
 )
 
+func registerFederationMetrics(r prometheus.Registerer) {
+	r.MustRegister(federationWarnings, federationErrors)
+}
+
 func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 	h.mtx.RLock()
 	defer h.mtx.RUnlock()
@@ -54,7 +62,7 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 
 	var matcherSets [][]*labels.Matcher
 	for _, s := range req.Form["match[]"] {
-		matchers, err := promql.ParseMetricSelector(s)
+		matchers, err := parser.ParseMetricSelector(s)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -63,16 +71,20 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var (
-		mint   = timestamp.FromTime(h.now().Time().Add(-promql.LookbackDelta))
+		mint   = timestamp.FromTime(h.now().Time().Add(-h.lookbackDelta))
 		maxt   = timestamp.FromTime(h.now().Time())
 		format = expfmt.Negotiate(req.Header)
 		enc    = expfmt.NewEncoder(w, format)
 	)
 	w.Header().Set("Content-Type", string(format))
 
-	q, err := h.storage.Querier(req.Context(), mint, maxt)
+	q, err := h.localStorage.Querier(req.Context(), mint, maxt)
 	if err != nil {
 		federationErrors.Inc()
+		if errors.Cause(err) == tsdb.ErrNotReady {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -80,28 +92,16 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 
 	vec := make(promql.Vector, 0, 8000)
 
-	params := &storage.SelectParams{
-		Start: mint,
-		End:   maxt,
-	}
+	hints := &storage.SelectHints{Start: mint, End: maxt}
 
 	var sets []storage.SeriesSet
 	for _, mset := range matcherSets {
-		s, wrns, err := q.Select(params, mset...)
-		if wrns != nil {
-			level.Debug(h.logger).Log("msg", "federation select returned warnings", "warnings", wrns)
-			federationWarnings.Add(float64(len(wrns)))
-		}
-		if err != nil {
-			federationErrors.Inc()
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		s := q.Select(true, hints, mset...)
 		sets = append(sets, s)
 	}
 
-	set := storage.NewMergeSeriesSet(sets, nil)
-	it := storage.NewBuffer(int64(promql.LookbackDelta / 1e6))
+	set := storage.NewMergeSeriesSet(sets, storage.ChainedSeriesMerge)
+	it := storage.NewBuffer(int64(h.lookbackDelta / 1e6))
 	for set.Next() {
 		s := set.At()
 
@@ -111,12 +111,14 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 
 		var t int64
 		var v float64
+		var ok bool
 
-		ok := it.Seek(maxt)
-		if ok {
-			t, v = it.Values()
+		valueType := it.Seek(maxt)
+		if valueType == chunkenc.ValFloat {
+			t, v = it.At()
 		} else {
-			t, v, ok = it.PeekBack(1)
+			// TODO(beorn7): Handle histograms.
+			t, v, _, ok = it.PeekBack(1)
 			if !ok {
 				continue
 			}
@@ -133,6 +135,10 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 			Metric: s.Labels(),
 			Point:  promql.Point{T: t, V: v},
 		})
+	}
+	if ws := set.Warnings(); len(ws) > 0 {
+		level.Debug(h.logger).Log("msg", "Federation select returned warnings", "warnings", ws)
+		federationWarnings.Add(float64(len(ws)))
 	}
 	if set.Err() != nil {
 		federationErrors.Inc()
@@ -207,16 +213,17 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 		// Attach global labels if they do not exist yet.
 		for _, ln := range externalLabelNames {
 			lv := externalLabels[ln]
-			if _, ok := globalUsed[string(ln)]; !ok {
+			if _, ok := globalUsed[ln]; !ok {
 				protMetric.Label = append(protMetric.Label, &dto.LabelPair{
-					Name:  proto.String(string(ln)),
-					Value: proto.String(string(lv)),
+					Name:  proto.String(ln),
+					Value: proto.String(lv),
 				})
 			}
 		}
 
 		protMetric.TimestampMs = proto.Int64(s.T)
 		protMetric.Untyped.Value = proto.Float64(s.V)
+		// TODO(beorn7): Handle histograms.
 
 		protMetricFam.Metric = append(protMetricFam.Metric, protMetric)
 	}

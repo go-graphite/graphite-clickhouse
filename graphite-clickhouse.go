@@ -227,7 +227,11 @@ func main() {
 		fmt.Fprintf(w, "Graphite-clickhouse is alive.\n")
 	})
 
-	mux.Handle("/", app.Handler(prometheus.NewHandler(cfg)))
+	if cfg.Prometheus.Listen != "" {
+		if err := prometheus.Run(cfg); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	if metrics.Graphite != nil {
 		metrics.Graphite.Start(nil)

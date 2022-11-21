@@ -23,7 +23,7 @@ Docker images are available on [packages](https://github.com/lomik/graphite-clic
 - [x] [carbonzipper](https://github.com/go-graphite/carbonzipper) (DEPRECATED, is part of carbonapi currently)
 
 ## Build
-Required golang 1.15+
+Required golang 1.18+
 ```sh
 # build binary
 git clone https://github.com/lomik/graphite-clickhouse.git

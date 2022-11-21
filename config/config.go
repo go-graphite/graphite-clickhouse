@@ -178,6 +178,7 @@ type Carbonlink struct {
 
 // Prometheus configuration
 type Prometheus struct {
+	Listen         string   `toml:"listen" json:"listen" comment:"listen addr for prometheus ui and api"`
 	ExternalURLRaw string   `toml:"external-url" json:"external-url" comment:"allows to set URL for redirect manually"`
 	ExternalURL    *url.URL `toml:"-" json:"-"`
 	PageTitle      string   `toml:"page-title" json:"page-title"`
@@ -290,6 +291,7 @@ func New() *Config {
 		Prometheus: Prometheus{
 			ExternalURLRaw: "",
 			PageTitle:      "Prometheus Time Series Collection and Processing Server",
+			Listen:         ":9092",
 		},
 		Debug: Debug{
 			Directory:        "",
