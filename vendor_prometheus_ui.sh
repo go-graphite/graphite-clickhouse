@@ -6,7 +6,7 @@ BRANCH=$(cat go.mod  | grep 'github.com/prometheus/prometheus' | awk '{print $2}
 
 rm -rf tmp
 mkdir tmp
-git clone --depth 1 --branch v0.40.2 https://github.com/prometheus/prometheus.git tmp
+git clone --depth 1 --branch $BRANCH https://github.com/prometheus/prometheus.git tmp
 
 cd tmp
 make assets-compress
