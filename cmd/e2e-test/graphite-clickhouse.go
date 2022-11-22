@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -42,7 +41,7 @@ func (c *GraphiteClickhouse) Start(testDir, clickhouseURL, chProxyURL string) er
 	}
 
 	var err error
-	c.storeDir, err = ioutil.TempDir("", "graphite-clickhouse")
+	c.storeDir, err = os.MkdirTemp("", "graphite-clickhouse")
 	if err != nil {
 		return err
 	}

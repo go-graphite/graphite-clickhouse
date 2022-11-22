@@ -16,6 +16,8 @@ import (
 )
 
 var ClickhouseContainerName = "clickhouse-server-gch-test"
+var ClickhouseOldImage = "yandex/clickhouse-server"
+var ClickhouseDefaultImage = "clickhouse/clickhouse-server"
 
 type Clickhouse struct {
 	Version string `toml:"version"`
@@ -30,16 +32,40 @@ type Clickhouse struct {
 	container   string `toml:"-"`
 }
 
-func (c *Clickhouse) Start() (string, error) {
-	if len(c.Version) == 0 {
-		return "", errors.New("version not set")
+func (c *Clickhouse) CheckConfig(rootDir string) error {
+	if c.Version == "" {
+		c.Version = "latest"
 	}
 	if len(c.Dir) == 0 {
-		return "", errors.New("dir not set")
+		return ErrNoSetDir
 	}
-	if len(c.DockerImage) == 0 {
-		c.DockerImage = "yandex/clickhouse-server"
+	if !strings.HasPrefix(c.Dir, "/") {
+		c.Dir = rootDir + "/" + c.Dir
 	}
+
+	if c.DockerImage == "" {
+		if c.Version == "latest" {
+			c.DockerImage = ClickhouseDefaultImage
+		} else {
+			splitV := strings.Split(c.Version, ".")
+			majorV, err := strconv.Atoi(splitV[0])
+			if err != nil {
+				c.DockerImage = ClickhouseDefaultImage
+			} else if majorV >= 21 {
+				c.DockerImage = ClickhouseDefaultImage
+			} else {
+				c.DockerImage = ClickhouseOldImage
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Clickhouse) Key() string {
+	return c.DockerImage + ":" + c.Version + " " + c.Dir + " TZ " + c.TZ
+}
+
+func (c *Clickhouse) Start() (string, error) {
 	var err error
 	c.httpAddress, err = getFreeTCPPort("")
 	if err != nil {
