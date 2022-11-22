@@ -7,6 +7,24 @@ import (
 
 var DockerBinary string
 
+func imageDelete(image, version string) (bool, string) {
+	if len(DockerBinary) == 0 {
+		panic("docker not set")
+	}
+
+	chArgs := []string{"rmi", image + ":" + version}
+
+	cmd := exec.Command(DockerBinary, chArgs...)
+	out, err := cmd.CombinedOutput()
+	s := strings.Trim(string(out), "\n")
+
+	if err == nil {
+		return true, s
+	}
+
+	return false, err.Error() + ": " + s
+}
+
 func containerExist(name string) (bool, string) {
 	if len(DockerBinary) == 0 {
 		panic("docker not set")
@@ -22,7 +40,7 @@ func containerExist(name string) (bool, string) {
 		return true, s
 	}
 
-	return false, s
+	return false, err.Error() + ": " + s
 }
 
 func containerRemove(name string) (bool, string) {
@@ -40,7 +58,7 @@ func containerRemove(name string) (bool, string) {
 		return true, s
 	}
 
-	return false, s
+	return false, err.Error() + ": " + s
 }
 
 func containerExec(name string, args []string) (bool, string) {

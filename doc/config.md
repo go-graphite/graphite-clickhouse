@@ -202,6 +202,8 @@ Send internal metrics to graphite relay
   find-timeout = 0
   # maximum diration, used with short_timeout
   short-duration = "0s"
+  # offset beetween now and until for select short cache timeout
+  short-offset = 0
 
 [metrics]
  # graphite relay address

@@ -14,6 +14,10 @@ version = "21.3"
 dir = "tests/clickhouse/rollup"
 
 [[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
 version = "latest"
 dir = "tests/clickhouse/rollup"
 

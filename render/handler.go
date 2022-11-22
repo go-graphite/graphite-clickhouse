@@ -41,8 +41,11 @@ func targetKey(from, until int64, target, ttl string) string {
 }
 
 func getCacheTimeout(now time.Time, from, until int64, cacheConfig *config.CacheConfig) (int32, *metrics.CacheMetric) {
+	if cacheConfig.ShortDuration == 0 {
+		return cacheConfig.DefaultTimeoutSec, metrics.DefaultCacheMetrics
+	}
 	duration := time.Second * time.Duration(until-from)
-	if duration > cacheConfig.ShortDuration || now.Unix()-until > 120 {
+	if duration > cacheConfig.ShortDuration || now.Unix()-until > cacheConfig.ShortUntilOffsetSec {
 		return cacheConfig.DefaultTimeoutSec, metrics.DefaultCacheMetrics
 	}
 	// short cache ttl

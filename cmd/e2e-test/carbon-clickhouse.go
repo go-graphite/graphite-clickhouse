@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -42,7 +41,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 
 	c.container = CchContainerName
 
-	c.storeDir, err = ioutil.TempDir("", "carbon-clickhouse")
+	c.storeDir, err = os.MkdirTemp("", "carbon-clickhouse")
 	if err != nil {
 		return "", err
 	}

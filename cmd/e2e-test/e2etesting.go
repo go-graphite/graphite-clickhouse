@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -21,7 +19,14 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
-var ErrTimestampInvalid = errors.New("invalid timestamp")
+var (
+	preSQL = []string{
+		"TRUNCATE TABLE IF EXISTS graphite_reverse",
+		"TRUNCATE TABLE IF EXISTS graphite",
+		"TRUNCATE TABLE IF EXISTS graphite_index",
+		"TRUNCATE TABLE IF EXISTS graphite_tags",
+	}
+)
 
 type Point struct {
 	Value float64       `toml:"value"`
@@ -141,7 +146,9 @@ type TestSchema struct {
 
 	Precision time.Duration `toml:"precision"`
 
-	name string `toml:"-"` // test alias (from config name)
+	dir        string          `toml:"-"`
+	name       string          `toml:"-"` // test alias (from config name)
+	chVersions map[string]bool `toml:"-"`
 	// input map[string][]Point `toml:"-"`
 }
 
@@ -208,8 +215,8 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 		return
 	}
 
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Second)
+	for i := 100; i < 1000; i += 200 {
+		time.Sleep(time.Duration(i) * time.Millisecond)
 		if gch.Alive() {
 			break
 		}
@@ -403,41 +410,35 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, rootDir string, verbose, breakOnError bool, logger *zap.Logger) (testSuccess bool, verifyCount, verifyFailed int) {
 	testSuccess = true
 
-	clickhouseDir := clickhouse.Dir // for logging
-	if !strings.HasPrefix(clickhouse.Dir, "/") {
-		clickhouse.Dir = rootDir + "/" + clickhouse.Dir
+	for _, sql := range preSQL {
+		if success, out := clickhouse.Exec(sql); !success {
+			logger.Error("pre-execute",
+				zap.String("config", test.name),
+				zap.Any("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouse.Dir),
+				zap.String("sql", sql),
+				zap.String("out", out),
+			)
+			return
+		}
 	}
-	out, err := clickhouse.Start()
-	if err != nil {
-		logger.Error("starting clickhouse",
-			zap.String("config", test.name),
-			zap.Any("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
-			zap.Error(err),
-			zap.String("out", out),
-		)
-		testSuccess = false
-		clickhouse.Stop(true)
-		return
-	}
-	if err = test.Proxy.Start(clickhouse.URL()); err != nil {
+
+	if err := test.Proxy.Start(clickhouse.URL()); err != nil {
 		logger.Error("starting clickhouse proxy",
 			zap.String("config", test.name),
 			zap.Any("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 			zap.Error(err),
 		)
-		testSuccess = false
-		clickhouse.Stop(true)
 		return
 	}
 
-	out, err = test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123", clickhouse.Container())
+	out, err := test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123", clickhouse.Container())
 	if err != nil {
 		logger.Error("starting carbon-clickhouse",
 			zap.String("config", test.name),
 			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 			zap.Error(err),
 			zap.String("out", out),
 		)
@@ -448,45 +449,27 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		logger.Info("starting e2e test",
 			zap.String("config", test.name),
 			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 		)
-		time.Sleep(500 * time.Millisecond)
-		for i := 200; i < 2000; i += 200 {
-			if clickhouse.Alive() {
-				break
-			}
-			time.Sleep(time.Duration(i) * time.Millisecond)
-		}
-		if !clickhouse.Alive() {
-			logger.Error("starting clickhouse",
+		time.Sleep(200 * time.Millisecond)
+		// Populate test data
+		err = sendPlain("tcp", test.Cch.address, test.Input)
+		if err != nil {
+			logger.Error("send plain to carbon-clickhouse",
 				zap.String("config", test.name),
-				zap.Any("clickhouse version", clickhouse.Version),
-				zap.String("clickhouse config", clickhouseDir),
-				zap.String("error", "clickhouse is down"),
+				zap.String("clickhouse version", clickhouse.Version),
+				zap.String("clickhouse config", clickhouse.Dir),
+				zap.Error(err),
 			)
 			testSuccess = false
 		}
-
 		if testSuccess {
-			// Populate test data
-			err = sendPlain("tcp", test.Cch.address, test.Input)
-			if err != nil {
-				logger.Error("send plain to carbon-clickhouse",
-					zap.String("config", test.name),
-					zap.String("clickhouse version", clickhouse.Version),
-					zap.String("clickhouse config", clickhouseDir),
-					zap.Error(err),
-				)
-				testSuccess = false
-			}
-			if testSuccess {
-				time.Sleep(2 * time.Second)
-			}
+			time.Sleep(2 * time.Second)
 		}
 
 		if testSuccess {
 			for _, gch := range test.Gch {
-				stepSuccess, vCount, vFailed := verifyGraphiteClickhouse(test, &gch, clickhouse, testDir, clickhouseDir, verbose, breakOnError, logger)
+				stepSuccess, vCount, vFailed := verifyGraphiteClickhouse(test, &gch, clickhouse, testDir, clickhouse.Dir, verbose, breakOnError, logger)
 				verifyCount += vCount
 				verifyFailed += vFailed
 				if !stepSuccess {
@@ -501,7 +484,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		logger.Error("stoping carbon-clickhouse",
 			zap.String("config", test.name),
 			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 			zap.Error(err),
 			zap.String("out", out),
 		)
@@ -510,78 +493,90 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 
 	test.Proxy.Stop()
 
-	if !clickhouse.Alive() {
-		clickhouse.CopyLog(os.TempDir(), 10)
-	}
-
-	out, err = clickhouse.Stop(true)
-	if err != nil {
-		logger.Error("stoping clickhouse",
-			zap.String("config", test.name),
-			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
-			zap.Error(err),
-			zap.String("out", out),
-		)
-		testSuccess = false
-	}
-
 	if testSuccess {
 		logger.Info("end e2e test",
 			zap.String("config", test.name),
 			zap.String("status", "success"),
 			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 		)
 	} else {
 		logger.Error("end e2e test",
 			zap.String("config", test.name),
 			zap.String("status", "failed"),
 			zap.String("clickhouse version", clickhouse.Version),
-			zap.String("clickhouse config", clickhouseDir),
+			zap.String("clickhouse config", clickhouse.Dir),
 		)
 	}
 
 	return
 }
 
-func runTest(config string, rootDir string, verbose, breakOnError bool, logger *zap.Logger) (failed, total, verifyCount, verifyFailed int) {
+func runTest(cfg *MainConfig, clickhouse *Clickhouse, rootDir string, now time.Time, verbose, breakOnError bool, logger *zap.Logger) (failed, total, verifyCount, verifyFailed int) {
+	var isRunning bool
+	total++
+	if exist, out := containerExist(CchContainerName); exist {
+		logger.Error("carbon-clickhouse already exist",
+			zap.String("container", CchContainerName),
+			zap.String("out", out),
+		)
+		isRunning = true
+	}
+	if isRunning {
+		failed++
+		return
+	}
+	success, vCount, vFailed := testGraphiteClickhouse(cfg.Test, clickhouse, cfg.Test.dir, rootDir, verbose, breakOnError, logger)
+	if !success {
+		failed++
+	}
+	verifyCount += vCount
+	verifyFailed += vFailed
+
+	return
+}
+
+func clickhouseStart(clickhouse *Clickhouse, logger *zap.Logger) bool {
+	out, err := clickhouse.Start()
+	if err != nil {
+		logger.Error("starting clickhouse",
+			zap.Any("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouse.Dir),
+			zap.Error(err),
+			zap.String("out", out),
+		)
+		clickhouse.Stop(true)
+		return false
+	}
+	return true
+}
+
+func clickhouseStop(clickhouse *Clickhouse, logger *zap.Logger) (result bool) {
+	result = true
+	if !clickhouse.Alive() {
+		clickhouse.CopyLog(os.TempDir(), 10)
+		result = false
+	}
+
+	out, err := clickhouse.Stop(true)
+	if err != nil {
+		logger.Error("stoping clickhouse",
+			zap.String("clickhouse version", clickhouse.Version),
+			zap.String("clickhouse config", clickhouse.Dir),
+			zap.Error(err),
+			zap.String("out", out),
+		)
+		result = false
+	}
+	return result
+}
+
+func initTest(cfg *MainConfig, rootDir string, now time.Time, verbose, breakOnError bool, logger *zap.Logger) bool {
 	tz, err := datetime.Timezone("")
 	if err != nil {
 		fmt.Printf("can't get timezone: %s\n", err.Error())
 		os.Exit(1)
 	}
-
-	testDir := path.Dir(config)
-	d, err := ioutil.ReadFile(config)
-	if err != nil {
-		logger.Error("failed to read config",
-			zap.String("config", config),
-			zap.Error(err),
-		)
-		failed++
-		total++
-		return
-	}
-
-	confShort := strings.ReplaceAll(config, rootDir+"/", "")
-
-	var cfg = MainConfig{}
-	if err := toml.Unmarshal(d, &cfg); err != nil {
-		logger.Fatal("failed to decode config",
-			zap.String("config", confShort),
-			zap.Error(err),
-		)
-	}
-
-	cfg.Test.name = confShort
-	if len(cfg.Test.Input) == 0 {
-		logger.Fatal("input not set",
-			zap.String("config", confShort),
-		)
-	}
-
-	now := time.Now()
 
 	// prepare
 	for n, m := range cfg.Test.Input {
@@ -592,15 +587,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			}
 			if err != nil {
 				logger.Error("failed to read config",
-					zap.String("config", config),
+					zap.String("config", cfg.Test.name),
 					zap.Error(err),
 					zap.String("input", m.Name),
 					zap.Int("metric", n),
 					zap.Int("point", i),
 					zap.String("time", m.Points[i].Time),
 				)
-				failed++
-				return
+				return false
 			}
 		}
 	}
@@ -614,14 +608,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.String("query", find.Query),
 				zap.String("from", find.From),
 				zap.Int("step", n),
 			)
-			failed++
-			return
+			return false
 		}
 		find.until = datetime.DateParamToEpoch(find.Until, tz, now, cfg.Test.Precision)
 		if find.until == 0 && find.Until != "" {
@@ -629,14 +622,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.String("query", find.Query),
 				zap.String("until", find.Until),
 				zap.Int("step", n),
 			)
-			failed++
-			return
+			return false
 		}
 		if find.ErrorRegexp != "" {
 			find.errorRegexp = regexp.MustCompile(find.ErrorRegexp)
@@ -652,14 +644,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.String("query", tags.Query),
 				zap.String("from", tags.From),
 				zap.Int("find", n),
 			)
-			failed++
-			return
+			return false
 		}
 		tags.until = datetime.DateParamToEpoch(tags.Until, tz, now, cfg.Test.Precision)
 		if tags.until == 0 && tags.Until != "" {
@@ -667,15 +658,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.String("query", tags.Query),
 				zap.String("until", tags.Until),
 				zap.Int("tags", n),
 				zap.Bool("names", tags.Names),
 			)
-			failed++
-			return
+			return false
 		}
 		if tags.ErrorRegexp != "" {
 			tags.errorRegexp = regexp.MustCompile(tags.ErrorRegexp)
@@ -691,14 +681,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.Strings("targets", r.Targets),
 				zap.String("from", r.From),
 				zap.Int("render", n),
 			)
-			failed++
-			return
+			return false
 		}
 		r.until = datetime.DateParamToEpoch(r.Until, tz, now, cfg.Test.Precision)
 		if r.until == 0 && r.Until != "" {
@@ -706,14 +695,13 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 		}
 		if err != nil {
 			logger.Error("failed to read config",
-				zap.String("config", config),
+				zap.String("config", cfg.Test.name),
 				zap.Error(err),
 				zap.Strings("targets", r.Targets),
 				zap.String("until", r.Until),
 				zap.Int("render", n),
 			)
-			failed++
-			return
+			return false
 		}
 		if r.ErrorRegexp != "" {
 			r.errorRegexp = regexp.MustCompile(r.ErrorRegexp)
@@ -729,15 +717,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			}
 			if err != nil {
 				logger.Error("failed to read config",
-					zap.String("config", config),
+					zap.String("config", cfg.Test.name),
 					zap.Error(err),
 					zap.Strings("targets", r.Targets),
 					zap.Int("render", n),
 					zap.String("metric", result.Name),
 					zap.String("start", result.StartTime),
 				)
-				failed++
-				return
+				return false
 			}
 			r.result[i].StopTime = datetime.DateParamToEpoch(result.StopTime, tz, now, cfg.Test.Precision)
 			if r.result[i].StopTime == 0 && result.StopTime != "" {
@@ -745,15 +732,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			}
 			if err != nil {
 				logger.Error("failed to read config",
-					zap.String("config", config),
+					zap.String("config", cfg.Test.name),
 					zap.Error(err),
 					zap.Strings("targets", r.Targets),
 					zap.Int("render", n),
 					zap.String("metric", result.Name),
 					zap.String("stop", result.StopTime),
 				)
-				failed++
-				return
+				return false
 			}
 			r.result[i].RequestStartTime = datetime.DateParamToEpoch(result.RequestStartTime, tz, now, cfg.Test.Precision)
 			if r.result[i].RequestStartTime == 0 && result.RequestStartTime != "" {
@@ -761,15 +747,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			}
 			if err != nil {
 				logger.Error("failed to read config",
-					zap.String("config", config),
+					zap.String("config", cfg.Test.name),
 					zap.Error(err),
 					zap.Strings("targets", r.Targets),
 					zap.Int("render", n),
 					zap.String("metric", result.Name),
 					zap.String("req_start", result.RequestStartTime),
 				)
-				failed++
-				return
+				return false
 			}
 			r.result[i].RequestStopTime = datetime.DateParamToEpoch(result.RequestStopTime, tz, now, cfg.Test.Precision)
 			if r.result[i].RequestStopTime == 0 && result.RequestStopTime != "" {
@@ -777,15 +762,14 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			}
 			if err != nil {
 				logger.Error("failed to read config",
-					zap.String("config", config),
+					zap.String("config", cfg.Test.name),
 					zap.Error(err),
 					zap.Strings("targets", r.Targets),
 					zap.Int("render", n),
 					zap.String("metric", result.Name),
 					zap.String("req_stop", result.RequestStopTime),
 				)
-				failed++
-				return
+				return false
 			}
 			r.result[i].StepTime = result.StepTime
 			r.result[i].Name = result.Name
@@ -797,35 +781,36 @@ func runTest(config string, rootDir string, verbose, breakOnError bool, logger *
 			r.result[i].Values = result.Values
 		}
 	}
+	return true
+}
 
-	for _, clickhouse := range cfg.Test.Clickhouse {
-		var isRunning bool
-		total++
-		if exist, out := containerExist(ClickhouseContainerName); exist {
-			logger.Error("clickhouse already exist",
-				zap.String("container", ClickhouseContainerName),
-				zap.String("out", out),
-			)
-			isRunning = true
-		}
-		if exist, out := containerExist(CchContainerName); exist {
-			logger.Error("carbon-clickhouse already exist",
-				zap.String("container", CchContainerName),
-				zap.String("out", out),
-			)
-			isRunning = true
-		}
-		if isRunning {
-			failed++
-			return
-		}
-		success, vCount, vFailed := testGraphiteClickhouse(cfg.Test, &clickhouse, testDir, rootDir, verbose, breakOnError, logger)
-		if !success {
-			failed++
-		}
-		verifyCount += vCount
-		verifyFailed += vFailed
+func loadConfig(config string, rootDir string) (*MainConfig, error) {
+	d, err := os.ReadFile(config)
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	confShort := strings.ReplaceAll(config, rootDir+"/", "")
+
+	var cfg = &MainConfig{}
+	if err := toml.Unmarshal(d, cfg); err != nil {
+		return nil, err
+	}
+
+	cfg.Test.name = confShort
+	cfg.Test.dir = path.Dir(config)
+
+	if cfg.Test == nil {
+		return nil, ErrNoTest
+	}
+	cfg.Test.chVersions = make(map[string]bool)
+	for i := range cfg.Test.Clickhouse {
+		if err := cfg.Test.Clickhouse[i].CheckConfig(rootDir); err == nil {
+			cfg.Test.chVersions[cfg.Test.Clickhouse[i].Key()] = true
+		} else {
+			return nil, fmt.Errorf("[%d] %s", i, err.Error())
+		}
+	}
+
+	return cfg, nil
 }

@@ -26,13 +26,14 @@ import (
 
 // Cache config
 type CacheConfig struct {
-	Type              string        `toml:"type" json:"type" comment:"cache type"`
-	Size              int           `toml:"size-mb" json:"size-mb" comment:"cache size"`
-	MemcachedServers  []string      `toml:"memcached-servers" json:"memcached-servers" comment:"memcached servers"`
-	DefaultTimeoutSec int32         `toml:"default-timeout" json:"default-timeout" comment:"default cache ttl"`
-	ShortTimeoutSec   int32         `toml:"short-timeout" json:"short-timeout" comment:"short-time cache ttl"`
-	FindTimeoutSec    int32         `toml:"find-timeout" json:"find-timeout" comment:"finder/tags autocompleter cache ttl"`
-	ShortDuration     time.Duration `toml:"short-duration" json:"short-duration" comment:"maximum diration, used with short_timeout"`
+	Type                string        `toml:"type" json:"type" comment:"cache type"`
+	Size                int           `toml:"size-mb" json:"size-mb" comment:"cache size"`
+	MemcachedServers    []string      `toml:"memcached-servers" json:"memcached-servers" comment:"memcached servers"`
+	DefaultTimeoutSec   int32         `toml:"default-timeout" json:"default-timeout" comment:"default cache ttl"`
+	ShortTimeoutSec     int32         `toml:"short-timeout" json:"short-timeout" comment:"short-time cache ttl"`
+	FindTimeoutSec      int32         `toml:"find-timeout" json:"find-timeout" comment:"finder/tags autocompleter cache ttl"`
+	ShortDuration       time.Duration `toml:"short-duration" json:"short-duration" comment:"maximum diration, used with short_timeout"`
+	ShortUntilOffsetSec int64         `toml:"short-offset" json:"short-offset" comment:"offset beetween now and until for select short cache timeout"`
 }
 
 // Common config
@@ -637,8 +638,18 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 	if cacheConfig.DefaultTimeoutSec < cacheConfig.ShortTimeoutSec {
 		cacheConfig.DefaultTimeoutSec = cacheConfig.ShortTimeoutSec
 	}
+	if cacheConfig.ShortTimeoutSec < 0 || cacheConfig.DefaultTimeoutSec == cacheConfig.ShortTimeoutSec {
+		// broken value or short timeout not need due to equal
+		cacheConfig.ShortTimeoutSec = 0
+	}
+	if cacheConfig.DefaultTimeoutSec < cacheConfig.ShortTimeoutSec {
+		cacheConfig.DefaultTimeoutSec = cacheConfig.ShortTimeoutSec
+	}
 	if cacheConfig.ShortDuration == 0 {
 		cacheConfig.ShortDuration = 3 * time.Hour
+	}
+	if cacheConfig.ShortUntilOffsetSec == 0 {
+		cacheConfig.ShortUntilOffsetSec = 120
 	}
 	switch cacheConfig.Type {
 	case "memcache":
