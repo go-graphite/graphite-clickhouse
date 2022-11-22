@@ -2,15 +2,11 @@
 precision = "10s"
 
 [[test.clickhouse]]
-version = "20.3"
-dir = "tests/clickhouse/rollup"
-
-[[test.clickhouse]]
-version = "20.8"
-dir = "tests/clickhouse/rollup"
-
-[[test.clickhouse]]
 version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "22.8"
 dir = "tests/clickhouse/rollup"
 
 [[test.clickhouse]]

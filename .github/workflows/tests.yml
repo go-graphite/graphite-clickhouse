@@ -68,7 +68,7 @@ jobs:
     - name: Integration tests
       run: |
         make e2e-test
-        ./e2e-test -config tests
+        ./e2e-test -config tests -abort -rmi
 
     # TODO (msaf1980): find a way to set TZ in carbon-clickhouse docker (or run locally)
     # run with clickhouse.date-format = "both"
