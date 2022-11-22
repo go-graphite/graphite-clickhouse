@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,9 +10,10 @@ import (
 
 func Test_getCacheTimeout(t *testing.T) {
 	cacheConfig := config.CacheConfig{
-		ShortTimeoutSec:   60,
-		DefaultTimeoutSec: 300,
-		ShortDuration:     3 * time.Hour,
+		ShortTimeoutSec:     60,
+		DefaultTimeoutSec:   300,
+		ShortDuration:       3 * time.Hour,
+		ShortUntilOffsetSec: 120,
 	}
 
 	now := int64(1636985018)
@@ -66,8 +68,8 @@ func Test_getCacheTimeout(t *testing.T) {
 			want:  300,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("[%d] %s", i, tt.name), func(t *testing.T) {
 			if got, _ := getCacheTimeout(tt.now, tt.from, tt.until, &cacheConfig); got != tt.want {
 				t.Errorf("getCacheTimeout() = %v, want %v", got, tt.want)
 			}
