@@ -32,9 +32,10 @@ func Run(config *config.Config) error {
 	}
 
 	queryEngine := promql.NewEngine(promql.EngineOpts{
-		Logger:     zapLogger,
-		Timeout:    time.Minute,
-		MaxSamples: 50000000,
+		Logger:        zapLogger,
+		Timeout:       time.Minute,
+		MaxSamples:    50000000,
+		LookbackDelta: config.Prometheus.LookbackDelta,
 	})
 
 	scrapeManager := scrape.NewManager(&scrape.Options{}, zapLogger, storage)
@@ -63,6 +64,7 @@ func Run(config *config.Config) error {
 		Notifier:        notifierManager,
 		CORSOrigin:      corsOrigin,
 		PageTitle:       config.Prometheus.PageTitle,
+		LookbackDelta:   config.Prometheus.LookbackDelta,
 	})
 
 	promHandler.ApplyConfig(&promConfig.Config{})

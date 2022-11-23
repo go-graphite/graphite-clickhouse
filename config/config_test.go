@@ -281,8 +281,10 @@ query-timeout = "350ms"
 total-timeout = "800ms"
 
 [prometheus]
+listen = ":9092"
 external-url = "https://server:3456/uri"
 page-title = "Prometheus Time Series"
+lookback-delta = "5m"
 
 [debug]
 directory = "tests_tmp"
@@ -383,7 +385,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series"}
+	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series", 5 * time.Minute}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
@@ -485,8 +487,10 @@ query-timeout = "350ms"
 total-timeout = "800ms"
 
 [prometheus]
+listen = ":9092"
 external-url = "https://server:3456/uri"
 page-title = "Prometheus Time Series"
+lookback-delta = "5m"
 
 [debug]
 directory = "tests_tmp"
@@ -622,7 +626,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series"}
+	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series", 5 * time.Minute}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
