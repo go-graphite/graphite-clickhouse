@@ -344,6 +344,7 @@ Send internal metrics to graphite relay
  # allows to set URL for redirect manually
  external-url = ""
  page-title = "Prometheus Time Series Collection and Processing Server"
+ lookback-delta = "5m0s"
 
 # see doc/debugging.md
 [debug]
