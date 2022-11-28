@@ -66,7 +66,7 @@ func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatc
 		return emptySeriesSet()
 	}
 
-	if hints == nil {
+	if hints != nil && hints.Func == "series" {
 		// /api/v1/series?match[]=...
 		return newMetricsSet(am.DisplayNames()) //, nil, nil
 	}
