@@ -35,18 +35,18 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
 	var from, until time.Time
 
-	if from.IsZero() && hints != nil && hints.Start != 0 {
+	// ClickHouse supported range of values by the Date type:  [1970-01-01, 2149-06-06]
+	if from.IsZero() && hints != nil && hints.Start > 0 && hints.Start < 5662310400000 {
 		from = time.Unix(hints.Start/1000, (hints.Start%1000)*1000000)
 	}
-	if until.IsZero() && hints != nil && hints.End != 0 {
+	if until.IsZero() && hints != nil && hints.End > 0 && hints.End < 5662310400000 {
 		until = time.Unix(hints.End/1000, (hints.End%1000)*1000000)
 	}
 
-	if from.IsZero() && q.mint > 0 {
+	if from.IsZero() && q.mint > 0 && q.mint < 5662310400000 {
 		from = time.Unix(q.mint/1000, (q.mint%1000)*1000000)
 	}
-	// ClickHouse supported Datetime range of values: [1970-01-01 00:00:00, 2105-12-31 23:59:59]
-	if until.IsZero() && q.maxt > 0 && q.maxt <= 4291765199000 {
+	if until.IsZero() && q.maxt > 0 && q.maxt < 5662310400000 {
 		until = time.Unix(q.maxt/1000, (q.maxt%1000)*1000000)
 	}
 
