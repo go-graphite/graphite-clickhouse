@@ -22,6 +22,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// override in unit tests for stable results
+var timeNow = time.Now
+
 type Handler struct {
 	config   *config.Config
 	isValues bool
@@ -104,7 +107,7 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 }
 
 func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag string, exprs []string, prefix string, limit int) (string, string) {
-	ts := utils.TimestampTruncate(time.Now().Unix(), time.Duration(truncateSec)*time.Second)
+	ts := utils.TimestampTruncate(timeNow().Unix(), time.Duration(truncateSec)*time.Second)
 	var sb stringutils.Builder
 	sb.Grow(128)
 	sb.WriteString(typ)
@@ -131,7 +134,7 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 }
 
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
+	start := timeNow()
 	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 
@@ -312,7 +315,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
+	start := timeNow()
 	status := http.StatusOK
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
 

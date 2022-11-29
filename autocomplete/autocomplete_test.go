@@ -51,6 +51,9 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 }
 
 func TestHandler_ServeValues(t *testing.T) {
+	timeNow = func() time.Time {
+		return time.Unix(1669714247, 0)
+	}
 	metrics.DisableMetrics()
 	srv := chtest.NewTestServer()
 	defer srv.Close()
@@ -60,7 +63,7 @@ func TestHandler_ServeValues(t *testing.T) {
 
 	h := NewTags(cfg)
 
-	now := time.Now()
+	now := timeNow()
 	until := strconv.FormatInt(now.Unix(), 10)
 	from := strconv.FormatInt(now.Add(-time.Minute).Unix(), 10)
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
@@ -97,6 +100,9 @@ func TestHandler_ServeValues(t *testing.T) {
 }
 
 func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
+	timeNow = func() time.Time {
+		return time.Unix(1669714247, 0)
+	}
 	metrics.DisableMetrics()
 	srv := clickhouse.NewTestServer()
 	defer srv.Close()
@@ -118,7 +124,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 
 	h := NewTags(cfg)
 
-	now := time.Now()
+	now := timeNow()
 	until := strconv.FormatInt(now.Unix(), 10)
 	from := strconv.FormatInt(now.Add(-time.Minute).Unix(), 10)
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
