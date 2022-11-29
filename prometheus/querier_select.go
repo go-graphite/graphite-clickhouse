@@ -14,13 +14,17 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher) (*alias.Map, error) {
+// override in unit tests for stable results
+var timeNow = time.Now
+
+func (q *Querier) lookup(from, until int64, labelsMatcher ...*labels.Matcher) (*alias.Map, error) {
 	terms, err := makeTaggedFromPromQL(labelsMatcher)
 	if err != nil {
 		return nil, err
 	}
 	var stat finder.FinderStat
-	fndResult, err := finder.FindTagged(q.config, q.ctx, terms, from.Unix(), until.Unix(), &stat)
+	// TODO: implement use stat for Prometheus queries
+	fndResult, err := finder.FindTagged(q.config, q.ctx, terms, from, until, &stat)
 
 	if err != nil {
 		return nil, err
@@ -31,32 +35,39 @@ func (q *Querier) lookup(from, until time.Time, labelsMatcher ...*labels.Matcher
 	return am, nil
 }
 
-// Select returns a set of series that matches the given label matchers.
-func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
+func (q *Querier) timeRange(hints *storage.SelectHints) (int64, int64) {
 	var from, until time.Time
 
 	// ClickHouse supported range of values by the Date type:  [1970-01-01, 2149-06-06]
-	if from.IsZero() && hints != nil && hints.Start > 0 && hints.Start < 5662310400000 {
+	if hints != nil && hints.Start > 0 && hints.Start < 5662310400000 {
 		from = time.Unix(hints.Start/1000, (hints.Start%1000)*1000000)
 	}
-	if until.IsZero() && hints != nil && hints.End > 0 && hints.End < 5662310400000 {
+	if hints != nil && hints.End > 0 && hints.End < 5662310400000 {
 		until = time.Unix(hints.End/1000, (hints.End%1000)*1000000)
 	}
 
-	if from.IsZero() && q.mint > 0 && q.mint < 5662310400000 {
-		from = time.Unix(q.mint/1000, (q.mint%1000)*1000000)
-	}
-	if until.IsZero() && q.maxt > 0 && q.maxt < 5662310400000 {
-		until = time.Unix(q.maxt/1000, (q.maxt%1000)*1000000)
-	}
-
 	if until.IsZero() {
-		until = time.Now()
-	}
-	if from.IsZero() {
-		from = until.AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+		if q.maxt > 0 && q.maxt < 5662310400000 {
+			until = time.Unix(q.maxt/1000, (q.maxt%1000)*1000000)
+		} else {
+			until = timeNow()
+		}
 	}
 
+	if from.IsZero() {
+		if q.mint > 0 && q.mint < 5662310400000 {
+			from = time.Unix(q.mint/1000, (q.mint%1000)*1000000)
+		} else {
+			from = until.AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
+		}
+	}
+
+	return from.Unix(), until.Unix()
+}
+
+// Select returns a set of series that matches the given label matchers.
+func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
+	from, until := q.timeRange(hints)
 	am, err := q.lookup(from, until, labelsMatcher...)
 	if err != nil {
 		return nil //, nil, err @TODO
@@ -76,12 +87,12 @@ func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatc
 		step = hints.Step
 	}
 
-	maxDataPoints := (until.Unix() - from.Unix()) / (step / 1000)
+	maxDataPoints := 1000 * (until - from) / step
 
 	multiTarget := data.MultiTarget{
 		data.TimeFrame{
-			From:          from.Unix(),
-			Until:         until.Unix(),
+			From:          from,
+			Until:         until,
 			MaxDataPoints: maxDataPoints,
 		}: &data.Targets{List: []string{}, AM: am},
 	}
