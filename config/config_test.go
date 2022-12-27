@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
 	"github.com/stretchr/testify/assert"
@@ -350,8 +351,11 @@ sample-thereafter = 12
 				Duration:    0,
 				URL:         "http://somehost:8123",
 				DataTimeout: 64000000000,
+				Limiter:     limiter.NoopLimiter{},
 			},
 		},
+		FindLimiter:          limiter.NoopLimiter{},
+		TagsLimiter:          limiter.NoopLimiter{},
 		IndexTable:           "graphite_index",
 		IndexReverse:         "direct",
 		IndexReverses:        make(IndexReverses, 2),
@@ -422,7 +426,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Logging, config.Logging)
 }
 
-func TestReadConfigGraphite(t *testing.T) {
+func TestReadConfigGraphiteWithLimiter(t *testing.T) {
 	body := []byte(
 		`[common]
 listen = "[::1]:9090"
@@ -465,6 +469,27 @@ data-timeout = "64s"
 index-timeout = "4s"
 tree-timeout = "5s"
 connect-timeout = "2s"
+
+render-max-queries = 1000
+render-max-concurrent = 10
+find-max-queries = 200
+find-max-concurrent = 8
+tags-max-queries = 50
+tags-max-concurrent = 4
+
+query-params = [
+	{
+		duration = "72h",
+		url = "http://localhost:8123/?max_rows_to_read=20000"
+	}
+]
+
+user-limits = {
+	"alert" = {
+		max-queries = 200,
+		max-concurrent = 10
+	}
+}
 
 # DataTable is tested in TestProcessDataTables
 # [[data-table]]
@@ -588,9 +613,29 @@ sample-thereafter = 12
 		DataTimeout: 64000000000,
 		QueryParams: []QueryParam{
 			{
-				Duration:    0,
-				URL:         "http://somehost:8123",
+				Duration:      0,
+				URL:           "http://somehost:8123",
+				DataTimeout:   64000000000,
+				MaxQueries:    1000,
+				MaxConcurrent: 10,
+			},
+			{
+				Duration:    72 * time.Hour,
+				URL:         "http://localhost:8123/?max_rows_to_read=20000",
 				DataTimeout: 64000000000,
+				Limiter:     limiter.NoopLimiter{},
+			},
+		},
+		RenderMaxQueries:    1000,
+		RenderMaxConcurrent: 10,
+		FindMaxQueries:      200,
+		FindMaxConcurrent:   8,
+		TagsMaxQueries:      50,
+		TagsMaxConcurrent:   4,
+		UserLimits: map[string]UserLimits{
+			"alert": {
+				MaxQueries:    200,
+				MaxConcurrent: 10,
 			},
 		},
 		IndexTable:           "graphite_index",
@@ -615,6 +660,24 @@ sample-thereafter = 12
 	expected.ClickHouse.IndexReverses[0] = &IndexReverseRule{"suf", "pref", "", nil, "direct"}
 	r, _ = regexp.Compile("^reg$")
 	expected.ClickHouse.IndexReverses[1] = &IndexReverseRule{"", "", "^reg$", r, "reversed"}
+	for i := range config.ClickHouse.QueryParams {
+		if _, ok := config.ClickHouse.QueryParams[i].Limiter.(*limiter.WLimiter); ok && config.ClickHouse.QueryParams[i].MaxQueries > 0 && config.ClickHouse.QueryParams[i].MaxConcurrent > 0 {
+			config.ClickHouse.QueryParams[i].Limiter = nil
+		}
+	}
+	if _, ok := config.ClickHouse.FindLimiter.(*limiter.WLimiter); ok && config.ClickHouse.FindMaxQueries > 0 && config.ClickHouse.FindMaxConcurrent > 0 {
+		config.ClickHouse.FindLimiter = nil
+	}
+	if _, ok := config.ClickHouse.TagsLimiter.(*limiter.WLimiter); ok && config.ClickHouse.TagsMaxQueries > 0 && config.ClickHouse.TagsMaxConcurrent > 0 {
+		config.ClickHouse.TagsLimiter = nil
+	}
+	for u, q := range config.ClickHouse.UserLimits {
+		if _, ok := q.Limiter.(*limiter.WLimiter); ok && q.MaxQueries > 0 && q.MaxConcurrent > 0 {
+			q.Limiter = nil
+			config.ClickHouse.UserLimits[u] = q
+		}
+	}
+
 	assert.Equal(t, expected.ClickHouse, config.ClickHouse)
 
 	// Tags
@@ -702,10 +765,11 @@ func TestGetQueryParamBroken(t *testing.T) {
 
 func TestGetQueryParam(t *testing.T) {
 	tests := []struct {
-		name       string
-		config     []byte
-		durations  []time.Duration
-		wantParams []QueryParam
+		name           string
+		config         []byte
+		durations      []time.Duration
+		wantParams     []QueryParam
+		wantUserParams map[string]QueryParam
 	}{
 		{
 			name: "Only default",
@@ -859,8 +923,12 @@ func TestGetQueryParam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if config, err := Unmarshal(tt.config, false); err == nil {
+				for i := range config.ClickHouse.QueryParams {
+					config.ClickHouse.QueryParams[i].Limiter = nil
+				}
 				for i, duration := range tt.durations {
-					if got := GetQueryParam(config.ClickHouse.QueryParams, duration); config.ClickHouse.QueryParams[got] != tt.wantParams[i] {
+					got := GetQueryParam(config.ClickHouse.QueryParams, duration)
+					if config.ClickHouse.QueryParams[got] != tt.wantParams[i] {
 						t.Errorf("[%d] GetQueryParam(%v) = %+v, want %+v", i, duration, config.ClickHouse.QueryParams[got], tt.wantParams[i])
 					}
 				}

@@ -2,7 +2,7 @@ package tagger
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 
@@ -34,7 +34,7 @@ type Rules struct {
 }
 
 func ParseFile(filename string) (*Rules, error) {
-	c, err := ioutil.ReadFile(filename)
+	c, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func ParseGlob(glob string) (*Rules, error) {
 	}
 
 	for i := 0; i < len(files); i++ {
-		c, err := ioutil.ReadFile(files[i])
+		c, err := os.ReadFile(files[i])
 		if err != nil {
 			return nil, err
 		}

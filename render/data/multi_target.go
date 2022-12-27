@@ -10,6 +10,7 @@ import (
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
@@ -75,6 +76,47 @@ func getDataTimeout(cfg *config.Config, m *MultiTarget) time.Duration {
 	}
 
 	return dataTimeout
+}
+
+func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) limiter.ServerLimiter {
+	n := 0
+	if username != "" && len(cfg.ClickHouse.UserLimits) > 0 {
+		if u, ok := cfg.ClickHouse.UserLimits[username]; ok {
+			return u.Limiter
+		}
+	}
+
+	if len(cfg.ClickHouse.QueryParams) > 1 {
+		var maxDuration time.Duration
+		for tf := range *m {
+			duration := time.Second * time.Duration(tf.Until-tf.From)
+			if duration >= maxDuration {
+				maxDuration = duration
+			}
+		}
+
+		n = config.GetQueryParam(cfg.ClickHouse.QueryParams, maxDuration)
+	}
+
+	return cfg.ClickHouse.QueryParams[n].Limiter
+}
+
+func GetQueryParam(username string, cfg *config.Config, m *MultiTarget) (*config.QueryParam, int) {
+	n := 0
+
+	if len(cfg.ClickHouse.QueryParams) > 1 {
+		var maxDuration time.Duration
+		for tf := range *m {
+			duration := time.Second * time.Duration(tf.Until-tf.From)
+			if duration >= maxDuration {
+				maxDuration = duration
+			}
+		}
+
+		n = config.GetQueryParam(cfg.ClickHouse.QueryParams, maxDuration)
+	}
+
+	return &cfg.ClickHouse.QueryParams[n], n
 }
 
 // Fetch fetches the parsed ClickHouse data returns CHResponses

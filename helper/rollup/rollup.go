@@ -3,7 +3,7 @@ package rollup
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -35,7 +35,7 @@ func NewAuto(addr string, table string, interval time.Duration, defaultPrecision
 }
 
 func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
-	rollupConfBody, err := ioutil.ReadFile(filename)
+	rollupConfBody, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

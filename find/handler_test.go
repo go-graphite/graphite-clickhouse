@@ -1,7 +1,7 @@
 package find
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +14,7 @@ type clickhouseMock struct {
 }
 
 func (m *clickhouseMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
+	body, _ := io.ReadAll(r.Body)
 
 	if m.requestLog != nil {
 		m.requestLog <- body

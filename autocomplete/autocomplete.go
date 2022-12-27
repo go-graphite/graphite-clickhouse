@@ -1,6 +1,7 @@
 package autocomplete
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -54,9 +56,6 @@ func dateString(autocompleteDays int, tm time.Time) (string, string) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("autocomplete")
-	r = r.WithContext(scope.WithLogger(r.Context(), logger))
-
 	// Don't process, if the tagged table is not set
 	if h.config.ClickHouse.TaggedTable == "" {
 		w.Write([]byte{'[', ']'})
@@ -136,16 +135,22 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	start := timeNow()
 	status := http.StatusOK
-	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
+	logger := accessLogger.Named("autocomplete")
 
 	var (
-		err          error
-		chReadRows   int64
-		chReadBytes  int64
-		metricsCount int64
-		readBytes    int64
-		findCache    bool
+		err           error
+		chReadRows    int64
+		chReadBytes   int64
+		metricsCount  int64
+		readBytes     int64
+		queueFail     bool
+		queueDuration time.Duration
+		findCache     bool
 	)
+
+	username := w.Header().Get("X-Forwarded-User")
+	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -158,11 +163,14 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
 			http.Error(w, answer, status)
 		}
-		d := time.Since(start).Milliseconds()
-		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		d := time.Since(start)
+		dMS := d.Milliseconds()
+		logs.AccessLog(accessLogger, h.config, r, status, d, queueDuration, findCache, queueFail)
+		limiter.SendDuration(queueDuration.Milliseconds())
+		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, dMS, 0, h.config.Metrics.ExtendedStat, metricsCount)
 		if !findCache && chReadRows != 0 && chReadBytes != 0 {
 			errored := status != http.StatusOK && status != http.StatusNotFound
-			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, readBytes, chReadRows, chReadBytes, errored)
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, dMS, metricsCount, readBytes, chReadRows, chReadBytes, errored)
 		}
 	}()
 
@@ -209,6 +217,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	if !findCache {
 		var valueSQL string
+
 		if len(usedTags) == 0 {
 			valueSQL = "splitByChar('=', Tag1)[1] AS value"
 			if tagPrefix != "" {
@@ -233,6 +242,34 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			queryLimit,
 		)
 
+		var (
+			entered bool
+			ctx     context.Context
+			cancel  context.CancelFunc
+		)
+		if limiter.Enabled() {
+			ctx, cancel = context.WithTimeout(context.Background(), h.config.ClickHouse.IndexTimeout)
+			defer cancel()
+
+			err = limiter.Enter(ctx, "tags")
+			queueDuration = time.Since(start)
+			if err != nil {
+				status = http.StatusServiceUnavailable
+				queueFail = true
+				logger.Error(err.Error())
+				http.Error(w, err.Error(), status)
+				return
+			}
+			queueDuration = time.Since(start)
+			entered = true
+			defer func() {
+				if entered {
+					limiter.Leave(ctx, "tags")
+					entered = false
+				}
+			}()
+		}
+
 		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
@@ -243,6 +280,13 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			},
 			nil,
 		)
+
+		if entered {
+			// release early as possible
+			limiter.Leave(ctx, "tags")
+			entered = false
+		}
+
 		if err != nil {
 			status = clickhouse.HandleError(w, err)
 			return
@@ -317,16 +361,22 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	start := timeNow()
 	status := http.StatusOK
-	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("autocomplete")
 
 	var (
-		err          error
-		body         []byte
-		chReadRows   int64
-		chReadBytes  int64
-		metricsCount int64
-		findCache    bool
+		err           error
+		body          []byte
+		chReadRows    int64
+		chReadBytes   int64
+		metricsCount  int64
+		queueFail     bool
+		queueDuration time.Duration
+		findCache     bool
 	)
+
+	username := w.Header().Get("X-Forwarded-User")
+	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -339,11 +389,14 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
 			http.Error(w, answer, status)
 		}
-		d := time.Since(start).Milliseconds()
-		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		d := time.Since(start)
+		dMS := d.Milliseconds()
+		logs.AccessLog(accessLogger, h.config, r, status, d, queueDuration, findCache, queueFail)
+		limiter.SendDuration(queueDuration.Milliseconds())
+		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, dMS, 0, h.config.Metrics.ExtendedStat, metricsCount)
 		if !findCache && chReadRows > 0 && chReadBytes > 0 {
 			errored := status != http.StatusOK && status != http.StatusNotFound
-			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, d, metricsCount, int64(len(body)), chReadRows, chReadBytes, errored)
+			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, dMS, metricsCount, int64(len(body)), chReadRows, chReadBytes, errored)
 		}
 	}()
 
@@ -411,6 +464,34 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			limit,
 		)
 
+		var (
+			entered bool
+			ctx     context.Context
+			cancel  context.CancelFunc
+		)
+		if limiter.Enabled() {
+			ctx, cancel = context.WithTimeout(context.Background(), h.config.ClickHouse.IndexTimeout)
+			defer cancel()
+
+			err = limiter.Enter(ctx, "tags")
+			queueDuration = time.Since(start)
+			if err != nil {
+				status = http.StatusServiceUnavailable
+				queueFail = true
+				logger.Error(err.Error())
+				http.Error(w, err.Error(), status)
+				return
+			}
+			queueDuration = time.Since(start)
+			entered = true
+			defer func() {
+				if entered {
+					limiter.Leave(ctx, "tags")
+					entered = false
+				}
+			}()
+		}
+
 		body, chReadRows, chReadBytes, err = clickhouse.Query(
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
@@ -421,6 +502,13 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			},
 			nil,
 		)
+
+		if entered {
+			// release early as possible
+			limiter.Leave(ctx, "tags")
+			entered = false
+		}
+
 		if err != nil {
 			status = clickhouse.HandleError(w, err)
 			return

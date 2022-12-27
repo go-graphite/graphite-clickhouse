@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
@@ -247,7 +246,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 
 	url := p.String()
 
-	req, err := http.NewRequest("POST", url, postBody)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, postBody)
 	if err != nil {
 		return
 	}
@@ -305,12 +304,12 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
 	if resp.StatusCode > 500 && resp.StatusCode < 512 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = errs.NewErrorWithCode(string(body), resp.StatusCode)
 		return
 	} else if resp.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = NewErrWithDescr("clickhouse response status "+strconv.Itoa(resp.StatusCode), string(body))
 		return
@@ -334,7 +333,7 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip 
 		return nil, 0, 0, err
 	}
 
-	body, err := ioutil.ReadAll(bodyReader)
+	body, err := io.ReadAll(bodyReader)
 	bodyReader.Close()
 	if err != nil {
 		return nil, bodyReader.ChReadRows(), bodyReader.ChReadBytes(), err

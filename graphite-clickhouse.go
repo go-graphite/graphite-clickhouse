@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/lomik/zapwriter"
@@ -22,6 +20,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/index"
+	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
@@ -73,40 +72,7 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 
 		w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 
-		start := time.Now()
 		handler.ServeHTTP(writer, r)
-		d := time.Since(start)
-
-		logger := scope.LoggerWithHeaders(r.Context(), r, app.config.Common.HeadersToLog).Named("http")
-
-		grafana := scope.Grafana(r.Context())
-		if grafana != "" {
-			logger = logger.With(zap.String("grafana", grafana))
-		}
-
-		var peer string
-		if peer = r.Header.Get("X-Real-Ip"); peer == "" {
-			peer = r.RemoteAddr
-		} else {
-			peer = net.JoinHostPort(peer, "0")
-		}
-
-		var client string
-		if client = r.Header.Get("X-Forwarded-For"); client != "" {
-			client = strings.Split(client, ", ")[0]
-		}
-
-		cachedFind := w.Header().Get("X-Cached-Find") == "true"
-
-		logger.Info("access",
-			zap.Duration("time", d),
-			zap.String("method", r.Method),
-			zap.String("url", r.URL.String()),
-			zap.String("peer", peer),
-			zap.String("client", client),
-			zap.Int("status", writer.Status()),
-			zap.Bool("find_cached", cachedFind),
-		)
 	})
 }
 
@@ -215,9 +181,21 @@ func main() {
 	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
 	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
+
+		status := http.StatusOK
+		start := time.Now()
+
+		accessLogger := scope.LoggerWithHeaders(r.Context(), r, app.config.Common.HeadersToLog)
+
+		defer func() {
+			d := time.Since(start)
+			logs.AccessLog(accessLogger, app.config, r, status, d, time.Duration(0), false, false)
+		}()
+
 		b, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			status = http.StatusInternalServerError
+			http.Error(w, err.Error(), status)
 			return
 		}
 		w.Write(b)

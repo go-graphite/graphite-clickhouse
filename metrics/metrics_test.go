@@ -31,6 +31,8 @@ func TestInitMetrics(t *testing.T) {
 	tests := []struct {
 		name                              string
 		c                                 Config
+		findWaitQueue                     bool
+		tagsWaitQueue                     bool
 		want                              Config
 		wantFindCountName                 string
 		wantFindRangesMetricsCountNames   []string
@@ -438,7 +440,7 @@ func TestInitMetrics(t *testing.T) {
 			UnregisterAll()
 			c := tt.c
 			Graphite = &graphite.Graphite{}
-			InitMetrics(&c)
+			InitMetrics(&c, tt.findWaitQueue, tt.tagsWaitQueue)
 			Graphite = nil
 			assert.Equal(t, tt.want, c)
 			// FindRequestH

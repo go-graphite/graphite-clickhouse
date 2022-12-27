@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -85,7 +85,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
@@ -189,7 +189,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if err != nil {
 		return u.RawQuery, nil, nil, err
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}

@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -102,7 +102,7 @@ func Make(cfg *config.Config) error {
 	var bodies [][]byte
 
 	if cfg.Tags.InputFile != "" {
-		body, err := ioutil.ReadFile(cfg.Tags.InputFile)
+		body, err := os.ReadFile(cfg.Tags.InputFile)
 		if err != nil {
 			return err
 		}
@@ -340,7 +340,7 @@ func Make(cfg *config.Config) error {
 
 	if cfg.Tags.OutputFile != "" {
 		begin(fmt.Sprintf("write to %#v", cfg.Tags.OutputFile))
-		ioutil.WriteFile(cfg.Tags.OutputFile, outBuf.Bytes(), 0644)
+		os.WriteFile(cfg.Tags.OutputFile, outBuf.Bytes(), 0644)
 		end()
 	} else {
 		begin("upload to clickhouse")
