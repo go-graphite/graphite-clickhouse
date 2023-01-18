@@ -938,3 +938,37 @@ func TestGetQueryParam(t *testing.T) {
 		})
 	}
 }
+
+func TestClickHouse_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		ch      ClickHouse
+		wantErr string
+	}{
+		{
+			name: "url with spaces",
+			ch: ClickHouse{
+				URL: "http://localhost:8123/?max_rows_to_read=600 &max_threads=2&skip_unavailable_shards=1&log_queries=1",
+			},
+			wantErr: "http://localhost:8123/?max_rows_to_read=600 &max_threads=2&skip_unavailable_shards=1&log_queries=1 parse error: space in query",
+		},
+		{
+			name: "valid url",
+			ch: ClickHouse{
+				URL: "http://localhost:8123/?max_rows_to_read=600&max_threads=2&skip_unavailable_shards=1&log_queries=1",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := clickhouseUrlValidate(tt.ch.URL)
+			if err == nil {
+				if tt.wantErr != "" {
+					t.Errorf("ClickHouse.Validate() error = nil, wantErr %q", tt.wantErr)
+				}
+			} else if err.Error() != tt.wantErr {
+				t.Errorf("ClickHouse.Validate() error = %v, wantErr %q", err, tt.wantErr)
+			}
+		})
+	}
+}
