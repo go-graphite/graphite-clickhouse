@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -168,6 +169,17 @@ type ClickHouse struct {
 	MaxDataPoints    int    `toml:"max-data-points" json:"max-data-points" comment:"max points per metric when internal-aggregation=true"`
 	// InternalAggregation controls if ClickHouse itself or graphite-clickhouse aggregates points to proper retention
 	InternalAggregation bool `toml:"internal-aggregation" json:"internal-aggregation" comment:"ClickHouse-side aggregation, see doc/aggregation.md"`
+}
+
+func clickhouseUrlValidate(chURL string) error {
+	if u, err := url.Parse(chURL); err != nil {
+		return errors.New(chURL + " parse error: " + err.Error())
+	} else if u.Scheme != "http" && u.Scheme != "https" {
+		return errors.New(chURL + " parse error: scheme not supported")
+	} else if strings.Contains(u.RawQuery, " ") {
+		return errors.New(chURL + " parse error: space in query")
+	}
+	return nil
 }
 
 // Tags config
@@ -445,6 +457,10 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		cfg.ClickHouse.RenderMaxConcurrent = 0
 	}
 
+	if err := clickhouseUrlValidate(cfg.ClickHouse.URL); err != nil {
+		return nil, err
+	}
+
 	for i := range cfg.ClickHouse.QueryParams {
 		if cfg.ClickHouse.QueryParams[i].MaxConcurrent > cfg.ClickHouse.QueryParams[i].MaxQueries && cfg.ClickHouse.QueryParams[i].MaxQueries > 0 {
 			cfg.ClickHouse.QueryParams[i].MaxConcurrent = 0
@@ -459,6 +475,9 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		if cfg.ClickHouse.QueryParams[i].URL == "" {
 			// reuse default url
 			cfg.ClickHouse.QueryParams[i].URL = cfg.ClickHouse.URL
+		}
+		if err := clickhouseUrlValidate(cfg.ClickHouse.QueryParams[i].URL); err != nil {
+			return nil, err
 		}
 	}
 
