@@ -16,6 +16,7 @@ require (
 	github.com/lomik/zapwriter v0.0.0-20210624082824-c1161d1eb463
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.4
+	github.com/msaf1980/go-timeutils v0.0.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.13.1
 	github.com/prometheus/client_model v0.3.0
@@ -65,7 +66,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/msaf1980/go-timeutils v0.0.3 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -74,7 +74,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/common/assets v0.2.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
-	github.com/prometheus/exporter-toolkit v0.8.1 // indirect
+	github.com/prometheus/exporter-toolkit v0.8.2 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect

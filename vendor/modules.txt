@@ -262,7 +262,7 @@ github.com/prometheus/common/assets
 # github.com/prometheus/common/sigv4 v0.1.0
 ## explicit; go 1.15
 github.com/prometheus/common/sigv4
-# github.com/prometheus/exporter-toolkit v0.8.1
+# github.com/prometheus/exporter-toolkit v0.8.2
 ## explicit; go 1.17
 github.com/prometheus/exporter-toolkit/web
 # github.com/prometheus/procfs v0.8.0

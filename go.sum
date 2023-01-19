@@ -581,7 +581,6 @@ github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJ
 github.com/msaf1980/go-metrics v0.0.11/go.mod h1:8VcR8MdyvIJpcVLOVFKbhb27+60tXy0M+zq7Ag8a6Pw=
 github.com/msaf1980/go-metrics v0.0.14 h1:gD0kCG5MDbon33Nkz49yW6kz3yu0DHzDN0SxjGTWlTA=
 github.com/msaf1980/go-metrics v0.0.14/go.mod h1:8VcR8MdyvIJpcVLOVFKbhb27+60tXy0M+zq7Ag8a6Pw=
-github.com/msaf1980/go-stringutils v0.1.2 h1:Gi2F1XGlI1C90mxl7dlVxXgiEnP3xRxhjoJ8DL3esDo=
 github.com/msaf1980/go-stringutils v0.1.2/go.mod h1:AxmV/6JuQUAtZJg5XmYATB5ZwCWgtpruVHY03dswRf8=
 github.com/msaf1980/go-stringutils v0.1.4 h1:UwsIT0hplHVucqbknk3CoNqKkmIuSHhsbBldXxyld5U=
 github.com/msaf1980/go-stringutils v0.1.4/go.mod h1:AxmV/6JuQUAtZJg5XmYATB5ZwCWgtpruVHY03dswRf8=
@@ -652,8 +651,8 @@ github.com/prometheus/common/assets v0.2.0/go.mod h1:D17UVUE12bHbim7HzwUvtqm6gwB
 github.com/prometheus/common/sigv4 v0.1.0 h1:qoVebwtwwEhS85Czm2dSROY5fTo2PAPEVdDeppTwGX4=
 github.com/prometheus/common/sigv4 v0.1.0/go.mod h1:2Jkxxk9yYvCkE5G1sQT7GuEXm57JrvHu9k5YwTjsNtI=
 github.com/prometheus/exporter-toolkit v0.7.1/go.mod h1:ZUBIj498ePooX9t/2xtDjeQYwvRpiPP2lh5u4iblj2g=
-github.com/prometheus/exporter-toolkit v0.8.1 h1:TpKt8z55q1zF30BYaZKqh+bODY0WtByHDOhDA2M9pEs=
-github.com/prometheus/exporter-toolkit v0.8.1/go.mod h1:00shzmJL7KxcsabLWcONwpyNEuWhREOnFqZW7vadFS0=
+github.com/prometheus/exporter-toolkit v0.8.2 h1:sbJAfBXQFkG6sUkbwBun8MNdzW9+wd5YfPYofbmj0YM=
+github.com/prometheus/exporter-toolkit v0.8.2/go.mod h1:00shzmJL7KxcsabLWcONwpyNEuWhREOnFqZW7vadFS0=
 github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R/oaqEKCNdg8wHV1ftS6bRYblBhIjjI8uT2IGk=
 github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
 github.com/prometheus/procfs v0.0.8/go.mod h1:7Qr8sr6344vo1JqZ6HhLceV9o3AJ1Ff+GxbHq6oeK9A=
