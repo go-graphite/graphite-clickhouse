@@ -1,8 +1,9 @@
 package find
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"go.uber.org/zap"
@@ -33,13 +35,20 @@ func NewHandler(config *config.Config) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	status := http.StatusOK
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("metrics-find")
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var (
-		metricsCount int64
-		stat         finder.FinderStat
+		metricsCount  int64
+		stat          finder.FinderStat
+		queueFail     bool
+		queueDuration time.Duration
+		findCache     bool
 	)
+
+	username := w.Header().Get("X-Forwarded-User")
+	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -52,11 +61,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			answer := fmt.Sprintf("%v\nStack trace: %v", rec, zap.Stack("").String)
 			http.Error(w, answer, status)
 		}
-		d := time.Since(start).Milliseconds()
-		metrics.SendFindMetrics(metrics.FindRequestMetric, status, d, 0, h.config.Metrics.ExtendedStat, metricsCount)
+		d := time.Since(start)
+		dMS := d.Milliseconds()
+		logs.AccessLog(accessLogger, h.config, r, status, d, queueDuration, findCache, queueFail)
+		limiter.SendDuration(queueDuration.Milliseconds())
+		metrics.SendFindMetrics(metrics.FindRequestMetric, status, dMS, 0, h.config.Metrics.ExtendedStat, metricsCount)
 		if stat.ChReadRows > 0 && stat.ChReadBytes > 0 {
 			errored := status != http.StatusOK && status != http.StatusNotFound
-			metrics.SendQueryRead(metrics.FindQMetric, 0, 0, d, metricsCount, stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, errored)
+			metrics.SendQueryRead(metrics.FindQMetric, 0, 0, dMS, metricsCount, stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, errored)
 		}
 	}()
 
@@ -66,7 +78,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	format := r.FormValue("format")
 	if format == "carbonapi_v3_pb" {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			status = http.StatusBadRequest
 			http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), status)
@@ -119,6 +131,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if metrics.FinderCacheMetrics != nil {
 				metrics.FinderCacheMetrics.CacheHits.Add(1)
 			}
+			findCache = true
 			w.Header().Set("X-Cached-Find", strconv.Itoa(int(h.config.Common.FindCacheConfig.FindTimeoutSec)))
 			f := NewCached(h.config, body)
 			metricsCount = int64(len(f.result.List()))
@@ -131,7 +144,42 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var (
+		entered bool
+		ctx     context.Context
+		cancel  context.CancelFunc
+	)
+	if limiter.Enabled() {
+		ctx, cancel = context.WithTimeout(context.Background(), h.config.ClickHouse.IndexTimeout)
+		defer cancel()
+
+		err := limiter.Enter(ctx, "find")
+		queueDuration = time.Since(start)
+		if err != nil {
+			status = http.StatusServiceUnavailable
+			queueFail = true
+			logger.Error(err.Error())
+			http.Error(w, err.Error(), status)
+			return
+		}
+		queueDuration = time.Since(start)
+		entered = true
+		defer func() {
+			if entered {
+				limiter.Leave(ctx, "find")
+				entered = false
+			}
+		}()
+	}
+
 	f, err := New(h.config, r.Context(), query, &stat)
+
+	if entered {
+		// release early as possible
+		limiter.Leave(ctx, "find")
+		entered = false
+	}
+
 	if err != nil {
 		status = clickhouse.HandleError(w, err)
 		return

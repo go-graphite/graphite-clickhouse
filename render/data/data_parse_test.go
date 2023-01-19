@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -62,7 +62,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 	cond := &conditions{Targets: &Targets{isReverse: false}, aggregated: false}
 	t.Run("empty response", func(t *testing.T) {
 		body := []byte{}
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
 		err := d.parseResponse(ctx, r, cond)
@@ -94,7 +94,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 		t.Run(fmt.Sprintf("ok #%d", i), func(t *testing.T) {
 			body := makeUnaggregatedBody(table[i])
 
-			r := ioutil.NopCloser(bytes.NewReader(body))
+			r := io.NopCloser(bytes.NewReader(body))
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
 			err := d.parseResponse(ctx, r, cond)
@@ -119,7 +119,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 			cond := &conditions{Targets: &Targets{isReverse: true}, aggregated: false}
 			body := makeUnaggregatedBody(table[i])
 
-			r := ioutil.NopCloser(bytes.NewReader(body))
+			r := io.NopCloser(bytes.NewReader(body))
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
 			err := d.parseResponse(ctx, r, cond)
@@ -151,7 +151,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 				},
 			},
 		})
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
 		err := d.parseResponse(ctx, r, cond)
@@ -185,7 +185,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 				// length of the first metric
 				continue
 			}
-			r := ioutil.NopCloser(bytes.NewReader(body[:i]))
+			r := io.NopCloser(bytes.NewReader(body[:i]))
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
 			err := d.parseResponse(ctx, r, cond)
@@ -201,7 +201,7 @@ func TestAggregatedDataParse(t *testing.T) {
 	t.Run("empty response", func(t *testing.T) {
 		body := []byte{}
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 
 		err := d.parseResponse(ctx, r, cond)
 		assert.NoError(t, err)
@@ -233,7 +233,7 @@ func TestAggregatedDataParse(t *testing.T) {
 				// length of the first metric
 				continue
 			}
-			r := ioutil.NopCloser(bytes.NewReader(body[:i]))
+			r := io.NopCloser(bytes.NewReader(body[:i]))
 
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 			err := d.parseResponse(ctx, r, cond)
@@ -254,7 +254,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			},
 		}
 		body := makeAggregatedBody(points)
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 		err := d.parseResponse(ctx, r, cond)
@@ -279,7 +279,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			},
 		}
 		body := makeAggregatedBody(points)
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 		err := d.parseResponse(ctx, r, cond)
@@ -310,7 +310,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			},
 		}
 		body := makeAggregatedBody(points)
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 		cond := &conditions{Targets: &Targets{isReverse: true}, aggregated: true}
 
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
@@ -392,7 +392,7 @@ func TestAsyncDataParse(t *testing.T) {
 				},
 			},
 		})
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 
 		err := d.parseResponse(ctx, r, cond)
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "parseResponse shouldn't return error on a done context")
@@ -424,7 +424,7 @@ func TestAsyncDataParse(t *testing.T) {
 		body := []byte{}
 		// works fine
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
-		r := ioutil.NopCloser(bytes.NewReader(body))
+		r := io.NopCloser(bytes.NewReader(body))
 		err := d.parseResponse(ctx, r, cond)
 		assert.NoError(t, err)
 		err = d.wait(ctx)
@@ -433,7 +433,7 @@ func TestAsyncDataParse(t *testing.T) {
 		// fails after context is cancelled
 		err = d.wait(ctx)
 		assert.ErrorIs(t, err, context.Canceled)
-		r = ioutil.NopCloser(bytes.NewReader(body))
+		r = io.NopCloser(bytes.NewReader(body))
 		err = d.parseResponse(ctx, r, cond)
 		assert.ErrorIs(t, err, context.Canceled)
 	})

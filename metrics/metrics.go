@@ -39,6 +39,8 @@ var FinderCacheMetrics *CacheMetric
 var ShortCacheMetrics *CacheMetric
 var DefaultCacheMetrics *CacheMetric
 
+// var WaitMetrics []WaitMetric
+
 type ReqMetric struct {
 	RequestsH        metrics.Histogram
 	Errors           metrics.Counter
@@ -53,6 +55,44 @@ type ReqMetric struct {
 	Requests4xx      metrics.Counter // failback other statuses
 	MetricsCountName string
 	PointsCountName  string
+}
+
+type WaitMetric struct {
+	nameErrors string
+	// wait slot
+	WaitErrors   metrics.Counter
+	WaitTimeName string
+}
+
+func NewWaitMetric(enable bool, scope, sub string) WaitMetric {
+	if enable {
+		nameErrors := scope + "_wait." + sub + ".errors"
+		w := WaitMetric{
+			nameErrors:   nameErrors,
+			WaitErrors:   metrics.NewCounter(),
+			WaitTimeName: scope + "_wait." + sub + ".requests",
+		}
+		metrics.Register(nameErrors, w.WaitErrors)
+
+		return w
+	}
+	return WaitMetric{
+		WaitErrors:   metrics.NilCounter{},
+		WaitTimeName: "",
+	}
+}
+
+func (w *WaitMetric) Unregister() {
+	if w.nameErrors != "" {
+		metrics.Unregister(w.nameErrors)
+		w.nameErrors = ""
+	}
+}
+
+func NewDisabledWaitMetric() *WaitMetric {
+	return &WaitMetric{
+		WaitErrors: metrics.NilCounter{},
+	}
 }
 
 type FindMetrics struct {
@@ -103,7 +143,7 @@ func initFindCacheMetrics(c *Config) {
 	}
 }
 
-func initFindMetrics(scope string, c *Config) *FindMetrics {
+func initFindMetrics(scope string, c *Config, waitQueue bool) *FindMetrics {
 	requestMetric := &FindMetrics{
 		ReqMetric: ReqMetric{
 			Errors:           metrics.NewCounter(),
@@ -283,6 +323,7 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 }
 
 func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int64, extended bool, metricsCount int64) {
+
 	fromPos := -1
 	if len(r.RangeS) > 0 {
 		fromPos = metrics.SearchInt64Le(r.RangeS, untilFromS)
@@ -499,7 +540,7 @@ type rangeName struct {
 	v    int64
 }
 
-func InitMetrics(c *Config) {
+func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 	if c != nil && Graphite != nil {
 		metrics.RegisterRuntimeMemStats(nil)
 		go metrics.CaptureRuntimeMemStats(c.MetricInterval)
@@ -569,14 +610,14 @@ func InitMetrics(c *Config) {
 		}
 	}
 	initFindCacheMetrics(c)
-	FindRequestMetric = initFindMetrics("find", c)
-	TagsRequestMetric = initFindMetrics("tags", c)
+	FindRequestMetric = initFindMetrics("find", c, findWaitQueue)
+	TagsRequestMetric = initFindMetrics("tags", c, tagsWaitQueue)
 	RenderRequestMetric = initRenderMetrics("render", c)
 }
 
 func DisableMetrics() {
 	metrics.UseNilMetrics = true
-	InitMetrics(nil)
+	InitMetrics(nil, false, false)
 }
 
 func UnregisterAll() {

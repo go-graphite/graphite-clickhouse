@@ -186,7 +186,7 @@ Send internal metrics to graphite relay
  # additional request headers to log
  headers-to-log = []
 
- # find cache config
+ # find/tags cache config
  [common.find-cache]
   # cache type
   type = "null"
@@ -234,6 +234,21 @@ Send internal metrics to graphite relay
  url = "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1"
  # default total timeout to fetch data, can be overwritten with query-params
  data-timeout = "1m0s"
+ # Max queries to render queiries
+ render-max-queries = 0
+ # Maximum concurrent queries to render queiries
+ render-max-concurrent = 0
+ # Max queries for find queries
+ find-max-queries = 0
+ # Maximum concurrent queries for find queries
+ find-max-concurrent = 0
+ # Max queries for tags queries
+ tags-max-queries = 0
+ # Maximum concurrent queries for tags queries
+ tags-max-concurrent = 0
+
+ # customized query limiter for some users
+ # [clickhouse.user-limits]
  # Date format (default, utc, both)
  date-format = ""
  # see doc/index-table.md

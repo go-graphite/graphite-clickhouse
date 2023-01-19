@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -111,7 +110,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}

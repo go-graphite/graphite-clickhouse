@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
@@ -25,7 +25,7 @@ type V3PB struct {
 func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	logger := scope.Logger(r.Context()).Named("pb3parser")
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Error("failed to read request", zap.Error(err))
 		return nil, fmt.Errorf("failed to read request body: %w", err)

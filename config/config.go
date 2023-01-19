@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -14,12 +13,14 @@ import (
 
 	"github.com/cactus/go-statsd-client/v5/statsd"
 	"github.com/msaf1980/go-metrics/graphite"
+	"github.com/msaf1980/go-timeutils/duration"
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
 	"github.com/lomik/graphite-clickhouse/cache"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
+	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
 )
@@ -47,10 +48,10 @@ type Common struct {
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log" json:"headers-to-log" comment:"additional request headers to log"`
-	FindCacheConfig        CacheConfig      `toml:"find-cache" json:"find-cache" comment:"find cache config"`
 
-	FindCache   cache.BytesCache `toml:"-" json:"-"`
-	TaggedCache cache.BytesCache `toml:"-" json:"-"`
+	FindCacheConfig CacheConfig `toml:"find-cache" json:"find-cache" comment:"find/tags cache config"`
+
+	FindCache cache.BytesCache `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -86,11 +87,22 @@ var IndexReverse = map[string]uint8{
 // IndexReverseNames contains valid names for index-reverse setting
 var IndexReverseNames = []string{"auto", "direct", "reversed"}
 
+type UserLimits struct {
+	MaxQueries    int `toml:"max-queries" json:"max-queries" comment:"Max queries to fetch data"`
+	MaxConcurrent int `toml:"max-concurrent" json:"max-concurrent" comment:"Maximum concurrent queries to fetch data"`
+
+	Limiter limiter.ServerLimiter `toml:"-" json:"-"`
+}
+
 type QueryParam struct {
 	Duration    time.Duration `toml:"duration" json:"duration" comment:"minimal duration (beetween from/until) for select query params"`
 	URL         string        `toml:"url" json:"url" comment:"url for queries with durations greater or equal than"`
 	DataTimeout time.Duration `toml:"data-timeout" json:"data-timeout" comment:"total timeout to fetch data"`
-	// TODO (msaf1980): may be implement queue limiter queue (like carbonapi. but per query param for prevent overloading with long range queries)
+
+	MaxQueries    int `toml:"max-queries" json:"max-queries" comment:"Max queries to fetch data"`
+	MaxConcurrent int `toml:"max-concurrent" json:"max-concurrent" comment:"Maximum concurrent queries to fetch data"`
+
+	Limiter limiter.ServerLimiter `toml:"-" json:"-"`
 }
 
 func binarySearchQueryParamLe(a []QueryParam, duration time.Duration, start, end int) int {
@@ -117,38 +129,38 @@ func binarySearchQueryParamLe(a []QueryParam, duration time.Duration, start, end
 	return result
 }
 
-// search on sorted slice
-func GetQueryParam(a []QueryParam, duration time.Duration) int {
-	if indx := binarySearchQueryParamLe(a, duration, 0, len(a)); indx == -1 {
-		return 0
-	} else {
-		return indx
-	}
-}
-
 // ClickHouse config
 type ClickHouse struct {
-	URL                  string            `toml:"url" json:"url" comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
-	DataTimeout          time.Duration     `toml:"data-timeout" json:"data-timeout" comment:"default total timeout to fetch data, can be overwritten with query-params"`
-	QueryParams          []QueryParam      `toml:"query-params" json:"query-params" comment:"customized query params (url, data timeout) for durations greater or equal"`
-	DateFormat           string            `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
-	IndexTable           string            `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
-	IndexUseDaily        bool              `toml:"index-use-daily" json:"index-use-daily"`
-	IndexReverse         string            `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
-	IndexReverses        IndexReverses     `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
-	IndexTimeout         time.Duration     `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
-	TaggedTable          string            `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
-	TaggedAutocompleDays int               `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
-	TaggedUseDaily       bool              `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
-	TaggedCosts          map[string]*Costs `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
-	TreeTable            string            `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
-	ReverseTreeTable     string            `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
-	DateTreeTable        string            `toml:"date-tree-table" json:"date-tree-table" commented:"true"`
-	DateTreeTableVersion int               `toml:"date-tree-table-version" json:"date-tree-table-version" commented:"true"`
-	TreeTimeout          time.Duration     `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
-	TagTable             string            `toml:"tag-table" json:"tag-table" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
-	ExtraPrefix          string            `toml:"extra-prefix" json:"extra-prefix" comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
-	ConnectTimeout       time.Duration     `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
+	URL                  string                `toml:"url" json:"url" comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
+	DataTimeout          time.Duration         `toml:"data-timeout" json:"data-timeout" comment:"default total timeout to fetch data, can be overwritten with query-params"`
+	RenderMaxQueries     int                   `toml:"render-max-queries" json:"render-max-queries" comment:"Max queries to render queiries"`
+	RenderMaxConcurrent  int                   `toml:"render-max-concurrent" json:"render-max-concurrent" comment:"Maximum concurrent queries to render queiries"`
+	QueryParams          []QueryParam          `toml:"query-params" json:"query-params" comment:"customized query params (url, data timeout, limiters) for durations greater or equal"`
+	FindMaxQueries       int                   `toml:"find-max-queries" json:"find-max-queries" comment:"Max queries for find queries"`
+	FindMaxConcurrent    int                   `toml:"find-max-concurrent" json:"find-max-concurrent" comment:"Maximum concurrent queries for find queries"`
+	FindLimiter          limiter.ServerLimiter `toml:"-" json:"-"`
+	TagsMaxQueries       int                   `toml:"tags-max-queries" json:"tags-max-queries" comment:"Max queries for tags queries"`
+	TagsMaxConcurrent    int                   `toml:"tags-max-concurrent" json:"tags-max-concurrent" comment:"Maximum concurrent queries for tags queries"`
+	TagsLimiter          limiter.ServerLimiter `toml:"-" json:"-"`
+	UserLimits           map[string]UserLimits `toml:"user-limits" json:"user-limits" comment:"customized query limiter for some users" commented:"true"`
+	DateFormat           string                `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
+	IndexTable           string                `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
+	IndexUseDaily        bool                  `toml:"index-use-daily" json:"index-use-daily"`
+	IndexReverse         string                `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
+	IndexReverses        IndexReverses         `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
+	IndexTimeout         time.Duration         `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
+	TaggedTable          string                `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
+	TaggedAutocompleDays int                   `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
+	TaggedUseDaily       bool                  `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
+	TaggedCosts          map[string]*Costs     `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
+	TreeTable            string                `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
+	ReverseTreeTable     string                `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
+	DateTreeTable        string                `toml:"date-tree-table" json:"date-tree-table" commented:"true"`
+	DateTreeTableVersion int                   `toml:"date-tree-table-version" json:"date-tree-table-version" commented:"true"`
+	TreeTimeout          time.Duration         `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
+	TagTable             string                `toml:"tag-table" json:"tag-table" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
+	ExtraPrefix          string                `toml:"extra-prefix" json:"extra-prefix" comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
+	ConnectTimeout       time.Duration         `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
 	// TODO: remove in v0.14
 	DataTableLegacy string `toml:"data-table" json:"data-table" comment:"will be removed in 0.14" commented:"true"`
 	// TODO: remove in v0.14
@@ -281,6 +293,8 @@ func New() *Config {
 			RollupConfLegacy:     "auto",
 			MaxDataPoints:        1048576,
 			InternalAggregation:  true,
+			FindLimiter:          limiter.NoopLimiter{},
+			TagsLimiter:          limiter.NoopLimiter{},
 		},
 		Tags: Tags{},
 		Carbonlink: Carbonlink{
@@ -394,7 +408,7 @@ func ReadConfig(filename string, noLog bool) (*Config, error) {
 	var err error
 	var body []byte
 	if filename != "" {
-		body, err = ioutil.ReadFile(filename)
+		body, err = os.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
@@ -427,12 +441,20 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		cfg.Logging = make([]zapwriter.Config, 0)
 	}
 
+	if cfg.ClickHouse.RenderMaxConcurrent > cfg.ClickHouse.RenderMaxQueries && cfg.ClickHouse.RenderMaxQueries > 0 {
+		cfg.ClickHouse.RenderMaxConcurrent = 0
+	}
+
 	for i := range cfg.ClickHouse.QueryParams {
+		if cfg.ClickHouse.QueryParams[i].MaxConcurrent > cfg.ClickHouse.QueryParams[i].MaxQueries && cfg.ClickHouse.QueryParams[i].MaxQueries > 0 {
+			cfg.ClickHouse.QueryParams[i].MaxConcurrent = 0
+		}
+
 		if cfg.ClickHouse.QueryParams[i].Duration == 0 {
 			return nil, fmt.Errorf("query duration param not set for: %+v", cfg.ClickHouse.QueryParams[i])
 		}
 		if cfg.ClickHouse.QueryParams[i].DataTimeout == 0 {
-			return nil, fmt.Errorf("query data-timeout param not set for: %+v", cfg.ClickHouse.QueryParams[i])
+			cfg.ClickHouse.QueryParams[i].DataTimeout = cfg.ClickHouse.DataTimeout
 		}
 		if cfg.ClickHouse.QueryParams[i].URL == "" {
 			// reuse default url
@@ -441,7 +463,10 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 	}
 
 	cfg.ClickHouse.QueryParams = append(
-		[]QueryParam{{URL: cfg.ClickHouse.URL, DataTimeout: cfg.ClickHouse.DataTimeout}},
+		[]QueryParam{{
+			URL: cfg.ClickHouse.URL, DataTimeout: cfg.ClickHouse.DataTimeout,
+			MaxQueries: cfg.ClickHouse.RenderMaxQueries, MaxConcurrent: cfg.ClickHouse.RenderMaxConcurrent,
+		}},
 		cfg.ClickHouse.QueryParams...,
 	)
 
@@ -557,7 +582,27 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		}
 	}
 
-	cfg.setupGraphiteMetrics()
+	if cfg.ClickHouse.FindMaxConcurrent > cfg.ClickHouse.FindMaxQueries && cfg.ClickHouse.FindMaxQueries > 0 {
+		cfg.ClickHouse.FindMaxConcurrent = 0
+	}
+
+	if cfg.ClickHouse.TagsMaxConcurrent > cfg.ClickHouse.TagsMaxQueries && cfg.ClickHouse.TagsMaxQueries > 0 {
+		cfg.ClickHouse.TagsMaxConcurrent = 0
+	}
+
+	metricsEnabled := cfg.setupGraphiteMetrics()
+
+	cfg.ClickHouse.FindLimiter = limiter.NewWLimiter(cfg.ClickHouse.FindMaxQueries, cfg.ClickHouse.FindMaxConcurrent, metricsEnabled, "find", "all")
+
+	cfg.ClickHouse.TagsLimiter = limiter.NewWLimiter(cfg.ClickHouse.TagsMaxQueries, cfg.ClickHouse.TagsMaxConcurrent, metricsEnabled, "tags", "all")
+
+	for i := range cfg.ClickHouse.QueryParams {
+		cfg.ClickHouse.QueryParams[i].Limiter = limiter.NewWLimiter(cfg.ClickHouse.QueryParams[i].MaxQueries, cfg.ClickHouse.QueryParams[i].MaxConcurrent, metricsEnabled, "render", duration.String(cfg.ClickHouse.QueryParams[i].Duration))
+	}
+	for u, q := range cfg.ClickHouse.UserLimits {
+		q.Limiter = limiter.NewWLimiter(q.MaxQueries, q.MaxConcurrent, metricsEnabled, u, "all")
+		cfg.ClickHouse.UserLimits[u] = q
+	}
 
 	return cfg, nil
 }
@@ -669,7 +714,7 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 	}
 }
 
-func (c *Config) setupGraphiteMetrics() {
+func (c *Config) setupGraphiteMetrics() bool {
 	if c.Metrics.MetricEndpoint == "" {
 		metrics.DisableMetrics()
 	} else {
@@ -706,7 +751,7 @@ func (c *Config) setupGraphiteMetrics() {
 			}
 		}
 
-		metrics.InitMetrics(&c.Metrics)
+		metrics.InitMetrics(&c.Metrics, c.ClickHouse.FindMaxQueries > 0, c.ClickHouse.TagsMaxQueries > 0)
 	}
 
 	metrics.AutocompleteQMetric = metrics.InitQueryMetrics("tags", &c.Metrics)
@@ -719,5 +764,34 @@ func (c *Config) setupGraphiteMetrics() {
 	}
 	if c.ClickHouse.TaggedTable != "" {
 		metrics.InitQueryMetrics(c.ClickHouse.TaggedTable, &c.Metrics)
+	}
+
+	return metrics.Graphite != nil
+}
+
+func (c *Config) GetUserFindLimiter(username string) limiter.ServerLimiter {
+	if username != "" && len(c.ClickHouse.UserLimits) > 0 {
+		if q, ok := c.ClickHouse.UserLimits[username]; ok {
+			return q.Limiter
+		}
+	}
+	return c.ClickHouse.FindLimiter
+}
+
+func (c *Config) GetUserTagsLimiter(username string) limiter.ServerLimiter {
+	if username != "" && len(c.ClickHouse.UserLimits) > 0 {
+		if q, ok := c.ClickHouse.UserLimits[username]; ok {
+			return q.Limiter
+		}
+	}
+	return c.ClickHouse.TagsLimiter
+}
+
+// search on sorted slice
+func GetQueryParam(a []QueryParam, duration time.Duration) int {
+	if indx := binarySearchQueryParamLe(a, duration, 0, len(a)); indx == -1 {
+		return 0
+	} else {
+		return indx
 	}
 }

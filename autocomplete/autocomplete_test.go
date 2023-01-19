@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
 	chtest "github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +70,7 @@ func TestHandler_ServeValues(t *testing.T) {
 	srv.AddResponce(
 		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
 			"(Date >= '"+fromDate+"' AND Date <= '"+untilDate+"') GROUP BY value ORDER BY value LIMIT 10000",
-		&clickhouse.TestResponse{
+		&chtest.TestResponse{
 			Body: []byte("host1\nhost2\ndc-host2\ndc-host3\n"),
 		})
 
@@ -104,7 +103,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 		return time.Unix(1669714247, 0)
 	}
 	metrics.DisableMetrics()
-	srv := clickhouse.NewTestServer()
+	srv := chtest.NewTestServer()
 	defer srv.Close()
 
 	cfg, _ := config.DefaultConfig()
@@ -132,7 +131,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 	srv.AddResponce(
 		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
 			"(Date >= '"+fromDate+"' AND Date <= '"+untilDate+"') GROUP BY value ORDER BY value LIMIT 10000",
-		&clickhouse.TestResponse{
+		&chtest.TestResponse{
 			Body: []byte("host1\nhost2\ndc-host2\ndc-host3\n"),
 		})
 

@@ -3,7 +3,6 @@ package clickhouse
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/url"
 	"os"
@@ -97,7 +96,7 @@ func TestBuildBody(t *testing.T) {
 
 func TestDebugDump(t *testing.T) {
 	extData := NewExternalData(getTestCases()...)
-	dir, err := ioutil.TempDir(".", "external-data")
+	dir, err := os.MkdirTemp(".", "external-data")
 	if err != nil {
 		t.Fatalf("unable to create directory %s: %v", dir, err)
 	}
@@ -112,7 +111,7 @@ func TestDebugDump(t *testing.T) {
 	for _, table := range extData.Tables {
 		dumpFile := filepath.Join(dir, fmt.Sprintf("ext-%v:%v.%v", table.Name, reqID, table.Format))
 		assert.FileExists(t, dumpFile)
-		data, err := ioutil.ReadFile(dumpFile)
+		data, err := os.ReadFile(dumpFile)
 		assert.NoError(t, err, "unable to read dump file: %w", err)
 		assert.Equal(t, table.Data, data, "data in the file and source are different")
 	}

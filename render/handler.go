@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
+	"github.com/lomik/graphite-clickhouse/limiter"
+	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -54,18 +57,24 @@ func getCacheTimeout(now time.Time, from, until int64, cacheConfig *config.Cache
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		rangeS      int64
-		metricsLen  int
-		pointsCount int64
-		fetchStart  time.Time
+		rangeS        int64
+		metricsLen    int
+		pointsCount   int64
+		fetchStart    time.Time
+		cachedFind    bool
+		queueFail     bool
+		queueDuration time.Duration
+		err           error
 	)
 	start := time.Now()
 	status := http.StatusOK
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("render")
 
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
-	var err error
+	username := w.Header().Get("X-Forwarded-User")
+	var limiter limiter.ServerLimiter = limiter.NoopLimiter{}
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -79,6 +88,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, answer, status)
 		}
 		end := time.Now()
+		logs.AccessLog(accessLogger, h.config, r, status, end.Sub(start), queueDuration, cachedFind, queueFail)
+		limiter.SendDuration(queueDuration.Milliseconds())
 		metrics.SendRenderMetrics(metrics.RenderRequestMetric, status, start, fetchStart, end, rangeS, h.config.Metrics.ExtendedStat, int64(metricsLen), pointsCount)
 	}()
 
@@ -98,10 +109,39 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var (
+		entered bool
+		ctx     context.Context
+		cancel  context.CancelFunc
+	)
+	limiter = data.GetQueryLimiter(username, h.config, &fetchRequests)
+	if limiter.Enabled() {
+		// no reason wait longer than index-timeout
+		ctx, cancel = context.WithTimeout(context.Background(), h.config.ClickHouse.IndexTimeout)
+		defer cancel()
+
+		err = limiter.Enter(ctx, "render")
+		queueDuration = time.Since(start)
+		if err != nil {
+			status = http.StatusServiceUnavailable
+			queueFail = true
+			logger.Error(err.Error())
+			http.Error(w, err.Error(), status)
+			return
+		}
+		queueDuration = time.Since(start)
+		entered = true
+		defer func() {
+			if entered {
+				limiter.Leave(ctx, "render")
+				entered = false
+			}
+		}()
+	}
+
 	// TODO: move to a function
 	var wg sync.WaitGroup
 	var lock sync.RWMutex
-	var cachedFind bool
 	var maxCacheTimeout int32
 	var maxCacheTimeoutStr string
 	errors := make([]error, 0, len(fetchRequests))
@@ -217,6 +257,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fetchStart = time.Now()
 
 	reply, err := fetchRequests.Fetch(r.Context(), h.config, config.ContextGraphite)
+	if entered {
+		// release early as possible
+		limiter.Leave(ctx, "render")
+		entered = false
+	}
 	if err != nil {
 		status = clickhouse.HandleError(w, err)
 		return

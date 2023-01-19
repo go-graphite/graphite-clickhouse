@@ -2,12 +2,14 @@ package capabilities
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
+	"time"
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
 
@@ -22,6 +24,7 @@ func NewHandler(config *config.Config) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("capabilities")
 
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
@@ -38,20 +41,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	status := http.StatusOK
+	start := time.Now()
+
+	defer func() {
+		d := time.Since(start)
+		logs.AccessLog(accessLogger, h.config, r, status, d, time.Duration(0), false, false)
+	}()
+
 	if format == "carbonapi_v3_pb" || format == "json" {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Bad request (malformed body)",
-				http.StatusBadRequest,
-			)
+			status = http.StatusBadRequest
+			http.Error(w, "Bad request (malformed body)", status)
 		}
 
 		var pv3Request v3pb.CapabilityRequest
 		err = pv3Request.Unmarshal(body)
 		if err != nil {
-			http.Error(w, "Bad request (malformed body)",
-				http.StatusBadRequest,
-			)
+			status = http.StatusBadRequest
+			http.Error(w, "Bad request (malformed body)", status)
 		}
 
 		hostname, err := os.Hostname()
@@ -73,21 +82,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "json":
 			contentType = "application/json"
 			data, err = json.Marshal(pvResponse)
+			if err != nil {
+				status = http.StatusInternalServerError
+				http.Error(w, err.Error(), status)
+				return
+			}
 		case "carbonapi_v3_pb":
 			contentType = "application/x-carbonapi-v3-pb"
 			data, err = pvResponse.Marshal()
 			if err != nil {
-				http.Error(w, "Bad request (unsupported format)",
-					http.StatusBadRequest,
-				)
+				status = http.StatusBadRequest
+				http.Error(w, "Bad request (unsupported format)", status)
+				return
 			}
 		}
 
 		w.Header().Set("Content-Type", contentType)
 		w.Write(data)
 	} else {
-		http.Error(w, "Bad request (unsupported format)",
-			http.StatusBadRequest,
-		)
+		status = http.StatusBadRequest
+		http.Error(w, "Bad request (unsupported format)", status)
 	}
 }

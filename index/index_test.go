@@ -3,7 +3,7 @@ package index
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -62,7 +62,7 @@ func indexForBytes(b []byte) *Index {
 	buffer := bytes.NewBuffer(b)
 	return &Index{
 		config:     nil,
-		rowsReader: ioutil.NopCloser(buffer),
+		rowsReader: io.NopCloser(buffer),
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"mime/multipart"
 	"net/url"
 	"os"
@@ -118,7 +117,7 @@ func (e *ExternalData) debugDump(ctx context.Context, u url.URL) {
 
 	for _, t := range e.Tables {
 		filename := path.Join(e.debug.dir, fmt.Sprintf("ext-%v:%v.%v", t.Name, requestID, t.Format))
-		err := ioutil.WriteFile(filename, t.Data, e.debug.perm)
+		err := os.WriteFile(filename, t.Data, e.debug.perm)
 		if err != nil {
 			logger.Warn("external-data", zap.Error(err))
 			// The debug command couldn't be built w/o all external tables
