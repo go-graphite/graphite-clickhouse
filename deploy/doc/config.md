@@ -68,6 +68,40 @@ query-params = [
 ]
 ```
 
+### Query limiter for prevent database overloading (limit concurrent/maximum incomming requests)
+
+For prevent database overloading incomming requests (render/find/autocomplete) can be limited.
+If executing max-concurrent requests, next request will be wait for free slot until index-timeout reached
+If wait max-queries requests, for new request error returned immediately.
+
+```
+url = "http://graphite:qwerty@localhost:8123/?readonly=2&log_queries=1&max_rows_to_read=102400000&max_result_bytes=12800000&max_threads=2"
+render-max-queries = 500
+render-max-concurrent = 10
+find-max-queries = 100
+find-max-concurrent = 10
+tags-max-queries = 100
+tags-max-concurrent = 10
+
+query-params = [
+  {
+    duration = "72h",
+    url = "http://graphite:qwerty@localhost:8123/?readonly=2&log_queries=1&max_rows_to_read=1024000000&max_result_bytes=128000000&max_threads=1",
+    data-timeout = "60s"
+    max-queries = 100,
+    max-concurrent = 4
+  }
+]
+
+user-limits = {
+  "alerting" = {
+    max-queries = 100,
+    max-concurrent = 5
+  }
+}
+
+```
+
 ### Index table
 See [index table](./index-table.md) documentation for details.
 
