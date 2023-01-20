@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -173,11 +172,11 @@ type ClickHouse struct {
 
 func clickhouseUrlValidate(chURL string) error {
 	if u, err := url.Parse(chURL); err != nil {
-		return errors.New(chURL + " parse error: " + err.Error())
+		return fmt.Errorf("error %q in url %q", err.Error(), chURL)
 	} else if u.Scheme != "http" && u.Scheme != "https" {
-		return errors.New(chURL + " parse error: scheme not supported")
+		return fmt.Errorf("scheme not supported in url %q", chURL)
 	} else if strings.Contains(u.RawQuery, " ") {
-		return errors.New(chURL + " parse error: space in query")
+		return fmt.Errorf("space not allowed in url %q", chURL)
 	}
 	return nil
 }
