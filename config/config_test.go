@@ -950,7 +950,7 @@ func TestClickHouse_Validate(t *testing.T) {
 			ch: ClickHouse{
 				URL: "http://localhost:8123/?max_rows_to_read=600 &max_threads=2&skip_unavailable_shards=1&log_queries=1",
 			},
-			wantErr: "http://localhost:8123/?max_rows_to_read=600 &max_threads=2&skip_unavailable_shards=1&log_queries=1 parse error: space in query",
+			wantErr: `space not allowed in url "http://localhost:8123/?max_rows_to_read=600 &max_threads=2&skip_unavailable_shards=1&log_queries=1"`,
 		},
 		{
 			name: "valid url",
