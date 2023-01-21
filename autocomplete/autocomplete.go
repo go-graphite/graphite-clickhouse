@@ -105,24 +105,29 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 	return wr, pw, usedTags, nil
 }
 
-func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag string, exprs []string, prefix string, limit int) (string, string) {
+func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag string, exprs []string, tagPrefix string, limit int) (string, string) {
 	ts := utils.TimestampTruncate(timeNow().Unix(), time.Duration(truncateSec)*time.Second)
 	var sb stringutils.Builder
 	sb.Grow(128)
 	sb.WriteString(typ)
 	sb.WriteString(fromDate)
-	sb.WriteString(";")
+	sb.WriteByte(';')
 	sb.WriteString(untilDate)
 	sb.WriteString(";limit=")
 	sb.WriteInt(int64(limit), 10)
-	sb.WriteString(";")
 	tagStart := sb.Len()
-	sb.WriteString(prefix)
-	sb.WriteString(";tag=")
-	sb.WriteString(tag)
+	if tagPrefix != "" {
+		sb.WriteString(";tagPrefix=")
+		sb.WriteString(tagPrefix)
+	}
+	if tag != "" {
+		sb.WriteString(";tag=")
+		sb.WriteString(tag)
+	}
 	for _, expr := range exprs {
-		sb.WriteString(";")
+		sb.WriteString(";expr='")
 		sb.WriteString(strings.Replace(expr, " = ", "=", 1))
+		sb.WriteByte('\'')
 	}
 	exprEnd := sb.Len()
 	sb.WriteString(";ts=")
@@ -132,11 +137,56 @@ func taggedKey(typ string, truncateSec int32, fromDate, untilDate string, tag st
 	return s, s[tagStart:exprEnd]
 }
 
+func taggedValuesKey(typ string, truncateSec int32, fromDate, untilDate string, tag string, exprs []string, valuePrefix string, limit int) (string, string) {
+	ts := utils.TimestampTruncate(timeNow().Unix(), time.Duration(truncateSec)*time.Second)
+	var sb stringutils.Builder
+	sb.Grow(128)
+	sb.WriteString(typ)
+	sb.WriteString(fromDate)
+	sb.WriteByte(';')
+	sb.WriteString(untilDate)
+	sb.WriteString(";limit=")
+	sb.WriteInt(int64(limit), 10)
+	tagStart := sb.Len()
+	if valuePrefix != "" {
+		sb.WriteString(";valuePrefix=")
+		sb.WriteString(valuePrefix)
+	}
+	if tag != "" {
+		sb.WriteString(";tag=")
+		sb.WriteString(tag)
+	}
+	for _, expr := range exprs {
+		sb.WriteString(";expr='")
+		sb.WriteString(strings.Replace(expr, " = ", "=", 1))
+		sb.WriteByte('\'')
+	}
+	exprEnd := sb.Len()
+	sb.WriteString(";ts=")
+	sb.WriteString(strconv.FormatInt(ts, 10))
+
+	s := sb.String()
+	return s, s[tagStart:exprEnd]
+}
+
+// func taggedTagsQuery(exprs []string, tagPrefix string, limit int) []string {
+// 	query := make([]string, 0, 3+len(exprs))
+// 	if tagPrefix != "" {
+// 		query = append(query, "tagPrefix="+tagPrefix)
+// 	}
+// 	for _, expr := range exprs {
+// 		query = append(query, "expr='"+expr+"'")
+// 	}
+// 	query = append(query, "limit="+strconv.Itoa(limit))
+// 	return query
+// }
+
 func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	start := timeNow()
 	status := http.StatusOK
-	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog)
-	logger := accessLogger.Named("autocomplete")
+	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
+	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("autocomplete")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var (
 		err           error
@@ -193,11 +243,12 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string
+	exprs := r.Form["expr"]
+	// params := taggedTagsQuery(exprs, tagPrefix, limit)
 
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
-		exprs := r.Form["expr"]
-		key, _ = taggedKey("tags;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, "", exprs, "tagPrefix="+tagPrefix, limit)
+		key, _ = taggedKey("tags;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, "", exprs, tagPrefix, limit)
 		body, err = h.config.Common.FindCache.Get(key)
 		if err == nil {
 			if metrics.FinderCacheMetrics != nil {
@@ -333,7 +384,6 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	if len(tags) > limit {
 		tags = tags[:limit]
 	}
-
 	if useCache {
 		if findCache {
 			logger.Info("finder", zap.String("get_cache", key),
@@ -358,11 +408,27 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+// func taggedValuesQuery(tag string, exprs []string, valuePrefix string, limit int) []string {
+// 	query := make([]string, 0, 3+len(exprs))
+// 	if tag != "" {
+// 		query = append(query, "tag="+tag)
+// 	}
+// 	if valuePrefix != "" {
+// 		query = append(query, "valuePrefix="+valuePrefix)
+// 	}
+// 	for _, expr := range exprs {
+// 		query = append(query, "expr='"+expr+"'")
+// 	}
+// 	query = append(query, "limit="+strconv.Itoa(limit))
+// 	return query
+// }
+
 func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	start := timeNow()
 	status := http.StatusOK
 	accessLogger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("http")
 	logger := scope.LoggerWithHeaders(r.Context(), r, h.config.Common.HeadersToLog).Named("autocomplete")
+	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	var (
 		err           error
@@ -422,11 +488,14 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, start)
 
 	var key string
+	exprs := r.Form["expr"]
+	// params := taggedValuesQuery(tag, exprs, valuePrefix, limit)
 
+	// taggedKey(tag, , "valuePrefix="+valuePrefix, limit)
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
 		// logger = logger.With(zap.String("use_cache", "true"))
-		key, _ = taggedKey("values;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, tag, r.Form["expr"], "valuePrefix="+valuePrefix, limit)
+		key, _ = taggedValuesKey("values;", h.config.Common.FindCacheConfig.FindTimeoutSec, fromDate, untilDate, tag, exprs, valuePrefix, limit)
 		body, err = h.config.Common.FindCache.Get(key)
 		if err == nil {
 			if metrics.FinderCacheMetrics != nil {

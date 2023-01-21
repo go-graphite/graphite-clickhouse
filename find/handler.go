@@ -45,6 +45,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		queueFail     bool
 		queueDuration time.Duration
 		findCache     bool
+		query         string
 	)
 
 	username := w.Header().Get("X-Forwarded-User")
@@ -73,8 +74,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	r.ParseMultipartForm(1024 * 1024)
-
-	var query string
 
 	format := r.FormValue("format")
 	if format == "carbonapi_v3_pb" {
@@ -122,6 +121,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var key string
+	// params := []string{query}
 	useCache := h.config.Common.FindCache != nil && h.config.Common.FindCacheConfig.FindTimeoutSec > 0 && !parser.TruthyBool(r.FormValue("noCache"))
 	if useCache {
 		ts := utils.TimestampTruncate(time.Now().Unix(), time.Duration(h.config.Common.FindCacheConfig.FindTimeoutSec)*time.Second)

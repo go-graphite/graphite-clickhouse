@@ -201,6 +201,7 @@ func main() {
 		w.Write(b)
 	})
 	mux.HandleFunc("/alive", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: add healthcheck
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Graphite-clickhouse is alive.\n")
 	})
