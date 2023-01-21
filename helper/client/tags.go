@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/msaf1980/go-stringutils"
 )
 
 // TagsNames do  /tags/autoComplete/tags request with query like [tagPrefix];tag1=value1;tag2=~value*
@@ -20,12 +22,13 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 		format = FormatJSON
 	}
 
-	queryParams := fmt.Sprintf("%s?format=%s, from=%d, until=%d, limits=%d, query %s", rTags, format.String(), from, until, limit, query)
+	var queryParams string
 
 	switch format {
 	case FormatJSON:
 		break
 	default:
+		queryParams = fmt.Sprintf("%s?format=%s, from=%d, until=%d, limits=%d, query %s", rTags, format.String(), from, until, limit, query)
 		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
@@ -56,26 +59,47 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 		}
 	}
 
-	v := url.Values{
-		"format": []string{format.String()},
-	}
-	if len(exprs) > 0 {
-		v["expr"] = exprs
-	}
+	v := make([]string, 0, 2+len(exprs))
+	var rawQuery stringutils.Builder
+	rawQuery.Grow(128)
+
+	v = append(v, "format="+format.String())
+	rawQuery.WriteString("format=")
+	rawQuery.WriteString(url.QueryEscape(format.String()))
+
 	if tagPrefix != "" {
-		v["tagPrefix"] = []string{tagPrefix}
+		v = append(v, "tagPrefix="+tagPrefix)
+		rawQuery.WriteString("&tagPrefix=")
+		rawQuery.WriteString(url.QueryEscape(tagPrefix))
 	}
-	if from > 0 {
-		v["from"] = []string{strconv.FormatInt(from, 10)}
-	}
-	if until > 0 {
-		v["until"] = []string{strconv.FormatInt(until, 10)}
-	}
-	if limit > 0 {
-		v["limit"] = []string{strconv.FormatUint(limit, 10)}
+	for _, expr := range exprs {
+		v = append(v, "expr="+expr)
+		rawQuery.WriteString("&expr=")
+		rawQuery.WriteString(url.QueryEscape(expr))
 	}
 
-	u.RawQuery = v.Encode()
+	if from > 0 {
+		fromStr := strconv.FormatInt(from, 10)
+		v = append(v, "from="+fromStr)
+		rawQuery.WriteString("&from=")
+		rawQuery.WriteString(fromStr)
+	}
+	if until > 0 {
+		untilStr := strconv.FormatInt(until, 10)
+		v = append(v, "until="+untilStr)
+		rawQuery.WriteString("&until=")
+		rawQuery.WriteString(untilStr)
+	}
+	if limit > 0 {
+		limitStr := strconv.FormatUint(limit, 10)
+		v = append(v, "limit="+limitStr)
+		rawQuery.WriteString("&limit=")
+		rawQuery.WriteString(limitStr)
+	}
+
+	queryParams = fmt.Sprintf("%s %q", rTags, v)
+
+	u.RawQuery = rawQuery.String()
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -113,12 +137,13 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 		format = FormatJSON
 	}
 
-	queryParams := fmt.Sprintf("%s?format=%s, from=%d, until=%d, limits=%d, query %s", rTags, format.String(), from, until, limit, query)
+	var queryParams string
 
 	switch format {
 	case FormatJSON:
 		break
 	default:
+		queryParams = fmt.Sprintf("%s?format=%s, from=%d, until=%d, limits=%d, query %s", rTags, format.String(), from, until, limit, query)
 		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
@@ -128,7 +153,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	}
 
 	var (
-		tags        []string
+		tag         string
 		valuePrefix string
 		exprs       []string
 	)
@@ -140,7 +165,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 		}
 
 		vals := strings.Split(args[0], "=")
-		tags = []string{vals[0]}
+		tag = vals[0]
 		if len(vals) > 2 {
 			return queryParams, nil, nil, errors.New("invalid tag: " + args[0])
 		} else if len(vals) == 2 {
@@ -157,29 +182,52 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 		}
 	}
 
-	v := url.Values{
-		"format": []string{format.String()},
-	}
-	if len(exprs) > 0 {
-		v["expr"] = exprs
-	}
-	if len(tags) > 0 {
-		v["tag"] = tags
+	v := make([]string, 0, 2+len(exprs))
+	var rawQuery stringutils.Builder
+	rawQuery.Grow(128)
+
+	v = append(v, "format="+format.String())
+	rawQuery.WriteString("format=")
+	rawQuery.WriteString(url.QueryEscape(format.String()))
+
+	if tag != "" {
+		v = append(v, "tag="+tag)
+		rawQuery.WriteString("&tag=")
+		rawQuery.WriteString(url.QueryEscape(tag))
 	}
 	if valuePrefix != "" {
-		v["valuePrefix"] = []string{valuePrefix}
+		v = append(v, "valuePrefix="+valuePrefix)
+		rawQuery.WriteString("&valuePrefix=")
+		rawQuery.WriteString(url.QueryEscape(valuePrefix))
 	}
-	if from > 0 {
-		v["from"] = []string{strconv.FormatInt(from, 10)}
-	}
-	if until > 0 {
-		v["until"] = []string{strconv.FormatInt(until, 10)}
-	}
-	if limit > 0 {
-		v["limit"] = []string{strconv.FormatUint(limit, 10)}
+	for _, expr := range exprs {
+		v = append(v, "expr="+expr)
+		rawQuery.WriteString("&expr=")
+		rawQuery.WriteString(url.QueryEscape(expr))
 	}
 
-	u.RawQuery = v.Encode()
+	if from > 0 {
+		fromStr := strconv.FormatInt(from, 10)
+		v = append(v, "from="+fromStr)
+		rawQuery.WriteString("&from=")
+		rawQuery.WriteString(fromStr)
+	}
+	if until > 0 {
+		untilStr := strconv.FormatInt(until, 10)
+		v = append(v, "until="+untilStr)
+		rawQuery.WriteString("&until=")
+		rawQuery.WriteString(untilStr)
+	}
+	if limit > 0 {
+		limitStr := strconv.FormatUint(limit, 10)
+		v = append(v, "limit="+limitStr)
+		rawQuery.WriteString("&limit=")
+		rawQuery.WriteString(limitStr)
+	}
+
+	queryParams = fmt.Sprintf("%s %q", rTags, v)
+
+	u.RawQuery = rawQuery.String()
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
