@@ -65,6 +65,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		queueFail     bool
 		queueDuration time.Duration
 		err           error
+		fetchRequests data.MultiTarget
 	)
 	start := time.Now()
 	status := http.StatusOK
@@ -102,7 +103,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fetchRequests, err := formatter.ParseRequest(r)
+	fetchRequests, err = formatter.ParseRequest(r)
 	if err != nil {
 		status = http.StatusBadRequest
 		http.Error(w, fmt.Sprintf("Failed to parse request: %v", err.Error()), status)
@@ -201,7 +202,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								logger.Info("finder", zap.String("get_cache", key), zap.Time("timestamp_cached", time.Unix(ts, 0)),
 									zap.Int("metrics", am.Len()), zap.Bool("find_cached", true),
-									zap.String("ttl", cacheTimeoutStr))
+									zap.String("ttl", cacheTimeoutStr),
+									zap.Int64("from", tf.From), zap.Int64("until", tf.Until))
 							}
 							return
 						}
@@ -227,7 +229,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					h.config.Common.FindCache.Set(key, body, cacheTimeout)
 					logger.Info("finder", zap.String("set_cache", key), zap.Time("timestamp_cached", time.Unix(ts, 0)),
 						zap.Int("metrics", am.Len()), zap.Bool("find_cached", false),
-						zap.String("ttl", cacheTimeoutStr))
+						zap.String("ttl", cacheTimeoutStr),
+						zap.Int64("from", tf.From), zap.Int64("until", tf.Until))
 				}
 				lock.Lock()
 				rows := am.Len()

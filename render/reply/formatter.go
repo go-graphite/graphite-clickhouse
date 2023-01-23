@@ -10,6 +10,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
+	"go.uber.org/zap"
 )
 
 // Formatter implements request parser and response generator
@@ -69,5 +70,19 @@ func parseRequestForms(r *http.Request) (data.MultiTarget, error) {
 	}
 	multiTarget := make(data.MultiTarget)
 	multiTarget[tf] = &data.Targets{List: targets, AM: alias.New()}
+
+	if len(targets) > 0 {
+		logger := scope.Logger(r.Context()).Named("form_parser")
+		for _, t := range targets {
+			logger.Info(
+				"target",
+				zap.Int64("from", tf.From),
+				zap.Int64("until", tf.Until),
+				zap.Int64("maxDataPoints", tf.MaxDataPoints),
+				zap.String("target", t),
+			)
+		}
+	}
+
 	return multiTarget, nil
 }

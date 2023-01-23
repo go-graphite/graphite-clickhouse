@@ -3,6 +3,7 @@ package reply
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -89,7 +90,7 @@ func parseJSONBody(r *http.Request) (data.MultiTarget, error) {
 // parses request forms.
 func (*JSON) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	if !scope.Debug(r.Context(), "Output") {
-		return nil, fmt.Errorf("json format is only enabled for debugging purposes, pass 'X-Gch-Debug-Output: true' header")
+		return nil, errors.New("json format is only enabled for debugging purposes, pass 'X-Gch-Debug-Output: true' header")
 	}
 	fetchRequests, err := parseJSONBody(r)
 	if err == nil {
