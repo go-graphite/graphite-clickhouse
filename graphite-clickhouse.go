@@ -19,6 +19,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/capabilities"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
+	"github.com/lomik/graphite-clickhouse/healthcheck"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -180,6 +181,7 @@ func main() {
 	mux.Handle("/render/", app.Handler(render.NewHandler(cfg)))
 	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
 	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
+	mux.Handle("/alive", app.Handler(healthcheck.NewHandler(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 
 		status := http.StatusOK
@@ -199,11 +201,6 @@ func main() {
 			return
 		}
 		w.Write(b)
-	})
-	mux.HandleFunc("/alive", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: add healthcheck
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Graphite-clickhouse is alive.\n")
 	})
 
 	if cfg.Prometheus.Listen != "" {
