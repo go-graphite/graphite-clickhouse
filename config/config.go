@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +32,9 @@ type CacheConfig struct {
 	Size                int           `toml:"size-mb" json:"size-mb" comment:"cache size"`
 	MemcachedServers    []string      `toml:"memcached-servers" json:"memcached-servers" comment:"memcached servers"`
 	DefaultTimeoutSec   int32         `toml:"default-timeout" json:"default-timeout" comment:"default cache ttl"`
+	DefaultTimeoutStr   string        `toml:"-" json:"-"`
 	ShortTimeoutSec     int32         `toml:"short-timeout" json:"short-timeout" comment:"short-time cache ttl"`
+	ShortTimeoutStr     string        `toml:"-" json:"-"`
 	FindTimeoutSec      int32         `toml:"find-timeout" json:"find-timeout" comment:"finder/tags autocompleter cache ttl"`
 	ShortDuration       time.Duration `toml:"short-duration" json:"short-duration" comment:"maximum diration, used with short_timeout"`
 	ShortUntilOffsetSec int64         `toml:"short-offset" json:"short-offset" comment:"offset beetween now and until for select short cache timeout"`
@@ -716,6 +719,9 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 	if cacheConfig.ShortUntilOffsetSec == 0 {
 		cacheConfig.ShortUntilOffsetSec = 120
 	}
+	cacheConfig.DefaultTimeoutStr = strconv.Itoa(int(cacheConfig.DefaultTimeoutSec))
+	cacheConfig.ShortTimeoutStr = strconv.Itoa(int(cacheConfig.ShortTimeoutSec))
+
 	switch cacheConfig.Type {
 	case "memcache":
 		if len(cacheConfig.MemcachedServers) == 0 {

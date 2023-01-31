@@ -94,7 +94,7 @@ func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatc
 			From:          from,
 			Until:         until,
 			MaxDataPoints: maxDataPoints,
-		}: &data.Targets{List: []string{}, AM: am},
+		}: data.NewTargets([]string{}, am),
 	}
 	reply, err := multiTarget.Fetch(q.ctx, q.config, config.ContextPrometheus)
 	if err != nil {

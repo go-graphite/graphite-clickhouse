@@ -69,7 +69,7 @@ func parseRequestForms(r *http.Request) (data.MultiTarget, error) {
 		MaxDataPoints: maxDataPoints,
 	}
 	multiTarget := make(data.MultiTarget)
-	multiTarget[tf] = &data.Targets{List: targets, AM: alias.New()}
+	multiTarget[tf] = data.NewTargets(targets, alias.New())
 
 	if len(targets) > 0 {
 		logger := scope.Logger(r.Context()).Named("form_parser")

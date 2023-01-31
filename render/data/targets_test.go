@@ -47,7 +47,7 @@ func TestSelectDataTableTime(t *testing.T) {
 	}
 	err := cfg.ProcessDataTables()
 	assert.NoError(t, err)
-	tg := Targets{List: []string{"metric"}}
+	tg := NewTargets([]string{"metric"}, nil)
 
 	tests := []struct {
 		*TimeFrame
@@ -125,17 +125,17 @@ func TestSelectDataTableMatch(t *testing.T) {
 		err error
 	}{
 		{
-			&Targets{List: []string{"allinclucive.in.avg", "all.metrics.for.avg"}},
+			NewTargets([]string{"allinclucive.in.avg", "all.metrics.for.avg"}, nil),
 			cfg.DataTable[0],
 			nil,
 		},
 		{
-			&Targets{List: []string{"allinclucive.in.avg", "any.metrics.for.avg"}},
+			NewTargets([]string{"allinclucive.in.avg", "any.metrics.for.avg"}, nil),
 			cfg.DataTable[1],
 			nil,
 		},
 		{
-			&Targets{List: []string{"allinclucive.in.avg", "some.metrics.for.avg"}},
+			NewTargets([]string{"allinclucive.in.avg", "some.metrics.for.avg"}, nil),
 			cfg.DataTable[2],
 			nil,
 		},

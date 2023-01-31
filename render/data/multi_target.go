@@ -38,9 +38,9 @@ func MFRToMultiTarget(v3Request *v3pb.MultiFetchRequest) MultiTarget {
 			}
 			if _, ok := multiTarget[tf]; ok {
 				target := multiTarget[tf]
-				target.List = append(multiTarget[tf].List, m.PathExpression)
+				target.Append(m.PathExpression)
 			} else {
-				multiTarget[tf] = &Targets{List: []string{m.PathExpression}, AM: alias.New()}
+				multiTarget[tf] = NewTargetsOne(m.PathExpression, len(v3Request.Metrics), alias.New())
 			}
 		}
 	}

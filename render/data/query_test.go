@@ -69,13 +69,10 @@ func ageToTimestamp(age int64) int64 {
 // fromAge and untilAge are relative age of timeframe
 func newCondition(fromAge, untilAge, maxDataPoints int64) *conditions {
 	tf := TimeFrame{ageToTimestamp(fromAge), ageToTimestamp(untilAge), maxDataPoints}
-	tt := Targets{
-		List:        []string{"*.name.*"},
-		AM:          newAM(),
-		pointsTable: "graphite.data",
-		rollupRules: newRules(false),
-	}
-	return &conditions{TimeFrame: &tf, Targets: &tt}
+	tt := NewTargets([]string{"*.name.*"}, newAM())
+	tt.pointsTable = "graphite.data"
+	tt.rollupRules = newRules(false)
+	return &conditions{TimeFrame: &tf, Targets: tt}
 }
 
 func extTableString(et map[string]*strings.Builder) map[string]string {

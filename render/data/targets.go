@@ -10,10 +10,20 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
+type Cache struct {
+	Cached     bool
+	TS         int64 // cached timestamp
+	Timeout    int32
+	TimeoutStr string
+	Key        string // cache key
+	M          *metrics.CacheMetric
+}
+
 // Targets represents requested metrics
 type Targets struct {
 	// List contains queried metrics, e.g. [metric.{name1,name2}, metric.name[3-9]]
-	List []string
+	List  []string
+	Cache []Cache
 	// AM stores found expanded metrics
 	AM                *alias.Map
 	pointsTable       string
@@ -21,6 +31,29 @@ type Targets struct {
 	rollupRules       *rollup.Rules
 	rollupUseReverted bool
 	queryMetrics      *metrics.QueryMetrics
+}
+
+func NewTargets(list []string, am *alias.Map) *Targets {
+	return &Targets{
+		List:  list,
+		Cache: make([]Cache, len(list)),
+		AM:    am,
+	}
+}
+
+func NewTargetsOne(target string, capacity int, am *alias.Map) *Targets {
+	list := make([]string, 1, capacity)
+	list[0] = target
+	return &Targets{
+		List:  list,
+		Cache: make([]Cache, 1, capacity),
+		AM:    am,
+	}
+}
+
+func (tt *Targets) Append(target string) {
+	tt.List = append(tt.List, target)
+	tt.Cache = append(tt.Cache, Cache{})
 }
 
 func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string) error {
