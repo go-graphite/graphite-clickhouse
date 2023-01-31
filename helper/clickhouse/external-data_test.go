@@ -91,7 +91,6 @@ func TestBuildBody(t *testing.T) {
 		b += "--" + contentID + "--\r\n"
 		assert.Equal(t, b, body.String(), "built body and expected body don't match")
 	}
-	return
 }
 
 func TestDebugDump(t *testing.T) {

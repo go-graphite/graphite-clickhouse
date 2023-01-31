@@ -101,6 +101,21 @@ func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) limite
 	return cfg.ClickHouse.QueryParams[n].Limiter
 }
 
+func GetQueryLimiterFrom(username string, cfg *config.Config, from, until int64) limiter.ServerLimiter {
+	n := 0
+	if username != "" && len(cfg.ClickHouse.UserLimits) > 0 {
+		if u, ok := cfg.ClickHouse.UserLimits[username]; ok {
+			return u.Limiter
+		}
+	}
+
+	if len(cfg.ClickHouse.QueryParams) > 1 {
+		n = config.GetQueryParam(cfg.ClickHouse.QueryParams, time.Second*time.Duration(until-from))
+	}
+
+	return cfg.ClickHouse.QueryParams[n].Limiter
+}
+
 func GetQueryParam(username string, cfg *config.Config, m *MultiTarget) (*config.QueryParam, int) {
 	n := 0
 
@@ -120,9 +135,12 @@ func GetQueryParam(username string, cfg *config.Config, m *MultiTarget) (*config
 }
 
 // Fetch fetches the parsed ClickHouse data returns CHResponses
-func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext string) (CHResponses, error) {
-	var lock sync.RWMutex
-	var wg sync.WaitGroup
+func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext string, qlimiter limiter.ServerLimiter, queueDuration *time.Duration) (CHResponses, error) {
+	var (
+		lock    sync.RWMutex
+		wg      sync.WaitGroup
+		entered int
+	)
 	logger := scope.Logger(ctx)
 	setCarbonlinkClient(&cfg.Carbonlink)
 
@@ -135,7 +153,12 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 	dataTimeout := getDataTimeout(cfg, m)
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, dataTimeout)
-	defer cancel()
+	defer func() {
+		for i := 0; i < entered; i++ {
+			qlimiter.Leave(ctxTimeout, "render")
+		}
+		cancel()
+	}()
 
 	errors := make([]error, 0, len(*m))
 	query := newQuery(cfg, len(*m))
@@ -153,6 +176,21 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 			lock.Unlock()
 			logger.Error("data tables is not specified", zap.Error(err))
 			return EmptyResponse(), err
+		}
+		if qlimiter.Enabled() {
+			start := time.Now()
+			err = qlimiter.Enter(ctxTimeout, "render")
+			*queueDuration += time.Since(start)
+			if err != nil {
+				// status = http.StatusServiceUnavailable
+				// queueFail = true
+				// http.Error(w, err.Error(), status)
+				lock.Lock()
+				errors = append(errors, err)
+				lock.Unlock()
+				break
+			}
+			entered++
 		}
 		wg.Add(1)
 		go func(cond *conditions) {

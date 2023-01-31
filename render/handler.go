@@ -76,7 +76,6 @@ func (h *Handler) finderCached(ts time.Time, fetchRequests data.MultiTarget, log
 					body, err := h.config.Common.FindCache.Get(targets.Cache[n].Key)
 					if err == nil {
 						if len(body) > 0 {
-							cachedFind++
 							targets.Cache[n].M.CacheHits.Add(1)
 							var f finder.Finder
 							if strings.HasPrefix(target, "seriesByTag(") {
@@ -107,14 +106,43 @@ func (h *Handler) finderCached(ts time.Time, fetchRequests data.MultiTarget, log
 	wg.Wait()
 	if len(errors) != 0 {
 		err = errors[0]
+		return
+	}
+	for _, targets := range fetchRequests {
+		var cached int
+		for _, c := range targets.Cache {
+			if c.Cached {
+				cached++
+			}
+		}
+		cachedFind += cached
+		if cached == len(targets.Cache) {
+			targets.Cached = true
+		}
 	}
 	return
 }
 
 // try to fetch finder queries
-func (h *Handler) finder(fetchRequests data.MultiTarget, ctx context.Context, logger *zap.Logger, metricsLen *int, useCache bool) (maxDuration int64, err error) {
-	var wg sync.WaitGroup
-	var lock sync.RWMutex
+func (h *Handler) finder(fetchRequests data.MultiTarget, ctx context.Context, logger *zap.Logger, qlimiter limiter.ServerLimiter, metricsLen *int, queueDuration *time.Duration, useCache bool) (maxDuration int64, err error) {
+	var (
+		wg       sync.WaitGroup
+		lock     sync.RWMutex
+		entered  int
+		limitCtx context.Context
+		cancel   context.CancelFunc
+	)
+	if qlimiter.Enabled() {
+		// no reason wait longer than index-timeout
+		limitCtx, cancel = context.WithTimeout(ctx, h.config.ClickHouse.IndexTimeout)
+		defer func() {
+			for i := 0; i < entered; i++ {
+				qlimiter.Leave(limitCtx, "render")
+			}
+			defer cancel()
+		}()
+	}
+
 	errors := make([]error, 0, len(fetchRequests))
 	for tf, targets := range fetchRequests {
 		for i, expr := range targets.List {
@@ -124,6 +152,18 @@ func (h *Handler) finder(fetchRequests data.MultiTarget, ctx context.Context, lo
 			}
 			if targets.Cache[i].Cached {
 				continue
+			}
+			if qlimiter.Enabled() {
+				start := time.Now()
+				err = qlimiter.Enter(limitCtx, "render")
+				*queueDuration += time.Since(start)
+				if err != nil {
+					lock.Lock()
+					errors = append(errors, err)
+					lock.Unlock()
+					break
+				}
+				entered++
 			}
 			wg.Add(1)
 			go func(tf data.TimeFrame, target string, targets *data.Targets, n int) {
@@ -193,7 +233,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
 	username := w.Header().Get("X-Forwarded-User")
-	var limiter limiter.ServerLimiter = limiter.NoopLimiter{}
+	var qlimiter limiter.ServerLimiter = limiter.NoopLimiter{}
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -208,7 +248,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		end := time.Now()
 		logs.AccessLog(accessLogger, h.config, r, status, end.Sub(start), queueDuration, cachedFind, queueFail)
-		limiter.SendDuration(queueDuration.Milliseconds())
+		qlimiter.SendDuration(queueDuration.Milliseconds())
 		metrics.SendRenderMetrics(metrics.RenderRequestMetric, status, start, fetchStart, end, maxDuration, h.config.Metrics.ExtendedStat, int64(metricsLen), pointsCount)
 	}()
 
@@ -231,42 +271,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if tf.From >= tf.Until {
 			// wrong duration
 			if err != nil {
-				status = clickhouse.HandleError(w, clickhouse.ErrInvalidTimeRange)
+				status, _ = clickhouse.HandleError(w, clickhouse.ErrInvalidTimeRange)
 				return
 			}
 		}
 		targetsLen += len(targets.List)
 	}
 
-	var (
-		entered bool
-		ctx     context.Context
-		cancel  context.CancelFunc
-	)
-	limiter = data.GetQueryLimiter(username, h.config, &fetchRequests)
-	if limiter.Enabled() {
-		// no reason wait longer than index-timeout
-		ctx, cancel = context.WithTimeout(context.Background(), h.config.ClickHouse.IndexTimeout)
-		defer cancel()
-
-		err = limiter.Enter(ctx, "render")
-		queueDuration = time.Since(start)
-		if err != nil {
-			status = http.StatusServiceUnavailable
-			queueFail = true
-			logger.Error(err.Error())
-			http.Error(w, err.Error(), status)
-			return
-		}
-		queueDuration = time.Since(start)
-		entered = true
-		defer func() {
-			if entered {
-				limiter.Leave(ctx, "render")
-				entered = false
-			}
-		}()
-	}
+	qlimiter = data.GetQueryLimiter(username, h.config, &fetchRequests)
 
 	var maxCacheTimeoutStr string
 	useCache := h.config.Common.FindCache != nil && !parser.TruthyBool(r.FormValue("noCache"))
@@ -275,7 +287,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var cached int
 		cached, maxCacheTimeoutStr, err = h.finderCached(start, fetchRequests, logger, &metricsLen)
 		if err != nil {
-			status = clickhouse.HandleError(w, err)
+			status, _ = clickhouse.HandleError(w, err)
 			return
 		}
 		if cached > 0 {
@@ -289,9 +301,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	maxDuration, err = h.finder(fetchRequests, r.Context(), logger, &metricsLen, useCache)
+	maxDuration, err = h.finder(fetchRequests, r.Context(), logger, qlimiter, &metricsLen, &queueDuration, useCache)
 	if err != nil {
-		status = clickhouse.HandleError(w, err)
+		status, queueFail = clickhouse.HandleError(w, err)
 		return
 	}
 
@@ -308,14 +320,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fetchStart = time.Now()
 
-	reply, err := fetchRequests.Fetch(r.Context(), h.config, config.ContextGraphite)
-	if entered {
-		// release early as possible
-		limiter.Leave(ctx, "render")
-		entered = false
-	}
+	reply, err := fetchRequests.Fetch(r.Context(), h.config, config.ContextGraphite, qlimiter, &queueDuration)
 	if err != nil {
-		status = clickhouse.HandleError(w, err)
+		status, queueFail = clickhouse.HandleError(w, err)
 		return
 	}
 

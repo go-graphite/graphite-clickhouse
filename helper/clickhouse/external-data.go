@@ -59,7 +59,6 @@ func (e *ExternalData) SetDebug(debugDir string, perm os.FileMode) {
 		e.debug = nil
 	}
 	e.debug = &extDataDebug{debugDir, perm}
-	return
 }
 
 // buildBody returns multiform body, content type header and error

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 
 	"go.uber.org/zap"
@@ -64,12 +65,18 @@ func extractClickhouseError(e string) (int, string) {
 	return http.StatusInternalServerError, "Storage error"
 }
 
-func HandleError(w http.ResponseWriter, err error) (status int) {
+func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) {
 	status = http.StatusOK
 	errStr := err.Error()
 	if err == ErrInvalidTimeRange {
 		status = http.StatusBadRequest
 		http.Error(w, errStr, status)
+		return
+	}
+	if err == limiter.ErrTimeout || err == limiter.ErrOverflow {
+		queueFail = true
+		status = http.StatusServiceUnavailable
+		http.Error(w, err.Error(), status)
 		return
 	}
 	if _, ok := err.(*ErrWithDescr); ok {

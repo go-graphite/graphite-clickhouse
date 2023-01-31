@@ -22,8 +22,9 @@ type Cache struct {
 // Targets represents requested metrics
 type Targets struct {
 	// List contains queried metrics, e.g. [metric.{name1,name2}, metric.name[3-9]]
-	List  []string
-	Cache []Cache
+	List   []string
+	Cache  []Cache
+	Cached bool // all is cached
 	// AM stores found expanded metrics
 	AM                *alias.Map
 	pointsTable       string

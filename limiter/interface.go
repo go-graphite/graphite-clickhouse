@@ -6,8 +6,7 @@ import (
 )
 
 var ErrTimeout = errors.New("timeout exceeded")
-var ErrOverflow = errors.New("storage maximum read slot wait timeout")
-var ErrConcurrency = errors.New("storage concurrent read slot wait timeout")
+var ErrOverflow = errors.New("storage maximum queries exceeded")
 
 type ServerLimiter interface {
 	Capacity() int
