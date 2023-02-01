@@ -41,6 +41,7 @@ func (sl *Limiter) Enter(ctx context.Context, s string) (err error) {
 	if err = sl.l.enter(ctx, s); err != nil {
 		sl.m.WaitErrors.Add(1)
 	}
+	sl.m.Requests.Add(1)
 	return
 }
 
@@ -49,6 +50,7 @@ func (sl *Limiter) TryEnter(ctx context.Context, s string) (err error) {
 	if err = sl.l.tryEnter(ctx, s); err != nil {
 		sl.m.WaitErrors.Add(1)
 	}
+	sl.m.Requests.Add(1)
 	return
 }
 
