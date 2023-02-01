@@ -48,7 +48,7 @@ func (sl *WLimiter) Enter(ctx context.Context, s string) (err error) {
 		if sl.cL.enter(ctx, s) != nil {
 			sl.l.leave(ctx, s)
 			sl.m.WaitErrors.Add(1)
-			err = ErrConcurrency
+			err = ErrTimeout
 		}
 	}
 	return
@@ -66,7 +66,7 @@ func (sl *WLimiter) TryEnter(ctx context.Context, s string) (err error) {
 		if sl.cL.tryEnter(ctx, s) != nil {
 			sl.l.leave(ctx, s)
 			sl.m.WaitErrors.Add(1)
-			err = ErrConcurrency
+			err = ErrTimeout
 		}
 	}
 	return

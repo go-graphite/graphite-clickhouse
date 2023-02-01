@@ -181,7 +181,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		status = clickhouse.HandleError(w, err)
+		status, _ = clickhouse.HandleError(w, err)
 		return
 	}
 

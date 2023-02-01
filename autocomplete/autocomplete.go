@@ -339,7 +339,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			status = clickhouse.HandleError(w, err)
+			status, _ = clickhouse.HandleError(w, err)
 			return
 		}
 		readBytes = int64(len(body))
@@ -579,7 +579,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			status = clickhouse.HandleError(w, err)
+			status, _ = clickhouse.HandleError(w, err)
 			return
 		}
 
