@@ -199,7 +199,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		findCache     bool
 	)
 
-	username := w.Header().Get("X-Forwarded-User")
+	username := r.Header.Get("X-Forwarded-User")
 	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {
@@ -441,7 +441,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		findCache     bool
 	)
 
-	username := w.Header().Get("X-Forwarded-User")
+	username := r.Header.Get("X-Forwarded-User")
 	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {

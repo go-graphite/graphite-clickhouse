@@ -224,6 +224,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		queueDuration time.Duration
 		err           error
 		fetchRequests data.MultiTarget
+		luser         string
 	)
 	start := time.Now()
 	status := http.StatusOK
@@ -232,7 +233,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	r = r.WithContext(scope.WithLogger(r.Context(), logger))
 
-	username := w.Header().Get("X-Forwarded-User")
+	username := r.Header.Get("X-Forwarded-User")
 	var qlimiter limiter.ServerLimiter = limiter.NoopLimiter{}
 
 	defer func() {
@@ -278,7 +279,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		targetsLen += len(targets.List)
 	}
 
-	qlimiter = data.GetQueryLimiter(username, h.config, &fetchRequests)
+	luser, qlimiter = data.GetQueryLimiter(username, h.config, &fetchRequests)
+	logger.Debug("use user limiter", zap.String("username", username), zap.String("luser", luser))
 
 	var maxCacheTimeoutStr string
 	useCache := h.config.Common.FindCache != nil && !parser.TruthyBool(r.FormValue("noCache"))
