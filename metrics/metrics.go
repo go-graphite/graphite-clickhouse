@@ -60,24 +60,29 @@ type ReqMetric struct {
 type WaitMetric struct {
 	nameErrors string
 	// wait slot
+	Requests     metrics.Counter
 	WaitErrors   metrics.Counter
 	WaitTimeName string
 }
 
 func NewWaitMetric(enable bool, scope, sub string) WaitMetric {
 	if enable {
+		nameRequests := scope + "_wait." + sub + ".requests"
 		nameErrors := scope + "_wait." + sub + ".errors"
 		w := WaitMetric{
 			nameErrors:   nameErrors,
+			Requests:     metrics.NewCounter(),
 			WaitErrors:   metrics.NewCounter(),
 			WaitTimeName: scope + "_wait." + sub + ".requests",
 		}
+		metrics.Register(nameRequests, w.Requests)
 		metrics.Register(nameErrors, w.WaitErrors)
 
 		return w
 	}
 	return WaitMetric{
 		WaitErrors:   metrics.NilCounter{},
+		Requests:     metrics.NilCounter{},
 		WaitTimeName: "",
 	}
 }

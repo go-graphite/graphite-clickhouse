@@ -51,6 +51,7 @@ func (sl *WLimiter) Enter(ctx context.Context, s string) (err error) {
 			err = ErrTimeout
 		}
 	}
+	sl.m.Requests.Add(1)
 	return
 }
 
@@ -69,6 +70,7 @@ func (sl *WLimiter) TryEnter(ctx context.Context, s string) (err error) {
 			err = ErrTimeout
 		}
 	}
+	sl.m.Requests.Add(1)
 	return
 }
 

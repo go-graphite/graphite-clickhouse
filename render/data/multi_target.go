@@ -78,11 +78,11 @@ func getDataTimeout(cfg *config.Config, m *MultiTarget) time.Duration {
 	return dataTimeout
 }
 
-func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) limiter.ServerLimiter {
+func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) (string, limiter.ServerLimiter) {
 	n := 0
 	if username != "" && len(cfg.ClickHouse.UserLimits) > 0 {
 		if u, ok := cfg.ClickHouse.UserLimits[username]; ok {
-			return u.Limiter
+			return username, u.Limiter
 		}
 	}
 
@@ -98,7 +98,7 @@ func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) limite
 		n = config.GetQueryParam(cfg.ClickHouse.QueryParams, maxDuration)
 	}
 
-	return cfg.ClickHouse.QueryParams[n].Limiter
+	return "", cfg.ClickHouse.QueryParams[n].Limiter
 }
 
 func GetQueryLimiterFrom(username string, cfg *config.Config, from, until int64) limiter.ServerLimiter {

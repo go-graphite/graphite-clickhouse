@@ -48,7 +48,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		query         string
 	)
 
-	username := w.Header().Get("X-Forwarded-User")
+	username := r.Header.Get("X-Forwarded-User")
 	limiter := h.config.GetUserTagsLimiter(username)
 
 	defer func() {
