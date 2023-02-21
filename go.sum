@@ -163,7 +163,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dennwc/varint v1.0.0 h1:kGNFFSSw8ToIy3obO/kKr8U9GZYUAxQEVuix4zfDWzE=
 github.com/dennwc/varint v1.0.0/go.mod h1:hnItb35rvZvJrbTALZtY/iQfDs48JKRG1RPpgziApxA=
-github.com/dgryski/go-expirecache v0.0.0-20170314133854-743ef98b2adb h1:X9MwMz6mVZEWcbhsri5TwaCm/Q4USFdAAmy1T7RCGjw=
 github.com/dgryski/go-expirecache v0.0.0-20170314133854-743ef98b2adb/go.mod h1:pD/+9DfmmQ+xvOI1fxUltHV69BxC1aeTILPQg9Kw1hE=
 github.com/dgryski/go-onlinestats v0.0.0-20170612111826-1c7d19468768/go.mod h1:alfmlCqcg4uw9jaoIU1nOp9RFdJLMuu8P07BCEgpgoo=
 github.com/dgryski/httputil v0.0.0-20160116060654-189c2918cd08/go.mod h1:FdR8QjYJOW8OhZGga6zhJxYW2zdtZIqe7to/I3DOnwg=
@@ -578,10 +577,11 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
+github.com/msaf1980/go-expirecache v0.0.2 h1:lkxQMd/cXnz/WTS5IO1HC399dxR9DrqNAhaET7gPKLE=
+github.com/msaf1980/go-expirecache v0.0.2/go.mod h1:AVemStNEitwcK0IDFtGBQ9GZJesybwaTe8mG1pCCajM=
 github.com/msaf1980/go-metrics v0.0.11/go.mod h1:8VcR8MdyvIJpcVLOVFKbhb27+60tXy0M+zq7Ag8a6Pw=
 github.com/msaf1980/go-metrics v0.0.14 h1:gD0kCG5MDbon33Nkz49yW6kz3yu0DHzDN0SxjGTWlTA=
 github.com/msaf1980/go-metrics v0.0.14/go.mod h1:8VcR8MdyvIJpcVLOVFKbhb27+60tXy0M+zq7Ag8a6Pw=
-github.com/msaf1980/go-stringutils v0.1.2 h1:Gi2F1XGlI1C90mxl7dlVxXgiEnP3xRxhjoJ8DL3esDo=
 github.com/msaf1980/go-stringutils v0.1.2/go.mod h1:AxmV/6JuQUAtZJg5XmYATB5ZwCWgtpruVHY03dswRf8=
 github.com/msaf1980/go-stringutils v0.1.4 h1:UwsIT0hplHVucqbknk3CoNqKkmIuSHhsbBldXxyld5U=
 github.com/msaf1980/go-stringutils v0.1.4/go.mod h1:AxmV/6JuQUAtZJg5XmYATB5ZwCWgtpruVHY03dswRf8=

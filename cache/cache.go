@@ -9,7 +9,7 @@ import (
 
 	"github.com/bradfitz/gomemcache/memcache"
 
-	"github.com/dgryski/go-expirecache"
+	"github.com/msaf1980/go-expirecache"
 )
 
 var (
@@ -23,13 +23,13 @@ type BytesCache interface {
 }
 
 func NewExpireCache(maxsize uint64) BytesCache {
-	ec := expirecache.New(maxsize)
+	ec := expirecache.New[string, []byte](maxsize)
 	go ec.ApproximateCleaner(10 * time.Second)
 	return &ExpireCache{ec: ec}
 }
 
 type ExpireCache struct {
-	ec *expirecache.Cache
+	ec *expirecache.Cache[string, []byte]
 }
 
 func (ec ExpireCache) Get(k string) ([]byte, error) {
@@ -39,16 +39,12 @@ func (ec ExpireCache) Get(k string) ([]byte, error) {
 		return nil, ErrNotFound
 	}
 
-	return v.([]byte), nil
+	return v, nil
 }
 
 func (ec ExpireCache) Set(k string, v []byte, expire int32) {
 	ec.ec.Set(k, v, uint64(len(v)), expire)
 }
-
-func (ec ExpireCache) Items() int { return ec.ec.Items() }
-
-func (ec ExpireCache) Size() uint64 { return ec.ec.Size() }
 
 func NewMemcached(prefix string, servers ...string) BytesCache {
 	return &MemcachedCache{prefix: prefix, client: memcache.New(servers...)}

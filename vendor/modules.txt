@@ -82,9 +82,6 @@ github.com/davecgh/go-spew/spew
 # github.com/dennwc/varint v1.0.0
 ## explicit; go 1.12
 github.com/dennwc/varint
-# github.com/dgryski/go-expirecache v0.0.0-20170314133854-743ef98b2adb
-## explicit
-github.com/dgryski/go-expirecache
 # github.com/edsrzf/mmap-go v1.1.0
 ## explicit; go 1.17
 github.com/edsrzf/mmap-go
@@ -208,6 +205,9 @@ github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
 ## explicit; go 1.12
 github.com/modern-go/reflect2
+# github.com/msaf1980/go-expirecache v0.0.2
+## explicit; go 1.18
+github.com/msaf1980/go-expirecache
 # github.com/msaf1980/go-metrics v0.0.14
 ## explicit; go 1.16
 github.com/msaf1980/go-metrics
