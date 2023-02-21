@@ -6,7 +6,6 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cactus/go-statsd-client/v5 v5.0.0
-	github.com/dgryski/go-expirecache v0.0.0-20170314133854-743ef98b2adb
 	github.com/go-graphite/carbonapi v0.15.7-0.20221103163928-b07075b57524
 	github.com/go-graphite/protocol v1.0.0
 	github.com/gogo/protobuf v1.3.2
@@ -14,8 +13,10 @@ require (
 	github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80
 	github.com/lomik/zapwriter v0.0.0-20210624082824-c1161d1eb463
+	github.com/msaf1980/go-expirecache v0.0.2
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.4
+	github.com/msaf1980/go-timeutils v0.0.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.13.1
 	github.com/prometheus/client_model v0.3.0
@@ -65,7 +66,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/msaf1980/go-timeutils v0.0.3 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
