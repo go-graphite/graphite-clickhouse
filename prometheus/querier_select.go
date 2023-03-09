@@ -44,7 +44,7 @@ func (q *Querier) lookup(from, until int64, qlimiter limiter.ServerLimiter, queu
 		defer qlimiter.Leave(limitCtx, "render")
 	}
 	// TODO: implement use stat for Prometheus queries
-	fndResult, err := finder.FindTagged(q.config, q.ctx, terms, from, until, &stat)
+	fndResult, err := finder.FindTagged(q.ctx, q.config, terms, from, until, &stat)
 
 	if err != nil {
 		return nil, err

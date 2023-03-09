@@ -87,7 +87,7 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 		return wr, pw, usedTags, nil
 	}
 
-	terms, err := finder.ParseTaggedConditions(expr, h.config.ClickHouse.TaggedCosts)
+	terms, err := finder.ParseTaggedConditions(expr, h.config)
 	if err != nil {
 		return wr, pw, usedTags, err
 	}

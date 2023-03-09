@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -198,20 +199,20 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	return t.seriesSQL()
 }
 
-func (t *TagFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (t *TagFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	t.state = TagSkip
 
 	if query == "" {
-		return t.wrapped.Execute(ctx, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until, stat)
 	}
 
 	if query == "*" {
 		t.state = TagRoot
-		return t.wrapped.Execute(ctx, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until, stat)
 	}
 
 	if !strings.HasPrefix(query, "_tag.") && query != "_tag" {
-		return t.wrapped.Execute(ctx, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until, stat)
 	}
 
 	var sql string

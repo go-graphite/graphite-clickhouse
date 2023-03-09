@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -38,7 +39,7 @@ func (f *DateFinderV3) whereFilter(query string, from int64, until int64) (*wher
 	return w, dateWhere
 }
 
-func (f *DateFinderV3) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (f *DateFinderV3) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w, dateWhere := f.whereFilter(query, from, until)
 	f.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, f.table),

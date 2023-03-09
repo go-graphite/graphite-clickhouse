@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	chtest "github.com/lomik/graphite-clickhouse/helper/tests/clickhouse"
 )
@@ -103,7 +104,8 @@ func _TestTags(t *testing.T) {
 		f := WrapTag(m, srv.URL, "graphite_tag", clickhouse.Options{Timeout: time.Second, ConnectTimeout: time.Second})
 
 		var stat FinderStat
-		f.Execute(context.Background(), test.query, 0, 0, &stat)
+		config := config.New()
+		f.Execute(context.Background(), config, test.query, 0, 0, &stat)
 
 		list := make([]string, 0)
 		for _, r := range f.List() {

@@ -21,53 +21,61 @@ func TestTaggedWhere(t *testing.T) {
 
 	table := []struct {
 		query    string
+		minTags  int
 		where    string
 		prewhere string
 		isErr    bool
 	}{
 		// test for issue #195
-		{"seriesByTag()", "", "", true},
-		{"seriesByTag('')", "", "", true},
+		{"seriesByTag()", 0, "", "", true},
+		{"seriesByTag('')", 0, "", "", true},
 		// incomplete
-		{"seriesByTag('key=value)", "", "", true},
+		{"seriesByTag('key=value)", 0, "", "", true},
 		// missing quote
-		{"seriesByTag(key=value)", "", "", true},
+		{"seriesByTag(key=value)", 0, "", "", true},
 		// info about _tag "directory"
-		{"seriesByTag('key=value')", "Tag1='key=value'", "", false},
+		{"seriesByTag('key=value')", 0, "Tag1='key=value'", "", false},
+		{"seriesByTag('key=value')", 1, "Tag1='key=value'", "", false},
+		{"seriesByTag('key=value')", 2, "", "", true},
 		// test case for wildcarded name, must be not first check
-		{"seriesByTag('name=*', 'key=value')", "(Tag1='key=value') AND (arrayExists((x) -> x LIKE '__name__=%', Tags))", "", false},
-		{"seriesByTag('name=*', 'key=value*')", "(Tag1 LIKE '__name__=%') AND (arrayExists((x) -> x LIKE 'key=value%', Tags))", "", false},
-		{"seriesByTag('name=rps')", "Tag1='__name__=rps'", "", false},
-		{"seriesByTag('name=~cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", false},
-		{"seriesByTag('name=~cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", false},
-		{"seriesByTag('name=~cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem$')", false},
-		{"seriesByTag('name=~^cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", false},
-		{"seriesByTag('name=~^cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", false},
-		{"seriesByTag('name=rps', 'key=~value')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*value'), Tags))", "", false},
-		{"seriesByTag('name=rps', 'key=~^value$')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
-		{"seriesByTag('name=rps', 'key=~hello.world')", "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*hello.world'), Tags))", "", false},
-		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=%' AND match(x, '^host=.*Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
+		{"seriesByTag('name=*', 'key=value')", 0, "(Tag1='key=value') AND (arrayExists((x) -> x LIKE '__name__=%', Tags))", "", false},
+		{"seriesByTag('name=*', 'key=value')", 1, "(Tag1='key=value') AND (arrayExists((x) -> x LIKE '__name__=%', Tags))", "", false},
+		{"seriesByTag('name=*', 'key=value')", 2, "", "", true},
+		{"seriesByTag('name=*', 'key=value*')", 0, "(Tag1 LIKE '__name__=%') AND (arrayExists((x) -> x LIKE 'key=value%', Tags))", "", false},
+		{"seriesByTag('name=rps')", 0, "Tag1='__name__=rps'", "", false},
+		{"seriesByTag('name=~cpu.usage')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu.usage')", false},
+		{"seriesByTag('name=~cpu.usage')", 1, "", "", true},
+		{"seriesByTag('name=~cpu|mem')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem')", false},
+		{"seriesByTag('name=~cpu|mem$')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=.*cpu|mem$')", false},
+		{"seriesByTag('name=~^cpu|mem')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", false},
+		{"seriesByTag('name=~^cpu|mem$')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", false},
+		{"seriesByTag('name=rps', 'key=~value')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*value'), Tags))", "", false},
+		{"seriesByTag('name=rps', 'key=~^value$')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
+		{"seriesByTag('name=rps', 'key=~hello.world')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*hello.world'), Tags))", "", false},
+		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, 0, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=%' AND match(x, '^host=.*Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
 		// grafana multi-value variable produce this
-		{"seriesByTag('name=value','what=*')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},        // If All masked to value with *
-		{"seriesByTag('name=value','what=*x')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},      // If All masked to value with *
-		{"seriesByTag('name=value','what!=*x')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false}, // If All masked to value with *
-		{"seriesByTag('name={avg,max}')", "Tag1 IN ('__name__=avg','__name__=max')", "", false},
-		{"seriesByTag('name=m{in}')", "Tag1='__name__=min'", "", false},
-		{"seriesByTag('name=m{in,ax}')", "Tag1 IN ('__name__=min','__name__=max')", "", false},
-		{"seriesByTag('name=m{in,ax')", "", "", true},
-		{"seriesByTag('name=value','what={avg,max}')", "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
-		{"seriesByTag('name=value','what!={avg,max}')", "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what=*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},        // If All masked to value with *
+		{"seriesByTag('name=value','what=*x')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},      // If All masked to value with *
+		{"seriesByTag('name=value','what!=*x')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false}, // If All masked to value with *
+		{"seriesByTag('name={avg,max}')", 0, "Tag1 IN ('__name__=avg','__name__=max')", "", false},
+		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
+		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
+		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
+		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
-		{"seriesByTag('name=value','what=~*')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
+		{"seriesByTag('name=value','what=~*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 		// empty tag value during autocompletion
-		{"seriesByTag('name=value','what=~')", "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
+		{"seriesByTag('name=value','what=~')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 	}
 
 	for i, test := range table {
 		t.Run(test.query+"#"+strconv.Itoa(i), func(t *testing.T) {
 			testName := fmt.Sprintf("query: %#v", test.query)
 
-			terms, err := ParseSeriesByTag(test.query, nil)
+			config := config.New()
+			config.ClickHouse.TagsMinInQuery = test.minTags
+			terms, err := ParseSeriesByTag(test.query, config)
 
 			if test.isErr {
 				if err != nil {
@@ -98,7 +106,8 @@ func TestParseSeriesByTag(t *testing.T) {
 	assert := assert.New(t)
 
 	ok := func(query string, expected []TaggedTerm) {
-		p, err := ParseSeriesByTag(query, nil)
+		config := config.New()
+		p, err := ParseSeriesByTag(query, config)
 		assert.NoError(err)
 		assert.Equal(len(expected), len(p))
 		length := len(expected)
@@ -161,7 +170,9 @@ func TestParseSeriesByTagWithCosts(t *testing.T) {
 	}
 
 	ok := func(query string, expected []TaggedTerm) {
-		p, err := ParseSeriesByTag(query, taggedCosts)
+		config := config.New()
+		config.ClickHouse.TaggedCosts = taggedCosts
+		p, err := ParseSeriesByTag(query, config)
 		assert.NoError(err)
 		length := len(expected)
 		if length < len(p) {
@@ -298,7 +309,9 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+" "+time.Unix(tt.from, 0).Format(time.RFC3339), func(t *testing.T) {
-			terms, err := ParseSeriesByTag(tt.query, tt.taggedCosts)
+			config := config.New()
+			config.ClickHouse.TaggedCosts = tt.taggedCosts
+			terms, err := ParseSeriesByTag(tt.query, config)
 			if err != nil {
 				t.Fatal(err)
 			}

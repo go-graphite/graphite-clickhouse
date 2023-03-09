@@ -3,6 +3,8 @@ package finder
 import (
 	"context"
 	"regexp"
+
+	"github.com/lomik/graphite-clickhouse/config"
 )
 
 type BlacklistFinder struct {
@@ -18,7 +20,7 @@ func WrapBlacklist(f Finder, blacklist []*regexp.Regexp) *BlacklistFinder {
 	}
 }
 
-func (p *BlacklistFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (p *BlacklistFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	for i := 0; i < len(p.blacklist); i++ {
 		if p.blacklist[i].MatchString(query) {
 			p.matched = true
@@ -26,7 +28,7 @@ func (p *BlacklistFinder) Execute(ctx context.Context, query string, from int64,
 		}
 	}
 
-	return p.wrapped.Execute(ctx, query, from, until, stat)
+	return p.wrapped.Execute(ctx, config, query, from, until, stat)
 }
 
 func (p *BlacklistFinder) List() [][]byte {

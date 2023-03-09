@@ -144,6 +144,7 @@ type ClickHouse struct {
 	FindLimiter          limiter.ServerLimiter `toml:"-" json:"-"`
 	TagsMaxQueries       int                   `toml:"tags-max-queries" json:"tags-max-queries" comment:"Max queries for tags queries"`
 	TagsMaxConcurrent    int                   `toml:"tags-max-concurrent" json:"tags-max-concurrent" comment:"Maximum concurrent queries for tags queries"`
+	TagsMinInQuery       int                   `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
 	TagsLimiter          limiter.ServerLimiter `toml:"-" json:"-"`
 	UserLimits           map[string]UserLimits `toml:"user-limits" json:"user-limits" comment:"customized query limiter for some users" commented:"true"`
 	DateFormat           string                `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`

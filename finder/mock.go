@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"strings"
+
+	"github.com/lomik/graphite-clickhouse/config"
 )
 
 // MockFinder is used for testing purposes
@@ -27,7 +29,7 @@ func NewMockTagged(result [][]byte) *MockFinder {
 }
 
 // Execute assigns given query to the query field
-func (m *MockFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (m *MockFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	m.query = query
 	return
 }

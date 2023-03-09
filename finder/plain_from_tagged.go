@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/lomik/graphite-clickhouse/config"
 )
 
 // Special finder for query plain graphite from prometheus
@@ -62,8 +64,8 @@ func (f *plainFromTaggedFinder) Target() string {
 	return f.target
 }
 
-func (f *plainFromTaggedFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error {
-	return f.wrappedPlain.Execute(ctx, query, from, until, stat)
+func (f *plainFromTaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error {
+	return f.wrappedPlain.Execute(ctx, config, query, from, until, stat)
 }
 
 // For Render
