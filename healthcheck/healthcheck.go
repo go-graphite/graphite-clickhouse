@@ -78,16 +78,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				)
 			}
 
-			defer resp.Body.Close()
-			if body, err := io.ReadAll(resp.Body); err == nil {
-				if resp.StatusCode == http.StatusOK {
-					failed = 0
+			if resp.Body != nil {
+				if body, err := io.ReadAll(resp.Body); err == nil {
+					if resp.StatusCode == http.StatusOK {
+						failed = 0
+					} else {
+						failed = 1
+						logger.Error("healthcheck error",
+							zap.String("error", stringutils.UnsafeString(body)),
+						)
+					}
 				} else {
 					failed = 1
 					logger.Error("healthcheck error",
-						zap.String("error", stringutils.UnsafeString(body)),
+						zap.Error(err),
 					)
 				}
+				resp.Body.Close()
 			} else {
 				failed = 1
 				logger.Error("healthcheck error",
