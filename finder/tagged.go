@@ -3,7 +3,6 @@ package finder
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -19,7 +18,10 @@ import (
 	"github.com/msaf1980/go-stringutils"
 )
 
-var ErrEmptyArgs = errors.New("empty arguments")
+var (
+	// ErrEmptyArgs         = errors.New("empty arguments")
+	ErrCostlySeriesByTag = errs.NewErrorWithCode("seriesByTag argument is too costly", http.StatusForbidden)
+)
 
 type TaggedTermOp int
 
@@ -212,7 +214,8 @@ func setCost(term *TaggedTerm, costs *config.Costs) {
 	}
 }
 
-func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.Costs) ([]TaggedTerm, error) {
+func ParseTaggedConditions(conditions []string, config *config.Config) ([]TaggedTerm, error) {
+	nonWildcards := 0
 	terms := make([]TaggedTerm, len(conditions))
 
 	for i := 0; i < len(conditions); i++ {
@@ -249,6 +252,9 @@ func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.C
 		case "=":
 			terms[i].Op = TaggedTermEq
 			terms[i].HasWildcard = where.HasWildcard(terms[i].Value)
+			if !terms[i].HasWildcard {
+				nonWildcards++
+			}
 		case "!=":
 			terms[i].Op = TaggedTermNe
 		case "=~":
@@ -258,14 +264,17 @@ func ParseTaggedConditions(conditions []string, taggedCosts map[string]*config.C
 		default:
 			return nil, fmt.Errorf("wrong seriesByTag expr: %#v", s)
 		}
-		if len(taggedCosts) > 0 {
-			if costs, ok := taggedCosts[terms[i].Key]; ok {
+		if len(config.ClickHouse.TaggedCosts) > 0 {
+			if costs, ok := config.ClickHouse.TaggedCosts[terms[i].Key]; ok {
 				setCost(&terms[i], costs)
 			}
 		}
 	}
+	if config.ClickHouse.TagsMinInQuery > 0 && nonWildcards < config.ClickHouse.TagsMinInQuery {
+		return nil, ErrCostlySeriesByTag
+	}
 
-	if len(taggedCosts) == 0 {
+	if len(config.ClickHouse.TaggedCosts) == 0 {
 		sort.Sort(TaggedTermList(terms))
 	} else {
 		// compare with taggs costs
@@ -361,7 +370,7 @@ func seriesByTagArgs(query string) ([]string, error) {
 	return args, nil
 }
 
-func ParseSeriesByTag(query string, tagCosts map[string]*config.Costs) ([]TaggedTerm, error) {
+func ParseSeriesByTag(query string, config *config.Config) ([]TaggedTerm, error) {
 	conditions, err := seriesByTagArgs(query)
 	if err != nil {
 		return nil, err
@@ -371,7 +380,7 @@ func ParseSeriesByTag(query string, tagCosts map[string]*config.Costs) ([]Tagged
 		return nil, ErrInvalidSeriesByTag
 	}
 
-	return ParseTaggedConditions(conditions, tagCosts)
+	return ParseTaggedConditions(conditions, config)
 }
 
 func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
@@ -403,8 +412,8 @@ func NewCachedTags(body []byte) *TaggedFinder {
 	}
 }
 
-func (t *TaggedFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error {
-	terms, err := ParseSeriesByTag(query, t.taggedCosts)
+func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error {
+	terms, err := ParseSeriesByTag(query, config)
 	if err != nil {
 		return err
 	}

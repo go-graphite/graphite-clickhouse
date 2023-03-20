@@ -25,7 +25,7 @@ type FinderStat struct {
 
 type Finder interface {
 	Result
-	Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) error
+	Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error
 }
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64, useCache bool) Finder {
@@ -88,7 +88,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 
 func Find(config *config.Config, ctx context.Context, query string, from int64, until int64, stat *FinderStat) (Result, error) {
 	fnd := newPlainFinder(ctx, config, query, from, until, config.Common.FindCache != nil)
-	err := fnd.Execute(ctx, query, from, until, stat)
+	err := fnd.Execute(ctx, config, query, from, until, stat)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func Leaf(value []byte) ([]byte, bool) {
 	return value, true
 }
 
-func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) (Result, error) {
+func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, from int64, until int64, stat *FinderStat) (Result, error) {
 	opts := clickhouse.Options{
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
@@ -115,7 +115,7 @@ func FindTagged(config *config.Config, ctx context.Context, terms []TaggedTerm, 
 	plain := makePlainFromTagged(terms)
 	if plain != nil {
 		plain.wrappedPlain = newPlainFinder(ctx, config, plain.Target(), from, until, useCache)
-		err := plain.Execute(ctx, plain.Target(), from, until, stat)
+		err := plain.Execute(ctx, config, plain.Target(), from, until, stat)
 		if err != nil {
 			return nil, err
 		}

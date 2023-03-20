@@ -129,6 +129,12 @@ CREATE TABLE graphite_tagged (
 ORDER BY (Tag1, Path);
 ```
 
+For restrict costly seriesByTag (may be like `seriesByTag('name=~test.*.*.rabbitmq_overview.connections')` or `seriesByTag('name=test.*.*.rabbitmq_overview.connections')`) use tags-min-in-query parameter.
+
+set for require at minimum 1 eq argument (without wildcards)
+`tags-min-in-query=1`
+
+
 `ReplacingMergeTree(Date)` prevent broken tags autocomplete with default `ReplacingMergeTree(Version)`, when write to the past.
 
 ### ClickHouse aggregation
@@ -163,45 +169,7 @@ When `reverse = true` is set for data-table, there are two possibles cases for [
 Depends on it for having a proper retention and aggregation you must additionally set `rollup-use-reverted = true` for the first case and `rollup-use-reverted = false` for the second.
 
 #### Additional tuning tagged find for seriesByTag and autocomplete
-Only one tag used as filter for index field Tag1, see graphite_tagged table [structure](https://github.com/lomik/carbon-clickhouse#clickhouse-configuration)
-
-So, if the first tag in filter is costly (poor selectivity), like environment (with several possible values), query perfomance will be degraded.
-Tune this with `tagged-costs` options:
-
-```
-tagged-costs = {
-    "environment" = { cost: 100 },
-    "project" = { values-cost = { "HugeProject" = 90 } } # overwrite tag value cost for some value only
-}
-```
-
-Default cost is 0 and positive or negative numbers can be used. So if environment is first tag filter in query, it will used as primary only if no other filters with equal operation. Costs from values-cost also applied to regex match or wilrdcarded equal.
-
-## Carbonlink `[carbonlink]`
-The configuration to get metrics from carbon-cache. See details in [graphite-web](https://graphite.readthedocs.io/en/latest/carbon-daemons.html#carbon-relay-py) documentation.
-
-***TODO***: add the real use-case configuration.
-
-## Logging `[logging]`
-It's possible to set multiple loggers. See `Config` description in [config.go](https://github.com/lomik/zapwriter/blob/master/config.go) for details.
-
-## Metrics `[metrics]`
-
-Send internal metrics to graphite relay
- - `metric-endpoint`   - graphite relay address
- - `statsd-endpoint`   - StatsD aggregator address
- - `metric-interval`   - graphite metrics send interval
- - `metric-prefix`     - graphite metrics prefix 
- - `metric-timeout`    - graphite metrics send timeout
- - `ranges`            - separate stat for render query (and internal clickhouse queries) until-from ranges, for example { "1d" = "24h", "7d" = "168h", "90d" = "2160h" }
- - `request-buckets`   - request historgram buckets widths, by default [200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000]
- - `request-labels`    - optional request historgram buckets labels
-
-[//]: # (!!!DO NOT EDIT FOLLOWING LINES!!!)
-
-# Example
-
-
+Only one tag used as filter for index field Tag1, see graphite_tagged table [structure](https://github.com/lomik/
 ```toml
 [common]
  # general listener
@@ -280,6 +248,8 @@ Send internal metrics to graphite relay
  tags-max-queries = 0
  # Maximum concurrent queries for tags queries
  tags-max-concurrent = 0
+ # Minimum tags in seriesByTag query
+ tags-min-in-query = 0
 
  # customized query limiter for some users
  # [clickhouse.user-limits]

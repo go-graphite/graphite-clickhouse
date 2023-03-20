@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -38,7 +39,7 @@ func (b *BaseFinder) where(query string) *where.Where {
 	return w
 }
 
-func (b *BaseFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (b *BaseFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := b.where(query)
 	b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, b.table),

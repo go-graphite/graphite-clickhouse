@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +37,8 @@ func TestPrefixFinderExecute(t *testing.T) {
 		f := WrapPrefix(m, test.prefix)
 
 		var stat FinderStat
-		err := f.Execute(context.Background(), test.query, 0, 0, &stat)
+		config := config.New()
+		err := f.Execute(context.Background(), config, test.query, 0, 0, &stat)
 
 		if test.expectedError {
 			assert.Error(err, testName)
@@ -86,7 +88,8 @@ func TestPrefixFinderList(t *testing.T) {
 		f := WrapPrefix(m, prefix)
 
 		var stat FinderStat
-		f.Execute(context.Background(), test.query, 0, 0, &stat)
+		config := config.New()
+		f.Execute(context.Background(), config, test.query, 0, 0, &stat)
 
 		list := make([]string, 0)
 		for _, r := range f.List() {

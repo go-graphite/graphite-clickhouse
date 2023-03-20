@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
@@ -29,7 +30,7 @@ func NewDateFinder(url string, table string, tableVersion int, opts clickhouse.O
 	return &DateFinder{b, tableVersion}
 }
 
-func (b *DateFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (b *DateFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := b.where(query)
 
 	dateWhere := where.New()

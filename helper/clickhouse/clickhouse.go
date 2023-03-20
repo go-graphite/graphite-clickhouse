@@ -103,7 +103,7 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 		}
 		return
 	}
-	errCode, ok := err.(*errs.ErrorWithCode)
+	errCode, ok := err.(errs.ErrorWithCode)
 	if ok {
 		if (errCode.Code > 500 && errCode.Code < 512) ||
 			errCode.Code == http.StatusBadRequest || errCode.Code == http.StatusForbidden {

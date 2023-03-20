@@ -153,7 +153,7 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 	return w
 }
 
-func (idx *IndexFinder) Execute(ctx context.Context, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
 	w := idx.whereFilter(query, from, until)
 
 	idx.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
