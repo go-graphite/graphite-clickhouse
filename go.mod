@@ -16,12 +16,13 @@ require (
 	github.com/msaf1980/go-expirecache v0.0.2
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.4
+	github.com/msaf1980/go-syncutils v0.0.2
 	github.com/msaf1980/go-timeutils v0.0.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.13.1
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/prometheus v0.40.2
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.21.0
 )
 

@@ -215,6 +215,10 @@ github.com/msaf1980/go-metrics/graphite
 # github.com/msaf1980/go-stringutils v0.1.4
 ## explicit; go 1.16
 github.com/msaf1980/go-stringutils
+# github.com/msaf1980/go-syncutils v0.0.2
+## explicit; go 1.18
+github.com/msaf1980/go-syncutils/atomic
+github.com/msaf1980/go-syncutils/lock
 # github.com/msaf1980/go-timeutils v0.0.3
 ## explicit; go 1.19
 github.com/msaf1980/go-timeutils/duration
@@ -326,7 +330,7 @@ github.com/shurcooL/httpfs/union
 # github.com/stretchr/objx v0.5.0
 ## explicit; go 1.12
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.8.1
+# github.com/stretchr/testify v1.8.2
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
