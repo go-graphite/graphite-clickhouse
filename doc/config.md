@@ -130,6 +130,7 @@ ORDER BY (Tag1, Path);
 ```
 
 For restrict costly seriesByTag (may be like `seriesByTag('name=~test.*.*.rabbitmq_overview.connections')` or `seriesByTag('name=test.*.*.rabbitmq_overview.connections')`) use tags-min-in-query parameter.
+For restrict costly autocomplete queries use tags-min-in-autocomplete parameter.
 
 set for require at minimum 1 eq argument (without wildcards)
 `tags-min-in-query=1`
@@ -250,6 +251,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  tags-max-concurrent = 0
  # Minimum tags in seriesByTag query
  tags-min-in-query = 0
+ # Minimum tags in autocomplete query
+ tags-min-in-autocomplete = 0
 
  # customized query limiter for some users
  # [clickhouse.user-limits]

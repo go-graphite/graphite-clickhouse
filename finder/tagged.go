@@ -214,7 +214,7 @@ func setCost(term *TaggedTerm, costs *config.Costs) {
 	}
 }
 
-func ParseTaggedConditions(conditions []string, config *config.Config) ([]TaggedTerm, error) {
+func ParseTaggedConditions(conditions []string, config *config.Config, autocomplete bool) ([]TaggedTerm, error) {
 	nonWildcards := 0
 	terms := make([]TaggedTerm, len(conditions))
 
@@ -270,7 +270,11 @@ func ParseTaggedConditions(conditions []string, config *config.Config) ([]Tagged
 			}
 		}
 	}
-	if config.ClickHouse.TagsMinInQuery > 0 && nonWildcards < config.ClickHouse.TagsMinInQuery {
+	if autocomplete {
+		if config.ClickHouse.TagsMinInAutocomplete > 0 && nonWildcards < config.ClickHouse.TagsMinInAutocomplete {
+			return nil, ErrCostlySeriesByTag
+		}
+	} else if config.ClickHouse.TagsMinInQuery > 0 && nonWildcards < config.ClickHouse.TagsMinInQuery {
 		return nil, ErrCostlySeriesByTag
 	}
 
@@ -380,7 +384,7 @@ func ParseSeriesByTag(query string, config *config.Config) ([]TaggedTerm, error)
 		return nil, ErrInvalidSeriesByTag
 	}
 
-	return ParseTaggedConditions(conditions, config)
+	return ParseTaggedConditions(conditions, config, false)
 }
 
 func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
