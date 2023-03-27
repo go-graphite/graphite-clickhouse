@@ -25,6 +25,7 @@ func (m *RWMutex) chGet() chan struct{} {
 }
 
 func (m *RWMutex) tryChGet() (chan struct{}, bool) {
+
 	if !m.mx.TryLock() {
 		return nil, false
 	}
@@ -33,7 +34,9 @@ func (m *RWMutex) tryChGet() (chan struct{}, bool) {
 	}
 	r := m.ch
 	m.mx.Unlock()
+
 	return r, true
+
 }
 
 func (m *RWMutex) chClose() {
@@ -47,9 +50,11 @@ func (m *RWMutex) chClose() {
 		m.ch = nil
 	}
 	m.mx.Unlock()
+
 	if o != nil {
 		close(o)
 	}
+
 }
 
 // Lock - locks mutex

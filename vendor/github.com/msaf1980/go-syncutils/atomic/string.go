@@ -24,6 +24,8 @@ package atomic
 
 // String is an atomic type-safe wrapper for string values.
 type String struct {
+	_ noCopy
+
 	v Value
 }
 

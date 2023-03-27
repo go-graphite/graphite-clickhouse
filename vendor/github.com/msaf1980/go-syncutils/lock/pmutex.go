@@ -18,6 +18,7 @@ type PMutex struct {
 }
 
 func (m *PMutex) chGet() chan struct{} {
+
 	m.mx.Lock()
 	if m.ch == nil {
 		m.ch = make(chan struct{}, 1)
@@ -25,6 +26,7 @@ func (m *PMutex) chGet() chan struct{} {
 	r := m.ch
 	m.mx.Unlock()
 	return r
+
 }
 
 // chClose - unlocks other routines needs mx.Lock
@@ -41,6 +43,7 @@ func (m *PMutex) chClose() {
 	if o != nil {
 		close(o)
 	}
+
 }
 
 // Lock - locks mutex

@@ -27,6 +27,8 @@ import (
 
 // UnsafePointer is an atomic wrapper around unsafe.Pointer.
 type UnsafePointer struct {
+	_ noCopy
+
 	v unsafe.Pointer
 }
 

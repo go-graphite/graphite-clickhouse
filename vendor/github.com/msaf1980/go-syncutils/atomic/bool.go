@@ -7,6 +7,8 @@ import (
 
 // Bool is an atomic type-safe wrapper for bool values.
 type Bool struct {
+	_ noCopy
+
 	v uint32
 }
 

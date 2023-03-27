@@ -30,6 +30,8 @@ import (
 
 // Float32 is an atomic type-safe wrapper for float32 values.
 type Float32 struct {
+	_ noCopy
+
 	v uint32
 }
 

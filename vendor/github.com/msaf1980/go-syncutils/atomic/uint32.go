@@ -29,6 +29,8 @@ import (
 
 // Uint32 is an atomic wrapper around uint32.
 type Uint32 struct {
+	_ noCopy
+
 	v uint32
 }
 

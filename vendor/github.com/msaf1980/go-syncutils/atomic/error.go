@@ -24,6 +24,8 @@ package atomic
 
 // Error is an atomic type-safe wrapper for error values.
 type Error struct {
+	_ noCopy
+
 	v Value
 }
 

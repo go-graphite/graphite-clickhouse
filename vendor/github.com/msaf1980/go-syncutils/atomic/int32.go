@@ -29,6 +29,8 @@ import (
 
 // Int32 is an atomic wrapper around int32.
 type Int32 struct {
+	_ noCopy
+
 	v int32
 }
 

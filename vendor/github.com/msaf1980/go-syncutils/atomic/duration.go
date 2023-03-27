@@ -29,6 +29,8 @@ import (
 
 // Duration is an atomic type-safe wrapper for time.Duration values.
 type Duration struct {
+	_ noCopy
+
 	v int64
 }
 

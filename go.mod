@@ -16,7 +16,7 @@ require (
 	github.com/msaf1980/go-expirecache v0.0.2
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.4
-	github.com/msaf1980/go-syncutils v0.0.2
+	github.com/msaf1980/go-syncutils v0.0.3
 	github.com/msaf1980/go-timeutils v0.0.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/prometheus/client_golang v1.13.1

@@ -31,30 +31,10 @@ type Pointer[T any] struct {
 }
 
 // NewPointer creates a new Pointer.
-func NewPointer[T any](v *T) Pointer[T] {
+func NewPointer[T any](v *T) *Pointer[T] {
 	var p Pointer[T]
 	if v != nil {
 		p.Store(v)
 	}
-	return p
+	return &p
 }
-
-// // Load atomically loads the wrapped value.
-// func (p *Pointer[T]) Load() *T {
-// 	return p.p.Load()
-// }
-
-// // Store atomically stores the passed value.
-// func (p *Pointer[T]) Store(val *T) {
-// 	p.p.Store(val)
-// }
-
-// // Swap atomically swaps the wrapped pointer and returns the old value.
-// func (p *Pointer[T]) Swap(val *T) (old *T) {
-// 	return p.p.Swap(val)
-// }
-
-// // CompareAndSwap is an atomic compare-and-swap.
-// func (p *Pointer[T]) CompareAndSwap(old, new *T) (swapped bool) {
-// 	return p.p.CompareAndSwap(old, new)
-// }

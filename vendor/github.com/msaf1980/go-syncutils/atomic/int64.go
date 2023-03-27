@@ -29,6 +29,8 @@ import (
 
 // Int64 is an atomic wrapper around int64.
 type Int64 struct {
+	_ noCopy
+
 	v int64
 }
 

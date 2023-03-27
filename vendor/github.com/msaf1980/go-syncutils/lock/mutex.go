@@ -17,6 +17,7 @@ type Mutex struct {
 }
 
 func (m *Mutex) chGet() chan struct{} {
+
 	m.mx.Lock()
 	if m.ch == nil {
 		m.ch = make(chan struct{}, 1)
@@ -24,9 +25,11 @@ func (m *Mutex) chGet() chan struct{} {
 	r := m.ch
 	m.mx.Unlock()
 	return r
+
 }
 
 func (m *Mutex) tryChGet() (chan struct{}, bool) {
+
 	if !m.mx.TryLock() {
 		return nil, false
 	}
@@ -36,6 +39,7 @@ func (m *Mutex) tryChGet() (chan struct{}, bool) {
 	r := m.ch
 	m.mx.Unlock()
 	return r, true
+
 }
 
 func (m *Mutex) chClose() {
@@ -49,9 +53,11 @@ func (m *Mutex) chClose() {
 		m.ch = nil
 	}
 	m.mx.Unlock()
+
 	if o != nil {
 		close(o)
 	}
+
 }
 
 // Lock - locks mutex

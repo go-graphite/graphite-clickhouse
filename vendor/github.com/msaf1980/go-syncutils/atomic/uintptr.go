@@ -29,6 +29,8 @@ import (
 
 // Uintptr is an atomic wrapper around uintptr.
 type Uintptr struct {
+	_ noCopy
+
 	v uintptr
 }
 

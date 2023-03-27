@@ -28,6 +28,8 @@ import (
 
 // Time is an atomic type-safe wrapper for time.Time values.
 type Time struct {
+	_ noCopy
+
 	v Value
 }
 

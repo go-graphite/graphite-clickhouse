@@ -30,6 +30,8 @@ import (
 
 // Float64 is an atomic type-safe wrapper for float64 values.
 type Float64 struct {
+	_ noCopy
+
 	v uint64
 }
 
@@ -37,11 +39,6 @@ var _zeroFloat64 float64
 
 // NewFloat64 creates a new Float64.
 func NewFloat64(val float64) *Float64 {
-	x := &Float64{}
-	if val != _zeroFloat64 {
-		x.Store(val)
-	}
-	return x
 	if val == _zeroFloat64 {
 		return &Float64{}
 	} else {

@@ -29,6 +29,8 @@ import (
 
 // Uint64 is an atomic wrapper around uint64.
 type Uint64 struct {
+	_ noCopy
+
 	v uint64
 }
 
