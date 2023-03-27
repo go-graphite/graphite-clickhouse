@@ -21,6 +21,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/healthcheck"
 	"github.com/lomik/graphite-clickhouse/index"
+	"github.com/lomik/graphite-clickhouse/load_avg"
 	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -211,6 +212,18 @@ func main() {
 
 	if metrics.Graphite != nil {
 		metrics.Graphite.Start(nil)
+	}
+
+	if cfg.NeedLoadAvgColect() {
+		go func() {
+			for {
+				load1, err := load_avg.Normalized()
+				if err == nil {
+					load_avg.Store(load1)
+				}
+				time.Sleep(time.Second * 10)
+			}
+		}()
 	}
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))

@@ -6,7 +6,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/metrics"
 )
 
-// WLimiter provides interface to limit amount of requests/concurrently executing requests
+// WLimiter provide limiter amount of requests/concurrently executing requests
 type WLimiter struct {
 	l  limiter
 	cL limiter
@@ -17,6 +17,9 @@ type WLimiter struct {
 func NewWLimiter(l, c int, enableMetrics bool, scope, sub string) ServerLimiter {
 	if l <= 0 && c <= 0 {
 		return NoopLimiter{}
+	}
+	if c <= 0 {
+		return NewLimiter(l, enableMetrics, scope, sub)
 	}
 
 	w := &WLimiter{
