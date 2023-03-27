@@ -87,7 +87,7 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 		return wr, pw, usedTags, nil
 	}
 
-	terms, err := finder.ParseTaggedConditions(expr, h.config)
+	terms, err := finder.ParseTaggedConditions(expr, h.config, true)
 	if err != nil {
 		return wr, pw, usedTags, err
 	}
@@ -233,7 +233,11 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
-		if err != nil {
+		if err == finder.ErrCostlySeriesByTag {
+			status = http.StatusForbidden
+			http.Error(w, err.Error(), status)
+			return
+		} else if err != nil {
 			status = http.StatusBadRequest
 			http.Error(w, err.Error(), status)
 			return
@@ -508,9 +512,13 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 
 	if !findCache {
 		wr, pw, usedTags, err := h.requestExpr(r)
-		if err != nil {
+		if err == finder.ErrCostlySeriesByTag {
+			status = http.StatusForbidden
+			http.Error(w, err.Error(), status)
+			return
+		} else if err != nil {
 			status = http.StatusBadRequest
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), status)
 			return
 		}
 

@@ -127,6 +127,7 @@ ORDER BY (Tag1, Path);
 ```
 
 For restrict costly seriesByTag (may be like `seriesByTag('name=~test.*.*.rabbitmq_overview.connections')` or `seriesByTag('name=test.*.*.rabbitmq_overview.connections')`) use tags-min-in-query parameter.
+For restrict costly autocomplete queries use tags-min-in-autocomplete parameter.
 
 set for require at minimum 1 eq argument (without wildcards)
 `tags-min-in-query=1`
