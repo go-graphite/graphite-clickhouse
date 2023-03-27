@@ -20,45 +20,45 @@ func Test_getWeighted(t *testing.T) {
 		max     int
 		want    int
 	}{
-		{loadAvg: 0, max: 10, c: 1, n: 2, want: 1},
-		{loadAvg: 0.1, max: 10, c: 1, n: 2, want: 10},
-		{loadAvg: 0.1, max: 40, c: 1, n: 2, want: 19},
-		{loadAvg: 0.5, max: 10, c: 1, n: 2, want: 3},
-		{loadAvg: 0.5, max: 10, c: 1, n: 4, want: 5},
-		{loadAvg: 0.8, max: 10, c: 1, n: 4, want: 2},
-		{loadAvg: 0.9, max: 10, c: 1, n: 4, want: 1},
-		{loadAvg: 1, max: 10, c: 1, n: 4, want: 1},
+		{loadAvg: 0, n: 100, want: 0},
+		{loadAvg: 0.2, n: 100, want: 0},
+		{loadAvg: 0.21, n: 100, want: 21},
+		{loadAvg: 0.21, n: 4, want: 0},
+		{loadAvg: 0.6, n: 100, want: 60},
+		{loadAvg: 0.6, n: 4, want: 2},
+		{loadAvg: 0.9, n: 100, want: 100},
+		{loadAvg: 2, n: 100, want: 100},
 	}
 	for n, tt := range tests {
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			load_avg.Store(tt.loadAvg)
-			if got := getWeighted(tt.c, tt.n, tt.max); got != tt.want {
-				t.Errorf("getWeighted() = %v, want %v", got, tt.want)
+			if got := getWeighted(tt.n); got != tt.want {
+				t.Errorf("load avg = %f getWeighted(%d) = %v, want %v", tt.loadAvg, tt.n, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestNewALimiter(t *testing.T) {
-	l := 10
-	c := 1
-	n := 2
+	l := 14
+	c := 12
+	n := 10
+	checkDelay = time.Millisecond * 10
 	limiter := NewALimiter(l, c, n, false, "", "")
 
 	// inital - load not collected
 	load_avg.Store(0)
-	k := getWeighted(c, n, l)
-	require.Equal(t, c, k)
 
 	var i int
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
-	for i = 0; i < k; i++ {
-		require.NoError(t, limiter.Enter(ctx, "render"))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+
+	for i = 0; i < c; i++ {
+		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 0 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
 
-	for i = 0; i < k; i++ {
+	for i = 0; i < c; i++ {
 		limiter.Leave(ctx, "render")
 	}
 
@@ -66,30 +66,34 @@ func TestNewALimiter(t *testing.T) {
 
 	// load_avg 0.5
 	load_avg.Store(0.5)
-	k = getWeighted(c, n, l)
-	require.Equal(t, c+n, k)
+	k := getWeighted(n)
+	require.Equal(t, n/2, k)
 
-	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*10000)
-	for i = 0; i < k; i++ {
-		require.NoError(t, limiter.Enter(ctx, "render"))
+	time.Sleep(checkDelay * 2)
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*100)
+	for i = 0; i < c-k; i++ {
+		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 0.5 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
 
-	for i = 0; i < k; i++ {
+	for i = 0; i < c-k; i++ {
 		limiter.Leave(ctx, "render")
 	}
 
 	cancel()
 
-	// load_avg 1
+	// // load_avg 1
 	load_avg.Store(1)
-	k = getWeighted(c, n, l)
-	require.Equal(t, c, k)
+	k = getWeighted(n)
+	require.Equal(t, n, k)
+
+	time.Sleep(checkDelay * 2)
 
 	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*10)
-	for i = 0; i < k; i++ {
-		require.NoError(t, limiter.Enter(ctx, "render"))
+	for i = 0; i < c-k; i++ {
+		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 1 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
@@ -108,47 +112,17 @@ type testLimiter struct {
 	concurrencyLevel int
 }
 
-func Benchmark_Limiter(b *testing.B) {
-	l := 10
-	c := 1
-	n := 2
-	limiter := NewALimiter(l, c, n, false, "", "")
-
-	// load_avg 0.5
-	load_avg.Store(0.5)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10000)
-	k := getWeighted(c, n, l)
-	for i := 1; i < k; i++ {
-		limiter.Enter(ctx, "render")
-	}
-	cancel()
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		k = getWeighted(c, n, l)
-
-		ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*10000)
-		limiter.Enter(ctx, "render")
-		limiter.Leave(ctx, "render")
-		cancel()
-	}
-	b.StopTimer()
-
-	for i := 0; i < k; i++ {
-		limiter.Leave(ctx, "render")
-	}
-}
-
 func Benchmark_Limiter_Parallel(b *testing.B) {
 	tests := []testLimiter{
 		// WLimiter
+		{l: 2000, c: 10, concurrencyLevel: 1},
 		{l: 2000, c: 10, concurrencyLevel: 10},
 		{l: 2000, c: 10, concurrencyLevel: 20},
 		{l: 2000, c: 10, concurrencyLevel: 50},
 		{l: 2000, c: 10, concurrencyLevel: 100},
 		{l: 2000, c: 10, concurrencyLevel: 1000},
 		// ALimiter
+		{l: 2000, c: 10, n: 50, concurrencyLevel: 1},
 		{l: 2000, c: 10, n: 50, concurrencyLevel: 10},
 		{l: 2000, c: 10, n: 50, concurrencyLevel: 20},
 		{l: 2000, c: 10, n: 50, concurrencyLevel: 50},
@@ -170,8 +144,9 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 			wg := sync.WaitGroup{}
 			wgStart.Add(tt.concurrencyLevel)
 
-			b.ResetTimer()
+			ctx := context.Background()
 
+			b.ResetTimer()
 			for i := 0; i < tt.concurrencyLevel; i++ {
 				wg.Add(1)
 				go func() {
@@ -179,14 +154,11 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 					wgStart.Wait()
 					// Test routine
 					for n := 0; n < b.N; n++ {
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 						errW := limiter.Enter(ctx, "render")
 						if errW == nil {
 							limiter.Leave(ctx, "render")
-							cancel()
 						} else {
 							err = errW
-							cancel()
 							break
 						}
 					}
@@ -197,6 +169,7 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 			}
 
 			wg.Wait()
+			b.StopTimer()
 
 			if err != nil {
 				b.Fatal(b, err)

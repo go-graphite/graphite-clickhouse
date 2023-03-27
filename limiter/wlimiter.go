@@ -49,7 +49,9 @@ func (sl *WLimiter) Enter(ctx context.Context, s string) (err error) {
 	}
 	if sl.cL.cap > 0 {
 		if sl.cL.enter(ctx, s) != nil {
-			sl.l.leave(ctx, s)
+			if sl.l.cap > 0 {
+				sl.l.leave(ctx, s)
+			}
 			sl.m.WaitErrors.Add(1)
 			err = ErrTimeout
 		}
@@ -68,7 +70,9 @@ func (sl *WLimiter) TryEnter(ctx context.Context, s string) (err error) {
 	}
 	if sl.cL.cap > 0 {
 		if sl.cL.tryEnter(ctx, s) != nil {
-			sl.l.leave(ctx, s)
+			if sl.l.cap > 0 {
+				sl.l.leave(ctx, s)
+			}
 			sl.m.WaitErrors.Add(1)
 			err = ErrTimeout
 		}
@@ -79,7 +83,9 @@ func (sl *WLimiter) TryEnter(ctx context.Context, s string) (err error) {
 
 // Frees a slot in limiter
 func (sl *WLimiter) Leave(ctx context.Context, s string) {
-	sl.l.leave(ctx, s)
+	if sl.l.cap > 0 {
+		sl.l.leave(ctx, s)
+	}
 	sl.cL.leave(ctx, s)
 }
 

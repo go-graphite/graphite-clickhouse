@@ -150,26 +150,27 @@ type ClickHouse struct {
 	TagsConcurrentQueries   int                   `toml:"tags-concurrent-queries" json:"tags-concurrent-queries" comment:"Concurrent queries for tags queries"`
 	TagsAdaptiveQueries     int                   `toml:"tags-adaptive-queries" json:"tags-adaptive-queries" comment:"Tags adaptive queries (based on load average) for increase/decrease concurrent queries"`
 	TagsMinInQuery          int                   `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
-	TagsLimiter             limiter.ServerLimiter `toml:"-" json:"-"`
-	UserLimits              map[string]UserLimits `toml:"user-limits" json:"user-limits" comment:"customized query limiter for some users" commented:"true"`
-	DateFormat              string                `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
-	IndexTable              string                `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
-	IndexUseDaily           bool                  `toml:"index-use-daily" json:"index-use-daily"`
-	IndexReverse            string                `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
-	IndexReverses           IndexReverses         `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
-	IndexTimeout            time.Duration         `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
-	TaggedTable             string                `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
-	TaggedAutocompleDays    int                   `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
-	TaggedUseDaily          bool                  `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
-	TaggedCosts             map[string]*Costs     `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
-	TreeTable               string                `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
-	ReverseTreeTable        string                `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
-	DateTreeTable           string                `toml:"date-tree-table" json:"date-tree-table" commented:"true"`
-	DateTreeTableVersion    int                   `toml:"date-tree-table-version" json:"date-tree-table-version" commented:"true"`
-	TreeTimeout             time.Duration         `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
-	TagTable                string                `toml:"tag-table" json:"tag-table" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
-	ExtraPrefix             string                `toml:"extra-prefix" json:"extra-prefix" comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
-	ConnectTimeout          time.Duration         `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
+	// TagsMinInAutocomplete   int                   `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
+	TagsLimiter          limiter.ServerLimiter `toml:"-" json:"-"`
+	UserLimits           map[string]UserLimits `toml:"user-limits" json:"user-limits" comment:"customized query limiter for some users" commented:"true"`
+	DateFormat           string                `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
+	IndexTable           string                `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
+	IndexUseDaily        bool                  `toml:"index-use-daily" json:"index-use-daily"`
+	IndexReverse         string                `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
+	IndexReverses        IndexReverses         `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
+	IndexTimeout         time.Duration         `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
+	TaggedTable          string                `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
+	TaggedAutocompleDays int                   `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
+	TaggedUseDaily       bool                  `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
+	TaggedCosts          map[string]*Costs     `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
+	TreeTable            string                `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
+	ReverseTreeTable     string                `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
+	DateTreeTable        string                `toml:"date-tree-table" json:"date-tree-table" commented:"true"`
+	DateTreeTableVersion int                   `toml:"date-tree-table-version" json:"date-tree-table-version" commented:"true"`
+	TreeTimeout          time.Duration         `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
+	TagTable             string                `toml:"tag-table" json:"tag-table" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
+	ExtraPrefix          string                `toml:"extra-prefix" json:"extra-prefix" comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
+	ConnectTimeout       time.Duration         `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
 	// TODO: remove in v0.14
 	DataTableLegacy string `toml:"data-table" json:"data-table" comment:"will be removed in 0.14" commented:"true"`
 	// TODO: remove in v0.14
