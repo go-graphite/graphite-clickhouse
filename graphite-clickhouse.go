@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -215,7 +216,11 @@ func main() {
 	mux.Handle("/render/", app.Handler(render.NewHandler(cfg)))
 	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
 	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
-	mux.Handle("/alive", app.Handler(healthcheck.NewHandler(cfg)))
+	mux.HandleFunc("/alive", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, "Graphite-clickhouse is alive.\n")
+	})
+	mux.Handle("/health", app.Handler(healthcheck.NewHandler(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusOK
 		start := time.Now()
