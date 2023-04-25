@@ -100,6 +100,7 @@ func main() {
 	)
 
 	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
+	sdClean := flag.Bool("sd-clean", false, "Cleanup registered nodes in SD")
 
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
@@ -128,7 +129,7 @@ func main() {
 		return
 	}
 
-	if *sdList {
+	if *sdList || *sdClean {
 		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 			var sd sd.SD
 			logger := zapwriter.Default()
@@ -136,11 +137,20 @@ func main() {
 			case config.SDNginx:
 				sd = nginx.New(cfg.Common.SD, cfg.Common.SDNamespace, "", logger)
 			default:
-				panic("serive discovery type not registered")
+				panic("service discovery type not registered")
 			}
+			ts := time.Now().Unix() - 3600
 			if nodes, err := sd.Nodes(); err == nil {
 				for _, node := range nodes {
-					fmt.Printf("%s: %s\n", node.Key, node.Value)
+					if *sdClean && node.Flags > 0 {
+						if ts > node.Flags {
+							fmt.Printf("%s: %s (%s), deleted\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+						} else {
+							fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+						}
+					} else {
+						fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+					}
 				}
 			} else {
 				log.Fatal(err)

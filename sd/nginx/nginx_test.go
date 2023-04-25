@@ -6,6 +6,7 @@ package nginx
 import (
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/lomik/graphite-clickhouse/sd/utils"
 	"github.com/lomik/zapwriter"
@@ -27,6 +28,10 @@ var (
 )
 
 func TestNginx(t *testing.T) {
+	timeNow = func() time.Time {
+		return time.Unix(1682408721, 0)
+	}
+
 	logger := zapwriter.Default()
 
 	sd1 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname1, logger)
@@ -126,6 +131,17 @@ func TestNginx(t *testing.T) {
 			"_/test_host2/192.168.0.1:9090":  `{"weight":25,"max_fails":0}`,
 		}, nodesMap,
 	)
+
+	nodesV, err := sd2.Nodes()
+	require.NoError(t, err)
+	assert.Equal(
+		t, []utils.KV{
+			{Key: "_/test_host1/192.168.0.1:9090", Value: `{"weight":10,"max_fails":0}`, Flags: 1682408721},
+			{Key: "_/test_host2/192.168.0.1:9090", Value: `{"weight":25,"max_fails":0}`, Flags: 1682408721},
+			{Key: "_/test_host2/192.168.1.25:9090", Value: `{"weight":25,"max_fails":0}`, Flags: 1682408721},
+		}, nodesV,
+	)
+
 	require.NoError(t, sd2.Clear(ip2, port))
 	nodesMap, err = sd2.ListMap()
 	require.NoError(t, err)
@@ -148,6 +164,10 @@ func TestNginx(t *testing.T) {
 }
 
 func TestNginxDC(t *testing.T) {
+	timeNow = func() time.Time {
+		return time.Unix(1682408721, 0)
+	}
+
 	logger := zapwriter.Default()
 
 	sd1 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname1, logger)
@@ -182,8 +202,8 @@ func TestNginxDC(t *testing.T) {
 	assert.Equal(
 		t, map[string]string{
 			"dc1/test_host1/192.168.0.1:9090": `{"weight":10,"max_fails":0}`,
-			"dc2/test_host1/192.168.0.1:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host1/192.168.0.1:9090": `{"backup":1, "max_fails":0}`,
+			"dc2/test_host1/192.168.0.1:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host1/192.168.0.1:9090": `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
 
@@ -205,8 +225,8 @@ func TestNginxDC(t *testing.T) {
 	assert.Equal(
 		t, map[string]string{
 			"dc2/test_host2/192.168.1.25:9090": `{"weight":21,"max_fails":0}`,
-			"dc1/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
+			"dc1/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
 
@@ -228,8 +248,8 @@ func TestNginxDC(t *testing.T) {
 	assert.Equal(
 		t, map[string]string{
 			"dc2/test_host2/192.168.1.25:9090": `{"weight":25,"max_fails":0}`,
-			"dc1/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
+			"dc1/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
 
@@ -245,8 +265,8 @@ func TestNginxDC(t *testing.T) {
 	assert.Equal(
 		t, map[string]string{
 			"dc1/test_host1/192.168.0.1:9090": `{"weight":10,"max_fails":0}`,
-			"dc2/test_host1/192.168.0.1:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host1/192.168.0.1:9090": `{"backup":1, "max_fails":0}`,
+			"dc2/test_host1/192.168.0.1:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host1/192.168.0.1:9090": `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
 
@@ -258,21 +278,38 @@ func TestNginxDC(t *testing.T) {
 	assert.Equal(
 		t, map[string]string{
 			"dc2/test_host2/192.168.1.25:9090": `{"weight":25,"max_fails":0}`,
-			"dc1/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
+			"dc1/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
 			"dc2/test_host2/192.168.0.1:9090":  `{"weight":25,"max_fails":0}`,
-			"dc1/test_host2/192.168.0.1:9090":  `{"backup":1, "max_fails":0}`,
-			"dc3/test_host2/192.168.0.1:9090":  `{"backup":1, "max_fails":0}`,
+			"dc1/test_host2/192.168.0.1:9090":  `{"backup":1,"max_fails":0}`,
+			"dc3/test_host2/192.168.0.1:9090":  `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
+
+	nodesV, err := sd2.Nodes()
+	require.NoError(t, err)
+	assert.Equal(
+		t, []utils.KV{
+			{Key: "dc1/test_host1/192.168.0.1:9090", Value: `{"weight":10,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc1/test_host2/192.168.0.1:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc1/test_host2/192.168.1.25:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc2/test_host1/192.168.0.1:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc2/test_host2/192.168.0.1:9090", Value: `{"weight":25,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc2/test_host2/192.168.1.25:9090", Value: `{"weight":25,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc3/test_host1/192.168.0.1:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc3/test_host2/192.168.0.1:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+			{Key: "dc3/test_host2/192.168.1.25:9090", Value: `{"backup":1,"max_fails":0}`, Flags: 1682408721},
+		}, nodesV,
+	)
+
 	require.NoError(t, sd2.Clear(ip2, port))
 	nodesMap, err = sd2.ListMap()
 	require.NoError(t, err)
 	assert.Equal(
 		t, map[string]string{
 			"dc2/test_host2/192.168.1.25:9090": `{"weight":25,"max_fails":0}`,
-			"dc1/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
-			"dc3/test_host2/192.168.1.25:9090": `{"backup":1, "max_fails":0}`,
+			"dc1/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
+			"dc3/test_host2/192.168.1.25:9090": `{"backup":1,"max_fails":0}`,
 		}, nodesMap,
 	)
 

@@ -18,6 +18,7 @@ var (
 type KV struct {
 	Key   string
 	Value string
+	Flags int64
 }
 
 func HttpGet(url string) ([]byte, error) {

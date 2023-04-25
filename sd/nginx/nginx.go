@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lomik/graphite-clickhouse/sd/utils"
 
@@ -17,6 +18,8 @@ var (
 	json          = jsoniter.ConfigCompatibleWithStandardLibrary
 	ErrNoKey      = errors.New("list key no found")
 	ErrInvalidKey = errors.New("list key is invalid")
+
+	timeNow = time.Now
 )
 
 func splitNode(node string) (dc, host, listen string, ok bool) {
@@ -51,7 +54,7 @@ func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
 	sd := &Nginx{
 		logger:     logger,
 		body:       make([]byte, 128),
-		backupBody: []byte(`{"backup":1, "max_fails":0}`),
+		backupBody: []byte(`{"backup":1,"max_fails":0}`),
 		nsEnd:      "upstreams/" + namespace + "/",
 		hostname:   hostname,
 	}
@@ -188,19 +191,27 @@ func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 				if s, ok := i.(string); ok {
 					if strings.HasPrefix(s, sd.nsEnd) {
 						s = s[len(sd.nsEnd):]
+						kv := utils.KV{Key: s}
 						if i, ok := jNode["Value"]; ok {
 							if v, ok := i.(string); ok {
 								d, err := base64.StdEncoding.DecodeString(v)
 								if err != nil {
 									return nil, err
 								}
-								nodes = append(nodes, utils.KV{Key: s, Value: stringutils.UnsafeString(d)})
-							} else {
-								nodes = append(nodes, utils.KV{Key: s, Value: ""})
+								kv.Value = stringutils.UnsafeString(d)
 							}
-						} else {
-							nodes = append(nodes, utils.KV{Key: s, Value: ""})
 						}
+						if i, ok := jNode["Flags"]; ok {
+							switch v := i.(type) {
+							case float64:
+								kv.Flags = int64(v)
+							case int:
+								kv.Flags = int64(v)
+							case int64:
+								kv.Flags = v
+							}
+						}
+						nodes = append(nodes, kv)
 					} else {
 						return nil, ErrInvalidKey
 					}
@@ -227,11 +238,20 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 		}
 		sd.url.WriteString(port)
 
+		// add custom query flags
+		sd.url.WriteByte('?')
+		sd.url.WriteString("flags=")
+		sd.url.WriteInt(timeNow().Unix(), 10)
+
 		if err = utils.HttpPut(sd.url.String(), sd.body); err != nil {
 			sd.logger.Error("put", zap.String("address", sd.url.String()[sd.pos:]), zap.Error(err))
 			return
 		}
 	} else {
+		flags := make([]byte, 0, 32)
+		flags = append(flags, "?flags="...)
+		flags = strconv.AppendInt(flags, timeNow().Unix(), 10)
+
 		for i := 0; i < len(dc); i++ {
 			// cfg.Common.SDDc
 			sd.url.Truncate(sd.pos)
@@ -244,6 +264,9 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 				sd.url.WriteString(ip)
 			}
 			sd.url.WriteString(port)
+
+			// add custom query flags
+			sd.url.Write(flags)
 
 			if i == 0 {
 				if nErr := utils.HttpPut(sd.url.String(), sd.body); nErr != nil {
