@@ -15,6 +15,7 @@ var Graphite *graphite.Graphite
 type Config struct {
 	MetricEndpoint string                   `toml:"metric-endpoint" json:"metric-endpoint" comment:"graphite relay address"`
 	Statsd         string                   `toml:"statsd-endpoint" json:"statsd-endpoint" comment:"statsd server address"`
+	ExtendedStat   bool                     `toml:"extended-stat" json:"extended-stat" comment:"Extended metrics"`
 	MetricInterval time.Duration            `toml:"metric-interval" json:"metric-interval" comment:"graphite metrics send interval"`
 	MetricTimeout  time.Duration            `toml:"metric-timeout" json:"metric-timeout" comment:"graphite metrics send timeout"`
 	MetricPrefix   string                   `toml:"metric-prefix" json:"metric-prefix" comment:"graphite metrics prefix"`
@@ -22,7 +23,6 @@ type Config struct {
 	BucketsLabels  []string                 `toml:"request-labels" json:"request-labels" comment:"Request historgram buckets labels"`
 	Ranges         map[string]time.Duration `toml:"ranges" json:"ranges" comment:"Additional separate stats for until-from ranges"`
 	FindRanges     map[string]time.Duration `toml:"find-ranges" json:"find-ranges" comment:"Additional separate stats for until-from find ranges"` // for future use, not needed at now
-	ExtendedStat   bool                     `toml:"extended-stat" json:"extended-stat" comment:"Extended metrics"`
 
 	RangeNames     []string `toml:"-" json:"-"`
 	RangeS         []int64  `toml:"-" json:"-"`
