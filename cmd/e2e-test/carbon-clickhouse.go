@@ -26,7 +26,7 @@ type CarbonClickhouse struct {
 	storeDir  string `toml:"-"`
 }
 
-func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer string) (string, error) {
+func (c *CarbonClickhouse) Start(testDir, clickhouseURL string) (string, error) {
 	if len(c.Version) == 0 {
 		c.Version = "0.11.4"
 	}
@@ -89,7 +89,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL, clickhouseContainer str
 		"-v", "/etc/timezone:/etc/timezone:ro",
 		"-v", "/etc/localtime:/etc/localtime:ro",
 		"-e", "TZ=" + tz,
-		"--link", clickhouseContainer,
+		"--network", DockerNetwork,
 	}
 
 	cchStart = append(cchStart, c.DockerImage+":"+c.Version)

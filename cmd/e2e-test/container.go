@@ -5,7 +5,10 @@ import (
 	"strings"
 )
 
-var DockerBinary string
+var (
+	DockerBinary  string
+	DockerNetwork string = "graphite-ch-test"
+)
 
 func imageDelete(image, version string) (bool, string) {
 	if len(DockerBinary) == 0 {

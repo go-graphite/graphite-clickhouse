@@ -86,6 +86,7 @@ func (c *Clickhouse) Start() (string, error) {
 		"-v", c.Dir + "/users.xml:/etc/clickhouse-server/users.xml",
 		"-v", c.Dir + "/rollup.xml:/etc/clickhouse-server/config.d/rollup.xml",
 		"-v", c.Dir + "/init.sql:/docker-entrypoint-initdb.d/init.sql",
+		"--network", DockerNetwork,
 	}
 	if c.TZ != "" {
 		chStart = append(chStart, "-e", "TZ="+c.TZ)

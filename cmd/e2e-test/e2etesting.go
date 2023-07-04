@@ -433,7 +433,7 @@ func testGraphiteClickhouse(test *TestSchema, clickhouse *Clickhouse, testDir, r
 		return
 	}
 
-	out, err := test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123", clickhouse.Container())
+	out, err := test.Cch.Start(testDir, "http://"+clickhouse.Container()+":8123")
 	if err != nil {
 		logger.Error("starting carbon-clickhouse",
 			zap.String("config", test.name),
