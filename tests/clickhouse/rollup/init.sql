@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS default.graphite_reverse (
   Date Date,
   Timestamp UInt32
 ) ENGINE = GraphiteMergeTree('graphite_rollup')
-PARTITION BY toYYYYMM(Date)
+PARTITION BY Date
 ORDER BY (Path, Time);
 
 CREATE TABLE IF NOT EXISTS default.graphite (
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS default.graphite (
   Date Date,
   Timestamp UInt32
 ) ENGINE = GraphiteMergeTree('graphite_rollup')
-PARTITION BY toYYYYMM(Date)
+PARTITION BY Date
 ORDER BY (Path, Time);
 
 CREATE TABLE IF NOT EXISTS default.graphite_index (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS default.graphite_index (
   Path String,
   Version UInt32
 ) ENGINE = ReplacingMergeTree(Version)
-PARTITION BY toYYYYMM(Date)
+PARTITION BY Date
 ORDER BY (Level, Path, Date);
 
 CREATE TABLE IF NOT EXISTS default.graphite_tags (
@@ -34,5 +34,5 @@ CREATE TABLE IF NOT EXISTS default.graphite_tags (
   Tags Array(String),
   Version UInt32
 ) ENGINE = ReplacingMergeTree(Version)
-PARTITION BY toYYYYMM(Date)
+PARTITION BY Date
 ORDER BY (Tag1, Path, Date);
