@@ -213,6 +213,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  metric-endpoint = ""
  # statsd server address
  statsd-endpoint = ""
+ # Extended metrics
+ extended-stat = false
  # graphite metrics send interval
  metric-interval = "0s"
  # graphite metrics send timeout
@@ -229,8 +231,6 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
 
  # Additional separate stats for until-from find ranges
  [metrics.find-ranges]
- # Extended metrics
- extended-stat = false
 
 [clickhouse]
  # default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params
