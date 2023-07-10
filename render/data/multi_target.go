@@ -8,12 +8,13 @@ import (
 	"time"
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"go.uber.org/zap"
 )
 
 // TimeFrame contains information about fetch request time conditions

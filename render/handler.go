@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"

@@ -26,7 +26,7 @@ var ReadUvarint = clickhouse.ReadUvarint
 type Data struct {
 	*point.Points
 	AM         *alias.Map
-	commonStep int64
+	CommonStep int64
 }
 
 var emptyData *Data = &Data{Points: point.NewPoints()}
@@ -42,8 +42,8 @@ func contextIsValid(ctx context.Context) error {
 
 // GetStep returns the commonStep for all points or, if unset, step for metric ID id
 func (d *Data) GetStep(id uint32) (uint32, error) {
-	if 0 < d.commonStep {
-		return uint32(d.commonStep), nil
+	if 0 < d.CommonStep {
+		return uint32(d.CommonStep), nil
 	}
 	return d.Points.GetStep(id)
 }
@@ -127,7 +127,7 @@ func prepareData(ctx context.Context, targets int, fetcher func() *point.Points)
 // setSteps sets commonStep for aggregated requests and per-metric step for non-aggregated
 func (d *data) setSteps(cond *conditions) {
 	if cond.aggregated {
-		d.commonStep = cond.step
+		d.CommonStep = cond.step
 		return
 	}
 	d.Points.SetSteps(cond.steps)

@@ -8,10 +8,11 @@ import (
 	"math"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
-	"go.uber.org/zap"
 )
 
 var pbVarints []byte
@@ -42,18 +43,19 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 		from := uint32(d.From)
 		until := uint32(d.Until)
 
-		if data.Len() == 0 {
-			continue
-		}
 		totalWritten++
 
 		nextMetric := data.GroupByMetric()
+		writtenMetrics := make(map[string]struct{})
+
+		// fill metrics with points
 		for {
 			points := nextMetric()
 			if len(points) == 0 {
 				break
 			}
 			metricName := data.MetricName(points[0].MetricID)
+			writtenMetrics[metricName] = struct{}{}
 			step, err := data.GetStep(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get step", zap.Error(err))
@@ -69,6 +71,19 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 
 			for _, a := range data.AM.Get(metricName) {
 				p.writeBody(writer, a.Target, a.DisplayName, function, from, until, step, points)
+			}
+		}
+
+		// fill metrics without points with NaN
+		// HACK: points are only filled when in aggregate mode i.e. data.CommonStep > 0
+		if len(writtenMetrics) != data.AM.Len() && data.CommonStep > 0 {
+			for _, metricName := range data.AM.Series(false) {
+				if _, done := writtenMetrics[metricName]; done {
+					continue
+				}
+				for _, a := range data.AM.Get(metricName) {
+					p.writeBody(writer, a.Target, a.DisplayName, "any", from, until, uint32(data.CommonStep), []point.Point{})
+				}
 			}
 		}
 	}

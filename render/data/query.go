@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -17,7 +19,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
-	"go.uber.org/zap"
 )
 
 // from, until, step, function, table, prewhere, where
@@ -213,7 +214,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 
 		data.Points.Uniq()
 		rollupStart := time.Now()
-		err = cond.rollupRules.RollupPoints(data.Points, cond.From, data.commonStep)
+		err = cond.rollupRules.RollupPoints(data.Points, cond.From, data.CommonStep)
 		if err != nil {
 			logger.Error("rollup failed", zap.Error(err))
 			return err
