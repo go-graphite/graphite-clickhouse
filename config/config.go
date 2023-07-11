@@ -18,12 +18,13 @@ import (
 	toml "github.com/pelletier/go-toml"
 	"go.uber.org/zap"
 
+	"github.com/lomik/zapwriter"
+
 	"github.com/lomik/graphite-clickhouse/cache"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/metrics"
-	"github.com/lomik/zapwriter"
 )
 
 // Cache config
@@ -51,8 +52,8 @@ type Common struct {
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log" json:"headers-to-log" comment:"additional request headers to log"`
-
-	FindCacheConfig CacheConfig `toml:"find-cache" json:"find-cache" comment:"find/tags cache config"`
+	FindCacheConfig        CacheConfig      `toml:"find-cache" json:"find-cache" comment:"find/tags cache config"`
+	IncludeEmptyMetrics    bool             `toml:"include-empty-metrics" json:"include-empty-metrics" comment:"if true, always return points for all metrics, replacing empty results with list of NaN"`
 
 	FindCache cache.BytesCache `toml:"-" json:"-"`
 }

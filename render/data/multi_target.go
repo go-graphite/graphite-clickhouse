@@ -166,7 +166,11 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 
 	for tf, targets := range *m {
 		tf, targets := tf, targets
-		cond := &conditions{TimeFrame: &tf, Targets: targets, aggregated: cfg.ClickHouse.InternalAggregation}
+		cond := &conditions{TimeFrame: &tf,
+			Targets:           targets,
+			aggregated:        cfg.ClickHouse.InternalAggregation,
+			appendEmptySeries: cfg.Common.IncludeEmptyMetrics,
+		}
 		if cond.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < cond.MaxDataPoints {
 			cond.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}

@@ -78,6 +78,8 @@ type conditions struct {
 	prewhere string
 	// where contains WHERE condition
 	where string
+	// show list of NaN values instead of empty results
+	appendEmptySeries bool
 	// metricUnreversed grouped by aggregating function
 	aggregations map[string][]string
 	// External-data bodies grouped by aggregatig function. For non-aggregated requests "" used as a key
@@ -230,9 +232,10 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 	data.AM = cond.AM
 
 	q.appendReply(CHResponse{
-		Data:  data.Data,
-		From:  cond.From,
-		Until: cond.Until,
+		Data:                 data.Data,
+		From:                 cond.From,
+		Until:                cond.Until,
+		AppendOutEmptySeries: cond.appendEmptySeries,
 	})
 	return nil
 }

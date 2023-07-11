@@ -75,8 +75,7 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 		}
 
 		// fill metrics without points with NaN
-		// HACK: points are only filled when in aggregate mode i.e. data.CommonStep > 0
-		if len(writtenMetrics) != data.AM.Len() && data.CommonStep > 0 {
+		if d.AppendOutEmptySeries && len(writtenMetrics) < data.AM.Len() && data.CommonStep > 0 {
 			for _, metricName := range data.AM.Series(false) {
 				if _, done := writtenMetrics[metricName]; done {
 					continue
