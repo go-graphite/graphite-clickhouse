@@ -182,6 +182,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  max-metrics-in-find-answer = 0
  # limit numbers of queried metrics per target in /render requests, 0 or negative = unlimited
  max-metrics-per-target = 15000
+ # if true, always return points for all metrics, replacing empty results with list of NaN
+ include-empty-metrics = false
  # daemon returns empty response if query matches any of regular expressions
  # target-blacklist = []
  # daemon will return the freed memory to the OS when it>0
@@ -207,8 +209,6 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
   short-duration = "0s"
   # offset beetween now and until for select short cache timeout
   short-offset = 0
- # if true, always return points for all metrics, replacing empty results with list of NaN
- include-empty-metrics = false
 
 [metrics]
  # graphite relay address
