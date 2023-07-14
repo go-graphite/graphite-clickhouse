@@ -132,11 +132,10 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	// fill metrics without points with NaN
 	if multiData[0].AppendOutEmptySeries && len(writtenMetrics) != data.AM.Len() && data.CommonStep > 0 {
 		for _, metricName := range data.AM.Series(false) {
-			if _, done := writtenMetrics[metricName]; done {
-				continue
-			}
-			for _, a := range data.AM.Get(metricName) {
-				writeAlias(a.DisplayName, a.Target, []point.Point{}, uint32(data.CommonStep))
+			if _, done := writtenMetrics[metricName]; !done {
+				for _, a := range data.AM.Get(metricName) {
+					writeAlias(a.DisplayName, a.Target, []point.Point{}, uint32(data.CommonStep))
+				}
 			}
 		}
 	}

@@ -331,7 +331,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if len(reply) == 0 {
 		status = http.StatusNotFound
-		formatter.Reply(w, r, data.EmptyResponse())
+		formatter.Reply(w, r, reply)
 		return
 	}
 

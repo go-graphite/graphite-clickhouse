@@ -152,12 +152,11 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 	// process metrics with no points
 	if c.AppendOutEmptySeries && len(writtenMetrics) < data.AM.Len() && data.CommonStep > 0 {
 		for _, metricName := range data.AM.Series(false) {
-			if _, done := writtenMetrics[metricName]; done {
-				continue
-			}
-			err := addResponse(metricName, "any", uint32(c.From), uint32(c.Until), uint32(data.CommonStep), []point.Point{})
-			if err != nil {
-				return nil, err
+			if _, done := writtenMetrics[metricName]; !done {
+				err := addResponse(metricName, "any", uint32(c.From), uint32(c.Until), uint32(data.CommonStep), []point.Point{})
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

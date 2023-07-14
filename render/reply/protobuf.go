@@ -77,11 +77,10 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 		// fill metrics without points with NaN
 		if d.AppendOutEmptySeries && len(writtenMetrics) < data.AM.Len() && data.CommonStep > 0 {
 			for _, metricName := range data.AM.Series(false) {
-				if _, done := writtenMetrics[metricName]; done {
-					continue
-				}
-				for _, a := range data.AM.Get(metricName) {
-					p.writeBody(writer, a.Target, a.DisplayName, "any", from, until, uint32(data.CommonStep), []point.Point{})
+				if _, done := writtenMetrics[metricName]; !done {
+					for _, a := range data.AM.Get(metricName) {
+						p.writeBody(writer, a.Target, a.DisplayName, "any", from, until, uint32(data.CommonStep), []point.Point{})
+					}
 				}
 			}
 		}
