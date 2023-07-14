@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
+
 	"github.com/lomik/graphite-clickhouse/helper/point"
 )
 
@@ -132,13 +133,21 @@ func TestV3PBWriteBody(t *testing.T) {
 			}
 
 			if len(resp.Metrics) != len(tt.response.Metrics) {
-				t.Fatalf("incorrect amount of metrics, expected %v, got %v", len(resp.Metrics), len(tt.response.Metrics))
+				t.Fatalf(
+					"incorrect amount of metrics, expected %v, got %v",
+					len(resp.Metrics),
+					len(tt.response.Metrics),
+				)
 			}
 
 			for i := range resp.Metrics {
 				if resp.Metrics[i].Name != tt.response.Metrics[i].Name {
 					if !reflect.DeepEqual(resp.Metrics[i], tt.response.Metrics[i]) {
-						t.Fatalf("replies are not same.\ngot:\n%+v\n\nexpected:\n%+v", resp.Metrics[i], tt.response.Metrics[i])
+						t.Fatalf(
+							"replies are not same.\ngot:\n%+v\n\nexpected:\n%+v",
+							resp.Metrics[i],
+							tt.response.Metrics[i],
+						)
 					}
 				}
 			}

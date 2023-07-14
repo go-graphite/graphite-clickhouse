@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -120,14 +121,25 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		return queryParams, nil, resp.Header, NewHttpError(resp.StatusCode, string(b))
 	}
 
-	var metrics []Metric
+	metrics, err := Decode(b, format)
+	if err != nil {
+		return queryParams, nil, resp.Header, err
+	}
+	return queryParams, metrics, resp.Header, nil
+}
 
+// Decode converts data in the give format to a Metric
+func Decode(b []byte, format FormatType) ([]Metric, error) {
+	var (
+		metrics []Metric
+		err     error
+	)
 	switch format {
 	case FormatPb_v3:
 		var r protov3.MultiFetchResponse
 		err = r.Unmarshal(b)
 		if err != nil {
-			return queryParams, nil, resp.Header, err
+			return nil, err
 		}
 		metrics = make([]Metric, 0, len(r.Metrics))
 		for _, m := range r.Metrics {
@@ -150,7 +162,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		var r protov2.MultiFetchResponse
 		err = r.Unmarshal(b)
 		if err != nil {
-			return queryParams, nil, resp.Header, err
+			return nil, err
 		}
 		metrics = make([]Metric, 0, len(r.Metrics))
 		for _, m := range r.Metrics {
@@ -173,7 +185,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		decoder := pickle.NewDecoder(reader)
 		p, err := decoder.Decode()
 		if err != nil {
-			return queryParams, nil, resp.Header, err
+			return nil, err
 		}
 		for _, v := range p.([]interface{}) {
 			m := v.(map[interface{}]interface{})
@@ -195,9 +207,47 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 				Values:         values,
 			})
 		}
+	case FormatJSON:
+		var r jsonResponse
+		err = json.Unmarshal(b, &r)
+		if err != nil {
+			return nil, err
+		}
+		metrics = make([]Metric, 0, len(r.Metrics))
+		for _, m := range r.Metrics {
+			values := make([]float64, len(m.Values))
+			for i, v := range m.Values {
+				if v == nil {
+					values[i] = math.NaN()
+				} else {
+					values[i] = *v
+				}
+			}
+			metrics = append(metrics, Metric{
+				Name:           m.Name,
+				PathExpression: m.PathExpression,
+				StartTime:      m.StartTime,
+				StopTime:       m.StopTime,
+				StepTime:       m.StepTime,
+				Values:         values,
+			})
+		}
 	default:
-		return queryParams, nil, resp.Header, ErrUnsupportedFormat
+		return nil, ErrUnsupportedFormat
 	}
+	return metrics, nil
+}
 
-	return queryParams, metrics, resp.Header, nil
+// jsonResponse is a simple struct to decode JSON responses for testing purposes
+type jsonResponse struct {
+	Metrics []jsonMetric `json:"metrics"`
+}
+
+type jsonMetric struct {
+	Name           string     `json:"name"`
+	PathExpression string     `json:"pathExpression"`
+	Values         []*float64 `json:"values"`
+	StartTime      int64      `json:"startTime"`
+	StopTime       int64      `json:"stopTime"`
+	StepTime       int64      `json:"stepTime"`
 }

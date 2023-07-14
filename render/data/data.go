@@ -29,7 +29,7 @@ type Data struct {
 	CommonStep int64
 }
 
-var emptyData *Data = &Data{Points: point.NewPoints()}
+var emptyData *Data = &Data{Points: point.NewPoints(), AM: alias.New()}
 
 func contextIsValid(ctx context.Context) error {
 	select {
