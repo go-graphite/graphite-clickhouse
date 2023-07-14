@@ -90,11 +90,11 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		p.SetItem()
 
 		p.String("start")
-		p.Uint32(uint32(start))
+		p.Uint32(start)
 		p.SetItem()
 
 		p.String("end")
-		p.Uint32(uint32(end))
+		p.Uint32(end)
 		p.SetItem()
 
 		p.Append()

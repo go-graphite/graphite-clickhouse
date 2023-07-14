@@ -78,7 +78,7 @@ func TestFormatterReply(t *testing.T) {
 		{
 			name: "three indexed items found, but only one has points",
 			input: prepareCHResponses(1688990000, 1688990460,
-				[][]byte{[]byte("test.metric1")},
+				[][]byte{[]byte("test.metric1"), []byte("test.metric2"), []byte("test.metric3")},
 				map[string][]point.Point{
 					"test.metric1": {{Value: 3, Time: 1688990160, Timestamp: 1688990204}},
 				},
@@ -117,6 +117,9 @@ func TestFormatterReply(t *testing.T) {
 					case 0:
 						expected = tt.expected0
 						testName = fmt.Sprintf("NoAppend: %s", tt.name)
+						for j := range tt.input {
+							tt.input[j].AppendOutEmptySeries = false
+						}
 					case 1:
 						expected = tt.expected1
 						testName = fmt.Sprintf("WithAppend: %s", tt.name)
