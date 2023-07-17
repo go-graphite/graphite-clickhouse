@@ -29,19 +29,10 @@ func EmptyResponse() CHResponses { return CHResponses{{Data: emptyData}} }
 func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) {
 	mfr := &v2pb.MultiFetchResponse{Metrics: make([]v2pb.FetchResponse, 0)}
 	data := c.Data
-	nextMetric := data.GroupByMetric()
-	for {
-		points := nextMetric()
-		if len(points) == 0 {
-			break
-		}
-		id := points[0].MetricID
-		name := data.MetricName(id)
-		step, err := data.GetStep(id)
-		if err != nil {
-			return nil, err
-		}
-		start, stop, count, getValue := point.FillNulls(points, uint32(c.From), uint32(c.Until), step)
+
+	addResponse := func(name string, step uint32, points []point.Point) error {
+		from, until := uint32(c.From), uint32(c.Until)
+		start, stop, count, getValue := point.FillNulls(points, from, until, step)
 		values := make([]float64, 0, count)
 		isAbsent := make([]bool, 0, count)
 		for {
@@ -51,15 +42,15 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 					break
 				}
 				// if err is not point.ErrTimeGreaterStop, the points are corrupted
-				return nil, err
+				return err
 			}
 			if math.IsNaN(value) {
 				values = append(values, 0)
 				isAbsent = append(isAbsent, true)
-				continue
+			} else {
+				values = append(values, value)
+				isAbsent = append(isAbsent, false)
 			}
-			values = append(values, value)
-			isAbsent = append(isAbsent, false)
 		}
 		for _, a := range data.AM.Get(name) {
 			fr := v2pb.FetchResponse{
@@ -71,6 +62,38 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 				IsAbsent:  isAbsent,
 			}
 			mfr.Metrics = append(mfr.Metrics, fr)
+		}
+		return nil
+	}
+
+	// process metrics with points
+	writtenMetrics := make(map[string]struct{})
+	nextMetric := data.GroupByMetric()
+	for {
+		points := nextMetric()
+		if len(points) == 0 {
+			break
+		}
+		id := points[0].MetricID
+		name := data.MetricName(id)
+		writtenMetrics[name] = struct{}{}
+		step, err := data.GetStep(id)
+		if err != nil {
+			return nil, err
+		}
+		if err := addResponse(name, step, points); err != nil {
+			return nil, err
+		}
+	}
+	// process metrics with no points
+	if c.AppendOutEmptySeries && len(writtenMetrics) < data.AM.Len() && data.CommonStep > 0 {
+		for _, metricName := range data.AM.Series(false) {
+			if _, done := writtenMetrics[metricName]; !done {
+				err := addResponse(metricName, uint32(data.CommonStep), []point.Point{})
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	return mfr, nil
@@ -93,7 +116,8 @@ func (cc *CHResponses) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error
 func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) {
 	mfr := &v3pb.MultiFetchResponse{Metrics: make([]v3pb.FetchResponse, 0)}
 	data := c.Data
-	addResponse := func(name, function string, from, until, step uint32, points []point.Point) error {
+	addResponse := func(name, function string, step uint32, points []point.Point) error {
+		from, until := uint32(c.From), uint32(c.Until)
 		start, stop, count, getValue := point.FillNulls(points, from, until, step)
 		values := make([]float64, 0, count)
 		for {
@@ -145,7 +169,7 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 		if err != nil {
 			return nil, err
 		}
-		if err := addResponse(name, consolidationFunc, uint32(c.From), uint32(c.Until), step, points); err != nil {
+		if err := addResponse(name, consolidationFunc, step, points); err != nil {
 			return nil, err
 		}
 	}
@@ -153,7 +177,7 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 	if c.AppendOutEmptySeries && len(writtenMetrics) < data.AM.Len() && data.CommonStep > 0 {
 		for _, metricName := range data.AM.Series(false) {
 			if _, done := writtenMetrics[metricName]; !done {
-				err := addResponse(metricName, "any", uint32(c.From), uint32(c.Until), uint32(data.CommonStep), []point.Point{})
+				err := addResponse(metricName, "any", uint32(data.CommonStep), []point.Point{})
 				if err != nil {
 					return nil, err
 				}

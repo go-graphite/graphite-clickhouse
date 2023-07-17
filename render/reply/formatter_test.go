@@ -65,15 +65,15 @@ func TestFormatterReply(t *testing.T) {
 		name  string
 		input data.CHResponses
 		// result when CHResponse.AppendOutEmptySeries is false
-		expectedWithEmpty []client.Metric
-		// result when CHResponse.AppendOutEmptySeries is true
 		expectedWithoutEmpty []client.Metric
+		// result when CHResponse.AppendOutEmptySeries is true
+		expectedWithEmpty []client.Metric
 	}{
 		{
 			name:                 "no index found",
 			input:                data.EmptyResponse(),
-			expectedWithEmpty:    []client.Metric{},
 			expectedWithoutEmpty: []client.Metric{},
+			expectedWithEmpty:    []client.Metric{},
 		},
 		{
 			name: "three metrics; test.metric1 with points and other with NaN",
@@ -83,8 +83,8 @@ func TestFormatterReply(t *testing.T) {
 					"test.metric1": {{Value: 3, Time: 1688990160, Timestamp: 1688990204}},
 				},
 			),
-			expectedWithEmpty:    results[:1],
-			expectedWithoutEmpty: results,
+			expectedWithoutEmpty: results[:1],
+			expectedWithEmpty:    results,
 		},
 		{
 			name: "three metrics, no points in all",
@@ -92,8 +92,8 @@ func TestFormatterReply(t *testing.T) {
 				[][]byte{[]byte("test.metric1"), []byte("test.metric2"), []byte("test.metric3")},
 				map[string][]point.Point{},
 			),
-			expectedWithEmpty: []client.Metric{},
-			expectedWithoutEmpty: append([]client.Metric{
+			expectedWithoutEmpty: []client.Metric{},
+			expectedWithEmpty: append([]client.Metric{
 				{
 					Name:           results[0].Name,
 					PathExpression: results[0].PathExpression,
@@ -115,13 +115,13 @@ func TestFormatterReply(t *testing.T) {
 					var testName string
 					switch i {
 					case 0:
-						expected = tt.expectedWithEmpty
+						expected = tt.expectedWithoutEmpty
 						testName = fmt.Sprintf("NoAppend: %s", tt.name)
 						for j := range tt.input {
 							tt.input[j].AppendOutEmptySeries = false
 						}
 					case 1:
-						expected = tt.expectedWithoutEmpty
+						expected = tt.expectedWithEmpty
 						testName = fmt.Sprintf("WithAppend: %s", tt.name)
 						for j := range tt.input {
 							tt.input[j].AppendOutEmptySeries = true
