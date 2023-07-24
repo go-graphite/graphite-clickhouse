@@ -145,7 +145,7 @@ func main() {
 	verifyCount := 0
 	verifyFailed := 0
 
-	_, err = cmdExec(DockerBinary, "network", "exists", DockerNetwork)
+	_, err = cmdExec(DockerBinary, "network", "inspect", DockerNetwork)
 	if err != nil {
 		out, err := cmdExec(DockerBinary, "network", "create", DockerNetwork)
 		if err != nil {
