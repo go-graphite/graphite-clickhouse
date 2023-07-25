@@ -4,7 +4,7 @@ max-cpu = 0
 max-metrics-in-render-answer = 10000
 max-metrics-per-target = 10000
 headers-to-log = [ "X-Ctx-Carbonapi-Uuid" ]
-include-empty-metrics = false
+append-empty-series = false
 
 [clickhouse]
 url = "{{ .CLICKHOUSE_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"

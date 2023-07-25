@@ -48,7 +48,7 @@ type Common struct {
 	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
 	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer" comment:"limit number of results from find query, 0=unlimited"`
 	MaxMetricsPerTarget    int              `toml:"max-metrics-per-target" json:"max-metrics-per-target" comment:"limit numbers of queried metrics per target in /render requests, 0 or negative = unlimited"`
-	IncludeEmptyMetrics    bool             `toml:"include-empty-metrics" json:"include-empty-metrics" comment:"if true, always return points for all metrics, replacing empty results with list of NaN"`
+	AppendEmptySeries      bool             `toml:"append-empty-series" json:"append-empty-series" comment:"if true, always return points for all metrics, replacing empty results with list of NaN"`
 	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist" comment:"daemon returns empty response if query matches any of regular expressions" commented:"true"`
 	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
