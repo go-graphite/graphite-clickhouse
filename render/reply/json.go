@@ -9,9 +9,10 @@ import (
 	"net/http"
 
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
-	"go.uber.org/zap"
 )
 
 // JSON is an implementation of carbonapi_v3_pb MultiGlobRequest and MultiFetchResponse interconnection. It accepts the
@@ -104,10 +105,8 @@ func (*JSON) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHResp
 	mfr, err := multiData.ToMultiFetchResponseV3()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to convert response to v3pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
+		return
 	}
 	response := marshalJSON(mfr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to convert v3pb.MultiFetchResponse to JSON: %v", err), http.StatusInternalServerError)
-	}
 	w.Write(response)
 }

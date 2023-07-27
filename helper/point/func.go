@@ -59,7 +59,10 @@ func FillNulls(points []Point, from, until, step uint32) (start, stop, count uin
 	count = (stop - start) / step
 	last := start - step
 	currentPoint := 0
-	metricID := points[0].MetricID
+	var metricID uint32
+	if len(points) > 0 {
+		metricID = points[0].MetricID
+	}
 	getter = func() (float64, error) {
 		if stop <= last {
 			return 0, ErrTimeGreaterStop

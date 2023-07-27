@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -330,7 +331,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if len(reply) == 0 {
 		status = http.StatusNotFound
-		formatter.Reply(w, r, data.EmptyResponse())
+		formatter.Reply(w, r, reply)
 		return
 	}
 

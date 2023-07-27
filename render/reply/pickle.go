@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"time"
 
+	graphitePickle "github.com/lomik/graphite-pickle"
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/helper/point"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/render/data"
-	graphitePickle "github.com/lomik/graphite-pickle"
-	"go.uber.org/zap"
 )
 
 // Pickle is a formatter for python object serialization format.
@@ -40,7 +41,7 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		)
 	}()
 
-	if data.Len() == 0 {
+	if data.AM.Len() == 0 {
 		w.Write(graphitePickle.EmptyList)
 		return
 	}
@@ -89,19 +90,21 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 		p.SetItem()
 
 		p.String("start")
-		p.Uint32(uint32(start))
+		p.Uint32(start)
 		p.SetItem()
 
 		p.String("end")
-		p.Uint32(uint32(end))
+		p.Uint32(end)
 		p.SetItem()
 
 		p.Append()
 		pickleTime += time.Since(pickleStart)
 	}
 
-	writeMetric := func(points []point.Point) error {
+	// write points and mark as written in writeMap
+	writeMetric := func(points []point.Point, writeMap map[string]struct{}) error {
 		metricName := data.MetricName(points[0].MetricID)
+		writeMap[metricName] = struct{}{}
 		step, err := data.GetStep(points[0].MetricID)
 		if err != nil {
 			logger.Error("fail to get step", zap.Error(err))
@@ -115,13 +118,25 @@ func (*Pickle) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	}
 
 	nextMetric := data.GroupByMetric()
+	writtenMetrics := make(map[string]struct{})
+	// fill metrics with points
 	for {
 		points := nextMetric()
 		if len(points) == 0 {
 			break
 		}
-		if err := writeMetric(points); err != nil {
+		if err := writeMetric(points, writtenMetrics); err != nil {
 			return
+		}
+	}
+	// fill metrics without points with NaN
+	if multiData[0].AppendOutEmptySeries && len(writtenMetrics) != data.AM.Len() && data.CommonStep > 0 {
+		for _, metricName := range data.AM.Series(false) {
+			if _, done := writtenMetrics[metricName]; !done {
+				for _, a := range data.AM.Get(metricName) {
+					writeAlias(a.DisplayName, a.Target, []point.Point{}, uint32(data.CommonStep))
+				}
+			}
 		}
 	}
 
