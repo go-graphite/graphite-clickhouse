@@ -12,11 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lomik/graphite-clickhouse/limiter"
-	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/zapwriter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lomik/graphite-clickhouse/limiter"
+	"github.com/lomik/graphite-clickhouse/metrics"
 )
 
 func TestProcessDataTables(t *testing.T) {
@@ -315,7 +316,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, err := Unmarshal(body, false)
+	config, _, err := Unmarshal(body)
 	expected := New()
 	require.NoError(t, err)
 
@@ -545,7 +546,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, err := Unmarshal(body, false)
+	config, _, err := Unmarshal(body)
 	expected := New()
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
@@ -744,7 +745,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, err := Unmarshal(config, false)
+	_, _, err := Unmarshal(config)
 	assert.Error(t, err)
 
 	config =
@@ -759,7 +760,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, err = Unmarshal(config, false)
+	_, _, err = Unmarshal(config)
 	assert.Error(t, err)
 }
 
@@ -922,7 +923,7 @@ func TestGetQueryParam(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if config, err := Unmarshal(tt.config, false); err == nil {
+			if config, _, err := Unmarshal(tt.config); err == nil {
 				for i := range config.ClickHouse.QueryParams {
 					config.ClickHouse.QueryParams[i].Limiter = nil
 				}
@@ -961,7 +962,7 @@ func TestClickHouse_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := clickhouseUrlValidate(tt.ch.URL)
+			_, err := clickhouseURLValidate(tt.ch.URL)
 			if err == nil {
 				if tt.wantErr != "" {
 					t.Errorf("ClickHouse.Validate() error = nil, wantErr %q", tt.wantErr)

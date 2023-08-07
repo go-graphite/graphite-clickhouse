@@ -1,6 +1,7 @@
 package rollup
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 type Rollup struct {
 	mu               sync.RWMutex
 	rules            *Rules
+	tlsConfig        *tls.Config
 	addr             string
 	table            string
 	defaultPrecision uint32
@@ -21,9 +23,10 @@ type Rollup struct {
 	interval         time.Duration
 }
 
-func NewAuto(addr string, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
+func NewAuto(addr string, tlsConfig *tls.Config, table string, interval time.Duration, defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
 	r := &Rollup{
 		addr:             addr,
+		tlsConfig:        tlsConfig,
 		table:            table,
 		interval:         interval,
 		defaultPrecision: defaultPrecision,
@@ -79,7 +82,7 @@ func (r *Rollup) Rules() *Rules {
 }
 
 func (r *Rollup) update() error {
-	rules, err := remoteLoad(r.addr, r.table)
+	rules, err := remoteLoad(r.addr, r.tlsConfig, r.table)
 	if err != nil {
 		zapwriter.Logger("rollup").Error(fmt.Sprintf("rollup rules update failed for table %#v", r.table), zap.Error(err))
 		return err

@@ -90,7 +90,11 @@ func main() {
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
 	buildTags := flag.Bool("tags", false, "Build tags table")
-	pprof := flag.String("pprof", "", "Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ")
+	pprof := flag.String(
+		"pprof",
+		"",
+		"Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ",
+	)
 
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
@@ -109,7 +113,7 @@ func main() {
 		return
 	}
 
-	cfg, err := config.ReadConfig(*configFile, *checkConfig)
+	cfg, warns, err := config.ReadConfig(*configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -123,11 +127,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	localManager, err := zapwriter.NewManager(cfg.Logging)
-	if err != nil {
-		log.Fatal(err)
+	logger := zapwriter.Logger("start")
+
+	if len(warns) > 0 {
+		zapwriter.Logger("config").Warn("warnings", warns...)
 	}
-	logger := localManager.Logger("start")
 	if *verbose {
 		logger.Info("starting graphite-clickhouse",
 			zap.String("build_version", BuildVersion),
@@ -183,7 +187,6 @@ func main() {
 	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
 	mux.Handle("/alive", app.Handler(healthcheck.NewHandler(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
-
 		status := http.StatusOK
 		start := time.Now()
 

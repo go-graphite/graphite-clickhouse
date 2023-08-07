@@ -314,6 +314,17 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  # ClickHouse-side aggregation, see doc/aggregation.md
  internal-aggregation = true
 
+ # mTLS HTTPS configuration for connecting to clickhouse server
+ # [clickhouse.tls]
+  # ca-cert = []
+  # client-auth = ""
+  # server-name = ""
+  # min-version = ""
+  # max-version = ""
+  # insecure-skip-verify = false
+  # curves = []
+  # cipher-suites = []
+
 [[data-table]]
  # data table from carbon-clickhouse
  table = "graphite_data"

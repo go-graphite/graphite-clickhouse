@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/datetime"
-	"go.uber.org/zap"
 
 	"github.com/pelletier/go-toml"
 )
@@ -152,6 +153,10 @@ type TestSchema struct {
 	// input map[string][]Point `toml:"-"`
 }
 
+func (schema *TestSchema) HasTLSSettings() bool {
+	return strings.Contains(schema.dir, "tls")
+}
+
 func getFreeTCPPort(name string) (string, error) {
 	if len(name) == 0 {
 		name = "127.0.0.1:0"
@@ -202,7 +207,7 @@ func sendPlain(network, address string, metrics []InputMetric) error {
 
 func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickhouse *Clickhouse, testDir, clickhouseDir string, verbose, breakOnError bool, logger *zap.Logger) (testSuccess bool, verifyCount, verifyFailed int) {
 	testSuccess = true
-	err := gch.Start(testDir, clickhouse.URL(), test.Proxy.URL())
+	err := gch.Start(testDir, clickhouse.URL(), test.Proxy.URL(), clickhouse.TLSURL())
 	if err != nil {
 		logger.Error("starting graphite-clickhouse",
 			zap.String("config", test.name),

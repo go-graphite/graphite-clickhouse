@@ -23,11 +23,12 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 	var reader io.ReadCloser
 	var err error
 
+	opts := clickhouse.Options{
+		TLSConfig:      config.ClickHouse.TLSConfig,
+		ConnectTimeout: config.ClickHouse.ConnectTimeout,
+	}
 	if config.ClickHouse.IndexTable != "" {
-		opts := clickhouse.Options{
-			Timeout:        config.ClickHouse.IndexTimeout,
-			ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		}
+		opts.Timeout = config.ClickHouse.IndexTimeout
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.IndexTable),
 			config.ClickHouse.URL,
@@ -39,10 +40,7 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 			nil,
 		)
 	} else {
-		opts := clickhouse.Options{
-			Timeout:        config.ClickHouse.TreeTimeout,
-			ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		}
+		opts.Timeout = config.ClickHouse.TreeTimeout
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.TreeTable),
 			config.ClickHouse.URL,
