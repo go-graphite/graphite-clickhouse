@@ -221,7 +221,6 @@ github.com/msaf1980/go-stringutils
 # github.com/msaf1980/go-syncutils v0.0.3
 ## explicit; go 1.18
 github.com/msaf1980/go-syncutils/atomic
-github.com/msaf1980/go-syncutils/lock
 # github.com/msaf1980/go-timeutils v0.0.3
 ## explicit; go 1.19
 github.com/msaf1980/go-timeutils/duration
@@ -234,8 +233,6 @@ github.com/oklog/ulid
 # github.com/pelletier/go-toml v1.9.5
 ## explicit; go 1.12
 github.com/pelletier/go-toml
-# github.com/pierrec/lz4 v2.6.0+incompatible
-## explicit
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -340,8 +337,6 @@ github.com/stretchr/objx
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
-# github.com/zentures/cityhash v0.0.0-20131128155616-cdd6a94144ab
-## explicit
 # go.mongodb.org/mongo-driver v1.10.2
 ## explicit; go 1.10
 go.mongodb.org/mongo-driver/bson
@@ -450,10 +445,6 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
-## explicit
-# google.golang.org/grpc v1.50.1
-## explicit
 # google.golang.org/protobuf v1.28.1
 ## explicit; go 1.11
 google.golang.org/protobuf/encoding/prototext

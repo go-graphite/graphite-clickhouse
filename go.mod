@@ -10,6 +10,7 @@ require (
 	github.com/go-graphite/protocol v1.0.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/grafana/regexp v0.0.0-20221005093135-b4c2bcb0a4b6
+	github.com/json-iterator/go v1.1.12
 	github.com/lomik/carbon-clickhouse v0.11.7
 	github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80
@@ -61,7 +62,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

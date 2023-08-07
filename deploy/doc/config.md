@@ -71,15 +71,17 @@ query-params = [
 ### Query limiter for prevent database overloading (limit concurrent/maximum incomming requests)
 
 For prevent database overloading incomming requests (render/find/autocomplete) can be limited.
-If executing max-concurrent requests, next request will be wait for free slot until index-timeout reached
 If wait max-queries requests, for new request error returned immediately.
-
+If executing concurrent-queries requests, next request will be wait for free slot until index-timeout reached
+adaptive-queries prevent overload with load average check if  graphite-clickhouse run on one host with clickhouse
+Real queries will be concurrent-queries + adaptive-queries * (1 / normalized_load_avg - 1).
+If normalized_load_avg > 0.9, limit will be concurrent-queries.
 ```
 url = "http://graphite:qwerty@localhost:8123/?readonly=2&log_queries=1&max_rows_to_read=102400000&max_result_bytes=12800000&max_threads=2"
 render-max-queries = 500
 render-max-concurrent = 10
 find-max-queries = 100
-find-max-concurrent = 10
+find-concurrent-queries = 10
 tags-max-queries = 100
 tags-max-concurrent = 10
 

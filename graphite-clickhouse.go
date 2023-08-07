@@ -26,6 +26,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/lomik/graphite-clickhouse/sd"
+	"github.com/lomik/graphite-clickhouse/sd/nginx"
 	"github.com/lomik/graphite-clickhouse/tagger"
 )
 
@@ -96,6 +98,8 @@ func main() {
 		"Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ",
 	)
 
+	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
+
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
 
@@ -123,15 +127,41 @@ func main() {
 		return
 	}
 
+	if *sdList {
+		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+			var sd sd.SD
+			logger := zapwriter.Default()
+			switch cfg.Common.SDType {
+			case config.SDNginx:
+				sd = nginx.New(cfg.Common.SD, cfg.Common.SDNamespace, "", logger)
+			default:
+				panic("serive discovery type not registered")
+			}
+			if nodes, err := sd.Nodes(); err == nil {
+				for _, node := range nodes {
+					fmt.Printf("%s: %s\n", node.Key, node.Value)
+				}
+			} else {
+				log.Fatal(err)
+			}
+		}
+		return
+	}
+
 	if err = zapwriter.ApplyConfig(cfg.Logging); err != nil {
 		log.Fatal(err)
 	}
 
-	logger := zapwriter.Logger("start")
+	localManager, err := zapwriter.NewManager(cfg.Logging)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := localManager.Logger("start")
 
 	if len(warns) > 0 {
 		zapwriter.Logger("config").Warn("warnings", warns...)
 	}
+
 	if *verbose {
 		logger.Info("starting graphite-clickhouse",
 			zap.String("build_version", BuildVersion),
@@ -214,6 +244,11 @@ func main() {
 
 	if metrics.Graphite != nil {
 		metrics.Graphite.Start(nil)
+	}
+
+	if cfg.NeedLoadAvgColect() {
+		sdLogger := localManager.Logger("service discovery")
+		go sd.Register(cfg, sdLogger)
 	}
 
 	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))

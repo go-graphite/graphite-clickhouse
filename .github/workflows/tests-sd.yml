@@ -1,0 +1,37 @@
+name: Tests register in SD
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  tests:
+    env:
+      CGO_ENABLED: 0
+    name: Test register in SD
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go:
+          - ^1
+    steps:
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go }}
+
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Start consul
+      run:   |
+        ./tests/consul.sh 1.15.2 > /tmp/consul.log &
+        sleep 30
+      shell: bash
+
+    - name: Test
+      run: go test ./sd/nginx -tags=test_sd -v
