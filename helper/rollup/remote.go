@@ -2,15 +2,17 @@ package rollup
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/lomik/zapwriter"
+
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"github.com/lomik/zapwriter"
 )
 
 type rollupRulesResponseRecord struct {
@@ -101,7 +103,7 @@ func parseJson(body []byte) (*Rules, error) {
 	return r.compile()
 }
 
-func remoteLoad(addr string, table string) (*Rules, error) {
+func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) {
 	var db string
 	arr := strings.SplitN(table, ".", 2)
 	if len(arr) == 1 {
@@ -132,7 +134,11 @@ func remoteLoad(addr string, table string) (*Rules, error) {
 		scope.New(context.Background()).WithLogger(zapwriter.Logger("rollup")).WithTable("system.graphite_retentions"),
 		addr,
 		query,
-		clickhouse.Options{Timeout: 10 * time.Second, ConnectTimeout: 10 * time.Second},
+		clickhouse.Options{
+			Timeout:        10 * time.Second,
+			ConnectTimeout: 10 * time.Second,
+			TLSConfig:      tlsConf,
+		},
 		nil,
 	)
 	if err != nil {

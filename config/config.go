@@ -2,10 +2,12 @@ package config
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -13,9 +15,11 @@ import (
 	"time"
 
 	"github.com/cactus/go-statsd-client/v5/statsd"
+	"github.com/lomik/carbon-clickhouse/helper/config"
 	"github.com/msaf1980/go-metrics/graphite"
 	"github.com/msaf1980/go-timeutils/duration"
 	toml "github.com/pelletier/go-toml"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/lomik/zapwriter"
@@ -29,46 +33,46 @@ import (
 
 // Cache config
 type CacheConfig struct {
-	Type                string        `toml:"type" json:"type" comment:"cache type"`
-	Size                int           `toml:"size-mb" json:"size-mb" comment:"cache size"`
+	Type                string        `toml:"type"              json:"type"              comment:"cache type"`
+	Size                int           `toml:"size-mb"           json:"size-mb"           comment:"cache size"`
 	MemcachedServers    []string      `toml:"memcached-servers" json:"memcached-servers" comment:"memcached servers"`
-	DefaultTimeoutSec   int32         `toml:"default-timeout" json:"default-timeout" comment:"default cache ttl"`
-	DefaultTimeoutStr   string        `toml:"-" json:"-"`
-	ShortTimeoutSec     int32         `toml:"short-timeout" json:"short-timeout" comment:"short-time cache ttl"`
-	ShortTimeoutStr     string        `toml:"-" json:"-"`
-	FindTimeoutSec      int32         `toml:"find-timeout" json:"find-timeout" comment:"finder/tags autocompleter cache ttl"`
-	ShortDuration       time.Duration `toml:"short-duration" json:"short-duration" comment:"maximum diration, used with short_timeout"`
-	ShortUntilOffsetSec int64         `toml:"short-offset" json:"short-offset" comment:"offset beetween now and until for select short cache timeout"`
+	DefaultTimeoutSec   int32         `toml:"default-timeout"   json:"default-timeout"   comment:"default cache ttl"`
+	DefaultTimeoutStr   string        `toml:"-"                 json:"-"`
+	ShortTimeoutSec     int32         `toml:"short-timeout"     json:"short-timeout"     comment:"short-time cache ttl"`
+	ShortTimeoutStr     string        `toml:"-"                 json:"-"`
+	FindTimeoutSec      int32         `toml:"find-timeout"      json:"find-timeout"      comment:"finder/tags autocompleter cache ttl"`
+	ShortDuration       time.Duration `toml:"short-duration"    json:"short-duration"    comment:"maximum diration, used with short_timeout"`
+	ShortUntilOffsetSec int64         `toml:"short-offset"      json:"short-offset"      comment:"offset beetween now and until for select short cache timeout"`
 }
 
 // Common config
 type Common struct {
-	Listen                 string           `toml:"listen" json:"listen" comment:"general listener"`
-	PprofListen            string           `toml:"pprof-listen" json:"pprof-listen" comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
-	MaxCPU                 int              `toml:"max-cpu" json:"max-cpu"`
+	Listen                 string           `toml:"listen"                     json:"listen"                     comment:"general listener"`
+	PprofListen            string           `toml:"pprof-listen"               json:"pprof-listen"               comment:"listener to serve /debug/pprof requests. '-pprof' argument overrides it"`
+	MaxCPU                 int              `toml:"max-cpu"                    json:"max-cpu"`
 	MaxMetricsInFindAnswer int              `toml:"max-metrics-in-find-answer" json:"max-metrics-in-find-answer" comment:"limit number of results from find query, 0=unlimited"`
-	MaxMetricsPerTarget    int              `toml:"max-metrics-per-target" json:"max-metrics-per-target" comment:"limit numbers of queried metrics per target in /render requests, 0 or negative = unlimited"`
-	AppendEmptySeries      bool             `toml:"append-empty-series" json:"append-empty-series" comment:"if true, always return points for all metrics, replacing empty results with list of NaN"`
-	TargetBlacklist        []string         `toml:"target-blacklist" json:"target-blacklist" comment:"daemon returns empty response if query matches any of regular expressions" commented:"true"`
-	Blacklist              []*regexp.Regexp `toml:"-" json:"-"` // compiled TargetBlacklist
-	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval" json:"memory-return-interval" comment:"daemon will return the freed memory to the OS when it>0"`
-	HeadersToLog           []string         `toml:"headers-to-log" json:"headers-to-log" comment:"additional request headers to log"`
-	FindCacheConfig        CacheConfig      `toml:"find-cache" json:"find-cache" comment:"find/tags cache config"`
+	MaxMetricsPerTarget    int              `toml:"max-metrics-per-target"     json:"max-metrics-per-target"     comment:"limit numbers of queried metrics per target in /render requests, 0 or negative = unlimited"`
+	AppendEmptySeries      bool             `toml:"append-empty-series"        json:"append-empty-series"        comment:"if true, always return points for all metrics, replacing empty results with list of NaN"`
+	TargetBlacklist        []string         `toml:"target-blacklist"           json:"target-blacklist"           comment:"daemon returns empty response if query matches any of regular expressions"                  commented:"true"`
+	Blacklist              []*regexp.Regexp `toml:"-"                          json:"-"` // compiled TargetBlacklist
+	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval"     json:"memory-return-interval"     comment:"daemon will return the freed memory to the OS when it>0"`
+	HeadersToLog           []string         `toml:"headers-to-log"             json:"headers-to-log"             comment:"additional request headers to log"`
+	FindCacheConfig        CacheConfig      `toml:"find-cache"                 json:"find-cache"                 comment:"find/tags cache config"`
 
 	FindCache cache.BytesCache `toml:"-" json:"-"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
 type IndexReverseRule struct {
-	Suffix   string         `toml:"suffix,omitempty" json:"suffix" comment:"rule is used when the target suffix is matched"`
-	Prefix   string         `toml:"prefix,omitempty" json:"prefix" comment:"rule is used when the target prefix is matched"`
-	RegexStr string         `toml:"regex,omitempty" json:"regex" comment:"rule is used when the target regex is matched"`
-	Regex    *regexp.Regexp `toml:"-" json:"-"`
-	Reverse  string         `toml:"reverse" json:"reverse" comment:"same as index-reverse"`
+	Suffix   string         `toml:"suffix,omitempty" json:"suffix"  comment:"rule is used when the target suffix is matched"`
+	Prefix   string         `toml:"prefix,omitempty" json:"prefix"  comment:"rule is used when the target prefix is matched"`
+	RegexStr string         `toml:"regex,omitempty"  json:"regex"   comment:"rule is used when the target regex is matched"`
+	Regex    *regexp.Regexp `toml:"-"                json:"-"`
+	Reverse  string         `toml:"reverse"          json:"reverse" comment:"same as index-reverse"`
 }
 
 type Costs struct {
-	Cost       *int           `toml:"cost" json:"cost" comment:"default cost (for wildcarded equalence or matched with regex, or if no value cost set)"`
+	Cost       *int           `toml:"cost"        json:"cost"        comment:"default cost (for wildcarded equalence or matched with regex, or if no value cost set)"`
 	ValuesCost map[string]int `toml:"values-cost" json:"values-cost" comment:"cost with some value (for equalence without wildcards) (additional tuning, usually not needed)"`
 }
 
@@ -92,18 +96,18 @@ var IndexReverse = map[string]uint8{
 var IndexReverseNames = []string{"auto", "direct", "reversed"}
 
 type UserLimits struct {
-	MaxQueries    int `toml:"max-queries" json:"max-queries" comment:"Max queries to fetch data"`
+	MaxQueries    int `toml:"max-queries"    json:"max-queries"    comment:"Max queries to fetch data"`
 	MaxConcurrent int `toml:"max-concurrent" json:"max-concurrent" comment:"Maximum concurrent queries to fetch data"`
 
 	Limiter limiter.ServerLimiter `toml:"-" json:"-"`
 }
 
 type QueryParam struct {
-	Duration    time.Duration `toml:"duration" json:"duration" comment:"minimal duration (beetween from/until) for select query params"`
-	URL         string        `toml:"url" json:"url" comment:"url for queries with durations greater or equal than"`
+	Duration    time.Duration `toml:"duration"     json:"duration"     comment:"minimal duration (beetween from/until) for select query params"`
+	URL         string        `toml:"url"          json:"url"          comment:"url for queries with durations greater or equal than"`
 	DataTimeout time.Duration `toml:"data-timeout" json:"data-timeout" comment:"total timeout to fetch data"`
 
-	MaxQueries    int `toml:"max-queries" json:"max-queries" comment:"Max queries to fetch data"`
+	MaxQueries    int `toml:"max-queries"    json:"max-queries"    comment:"Max queries to fetch data"`
 	MaxConcurrent int `toml:"max-concurrent" json:"max-concurrent" comment:"Maximum concurrent queries to fetch data"`
 
 	Limiter limiter.ServerLimiter `toml:"-" json:"-"`
@@ -135,83 +139,87 @@ func binarySearchQueryParamLe(a []QueryParam, duration time.Duration, start, end
 
 // ClickHouse config
 type ClickHouse struct {
-	URL                   string                `toml:"url" json:"url" comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
-	DataTimeout           time.Duration         `toml:"data-timeout" json:"data-timeout" comment:"default total timeout to fetch data, can be overwritten with query-params"`
-	RenderMaxQueries      int                   `toml:"render-max-queries" json:"render-max-queries" comment:"Max queries to render queiries"`
-	RenderMaxConcurrent   int                   `toml:"render-max-concurrent" json:"render-max-concurrent" comment:"Maximum concurrent queries to render queiries"`
-	QueryParams           []QueryParam          `toml:"query-params" json:"query-params" comment:"customized query params (url, data timeout, limiters) for durations greater or equal"`
-	FindMaxQueries        int                   `toml:"find-max-queries" json:"find-max-queries" comment:"Max queries for find queries"`
-	FindMaxConcurrent     int                   `toml:"find-max-concurrent" json:"find-max-concurrent" comment:"Maximum concurrent queries for find queries"`
-	FindLimiter           limiter.ServerLimiter `toml:"-" json:"-"`
-	TagsMaxQueries        int                   `toml:"tags-max-queries" json:"tags-max-queries" comment:"Max queries for tags queries"`
-	TagsMaxConcurrent     int                   `toml:"tags-max-concurrent" json:"tags-max-concurrent" comment:"Maximum concurrent queries for tags queries"`
-	TagsMinInQuery        int                   `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
+	URL                   string                `toml:"url"                      json:"url"                      comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
+	DataTimeout           time.Duration         `toml:"data-timeout"             json:"data-timeout"             comment:"default total timeout to fetch data, can be overwritten with query-params"`
+	RenderMaxQueries      int                   `toml:"render-max-queries"       json:"render-max-queries"       comment:"Max queries to render queiries"`
+	RenderMaxConcurrent   int                   `toml:"render-max-concurrent"    json:"render-max-concurrent"    comment:"Maximum concurrent queries to render queiries"`
+	QueryParams           []QueryParam          `toml:"query-params"             json:"query-params"             comment:"customized query params (url, data timeout, limiters) for durations greater or equal"`
+	FindMaxQueries        int                   `toml:"find-max-queries"         json:"find-max-queries"         comment:"Max queries for find queries"`
+	FindMaxConcurrent     int                   `toml:"find-max-concurrent"      json:"find-max-concurrent"      comment:"Maximum concurrent queries for find queries"`
+	FindLimiter           limiter.ServerLimiter `toml:"-"                        json:"-"`
+	TagsMaxQueries        int                   `toml:"tags-max-queries"         json:"tags-max-queries"         comment:"Max queries for tags queries"`
+	TagsMaxConcurrent     int                   `toml:"tags-max-concurrent"      json:"tags-max-concurrent"      comment:"Maximum concurrent queries for tags queries"`
+	TagsMinInQuery        int                   `toml:"tags-min-in-query"        json:"tags-min-in-query"        comment:"Minimum tags in seriesByTag query"`
 	TagsMinInAutocomplete int                   `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
-	TagsLimiter           limiter.ServerLimiter `toml:"-" json:"-"`
-	UserLimits            map[string]UserLimits `toml:"user-limits" json:"user-limits" comment:"customized query limiter for some users" commented:"true"`
-	DateFormat            string                `toml:"date-format" json:"date-format" comment:"Date format (default, utc, both)"`
-	IndexTable            string                `toml:"index-table" json:"index-table" comment:"see doc/index-table.md"`
-	IndexUseDaily         bool                  `toml:"index-use-daily" json:"index-use-daily"`
-	IndexReverse          string                `toml:"index-reverse" json:"index-reverse" comment:"see doc/config.md"`
-	IndexReverses         IndexReverses         `toml:"index-reverses" json:"index-reverses" comment:"see doc/config.md" commented:"true"`
-	IndexTimeout          time.Duration         `toml:"index-timeout" json:"index-timeout" comment:"total timeout to fetch series list from index"`
-	TaggedTable           string                `toml:"tagged-table" json:"tagged-table" comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
+	TagsLimiter           limiter.ServerLimiter `toml:"-"                        json:"-"`
+	UserLimits            map[string]UserLimits `toml:"user-limits"              json:"user-limits"              comment:"customized query limiter for some users"                                                                                        commented:"true"`
+	DateFormat            string                `toml:"date-format"              json:"date-format"              comment:"Date format (default, utc, both)"`
+	IndexTable            string                `toml:"index-table"              json:"index-table"              comment:"see doc/index-table.md"`
+	IndexUseDaily         bool                  `toml:"index-use-daily"          json:"index-use-daily"`
+	IndexReverse          string                `toml:"index-reverse"            json:"index-reverse"            comment:"see doc/config.md"`
+	IndexReverses         IndexReverses         `toml:"index-reverses"           json:"index-reverses"           comment:"see doc/config.md"                                                                                                              commented:"true"`
+	IndexTimeout          time.Duration         `toml:"index-timeout"            json:"index-timeout"            comment:"total timeout to fetch series list from index"`
+	TaggedTable           string                `toml:"tagged-table"             json:"tagged-table"             comment:"'tagged' table from carbon-clickhouse, required for seriesByTag"`
 	TaggedAutocompleDays  int                   `toml:"tagged-autocomplete-days" json:"tagged-autocomplete-days" comment:"or how long the daemon will query tags during autocomplete"`
-	TaggedUseDaily        bool                  `toml:"tagged-use-daily" json:"tagged-use-daily" comment:"whether to use date filter when searching for the metrics in the tagged-table"`
-	TaggedCosts           map[string]*Costs     `toml:"tagged-costs" json:"tagged-costs" commented:"true" comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags"`
-	TreeTable             string                `toml:"tree-table" json:"tree-table" comment:"old index table, DEPRECATED, see description in doc/config.md" commented:"true"`
-	ReverseTreeTable      string                `toml:"reverse-tree-table" json:"reverse-tree-table" commented:"true"`
-	DateTreeTable         string                `toml:"date-tree-table" json:"date-tree-table" commented:"true"`
-	DateTreeTableVersion  int                   `toml:"date-tree-table-version" json:"date-tree-table-version" commented:"true"`
-	TreeTimeout           time.Duration         `toml:"tree-timeout" json:"tree-timeout" commented:"true"`
-	TagTable              string                `toml:"tag-table" json:"tag-table" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
-	ExtraPrefix           string                `toml:"extra-prefix" json:"extra-prefix" comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
-	ConnectTimeout        time.Duration         `toml:"connect-timeout" json:"connect-timeout" comment:"TCP connection timeout"`
+	TaggedUseDaily        bool                  `toml:"tagged-use-daily"         json:"tagged-use-daily"         comment:"whether to use date filter when searching for the metrics in the tagged-table"`
+	TaggedCosts           map[string]*Costs     `toml:"tagged-costs"             json:"tagged-costs"             comment:"costs for tags (for tune which tag will be used as primary), by default is 0, increase for costly (with poor selectivity) tags" commented:"true"`
+	TreeTable             string                `toml:"tree-table"               json:"tree-table"               comment:"old index table, DEPRECATED, see description in doc/config.md"                                                                  commented:"true"`
+	ReverseTreeTable      string                `toml:"reverse-tree-table"       json:"reverse-tree-table"                                                                                                                                                commented:"true"`
+	DateTreeTable         string                `toml:"date-tree-table"          json:"date-tree-table"                                                                                                                                                   commented:"true"`
+	DateTreeTableVersion  int                   `toml:"date-tree-table-version"  json:"date-tree-table-version"                                                                                                                                           commented:"true"`
+	TreeTimeout           time.Duration         `toml:"tree-timeout"             json:"tree-timeout"                                                                                                                                                      commented:"true"`
+	TagTable              string                `toml:"tag-table"                json:"tag-table"                comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU"                                            commented:"true"`
+	ExtraPrefix           string                `toml:"extra-prefix"             json:"extra-prefix"             comment:"add extra prefix (directory in graphite) for all metrics, w/o trailing dot"`
+	ConnectTimeout        time.Duration         `toml:"connect-timeout"          json:"connect-timeout"          comment:"TCP connection timeout"`
 	// TODO: remove in v0.14
-	DataTableLegacy string `toml:"data-table" json:"data-table" comment:"will be removed in 0.14" commented:"true"`
+	DataTableLegacy string `toml:"data-table"               json:"data-table"               comment:"will be removed in 0.14"                                                                                                        commented:"true"`
 	// TODO: remove in v0.14
-	RollupConfLegacy string `toml:"rollup-conf" json:"-" commented:"true"`
-	MaxDataPoints    int    `toml:"max-data-points" json:"max-data-points" comment:"max points per metric when internal-aggregation=true"`
+	RollupConfLegacy string `toml:"rollup-conf"              json:"-"                                                                                                                                                                 commented:"true"`
+	MaxDataPoints    int    `toml:"max-data-points"          json:"max-data-points"          comment:"max points per metric when internal-aggregation=true"`
 	// InternalAggregation controls if ClickHouse itself or graphite-clickhouse aggregates points to proper retention
-	InternalAggregation bool `toml:"internal-aggregation" json:"internal-aggregation" comment:"ClickHouse-side aggregation, see doc/aggregation.md"`
+	InternalAggregation bool `toml:"internal-aggregation"     json:"internal-aggregation"     comment:"ClickHouse-side aggregation, see doc/aggregation.md"`
+
+	TLSParams config.TLS  `toml:"tls"                      json:"tls"                      comment:"mTLS HTTPS configuration for connecting to clickhouse server"                                                                         commented:"true"`
+	TLSConfig *tls.Config `toml:"-"                        json:"-"`
 }
 
-func clickhouseUrlValidate(chURL string) error {
-	if u, err := url.Parse(chURL); err != nil {
-		return fmt.Errorf("error %q in url %q", err.Error(), chURL)
+func clickhouseURLValidate(chURL string) (*url.URL, error) {
+	u, err := url.Parse(chURL)
+	if err != nil {
+		return nil, fmt.Errorf("error %q in url %q", err.Error(), chURL)
 	} else if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("scheme not supported in url %q", chURL)
+		return nil, fmt.Errorf("scheme not supported in url %q", chURL)
 	} else if strings.Contains(u.RawQuery, " ") {
-		return fmt.Errorf("space not allowed in url %q", chURL)
+		return nil, fmt.Errorf("space not allowed in url %q", chURL)
 	}
-	return nil
+	return u, nil
 }
 
 // Tags config
 type Tags struct {
-	Rules      string `toml:"rules" json:"rules"`
-	Date       string `toml:"date" json:"date"`
+	Rules      string `toml:"rules"       json:"rules"`
+	Date       string `toml:"date"        json:"date"`
 	ExtraWhere string `toml:"extra-where" json:"extra-where"`
-	InputFile  string `toml:"input-file" json:"input-file"`
+	InputFile  string `toml:"input-file"  json:"input-file"`
 	OutputFile string `toml:"output-file" json:"output-file"`
 }
 
 // Carbonlink configuration
 type Carbonlink struct {
-	Server         string        `toml:"server" json:"server"`
+	Server         string        `toml:"server"              json:"server"`
 	Threads        int           `toml:"threads-per-request" json:"threads-per-request"`
-	Retries        int           `toml:"-" json:"-"`
-	ConnectTimeout time.Duration `toml:"connect-timeout" json:"connect-timeout"`
-	QueryTimeout   time.Duration `toml:"query-timeout" json:"query-timeout"`
-	TotalTimeout   time.Duration `toml:"total-timeout" json:"total-timeout" comment:"timeout for querying and parsing response"`
+	Retries        int           `toml:"-"                   json:"-"`
+	ConnectTimeout time.Duration `toml:"connect-timeout"     json:"connect-timeout"`
+	QueryTimeout   time.Duration `toml:"query-timeout"       json:"query-timeout"`
+	TotalTimeout   time.Duration `toml:"total-timeout"       json:"total-timeout"       comment:"timeout for querying and parsing response"`
 }
 
 // Prometheus configuration
 type Prometheus struct {
-	Listen         string        `toml:"listen" json:"listen" comment:"listen addr for prometheus ui and api"`
-	ExternalURLRaw string        `toml:"external-url" json:"external-url" comment:"allows to set URL for redirect manually"`
-	ExternalURL    *url.URL      `toml:"-" json:"-"`
-	PageTitle      string        `toml:"page-title" json:"page-title"`
+	Listen         string        `toml:"listen"         json:"listen"         comment:"listen addr for prometheus ui and api"`
+	ExternalURLRaw string        `toml:"external-url"   json:"external-url"   comment:"allows to set URL for redirect manually"`
+	ExternalURL    *url.URL      `toml:"-"              json:"-"`
+	PageTitle      string        `toml:"page-title"     json:"page-title"`
 	LookbackDelta  time.Duration `toml:"lookback-delta" json:"lookback-delta"`
 }
 
@@ -229,32 +237,32 @@ var knownDataTableContext = map[string]bool{
 
 // DataTable configs
 type DataTable struct {
-	Table                  string                `toml:"table" json:"table" comment:"data table from carbon-clickhouse"`
-	Reverse                bool                  `toml:"reverse" json:"reverse" comment:"if it stores direct or reversed metrics"`
-	MaxAge                 time.Duration         `toml:"max-age" json:"max-age" comment:"maximum age stored in the table"`
-	MinAge                 time.Duration         `toml:"min-age" json:"min-age" comment:"minimum age stored in the table"`
-	MaxInterval            time.Duration         `toml:"max-interval" json:"max-interval" comment:"maximum until-from interval allowed for the table"`
-	MinInterval            time.Duration         `toml:"min-interval" json:"min-interval" comment:"minimum until-from interval allowed for the table"`
-	TargetMatchAny         string                `toml:"target-match-any" json:"target-match-any" comment:"table allowed only if any metrics in target matches regexp"`
-	TargetMatchAll         string                `toml:"target-match-all" json:"target-match-all" comment:"table allowed only if all metrics in target matches regexp"`
-	TargetMatchAnyRegexp   *regexp.Regexp        `toml:"-" json:"-"`
-	TargetMatchAllRegexp   *regexp.Regexp        `toml:"-" json:"-"`
-	RollupConf             string                `toml:"rollup-conf" json:"-" comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
-	RollupAutoTable        string                `toml:"rollup-auto-table" json:"rollup-auto-table" comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
-	RollupAutoInterval     *time.Duration        `toml:"rollup-auto-interval" json:"rollup-auto-interval" comment:"rollup update interval for 'rollup-conf=auto'"`
+	Table                  string                `toml:"table"                    json:"table"                    comment:"data table from carbon-clickhouse"`
+	Reverse                bool                  `toml:"reverse"                  json:"reverse"                  comment:"if it stores direct or reversed metrics"`
+	MaxAge                 time.Duration         `toml:"max-age"                  json:"max-age"                  comment:"maximum age stored in the table"`
+	MinAge                 time.Duration         `toml:"min-age"                  json:"min-age"                  comment:"minimum age stored in the table"`
+	MaxInterval            time.Duration         `toml:"max-interval"             json:"max-interval"             comment:"maximum until-from interval allowed for the table"`
+	MinInterval            time.Duration         `toml:"min-interval"             json:"min-interval"             comment:"minimum until-from interval allowed for the table"`
+	TargetMatchAny         string                `toml:"target-match-any"         json:"target-match-any"         comment:"table allowed only if any metrics in target matches regexp"`
+	TargetMatchAll         string                `toml:"target-match-all"         json:"target-match-all"         comment:"table allowed only if all metrics in target matches regexp"`
+	TargetMatchAnyRegexp   *regexp.Regexp        `toml:"-"                        json:"-"`
+	TargetMatchAllRegexp   *regexp.Regexp        `toml:"-"                        json:"-"`
+	RollupConf             string                `toml:"rollup-conf"              json:"-"                        comment:"custom rollup.xml file for table, 'auto' and 'none' are allowed as well"`
+	RollupAutoTable        string                `toml:"rollup-auto-table"        json:"rollup-auto-table"        comment:"custom table for 'rollup-conf=auto', useful for Distributed or MatView"`
+	RollupAutoInterval     *time.Duration        `toml:"rollup-auto-interval"     json:"rollup-auto-interval"     comment:"rollup update interval for 'rollup-conf=auto'"`
 	RollupDefaultPrecision uint32                `toml:"rollup-default-precision" json:"rollup-default-precision" comment:"is used when none of rules match"`
-	RollupDefaultFunction  string                `toml:"rollup-default-function" json:"rollup-default-function" comment:"is used when none of rules match"`
-	RollupUseReverted      bool                  `toml:"rollup-use-reverted" json:"rollup-use-reverted" comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
-	Context                []string              `toml:"context" json:"context" comment:"valid values are 'graphite' of 'prometheus'"`
-	ContextMap             map[string]bool       `toml:"-" json:"-"`
-	Rollup                 *rollup.Rollup        `toml:"-" json:"rollup-conf"`
-	QueryMetrics           *metrics.QueryMetrics `toml:"-" json:"-"`
+	RollupDefaultFunction  string                `toml:"rollup-default-function"  json:"rollup-default-function"  comment:"is used when none of rules match"`
+	RollupUseReverted      bool                  `toml:"rollup-use-reverted"      json:"rollup-use-reverted"      comment:"should be set to true if you don't have reverted regexps in rollup-conf for reversed tables"`
+	Context                []string              `toml:"context"                  json:"context"                  comment:"valid values are 'graphite' of 'prometheus'"`
+	ContextMap             map[string]bool       `toml:"-"                        json:"-"`
+	Rollup                 *rollup.Rollup        `toml:"-"                        json:"rollup-conf"`
+	QueryMetrics           *metrics.QueryMetrics `toml:"-"                        json:"-"`
 }
 
 // Debug config
 type Debug struct {
-	Directory     string      `toml:"directory" json:"directory" comment:"the directory for additional debug output"`
-	DirectoryPerm os.FileMode `toml:"directory-perm" json:"directory-perm" comment:"permissions for directory, octal value is set as 0o755"`
+	Directory     string      `toml:"directory"          json:"directory"          comment:"the directory for additional debug output"`
+	DirectoryPerm os.FileMode `toml:"directory-perm"     json:"directory-perm"     comment:"permissions for directory, octal value is set as 0o755"`
 	// If ExternalDataPerm > 0 and X-Gch-Debug-Ext-Data HTTP header is set, the external data used in the query
 	// will be saved in the DebugDir directory
 	ExternalDataPerm os.FileMode `toml:"external-data-perm" json:"external-data-perm" comment:"permissions for directory, octal value is set as 0o640"`
@@ -262,15 +270,15 @@ type Debug struct {
 
 // Config is the daemon configuration
 type Config struct {
-	Common     Common             `toml:"common" json:"common"`
-	Metrics    metrics.Config     `toml:"metrics" json:"metrics"`
+	Common     Common             `toml:"common"     json:"common"`
+	Metrics    metrics.Config     `toml:"metrics"    json:"metrics"`
 	ClickHouse ClickHouse         `toml:"clickhouse" json:"clickhouse"`
 	DataTable  []DataTable        `toml:"data-table" json:"data-table" comment:"data tables, see doc/config.md for additional info"`
-	Tags       Tags               `toml:"tags" json:"tags" comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
+	Tags       Tags               `toml:"tags"       json:"tags"       comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
 	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
 	Prometheus Prometheus         `toml:"prometheus" json:"prometheus"`
-	Debug      Debug              `toml:"debug" json:"debug" comment:"see doc/debugging.md"`
-	Logging    []zapwriter.Config `toml:"logging" json:"logging"`
+	Debug      Debug              `toml:"debug"      json:"debug"      comment:"see doc/debugging.md"`
+	Logging    []zapwriter.Config `toml:"logging"    json:"logging"`
 }
 
 // New returns *Config with default values
@@ -421,25 +429,24 @@ func PrintDefaultConfig() error {
 }
 
 // ReadConfig reads the content of the file with given name and process it to the *Config
-func ReadConfig(filename string, noLog bool) (*Config, error) {
+func ReadConfig(filename string) (*Config, []zap.Field, error) {
 	var err error
 	var body []byte
 	if filename != "" {
 		body, err = os.ReadFile(filename)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return Unmarshal(body, noLog)
+	return Unmarshal(body)
 }
 
 // Unmarshal process the body to *Config
-func Unmarshal(body []byte, noLog bool) (*Config, error) {
-	var err error
+func Unmarshal(body []byte) (cfg *Config, warns []zap.Field, err error) {
 	deprecations := make(map[string]error)
 
-	cfg := New()
+	cfg = New()
 	if len(body) != 0 {
 		// TODO: remove in v0.14
 		if bytes.Index(body, []byte("\n[logging]\n")) != -1 || bytes.Index(body, []byte("[logging]")) == 0 {
@@ -450,7 +457,7 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 			}
 		}
 		if err = toml.Unmarshal(body, cfg); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -461,18 +468,30 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 	if cfg.ClickHouse.RenderMaxConcurrent > cfg.ClickHouse.RenderMaxQueries && cfg.ClickHouse.RenderMaxQueries > 0 {
 		cfg.ClickHouse.RenderMaxConcurrent = 0
 	}
-
-	if err := clickhouseUrlValidate(cfg.ClickHouse.URL); err != nil {
-		return nil, err
+	chURL, err := clickhouseURLValidate(cfg.ClickHouse.URL)
+	if err != nil {
+		return nil, nil, err
 	}
 
+	if !reflect.DeepEqual(cfg.ClickHouse.TLSParams, config.TLS{}) {
+		tlsConfig, warnings, err := config.ParseClientTLSConfig(&cfg.ClickHouse.TLSParams)
+		if err != nil {
+			return nil, nil, err
+		}
+		if chURL.Scheme == "https" {
+			cfg.ClickHouse.TLSConfig = tlsConfig
+		} else {
+			warnings = append(warnings, "TLS configurations is ignored because scheme is not HTTPS")
+		}
+		warns = append(warns, zap.Strings("tls-config", warnings))
+	}
 	for i := range cfg.ClickHouse.QueryParams {
 		if cfg.ClickHouse.QueryParams[i].MaxConcurrent > cfg.ClickHouse.QueryParams[i].MaxQueries && cfg.ClickHouse.QueryParams[i].MaxQueries > 0 {
 			cfg.ClickHouse.QueryParams[i].MaxConcurrent = 0
 		}
 
 		if cfg.ClickHouse.QueryParams[i].Duration == 0 {
-			return nil, fmt.Errorf("query duration param not set for: %+v", cfg.ClickHouse.QueryParams[i])
+			return nil, nil, fmt.Errorf("query duration param not set for: %+v", cfg.ClickHouse.QueryParams[i])
 		}
 		if cfg.ClickHouse.QueryParams[i].DataTimeout == 0 {
 			cfg.ClickHouse.QueryParams[i].DataTimeout = cfg.ClickHouse.DataTimeout
@@ -481,8 +500,8 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 			// reuse default url
 			cfg.ClickHouse.QueryParams[i].URL = cfg.ClickHouse.URL
 		}
-		if err := clickhouseUrlValidate(cfg.ClickHouse.QueryParams[i].URL); err != nil {
-			return nil, err
+		if _, err = clickhouseURLValidate(cfg.ClickHouse.QueryParams[i].URL); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -502,8 +521,8 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		cfg.Logging = append(cfg.Logging, newLoggingConfig())
 	}
 
-	if err := zapwriter.CheckConfig(cfg.Logging, nil); err != nil {
-		return nil, err
+	if err = zapwriter.CheckConfig(cfg.Logging, nil); err != nil {
+		return nil, nil, err
 	}
 
 	// Check if debug directory exists or could be created
@@ -512,35 +531,28 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(cfg.Debug.Directory, os.ModeDir|cfg.Debug.DirectoryPerm)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else if !info.IsDir() {
-			return nil, fmt.Errorf("the file for external data debug dumps exists and is not a directory: %v", cfg.Debug.Directory)
+			return nil, nil, fmt.Errorf("the file for external data debug dumps exists and is not a directory: %v", cfg.Debug.Directory)
 		}
 	}
 
 	if _, ok := IndexReverse[cfg.ClickHouse.IndexReverse]; !ok {
-		return nil, fmt.Errorf("%s is not valid value for index-reverse", cfg.ClickHouse.IndexReverse)
+		return nil, nil, fmt.Errorf("%s is not valid value for index-reverse", cfg.ClickHouse.IndexReverse)
 	}
 
 	err = cfg.ClickHouse.IndexReverses.Compile()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if cfg.Common.FindCache, err = CreateCache("index", &cfg.Common.FindCacheConfig); err == nil {
 		if cfg.Common.FindCacheConfig.Type != "null" {
-			if !noLog {
-				localManager, err := zapwriter.NewManager(cfg.Logging)
-				if err != nil {
-					return nil, err
-				}
-				logger := localManager.Logger("config")
-				logger.Info("enable find cache", zap.String("type", cfg.Common.FindCacheConfig.Type))
-			}
+			warns = append(warns, zap.Any("enable find cache", zap.String("type", cfg.Common.FindCacheConfig.Type)))
 		}
 	} else {
-		return nil, err
+		return nil, nil, err
 	}
 
 	l := len(cfg.Common.TargetBlacklist)
@@ -549,7 +561,7 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		for i := 0; i < l; i++ {
 			r, err := regexp.Compile(cfg.Common.TargetBlacklist[i])
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			cfg.Common.Blacklist[i] = r
 		}
@@ -557,7 +569,7 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 
 	err = cfg.ProcessDataTables()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// compute prometheus external url
@@ -565,34 +577,27 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 	if rawURL == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		_, port, err := net.SplitHostPort(cfg.Common.Listen)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		rawURL = fmt.Sprintf("http://%s:%s/", hostname, port)
 	}
 	cfg.Prometheus.ExternalURL, err = url.Parse(rawURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cfg.Prometheus.ExternalURL.Path = strings.TrimRight(cfg.Prometheus.ExternalURL.Path, "/")
 
 	checkDeprecations(cfg, deprecations)
 	if len(deprecations) != 0 {
-		localManager, err := zapwriter.NewManager(cfg.Logging)
-		if err != nil {
-			return nil, err
-		}
-		logger := localManager.Logger("config deprecation")
+		deprecationList := make([]error, len(deprecations))
 		for name, message := range deprecations {
-			if noLog {
-				fmt.Fprintf(os.Stderr, "config deprecation %s: %s\n", name, message)
-			} else {
-				logger.Error(name, zap.Error(message))
-			}
+			deprecationList = append(deprecationList, errors.Wrap(message, name))
 		}
+		warns = append(warns, zap.Errors("config deprecations", deprecationList))
 	}
 
 	switch strings.ToLower(cfg.ClickHouse.DateFormat) {
@@ -602,7 +607,7 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		date.SetBoth()
 	default:
 		if cfg.ClickHouse.DateFormat != "" && cfg.ClickHouse.DateFormat != "default" {
-			return nil, fmt.Errorf("unsupported date-format: %s", cfg.ClickHouse.DateFormat)
+			return nil, nil, fmt.Errorf("unsupported date-format: %s", cfg.ClickHouse.DateFormat)
 		}
 	}
 
@@ -628,7 +633,7 @@ func Unmarshal(body []byte, noLog bool) (*Config, error) {
 		cfg.ClickHouse.UserLimits[u] = q
 	}
 
-	return cfg, nil
+	return cfg, warns, nil
 }
 
 // ProcessDataTables checks if legacy `data`-table config is used, compiles regexps for `target-match-any` and `target-match-all`
@@ -670,7 +675,14 @@ func (c *Config) ProcessDataTables() (err error) {
 				interval = *c.DataTable[i].RollupAutoInterval
 			}
 
-			c.DataTable[i].Rollup, err = rollup.NewAuto(c.ClickHouse.URL, table, interval, rdp, rdf)
+			c.DataTable[i].Rollup, err = rollup.NewAuto(
+				c.ClickHouse.URL,
+				c.ClickHouse.TLSConfig,
+				table,
+				interval,
+				rdp,
+				rdf,
+			)
 		} else if c.DataTable[i].RollupConf == "none" {
 			c.DataTable[i].Rollup, err = rollup.NewDefault(rdp, rdf)
 		} else {
@@ -737,7 +749,11 @@ func CreateCache(cacheName string, cacheConfig *CacheConfig) (cache.BytesCache, 
 		// defaults
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("%s: unknown cache type '%s', known_cache_types 'null', 'mem', 'memcache'", cacheName, cacheConfig.Type)
+		return nil, fmt.Errorf(
+			"%s: unknown cache type '%s', known_cache_types 'null', 'mem', 'memcache'",
+			cacheName,
+			cacheConfig.Type,
+		)
 	}
 }
 

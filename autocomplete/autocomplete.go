@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/go-graphite/carbonapi/pkg/parser"
+	"github.com/msaf1980/go-stringutils"
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -20,8 +23,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
-	"github.com/msaf1980/go-stringutils"
-	"go.uber.org/zap"
 )
 
 // override in unit tests for stable results
@@ -330,6 +331,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			h.config.ClickHouse.URL,
 			sql,
 			clickhouse.Options{
+				TLSConfig:      h.config.ClickHouse.TLSConfig,
 				Timeout:        h.config.ClickHouse.IndexTimeout,
 				ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 			},
@@ -574,6 +576,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			h.config.ClickHouse.URL,
 			sql,
 			clickhouse.Options{
+				TLSConfig:      h.config.ClickHouse.TLSConfig,
 				Timeout:        h.config.ClickHouse.IndexTimeout,
 				ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
 			},

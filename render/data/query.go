@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
@@ -50,8 +51,8 @@ const extTableName = "metrics_list"
 
 type query struct {
 	CHResponses
-	cStep *commonStep
-
+	cStep         *commonStep
+	chTLSConfig   *tls.Config
 	chQueryParams []config.QueryParam
 
 	chConnectTimeout time.Duration
@@ -106,6 +107,7 @@ func newQuery(cfg *config.Config, targets int) *query {
 		cStep:            cStep,
 		chQueryParams:    cfg.ClickHouse.QueryParams,
 		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+		chTLSConfig:      cfg.ClickHouse.TLSConfig,
 		debugDir:         cfg.Debug.Directory,
 		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
 		lock:             sync.RWMutex{},
@@ -169,6 +171,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 				clickhouse.Options{
 					Timeout:        chDataTimeout,
 					ConnectTimeout: q.chConnectTimeout,
+					TLSConfig:      q.chTLSConfig,
 				},
 				extData,
 			)

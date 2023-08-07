@@ -12,11 +12,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/lomik/zapwriter"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/RowBinary"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
-	"github.com/lomik/zapwriter"
 )
 
 const SelectChunksCount = 10
@@ -42,12 +43,10 @@ func countMetrics(body []byte) (int, error) {
 		offset += readBytes + int(namelen)
 		count++
 	}
-
-	return 0, nil
 }
 
 func pathLevel(path []byte) int {
-	if path == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return 0
 	}
 
@@ -63,6 +62,11 @@ func Make(cfg *config.Config) error {
 	var block string
 
 	logger := zapwriter.Logger("tagger")
+	chOpts := clickhouse.Options{
+		TLSConfig:      cfg.ClickHouse.TLSConfig,
+		Timeout:        cfg.ClickHouse.IndexTimeout,
+		ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+	}
 
 	begin := func(b string) {
 		block = b
@@ -124,10 +128,7 @@ func Make(cfg *config.Config) error {
 					i,
 					extraWhere,
 				),
-				clickhouse.Options{
-					Timeout:        cfg.ClickHouse.IndexTimeout,
-					ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
-				},
+				chOpts,
 				nil,
 			)
 			if err != nil {
@@ -349,10 +350,7 @@ func Make(cfg *config.Config) error {
 			cfg.ClickHouse.URL,
 			fmt.Sprintf("INSERT INTO %s (Date,Version,Level,Path,IsLeaf,Tags,Tag1) FORMAT RowBinary", cfg.ClickHouse.TagTable),
 			outBuf,
-			clickhouse.Options{
-				Timeout:        cfg.ClickHouse.IndexTimeout,
-				ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
-			},
+			chOpts,
 			nil,
 		)
 		if err != nil {
