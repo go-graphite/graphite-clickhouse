@@ -437,6 +437,12 @@ func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) 
 			date.FromTimestampToDaysFormat(from),
 			date.UntilTimestampToDaysFormat(until),
 		)
+	} else {
+
+		w.Andf(
+			"Date >='%s'",
+			date.FromTimestampToDaysFormat(from),
+		)
 	}
 	return w, pw, nil
 }

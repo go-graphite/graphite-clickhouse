@@ -293,8 +293,9 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 			from:         1668106860, // 2022-11-11 00:01:00 +05:00
 			until:        1668106870, // 2022-11-11 00:01:10 +05:00
 			dailyEnabled: false,
-			want:         "Tag1='__name__=metric'",
-			wantPre:      "",
+			want: "(Tag1='__name__=metric') AND (Date >='" +
+				date.FromTimestampToDaysFormat(1668106860) + "')",
+			wantPre: "",
 		},
 		{
 			name:         "midnight at utc (direct)",
