@@ -1,7 +1,6 @@
 package sd
 
 import (
-	"context"
 	"os"
 	"strings"
 	"time"
@@ -14,8 +13,10 @@ import (
 )
 
 var (
-	ctxMain, Stop = context.WithCancel(context.Background())
-	delay         = time.Second * 10
+	// ctxMain, Stop               = context.WithCancel(context.Background())
+	stop     chan struct{} = make(chan struct{}, 1)
+	delay                  = time.Second * 10
+	hostname string
 )
 
 type SD interface {
@@ -34,7 +35,6 @@ func Register(cfg *config.Config, logger *zap.Logger) {
 		listenIP      string
 		prevIP        string
 		registerFirst bool
-		hostname      string
 		sd            SD
 		err           error
 		load          float64
@@ -59,11 +59,14 @@ func Register(cfg *config.Config, logger *zap.Logger) {
 		if err == nil {
 			load_avg.Store(load)
 		}
+
+		logger.Info("init sd",
+			zap.String("hostname", hostname),
+		)
+
 		w = load_avg.Weight(cfg.Common.BaseWeight, load)
 		sd.Update(listenIP, cfg.Common.Listen, cfg.Common.SDDc, w)
 		sd.Clear(listenIP, cfg.Common.Listen)
-
-		defer sd.Clear("", "")
 	}
 LOOP:
 	for {
@@ -90,8 +93,25 @@ LOOP:
 		select {
 		case <-t:
 			continue
-		case <-ctxMain.Done():
+		case <-stop:
 			break LOOP
 		}
 	}
+
+	if sd != nil {
+		if err := sd.Clear("", ""); err == nil {
+			logger.Info("cleanup sd",
+				zap.String("hostname", hostname),
+			)
+		} else {
+			logger.Warn("cleanup sd",
+				zap.String("hostname", hostname),
+				zap.Error(err),
+			)
+		}
+	}
+}
+
+func Stop() {
+	stop <- struct{}{}
 }

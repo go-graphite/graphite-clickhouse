@@ -14,12 +14,21 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	json          = jsoniter.ConfigCompatibleWithStandardLibrary
-	ErrNoKey      = errors.New("list key no found")
-	ErrInvalidKey = errors.New("list key is invalid")
+type ErrInvalidKey struct {
+	val string
+}
 
-	timeNow = time.Now
+func (e ErrInvalidKey) Error() string {
+	if e.val == "" {
+		return "list key is invalid"
+	}
+	return "list key is invalid: '" + e.val + "'"
+}
+
+var (
+	json     = jsoniter.ConfigCompatibleWithStandardLibrary
+	ErrNoKey = errors.New("list key no found")
+	timeNow  = time.Now
 )
 
 func splitNode(node string) (dc, host, listen string, ok bool) {
@@ -106,7 +115,7 @@ func (sd *Nginx) List() (nodes []string, err error) {
 							nodes = append(nodes, s)
 						}
 					} else {
-						return nil, ErrInvalidKey
+						return nil, ErrInvalidKey{s}
 					}
 				} else {
 					return nil, ErrNoKey
@@ -157,7 +166,7 @@ func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 							}
 						}
 					} else {
-						return nil, ErrInvalidKey
+						return nil, ErrInvalidKey{s}
 					}
 				} else {
 					return nil, ErrNoKey
@@ -213,7 +222,7 @@ func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 						}
 						nodes = append(nodes, kv)
 					} else {
-						return nil, ErrInvalidKey
+						return nil, ErrInvalidKey{s}
 					}
 				} else {
 					return nil, ErrNoKey
