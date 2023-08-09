@@ -64,7 +64,7 @@ gox-build:
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
 	./out/$(NAME)-$(OS)-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
-	install -D --mode=0644 --owner=root --group=root \
+	install -D --mode=0644 \
 		deploy/root/etc/logrotate.d/graphite-clickhouse \
 		out/root/etc/logrotate.d/graphite-clickhouse
 
