@@ -67,6 +67,7 @@ gox-build:
 	install -D --mode=0644 --owner=root --group=root \
 		deploy/root/etc/logrotate.d/graphite-clickhouse \
 		out/root/etc/logrotate.d/graphite-clickhouse
+
 fpm-deb:
 	$(MAKE) fpm-build-deb ARCH=amd64
 	$(MAKE) fpm-build-deb ARCH=arm64
