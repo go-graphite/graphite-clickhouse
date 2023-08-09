@@ -42,6 +42,11 @@ jobs:
     - name: Build project
       run: make
 
+    - name: Validate default configs
+      run: |
+        ./graphite-clickhouse -config-print-default > /tmp/graphite-clickhouse.conf
+        ./graphite-clickhouse -config /tmp/graphite-clickhouse.conf -check-config
+
     - name: Check documentation consistency
       run: |
         make config

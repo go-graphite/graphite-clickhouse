@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -17,7 +20,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
-	"go.uber.org/zap"
 )
 
 // from, until, step, function, table, prewhere, where
@@ -49,8 +51,8 @@ const extTableName = "metrics_list"
 
 type query struct {
 	CHResponses
-	cStep *commonStep
-
+	cStep         *commonStep
+	chTLSConfig   *tls.Config
 	chQueryParams []config.QueryParam
 
 	chConnectTimeout time.Duration
@@ -77,6 +79,8 @@ type conditions struct {
 	prewhere string
 	// where contains WHERE condition
 	where string
+	// show list of NaN values instead of empty results
+	appendEmptySeries bool
 	// metricUnreversed grouped by aggregating function
 	aggregations map[string][]string
 	// External-data bodies grouped by aggregatig function. For non-aggregated requests "" used as a key
@@ -103,6 +107,7 @@ func newQuery(cfg *config.Config, targets int) *query {
 		cStep:            cStep,
 		chQueryParams:    cfg.ClickHouse.QueryParams,
 		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+		chTLSConfig:      cfg.ClickHouse.TLSConfig,
 		debugDir:         cfg.Debug.Directory,
 		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
 		lock:             sync.RWMutex{},
@@ -166,6 +171,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 				clickhouse.Options{
 					Timeout:        chDataTimeout,
 					ConnectTimeout: q.chConnectTimeout,
+					TLSConfig:      q.chTLSConfig,
 				},
 				extData,
 			)
@@ -213,7 +219,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 
 		data.Points.Uniq()
 		rollupStart := time.Now()
-		err = cond.rollupRules.RollupPoints(data.Points, cond.From, data.commonStep)
+		err = cond.rollupRules.RollupPoints(data.Points, cond.From, data.CommonStep)
 		if err != nil {
 			logger.Error("rollup failed", zap.Error(err))
 			return err
@@ -229,9 +235,10 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 	data.AM = cond.AM
 
 	q.appendReply(CHResponse{
-		Data:  data.Data,
-		From:  cond.From,
-		Until: cond.Until,
+		Data:                 data.Data,
+		From:                 cond.From,
+		Until:                cond.Until,
+		AppendOutEmptySeries: cond.appendEmptySeries,
 	})
 	return nil
 }

@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/storage"
+
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
-	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
 )
 
 // Querier provides reading access to time series data.
@@ -49,6 +50,7 @@ func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]stri
 		q.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
+			TLSConfig:      q.config.ClickHouse.TLSConfig,
 			Timeout:        q.config.ClickHouse.IndexTimeout,
 			ConnectTimeout: q.config.ClickHouse.ConnectTimeout,
 		},
@@ -85,6 +87,7 @@ func (q *Querier) LabelNames(matchers ...*labels.Matcher) ([]string, storage.War
 		clickhouse.Options{
 			Timeout:        q.config.ClickHouse.IndexTimeout,
 			ConnectTimeout: q.config.ClickHouse.ConnectTimeout,
+			TLSConfig:      q.config.ClickHouse.TLSConfig,
 		},
 		nil,
 	)

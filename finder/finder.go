@@ -30,6 +30,7 @@ type Finder interface {
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64, useCache bool) Finder {
 	opts := clickhouse.Options{
+		TLSConfig:      config.ClickHouse.TLSConfig,
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 	}
@@ -53,10 +54,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 			config.ClickHouse.IndexUseDaily,
 			config.ClickHouse.IndexReverse,
 			config.ClickHouse.IndexReverses,
-			clickhouse.Options{
-				Timeout:        config.ClickHouse.IndexTimeout,
-				ConnectTimeout: config.ClickHouse.ConnectTimeout,
-			},
+			opts,
 			useCache,
 		)
 	} else {
@@ -108,6 +106,7 @@ func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, 
 	opts := clickhouse.Options{
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
+		TLSConfig:      config.ClickHouse.TLSConfig,
 	}
 
 	useCache := config.Common.FindCache != nil

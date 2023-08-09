@@ -182,6 +182,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  max-metrics-in-find-answer = 0
  # limit numbers of queried metrics per target in /render requests, 0 or negative = unlimited
  max-metrics-per-target = 15000
+ # if true, always return points for all metrics, replacing empty results with list of NaN
+ append-empty-series = false
  # daemon returns empty response if query matches any of regular expressions
  # target-blacklist = []
  # daemon will return the freed memory to the OS when it>0
@@ -213,6 +215,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  metric-endpoint = ""
  # statsd server address
  statsd-endpoint = ""
+ # Extended metrics
+ extended-stat = false
  # graphite metrics send interval
  metric-interval = "0s"
  # graphite metrics send timeout
@@ -229,8 +233,6 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
 
  # Additional separate stats for until-from find ranges
  [metrics.find-ranges]
- # Extended metrics
- extended-stat = false
 
 [clickhouse]
  # default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params
@@ -311,6 +313,17 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  max-data-points = 1048576
  # ClickHouse-side aggregation, see doc/aggregation.md
  internal-aggregation = true
+
+ # mTLS HTTPS configuration for connecting to clickhouse server
+ # [clickhouse.tls]
+  # ca-cert = []
+  # client-auth = ""
+  # server-name = ""
+  # min-version = ""
+  # max-version = ""
+  # insecure-skip-verify = false
+  # curves = []
+  # cipher-suites = []
 
 [[data-table]]
  # data table from carbon-clickhouse

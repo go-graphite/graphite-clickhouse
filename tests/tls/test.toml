@@ -1,0 +1,515 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "21.3"
+tls = true
+dir = "tests/clickhouse/rollup_tls"
+
+[[test.clickhouse]]
+version = "22.8"
+tls = true
+dir = "tests/clickhouse/rollup_tls"
+
+[[test.clickhouse]]
+version = "latest"
+tls = true
+dir = "tests/clickhouse/rollup_tls"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+[[test.input]]
+name = "test.plain1"
+points = [{value = 3.0, time = "rnow-30"}, {value = 0.0, time = "rnow-20"}, {value = 1.0, time = "rnow-10"}, {value = 2.0, time = "rnow"}]
+
+[[test.input]]
+name = "test.plain2"
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 1.5, time = "rnow-10"}, {value = 2.5, time = "rnow"}]
+
+[[test.input]]
+name = "test2.plain"
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 2.5, time = "rnow-10"}, {value = 3.5, time = "rnow"}]
+
+[[test.input]]
+name = "metric1;tag1=value1;tag2=value21;tag3=value3"
+points = [{value = 2.0, time = "rnow-30"}, {value = 2.5, time = "rnow-20"}, {value = 2.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
+
+[[test.input]]
+name = "metric1;tag2=value22;tag4=value4"
+points = [{value = 1.0, time = "rnow-30"}, {value = 2.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
+
+[[test.input]]
+name = "metric1;tag1=value1;tag2=value23;tag3=value3"
+points = [{value = 0.5, time = "rnow-30"}, {value = 1.5, time = "rnow-20"}, {value = 4.0, time = "rnow-10"}, {value = 3.0, time = "rnow"}]
+
+[[test.input]]
+name = "metric2;tag2=value21;tag4=value4"
+points = [{value = 2.0, time = "rnow-30"}, {value = 1.0, time = "rnow-20"}, {value = 0.0, time = "rnow-10"}, {value = 1.0, time = "rnow"}]
+
+[[test.input]]
+name = "test_metric;minus=-;plus=+;percent=%;underscore=_;colon=:;hash=#;forward=/;host=127.0.0.1"
+points = [{value = 2.1, time = "rnow-30"}, {value = 0.1, time = "rnow-20"}, {value = 0.2, time = "rnow-10"}, {value = 1.5, time = "rnow"}]
+
+######################################
+# Check metrics find
+
+[[test.find_checks]]
+formats = [ "pickle", "protobuf", "carbonapi_v3_pb" ]
+query = "test"
+result = [ 
+    { path = "test", is_leaf = false }
+]
+
+[[test.find_checks]]
+formats = [ "pickle", "protobuf", "carbonapi_v3_pb" ]
+query = "test.pl*"
+result = [
+    { path = "test.plain1", is_leaf = true }, { path = "test.plain2", is_leaf = true }
+]
+
+# End - Check metrics find
+######################################
+# Check tags autocomplete
+
+[[test.tags_checks]]
+query = "tag1;tag2=value21"
+result = [
+    "value1"
+]
+
+[[test.tags_checks]]
+query = "name;tag2=value21;tag1=~value"
+result = [
+    "metric1",
+]
+
+[[test.tags_checks]]
+query = "colon;percent=%"
+result = [
+    ":",
+]
+
+# End - Check tags autocomplete
+##########################################################################
+# Plain metrics (carbonapi_v3_pb)
+
+# test.plain1
+# test.plain2
+# test2.plain
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow"
+targets = [ 
+    "test.plain*",
+    "test{1,2}.plain"
+]
+
+[[test.render_checks.result]]
+name = "test.plain1"
+path = "test.plain*"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, 2.0]
+
+[[test.render_checks.result]]
+name = "test.plain2"
+path = "test.plain*"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.5, 2.5]
+
+[[test.render_checks.result]]
+name = "test2.plain"
+path = "test{1,2}.plain"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [2.5, 3.5]
+
+# End - Plain metrics (carbonapi_v3_pb)
+##########################################################################
+# Plain metrics (carbonapi_v2_pb)
+
+[[test.render_checks]]
+formats = [ "protobuf", "carbonapi_v2_pb" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "test.plain*",
+    "test{1,2}.plain"
+]
+
+[[test.render_checks.result]]
+name = "test.plain1"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [1.0, 2.0]
+
+[[test.render_checks.result]]
+name = "test.plain2"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [1.5, 2.5]
+
+[[test.render_checks.result]]
+name = "test2.plain"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [2.5, 3.5]
+
+# End - Plain metrics (carbonapi_v2_pb)
+##########################################################################
+# Plain metrics (pickle)
+
+[[test.render_checks]]
+formats = [ "pickle" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "test.plain*",
+    "test{1,2}.plain"
+]
+
+[[test.render_checks.result]]
+name = "test.plain1"
+path = "test.plain*"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [1.0, 2.0]
+
+[[test.render_checks.result]]
+name = "test.plain2"
+path = "test.plain*"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [1.5, 2.5]
+
+[[test.render_checks.result]]
+name = "test2.plain"
+path = "test{1,2}.plain"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [2.5, 3.5]
+
+# End - Plain metrics (pickle)
+##########################################################################
+# Taged metrics (carbonapi_v3_pb)
+
+# metric1;tag1=value1;tag2=value21;tag3=value3
+# metric1;tag2=value22;tag4=value4
+# metric1;tag1=value1;tag2=value23;tag3=value3
+# metric2;tag2=value21;tag4=value4
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
+    "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
+]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value21;tag3=value3"
+path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [2.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value23;tag3=value3"
+path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [4.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric2;tag2=value21;tag4=value4"
+path = "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [0.0, 1.0]
+
+# End - Tagged metrics (carbonapi_v3_pb)
+##########################################################################
+# Tagged metrics (carbonapi_v2_pb)
+
+[[test.render_checks]]
+formats = [ "protobuf", "carbonapi_v2_pb" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
+    "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
+]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value21;tag3=value3"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [2.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value23;tag3=value3"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [4.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric2;tag2=value21;tag4=value4"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [0.0, 1.0]
+
+# End - Tagged metrics (carbonapi_v2_pb)
+##########################################################################
+# Tagged metrics (pickle)
+
+[[test.render_checks]]
+formats = [ "pickle" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')",
+    "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
+]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value21;tag3=value3"
+path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [2.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric1;tag1=value1;tag2=value23;tag3=value3"
+path = "seriesByTag('name=metric1', 'tag2=~value', 'tag3=value*')"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [4.0, 3.0]
+
+[[test.render_checks.result]]
+name = "metric2;tag2=value21;tag4=value4"
+path = "seriesByTag('name=metric2', 'tag2=~value', 'tag4=value4')"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [0.0, 1.0]
+
+# End - Tagged metrics (pickle)
+##########################################################################
+# Unescape
+
+[[test.render_checks]]
+formats = [ "protobuf", "carbonapi_v2_pb" ]
+from = "rnow-10"
+until = "rnow+1"
+targets = [ 
+    "seriesByTag('percent=%')",
+]
+
+[[test.render_checks.result]]
+name = "test_metric;colon=:;forward=/;hash=#;host=127.0.0.1;minus=-;percent=%;plus=+;underscore=_"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+values = [0.2, 1.5]
+
+# End - Tagged metrics (pickle)
+##########################################################################
+# Midnight
+
+# points for check https://github.com/go-graphite/graphite-clickhouse/issues/184
+[[test.input]]
+name = "test.midnight"
+points = [{value = 3.0, time = "midnight+60s"}]
+
+[[test.input]]
+name = "now;scope=midnight"
+points = [{value = 4.0, time = "midnight+60s"}]
+
+[[test.find_checks]]
+name = "Midnight (direct)"
+query = "test.midnight*"
+result = [{ path = "test.midnight", is_leaf = true }]
+
+[[test.find_checks]]
+name = "Midnight"
+query = "test.midnight"
+from = "midnight+60s"
+until = "midnight+70s"
+result = [{ path = "test.midnight", is_leaf = true }]
+
+[[test.find_checks]]
+name = "Midnight (reverse)"
+query = "*test.midnight"
+result = [{ path = "test.midnight", is_leaf = true }]
+
+[[test.find_checks]]
+name = "Midnight"
+query = "test.midnight"
+from = "midnight+60s"
+until = "midnight+70s"
+result = [{ path = "test.midnight", is_leaf = true }]
+
+[[test.tags_checks]]
+name = "Midnight"
+query = "name;scope=midnight"
+result = [
+    "now",
+]
+
+[[test.render_checks]]
+name = "Midnight (direct)"
+formats = [ "protobuf" ]
+from = "midnight+60s"
+until = "midnight+70s"
+targets = [ 
+    "test.midnight*",
+ ]
+
+[[test.render_checks.result]]
+name = "test.midnight"
+start = "midnight+60s"
+stop = "midnight+80s"
+step = 10
+values = [3.0, nan]
+
+[[test.render_checks]]
+name = "Midnight (reverse)"
+formats = [ "protobuf" ]
+from = "midnight+60s"
+until = "midnight+70s"
+targets = [ 
+    "*test.midnight",
+ ]
+
+[[test.render_checks.result]]
+name = "test.midnight"
+start = "midnight+60s"
+stop = "midnight+80s"
+step = 10
+values = [3.0, nan]
+
+[[test.render_checks]]
+name = "Midnight"
+formats = [ "protobuf" ]
+from = "midnight+60s"
+until = "midnight+70s"
+targets = [ 
+    "seriesByTag('name=now', 'scope=midnight')",
+ ]
+
+[[test.render_checks.result]]
+name = "now;scope=midnight"
+start = "midnight+60s"
+stop = "midnight+80s"
+step = 10
+values = [4.0, nan]
+
+# End - Midnight
+##########################################################################
+# Day end
+
+# points for check https://github.com/go-graphite/graphite-clickhouse/issues/184
+[[test.input]]
+name = "test.23h"
+points = [{value = 3.0, time = "midnight+1380m"}]
+
+[[test.input]]
+name = "now;scope=23h"
+points = [{value = 4.0, time = "midnight+1380m"}]
+
+[[test.find_checks]]
+name = "Day end"
+query = "test.23h"
+from = "midnight+1380m"
+until = "midnight+1381m"
+result = [{ path = "test.23h", is_leaf = true }]
+
+[[test.find_checks]]
+name = "Day end"
+query = "test.23h"
+from = "midnight+1380m"
+until = "midnight+1381m"
+result = [{ path = "test.23h", is_leaf = true }]
+
+[[test.tags_checks]]
+name = "Day end"
+query = "name;scope=23h"
+result = [
+    "now",
+]
+
+[[test.render_checks]]
+name = "Day end"
+formats = [ "protobuf" ]
+from = "midnight+1380m"
+until = "midnight+1380m+10s"
+targets = [ 
+    "test.23h",
+ ]
+
+[[test.render_checks.result]]
+name = "test.23h"
+start = "midnight+1380m"
+stop = "midnight+1380m+20s"
+step = 10
+values = [3.0, nan]
+
+[[test.render_checks]]
+name = "Day end"
+formats = [ "protobuf" ]
+from = "midnight+1380m"
+until = "midnight+1380m+10s"
+targets = [ 
+    "seriesByTag('name=now', 'scope=23h')",
+ ]
+
+[[test.render_checks.result]]
+name = "now;scope=23h"
+start = "midnight+1380m"
+stop = "midnight+1380m+20s"
+step = 10
+values = [4.0, nan]
+
+# End - Day end
+##########################################################################

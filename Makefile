@@ -15,6 +15,8 @@ else
 VERSION:=$(shell sh -c 'git describe --always --tags | sed -e "s/^v//i"')
 endif
 
+OS ?= linux
+
 SRCS:=$(shell find . -name '*.go')
 
 all: $(NAME)
@@ -58,14 +60,13 @@ client: $(NAME)
 gox-build:
 	rm -rf out
 	mkdir -p out
-	gox -ldflags '-X main.BuildVersion=$(VERSION)' -os="linux" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
+	gox -ldflags '-X main.BuildVersion=$(VERSION)' -os="$(OS)" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
-	./out/$(NAME)-linux-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
+	./out/$(NAME)-$(OS)-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
 	install -D --mode=0644 --owner=root --group=root \
 		deploy/root/etc/logrotate.d/graphite-clickhouse \
 		out/root/etc/logrotate.d/graphite-clickhouse
-
 fpm-deb:
 	$(MAKE) fpm-build-deb ARCH=amd64
 	$(MAKE) fpm-build-deb ARCH=arm64

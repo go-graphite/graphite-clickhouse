@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<yandex>
+  <logger>
+    <level>debug</level>
+    <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+    <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+    <size>2000M</size>
+    <count>20</count>
+  </logger>
+  <!-- http  port and tcp port are left open because they are required for checking if 
+  clickhouse is still running -->
+  <http_port>8123</http_port>
+  <tcp_port>9000</tcp_port>
+  <https_port>8443</https_port>
+  <tcp_port_secure>9440</tcp_port_secure>
+  <openSSL>
+    <server>
+      <verificationMode>none</verificationMode>
+      <loadDefaultCAFile>false</loadDefaultCAFile>
+      <caConfig>/etc/clickhouse-server/rootCA.crt</caConfig>
+      <certificateFile>/etc/clickhouse-server/server.crt</certificateFile>
+      <privateKeyFile>/etc/clickhouse-server/server.key</privateKeyFile>
+      <cacheSessions>true</cacheSessions>
+      <!-- <disableProtocols>sslv2,sslv3</disableProtocols> -->
+      <preferServerCiphers>true</preferServerCiphers>
+    </server>
+    <client>
+      <caConfig>/etc/clickhouse-server/rootCA.crt</caConfig>
+    </client>
+  </openSSL>
+
+  <!-- Port for communication between replicas. Used for data exchange. -->
+  <interserver_http_port>9009</interserver_http_port>
+
+  <interserver_http_host>test-clickhouse-s1</interserver_http_host>
+
+
+  <!-- Listen specified host. use :: (wildcard IPv6 address), if you want to accept connections both
+  with IPv4 and IPv6 from everywhere. -->
+  <!-- <listen_host>::</listen_host> -->
+  <!-- <listen_host>::1</listen_host> -->
+  <listen_host>0.0.0.0</listen_host>
+
+
+  <uncompressed_cache_size>1073741824</uncompressed_cache_size>
+
+  <!-- Approximate size of mark cache, used in tables of MergeTree family.
+         In bytes. Cache is single for server. Memory is allocated only on demand.
+         You should not lower this value.
+      -->
+  <mark_cache_size>1073741824</mark_cache_size>
+
+  <!-- Path to data directory, with trailing slash. -->
+  <path>/var/lib/clickhouse/</path>
+
+  <!-- Path to temporary data for processing hard queries. -->
+  <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+
+  <!-- Path to configuration file with users, access rights, profiles of settings, quotas. -->
+  <users_config>users.xml</users_config>
+
+  <!-- Default profile of settings.. -->
+  <default_profile>default</default_profile>
+
+  <!-- Default database. -->
+  <default_database>default</default_database>
+
+  <!-- Query log. Used only for queries with setting log_queries = 1. -->
+  <query_log>
+    <!-- What table to insert data. If table is not exist, it will be created.
+             When query log structure is changed after system update,
+              then old table will be renamed and new table will be created automatically.
+        -->
+    <database>system</database>
+    <table>query_log</table>
+
+    <!-- Interval of flushing data. -->
+    <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+  </query_log>
+
+
+  <!-- Uncomment if use part_log -->
+  <part_log>
+    <database>system</database>
+    <table>part_log</table>
+
+    <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+  </part_log>
+  <!-- -->
+
+</yandex>

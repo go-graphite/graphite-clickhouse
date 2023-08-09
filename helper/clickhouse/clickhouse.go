@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -127,6 +128,7 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 }
 
 type Options struct {
+	TLSConfig      *tls.Config
 	Timeout        time.Duration
 	ConnectTimeout time.Duration
 }
@@ -273,6 +275,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 			Dial: (&net.Dialer{
 				Timeout: opts.ConnectTimeout,
 			}).Dial,
+			TLSClientConfig:   opts.TLSConfig,
 			DisableKeepAlives: true,
 		},
 	}

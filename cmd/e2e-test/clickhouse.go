@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/msaf1980/go-stringutils"
 )
@@ -20,16 +19,19 @@ var ClickhouseOldImage = "yandex/clickhouse-server"
 var ClickhouseDefaultImage = "clickhouse/clickhouse-server"
 
 type Clickhouse struct {
-	Version string `toml:"version"`
-	Dir     string `toml:"dir"`
+	Version    string `toml:"version"`
+	Dir        string `toml:"dir"`
+	TLSEnabled bool   `toml:"tls"`
 
 	DockerImage string `toml:"image"`
 
 	TZ string `toml:"tz"` // override timezone
 
-	httpAddress string `toml:"-"`
-	url         string `toml:"-"`
-	container   string `toml:"-"`
+	httpAddress  string `toml:"-"`
+	httpsAddress string `toml:"-"`
+	url          string `toml:"-"`
+	tlsurl       string `toml:"-"`
+	container    string `toml:"-"`
 }
 
 func (c *Clickhouse) CheckConfig(rootDir string) error {
@@ -71,6 +73,7 @@ func (c *Clickhouse) Start() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	port := strings.Split(c.httpAddress, ":")[1]
 	c.url = "http://" + c.httpAddress
 
 	c.container = ClickhouseContainerName
@@ -80,12 +83,27 @@ func (c *Clickhouse) Start() (string, error) {
 	chStart := []string{"run", "-d",
 		"--name", c.container,
 		"--ulimit", "nofile=262144:262144",
-		"-p", c.httpAddress + ":8123",
+		"-p", port + ":8123",
 		// "-e", "TZ=" + tz, // workaround for TZ=":/etc/localtime"
 		"-v", c.Dir + "/config.xml:/etc/clickhouse-server/config.xml",
 		"-v", c.Dir + "/users.xml:/etc/clickhouse-server/users.xml",
 		"-v", c.Dir + "/rollup.xml:/etc/clickhouse-server/config.d/rollup.xml",
 		"-v", c.Dir + "/init.sql:/docker-entrypoint-initdb.d/init.sql",
+		"--network", DockerNetwork,
+	}
+	if c.TLSEnabled {
+		c.httpsAddress, err = getFreeTCPPort("")
+		if err != nil {
+			return "", err
+		}
+		port = strings.Split(c.httpsAddress, ":")[1]
+		c.tlsurl = "https://" + c.httpsAddress
+		chStart = append(chStart,
+			"-v", c.Dir+"/server.crt:/etc/clickhouse-server/server.crt",
+			"-v", c.Dir+"/server.key:/etc/clickhouse-server/server.key",
+			"-v", c.Dir+"/rootCA.crt:/etc/clickhouse-server/rootCA.crt",
+			"-p", port+":8443",
+		)
 	}
 	if c.TZ != "" {
 		chStart = append(chStart, "-e", "TZ="+c.TZ)
@@ -136,6 +154,10 @@ func (c *Clickhouse) URL() string {
 	return c.url
 }
 
+func (c *Clickhouse) TLSURL() string {
+	return c.tlsurl
+}
+
 func (c *Clickhouse) Container() string {
 	return c.container
 }
@@ -151,14 +173,11 @@ func (c *Clickhouse) Query(sql string) (string, error) {
 		return "", err
 	}
 
-	httpClient := http.Client{
-		Timeout: time.Minute,
-	}
-	resp, err := httpClient.Do(request)
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return "", err
 	}
-	msg, err := io.ReadAll(resp.Body)
+	msg, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -172,7 +191,7 @@ func (c *Clickhouse) Alive() bool {
 	if len(c.container) == 0 {
 		return false
 	}
-	req, err := http.DefaultClient.Get(c.url)
+	req, err := http.DefaultClient.Get(c.URL())
 	if err != nil {
 		return false
 	}
