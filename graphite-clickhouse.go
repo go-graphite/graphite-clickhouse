@@ -1,15 +1,21 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/lomik/zapwriter"
@@ -26,6 +32,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
+	"github.com/lomik/graphite-clickhouse/sd"
+	"github.com/lomik/graphite-clickhouse/sd/nginx"
 	"github.com/lomik/graphite-clickhouse/tagger"
 )
 
@@ -77,7 +85,10 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 	})
 }
 
-var BuildVersion = "(development build)"
+var (
+	BuildVersion = "(development build)"
+	srv          *http.Server
+)
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -95,6 +106,9 @@ func main() {
 		"",
 		"Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ",
 	)
+
+	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
+	sdClean := flag.Bool("sd-clean", false, "Cleanup registered nodes in SD")
 
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
@@ -123,15 +137,53 @@ func main() {
 		return
 	}
 
+	if *sdList || *sdClean {
+		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+			var sd sd.SD
+			logger := zapwriter.Default()
+			switch cfg.Common.SDType {
+			case config.SDNginx:
+				sd = nginx.New(cfg.Common.SD, cfg.Common.SDNamespace, "", logger)
+			default:
+				panic(fmt.Errorf("service discovery type %q can be registered", cfg.Common.SDType.String()))
+			}
+			ts := time.Now().Unix() - 3600
+			if nodes, err := sd.Nodes(); err == nil {
+				for _, node := range nodes {
+					if *sdClean && node.Flags > 0 {
+						if ts > node.Flags {
+							fmt.Printf("%s: %s (%s), deleted\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+							// sd.Delete(node.Key, node.Value)
+						} else {
+							fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+						}
+					} else {
+						fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+					}
+				}
+			} else {
+				log.Fatal(err)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "SD not enabled")
+		}
+		return
+	}
+
 	if err = zapwriter.ApplyConfig(cfg.Logging); err != nil {
 		log.Fatal(err)
 	}
 
-	logger := zapwriter.Logger("start")
+	localManager, err := zapwriter.NewManager(cfg.Logging)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := localManager.Logger("start")
 
 	if len(warns) > 0 {
 		zapwriter.Logger("config").Warn("warnings", warns...)
 	}
+
 	if *verbose {
 		logger.Info("starting graphite-clickhouse",
 			zap.String("build_version", BuildVersion),
@@ -185,7 +237,11 @@ func main() {
 	mux.Handle("/render/", app.Handler(render.NewHandler(cfg)))
 	mux.Handle("/tags/autoComplete/tags", app.Handler(autocomplete.NewTags(cfg)))
 	mux.Handle("/tags/autoComplete/values", app.Handler(autocomplete.NewValues(cfg)))
-	mux.Handle("/alive", app.Handler(healthcheck.NewHandler(cfg)))
+	mux.HandleFunc("/alive", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, "Graphite-clickhouse is alive.\n")
+	})
+	mux.Handle("/health", app.Handler(healthcheck.NewHandler(cfg)))
 	mux.HandleFunc("/debug/config", func(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusOK
 		start := time.Now()
@@ -216,5 +272,46 @@ func main() {
 		metrics.Graphite.Start(nil)
 	}
 
-	log.Fatal(http.ListenAndServe(cfg.Common.Listen, mux))
+	var exitWait sync.WaitGroup
+	srv = &http.Server{
+		Addr:    cfg.Common.Listen,
+		Handler: mux,
+	}
+
+	exitWait.Add(1)
+
+	go func() {
+		defer exitWait.Done()
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// unexpected error. port in use?
+			log.Fatalf("ListenAndServe(): %v", err)
+		}
+	}()
+
+	go func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+		<-stop
+		logger.Info("stoping graphite-clickhouse")
+		if cfg.Common.SDType != config.SDNone {
+			// unregister SD
+			sd.Stop()
+			time.Sleep(10 * time.Second)
+		}
+		// initiating the shutdown
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+		srv.Shutdown(ctx)
+	}()
+
+	if cfg.Common.SD != "" {
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			sdLogger := localManager.Logger("service discovery")
+			sd.Register(cfg, sdLogger)
+		}()
+	}
+
+	exitWait.Wait()
+
+	logger.Info("stop graphite-clickhouse")
 }

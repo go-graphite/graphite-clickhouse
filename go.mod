@@ -10,6 +10,7 @@ require (
 	github.com/go-graphite/protocol v1.0.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/grafana/regexp v0.0.0-20221005093135-b4c2bcb0a4b6
+	github.com/json-iterator/go v1.1.12
 	github.com/lomik/carbon-clickhouse v0.11.7
 	github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80
@@ -17,13 +18,14 @@ require (
 	github.com/msaf1980/go-expirecache v0.0.2
 	github.com/msaf1980/go-metrics v0.0.14
 	github.com/msaf1980/go-stringutils v0.1.4
+	github.com/msaf1980/go-syncutils v0.0.3
 	github.com/msaf1980/go-timeutils v0.0.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.13.1
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/prometheus v0.40.2
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.21.0
 )
 
@@ -60,7 +62,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
