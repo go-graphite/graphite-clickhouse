@@ -178,7 +178,11 @@ func (idx *IndexFinder) Abs(v []byte) []byte {
 }
 
 func (idx *IndexFinder) bodySplit() {
-	idx.rows = bytes.Split(idx.body, []byte{'\n'})
+	if len(idx.body) == 0 {
+		return
+	}
+
+	idx.rows = bytes.Split(bytes.TrimSuffix(idx.body, []byte{'\n'}), []byte{'\n'})
 
 	if idx.useReverse("") {
 		// rotate names for reduce
