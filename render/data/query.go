@@ -28,13 +28,13 @@ import (
 // -OrNull - if there aren't points in an interval, null will be returned
 // intDiv(Time, x)*x - round Time down to step multiplier
 // TODO: support custom aggregating functions
-const queryAggregated = `WITH anyResample(%[1]d, %[2]d, %[3]d)(toUInt32(intDiv(Time, %[3]d)*%[3]d), Time) AS mask
+const queryAggregated = `WITH anyResample(%[1]d, %[2]d, %[3]d)(toUInt32(intDiv(Time, %[4]d)*%[4]d), Time) AS mask
 SELECT Path,
  arrayFilter(m->m!=0, mask) AS times,
- arrayFilter((v,m)->m!=0, %[4]sResample(%[1]d, %[2]d, %[3]d)(Value, Time), mask) AS values
-FROM %[5]s
-%[6]s
+ arrayFilter((v,m)->m!=0, %[5]sResample(%[1]d, %[2]d, %[3]d)(Value, Time), mask) AS values
+FROM %[6]s
 %[7]s
+%[8]s
 GROUP BY Path
 FORMAT RowBinary`
 
@@ -68,7 +68,11 @@ type conditions struct {
 	aggregated bool
 	// step is used in requests for proper until/from calculation. It's max(steps) for non-aggregated
 	// requests and LCM(steps) for aggregated requests
+	// If maxDataPoint is provided then step is max(maxDataPoint, LCM(steps)) for aggregated requests.
 	step int64
+	// step is used in requests for proper until/from calculation. It's max(steps) for non-aggregated
+	// requests and LCM(steps) for aggregated requests
+	rStep int64
 	// from is aligned to step
 	from int64
 	// until is aligned to step
@@ -342,13 +346,17 @@ func (c *conditions) setStep(cStep *commonStep) {
 		return
 	}
 	step = dry.Max(rStep, dry.Ceil(c.Until-c.From, c.MaxDataPoints))
+	c.rStep = rStep
 	c.step = dry.CeilToMultiplier(step, rStep)
 	return
 }
 
 func (c *conditions) setFromUntil() {
-	c.from = dry.CeilToMultiplier(c.From, c.step)
-	c.until = dry.FloorToMultiplier(c.Until, c.step) + c.step - 1
+	fmt.Print("Set From Until\n")
+	fmt.Printf("debug FROM!!!! FROM: %d Until:%d\n", c.From, c.Until)
+	c.from = dry.CeilToMultiplier(c.From, c.rStep)
+	c.until = dry.FloorToMultiplier(c.Until, c.rStep) + c.rStep - 1
+	fmt.Printf("debug FROM!!!!Two FROM: %d Until:%d STEP: %d,RSTEP: %d \n", c.from, c.until, c.step, c.rStep)
 }
 
 func (c *conditions) setPrewhere() {
@@ -374,7 +382,7 @@ func (c *conditions) generateQuery(agg string) string {
 func (c *conditions) generateQueryaAggregated(agg string) string {
 	return fmt.Sprintf(
 		queryAggregated,
-		c.from, c.until, c.step, agg,
+		c.from, c.until, c.step, c.rStep, agg,
 		c.pointsTable, c.prewhere, c.where,
 	)
 }
