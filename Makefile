@@ -48,6 +48,10 @@ doc/config.md: deploy/doc/graphite-clickhouse.conf deploy/doc/config.md
 
 config: doc/config.md
 
+# run after prometheus upgrade
+prometheus/ui:
+	vendor_prometheus_ui.sh
+
 test:
 	$(GO) test -race ./...
 
