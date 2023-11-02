@@ -390,7 +390,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series", 5 * time.Minute}
+	expected.Prometheus = Prometheus{Listen: ":9092", ExternalURLRaw: "https://server:3456/uri", PageTitle: "Prometheus Time Series", LookbackDelta: 5 * time.Minute, RemoteReadConcurrencyLimit: 10}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
@@ -690,7 +690,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series", 5 * time.Minute}
+	expected.Prometheus = Prometheus{Listen: ":9092", ExternalURLRaw: "https://server:3456/uri", PageTitle: "Prometheus Time Series", LookbackDelta: 5 * time.Minute, RemoteReadConcurrencyLimit: 10}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)
@@ -1005,7 +1005,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.Carbonlink, config.Carbonlink)
 
 	// Prometheus
-	expected.Prometheus = Prometheus{":9092", "https://server:3456/uri", nil, "Prometheus Time Series", 5 * time.Minute}
+	expected.Prometheus = Prometheus{Listen: ":9092", ExternalURLRaw: "https://server:3456/uri", PageTitle: "Prometheus Time Series", LookbackDelta: 5 * time.Minute, RemoteReadConcurrencyLimit: 10}
 	u, _ := url.Parse(expected.Prometheus.ExternalURLRaw)
 	expected.Prometheus.ExternalURL = u
 	assert.Equal(t, expected.Prometheus, config.Prometheus)

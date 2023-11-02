@@ -398,6 +398,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  external-url = ""
  page-title = "Prometheus Time Series Collection and Processing Server"
  lookback-delta = "5m0s"
+ # concurrently handled remote read requests
+ remote-read-concurrency-limit = 10
 
 # see doc/debugging.md
 [debug]
