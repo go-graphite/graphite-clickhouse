@@ -60,6 +60,9 @@ type Nginx struct {
 }
 
 func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
+	if namespace == "" {
+		namespace = "graphite"
+	}
 	sd := &Nginx{
 		logger:     logger,
 		body:       make([]byte, 128),
