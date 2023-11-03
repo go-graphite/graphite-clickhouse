@@ -33,7 +33,7 @@ func HttpGet(url string) ([]byte, error) {
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode != 200 {
 		return nil, errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
 	return data, err
@@ -54,7 +54,7 @@ func HttpPut(url string, body []byte) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode != 200 {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
@@ -75,7 +75,7 @@ func HttpDelete(url string) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode != 200 {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
