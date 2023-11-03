@@ -15,14 +15,12 @@ import (
 )
 
 type ErrInvalidKey struct {
+	key string
 	val string
 }
 
 func (e ErrInvalidKey) Error() string {
-	if e.val == "" {
-		return "list key is invalid"
-	}
-	return "list key is invalid: '" + e.val + "'"
+	return "list key '" + e.key + "' is invalid: '" + e.val + "'"
 }
 
 var (
@@ -50,6 +48,7 @@ func splitNode(node string) (dc, host, listen string, ok bool) {
 type Nginx struct {
 	weight     int64
 	hostname   string
+	namespace  string
 	body       []byte
 	backupBody []byte
 	url        stringutils.Builder
@@ -60,14 +59,18 @@ type Nginx struct {
 }
 
 func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
+	if namespace == "" {
+		namespace = "graphite"
+	}
 	sd := &Nginx{
 		logger:     logger,
 		body:       make([]byte, 128),
 		backupBody: []byte(`{"backup":1,"max_fails":0}`),
 		nsEnd:      "upstreams/" + namespace + "/",
 		hostname:   hostname,
+		namespace:  namespace,
 	}
-	sd.setWeight(0)
+	sd.setWeight(1)
 
 	sd.url.WriteString(url)
 	sd.url.WriteByte('/')
@@ -81,6 +84,9 @@ func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
 }
 
 func (sd *Nginx) setWeight(weight int64) {
+	if weight <= 0 {
+		weight = 1
+	}
 	if sd.weight != weight {
 		sd.weight = weight
 		sd.body = sd.body[:0]
@@ -88,6 +94,10 @@ func (sd *Nginx) setWeight(weight int64) {
 		sd.body = strconv.AppendInt(sd.body, weight, 10)
 		sd.body = append(sd.body, `,"max_fails":0}`...)
 	}
+}
+
+func (sd *Nginx) Namespace() string {
+	return sd.namespace
 }
 
 func (sd *Nginx) List() (nodes []string, err error) {
@@ -115,7 +125,7 @@ func (sd *Nginx) List() (nodes []string, err error) {
 							nodes = append(nodes, s)
 						}
 					} else {
-						return nil, ErrInvalidKey{s}
+						return nil, ErrInvalidKey{key: sd.nsEnd, val: s}
 					}
 				} else {
 					return nil, ErrNoKey
@@ -166,7 +176,7 @@ func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 							}
 						}
 					} else {
-						return nil, ErrInvalidKey{s}
+						return nil, ErrInvalidKey{key: sd.nsEnd, val: s}
 					}
 				} else {
 					return nil, ErrNoKey
@@ -222,7 +232,7 @@ func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 						}
 						nodes = append(nodes, kv)
 					} else {
-						return nil, ErrInvalidKey{s}
+						return nil, ErrInvalidKey{key: sd.nsEnd, val: s}
 					}
 				} else {
 					return nil, ErrNoKey
@@ -302,6 +312,17 @@ func (sd *Nginx) Update(ip, port string, dc []string, weight int64) error {
 	sd.setWeight(weight)
 
 	return sd.update(ip, port, dc)
+}
+
+func (sd *Nginx) DeleteNode(node string) (err error) {
+	sd.url.Truncate(sd.pos)
+	sd.url.WriteString(node)
+
+	if err = utils.HttpDelete(sd.url.String()); err != nil {
+		sd.logger.Error("delete", zap.String("address", sd.url.String()[sd.pos:]), zap.Error(err))
+	}
+
+	return
 }
 
 func (sd *Nginx) Delete(ip, port string, dc []string) (err error) {

@@ -35,7 +35,7 @@ func TestNginx(t *testing.T) {
 	logger := zapwriter.Default()
 
 	sd1 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname1, logger)
-	sd2 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname2, logger)
+	sd2 := New("http://127.0.0.1:8500/v1/kv/upstreams", "", hostname2, logger)
 
 	err := sd1.Clear("", "")
 	require.True(t, err == nil || err == utils.ErrNotFound, err)
@@ -170,7 +170,7 @@ func TestNginxDC(t *testing.T) {
 
 	logger := zapwriter.Default()
 
-	sd1 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname1, logger)
+	sd1 := New("http://127.0.0.1:8500/v1/kv/upstreams", "", hostname1, logger)
 	sd2 := New("http://127.0.0.1:8500/v1/kv/upstreams", "graphite", hostname2, logger)
 
 	err := sd1.Clear("", "")

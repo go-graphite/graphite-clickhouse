@@ -103,11 +103,12 @@ type Common struct {
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval"     json:"memory-return-interval"     comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log"             json:"headers-to-log"             comment:"additional request headers to log"`
 
-	BaseWeight  int      `toml:"base_weight"            json:"base_weight"            comment:"service discovery base weight (on idle)"`
-	SDType      SDType   `toml:"service-discovery-type" json:"service-discovery-type" comment:"service discovery type"`
-	SD          string   `toml:"service-discovery"      json:"service-discovery"      comment:"service discovery address (consul)"`
-	SDNamespace string   `toml:"service-discovery-ns"   json:"service-discovery-ns"   comment:"service discovery namespace (graphite by default)"`
-	SDDc        []string `toml:"service-discovery-ds"   json:"service-discovery-ds"   comment:"service discovery datacenters (first - is primary, in other register as backup)"`
+	BaseWeight  int           `toml:"base_weight"            json:"base_weight"            comment:"service discovery base weight (on idle)"`
+	SDType      SDType        `toml:"service-discovery-type" json:"service-discovery-type" comment:"service discovery type"`
+	SD          string        `toml:"service-discovery"      json:"service-discovery"      comment:"service discovery address (consul)"`
+	SDNamespace string        `toml:"service-discovery-ns"   json:"service-discovery-ns"   comment:"service discovery namespace (graphite by default)"`
+	SDDc        []string      `toml:"service-discovery-ds"   json:"service-discovery-ds"   comment:"service discovery datacenters (first - is primary, in other register as backup)"`
+	SDExpire    time.Duration `toml:"service-discovery-expire"   json:"service-discovery-expire"   comment:"service discovery expire duration for cleanup (minimum is 24h, if enabled)"`
 
 	FindCacheConfig CacheConfig `toml:"find-cache"      json:"find-cache"             comment:"find/tags cache config"`
 
@@ -278,11 +279,11 @@ type Carbonlink struct {
 
 // Prometheus configuration
 type Prometheus struct {
-	Listen         	           string        `toml:"listen"                        json:"listen"                        comment:"listen addr for prometheus ui and api"`
-	ExternalURLRaw 	           string        `toml:"external-url"                  json:"external-url"                  comment:"allows to set URL for redirect manually"`
-	ExternalURL    	           *url.URL      `toml:"-"                             json:"-"`
-	PageTitle      	           string        `toml:"page-title"                    json:"page-title"`
-	LookbackDelta  	           time.Duration `toml:"lookback-delta"                json:"lookback-delta"`
+	Listen                     string        `toml:"listen"                        json:"listen"                        comment:"listen addr for prometheus ui and api"`
+	ExternalURLRaw             string        `toml:"external-url"                  json:"external-url"                  comment:"allows to set URL for redirect manually"`
+	ExternalURL                *url.URL      `toml:"-"                             json:"-"`
+	PageTitle                  string        `toml:"page-title"                    json:"page-title"`
+	LookbackDelta              time.Duration `toml:"lookback-delta"                json:"lookback-delta"`
 	RemoteReadConcurrencyLimit int           `toml:"remote-read-concurrency-limit" json:"remote-read-concurrency-limit" comment:"concurrently handled remote read requests"`
 }
 
@@ -393,10 +394,10 @@ func New() *Config {
 			TotalTimeout:   500 * time.Millisecond,
 		},
 		Prometheus: Prometheus{
-			ExternalURLRaw: "",
-			PageTitle:      "Prometheus Time Series Collection and Processing Server",
-			Listen:         ":9092",
-			LookbackDelta:  5 * time.Minute,
+			ExternalURLRaw:             "",
+			PageTitle:                  "Prometheus Time Series Collection and Processing Server",
+			Listen:                     ":9092",
+			LookbackDelta:              5 * time.Minute,
 			RemoteReadConcurrencyLimit: 10,
 		},
 		Debug: Debug{
@@ -721,6 +722,9 @@ func (c *Config) NeedLoadAvgColect() bool {
 		}
 		if c.Common.SDNamespace == "" {
 			c.Common.SDNamespace = "graphite"
+		}
+		if c.Common.SDExpire < 24*time.Hour {
+			c.Common.SDExpire = 24 * time.Hour
 		}
 		return true
 	}

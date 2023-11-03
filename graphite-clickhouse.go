@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/prometheus"
 	"github.com/lomik/graphite-clickhouse/render"
 	"github.com/lomik/graphite-clickhouse/sd"
-	"github.com/lomik/graphite-clickhouse/sd/nginx"
 	"github.com/lomik/graphite-clickhouse/tagger"
 )
 
@@ -108,7 +108,10 @@ func main() {
 	)
 
 	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
-	sdClean := flag.Bool("sd-clean", false, "Cleanup registered nodes in SD")
+	sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
+	sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
+	sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
+	sdExpired := flag.Bool("sd-expired", false, "List expired registered nodes in SD")
 
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
@@ -137,35 +140,61 @@ func main() {
 		return
 	}
 
-	if *sdList || *sdClean {
+	if *sdEvict != "" {
 		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
-			var sd sd.SD
+			var s sd.SD
 			logger := zapwriter.Default()
-			switch cfg.Common.SDType {
-			case config.SDNginx:
-				sd = nginx.New(cfg.Common.SD, cfg.Common.SDNamespace, "", logger)
-			default:
-				panic(fmt.Errorf("service discovery type %q can be registered", cfg.Common.SDType.String()))
+			if s, err = sd.New(&cfg.Common, *sdEvict, logger); err != nil {
+				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+				os.Exit(1)
 			}
-			ts := time.Now().Unix() - 3600
-			if nodes, err := sd.Nodes(); err == nil {
-				for _, node := range nodes {
-					if *sdClean && node.Flags > 0 {
-						if ts > node.Flags {
-							fmt.Printf("%s: %s (%s), deleted\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
-							// sd.Delete(node.Key, node.Value)
-						} else {
-							fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
-						}
-					} else {
-						fmt.Printf("%s: %s (%s)\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
-					}
+			err = s.Clear("", "")
+		}
+		return
+	} else if *sdList || *sdDelete || *sdExpired || *sdClean {
+		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+			var s sd.SD
+			logger := zapwriter.Default()
+			if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+				os.Exit(1)
+			}
+
+			// 		sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
+			// sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
+			// sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
+			// sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
+
+			if *sdDelete {
+				hostname, _ := os.Hostname()
+				hostname, _, _ = strings.Cut(hostname, ".")
+				if err = s.Clear("", ""); err != nil {
+					fmt.Fprintln(os.Stderr, err.Error())
+					os.Exit(1)
+				}
+			} else if *sdExpired {
+				if err = sd.Cleanup(&cfg.Common, s, true); err != nil {
+					fmt.Fprintln(os.Stderr, err.Error())
+					os.Exit(1)
+				}
+			} else if *sdClean {
+				if err = sd.Cleanup(&cfg.Common, s, false); err != nil {
+					fmt.Fprintln(os.Stderr, err.Error())
+					os.Exit(1)
 				}
 			} else {
-				log.Fatal(err)
+				if nodes, err := s.Nodes(); err == nil {
+					for _, node := range nodes {
+						fmt.Printf("%s/%s: %s (%s)\n", s.Namespace(), node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+					}
+				} else {
+					fmt.Fprintln(os.Stderr, err.Error())
+					os.Exit(1)
+				}
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, "SD not enabled")
+			os.Exit(1)
 		}
 		return
 	}
@@ -288,28 +317,29 @@ func main() {
 		}
 	}()
 
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			sdLogger := localManager.Logger("service discovery")
+			sd.Register(&cfg.Common, sdLogger)
+		}()
+	}
+
 	go func() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 		<-stop
 		logger.Info("stoping graphite-clickhouse")
-		if cfg.Common.SDType != config.SDNone {
+		if cfg.Common.SD != "" {
 			// unregister SD
 			sd.Stop()
 			time.Sleep(10 * time.Second)
 		}
 		// initiating the shutdown
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		srv.Shutdown(ctx)
+		cancel()
 	}()
-
-	if cfg.Common.SD != "" {
-		go func() {
-			time.Sleep(time.Millisecond * 100)
-			sdLogger := localManager.Logger("service discovery")
-			sd.Register(cfg, sdLogger)
-		}()
-	}
 
 	exitWait.Wait()
 

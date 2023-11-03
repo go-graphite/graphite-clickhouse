@@ -202,6 +202,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  service-discovery-ns = ""
  # service discovery datacenters (first - is primary, in other register as backup)
  service-discovery-ds = []
+ # service discovery expire duration for cleanup (minimum is 24h, if enabled)
+ service-discovery-expire = "0s"
 
  # find/tags cache config
  [common.find-cache]
