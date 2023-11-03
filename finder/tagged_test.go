@@ -50,6 +50,10 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=~^cpu|mem')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem')", false},
 		{"seriesByTag('name=~^cpu|mem$')", 0, "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", "Tag1 LIKE '\\\\_\\\\_name\\\\_\\\\_=%' AND match(Tag1, '^__name__=cpu|mem$')", false},
 		{"seriesByTag('name=rps', 'key=~value')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*value'), Tags))", "", false},
+		// test for issue #244
+		{"seriesByTag('name=rps', 'key=~^value')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=value%' AND match(x, '^key=value'), Tags))", "", false},
+		{"seriesByTag('name=rps', 'key=~^value.*')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=value%' AND match(x, '^key=value.*'), Tags))", "", false},
+		{"seriesByTag('name=rps', 'key=~^valu[a-e]')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=valu%' AND match(x, '^key=valu[a-e]'), Tags))", "", false},
 		{"seriesByTag('name=rps', 'key=~^value$')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x='key=value', Tags))", "", false},
 		{"seriesByTag('name=rps', 'key=~hello.world')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*hello.world'), Tags))", "", false},
 		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, 0, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=%' AND match(x, '^host=.*Vladimirs-MacBook-Pro\\.local'), Tags))`, "", false},
