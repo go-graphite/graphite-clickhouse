@@ -146,8 +146,6 @@ func ConcatMatchKV(key, value string) string {
 	endLine := value[len(value)-1] == '$'
 	if startLine && endLine {
 		return key + opEq + value[1:]
-	} else if endLine {
-		return key + opEq + "\\\\%" + value
 	} else if startLine {
 		return key + opEq + value[1:] + "\\\\%"
 	}
