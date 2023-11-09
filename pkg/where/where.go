@@ -124,7 +124,6 @@ func quote(value interface{}) string {
 
 func quoteRegex(key, value string) string {
 	startLine := value[0] == '^'
-	// endLine := value[len(value)-1] == '$'
 	if startLine {
 		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
 	}
