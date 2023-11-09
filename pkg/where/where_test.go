@@ -63,6 +63,7 @@ func TestNonRegexpPrefix(t *testing.T) {
 		{`__name__=cpu.load`, `__name__=cpu`},
 		{`__name__=~(cpu|mem)`, `__name__=~`},
 		{`__name__=~cpu|mem`, `__name__=~`},
+		{`__name__=~^host`, `__name__=~`},
 	}
 
 	for _, test := range table {

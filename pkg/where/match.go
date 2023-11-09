@@ -144,10 +144,10 @@ func TreeGlob(field string, query string) string {
 func ConcatMatchKV(key, value string) string {
 	startLine := value[0] == '^'
 	endLine := value[len(value)-1] == '$'
-	if startLine {
+	if startLine && endLine {
 		return key + opEq + value[1:]
-	} else if endLine {
-		return key + opEq + value + "\\\\%"
+	} else if startLine {
+		return key + opEq + value[1:] + "\\\\%"
 	}
 	return key + opEq + "\\\\%" + value
 }
