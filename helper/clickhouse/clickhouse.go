@@ -30,6 +30,14 @@ type ErrWithDescr struct {
 	data string
 }
 
+type ContentEncoding string
+
+const (
+	ContentEncodingNone ContentEncoding = "none"
+	ContentEncodingGzip ContentEncoding = "gzip"
+	ContentEncodingZstd ContentEncoding = "zstd"
+)
+
 func NewErrWithDescr(err string, data string) error {
 	return &ErrWithDescr{err, data}
 }
@@ -183,18 +191,23 @@ func Query(ctx context.Context, dsn string, query string, opts Options, extData 
 }
 
 func Post(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
-	return do(ctx, dsn, query, postBody, false, opts, extData)
+	return do(ctx, dsn, query, postBody, ContentEncodingNone, opts, extData)
 }
 
+// Deprecated: use PostWithEncoding instead
 func PostGzip(ctx context.Context, dsn string, query string, postBody io.Reader, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
-	return do(ctx, dsn, query, postBody, true, opts, extData)
+	return do(ctx, dsn, query, postBody, ContentEncodingGzip, opts, extData)
+}
+
+func PostWithEncoding(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
+	return do(ctx, dsn, query, postBody, encoding, opts, extData)
 }
 
 func Reader(ctx context.Context, dsn string, query string, opts Options, extData *ExternalData) (*LoggedReader, error) {
-	return reader(ctx, dsn, query, nil, false, opts, extData)
+	return reader(ctx, dsn, query, nil, ContentEncodingNone, opts, extData)
 }
 
-func reader(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) (bodyReader *LoggedReader, err error) {
+func reader(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) (bodyReader *LoggedReader, err error) {
 	if postBody != nil && extData != nil {
 		err = fmt.Errorf("postBody and extData could not be passed in one request")
 		return
@@ -265,8 +278,15 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 		req.Header.Add("Content-Type", contentHeader)
 	}
 
-	if gzip {
+	switch encoding {
+	case ContentEncodingNone:
+		// no encoding
+	case ContentEncodingGzip:
 		req.Header.Add("Content-Encoding", "gzip")
+	case ContentEncodingZstd:
+		req.Header.Add("Content-Encoding", "zstd")
+	default:
+		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
 
 	client := &http.Client{
@@ -337,8 +357,8 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, g
 	return
 }
 
-func do(ctx context.Context, dsn string, query string, postBody io.Reader, gzip bool, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
-	bodyReader, err := reader(ctx, dsn, query, postBody, gzip, opts, extData)
+func do(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
+	bodyReader, err := reader(ctx, dsn, query, postBody, encoding, opts, extData)
 	if err != nil {
 		return nil, 0, 0, err
 	}

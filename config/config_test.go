@@ -274,6 +274,10 @@ date = "2012-12-12"
 extra-where = "AND case"
 input-file = "input"
 output-file = "output"
+threads = 5
+compression = "zstd"
+version = 42
+select-chunks-count = 15
 
 [carbonlink]
 server = "server:3333"
@@ -382,7 +386,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.ClickHouse, config.ClickHouse)
 
 	// Tags
-	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output"}
+	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output", 5, "zstd", 42, 15}
 	assert.Equal(t, expected.Tags, config.Tags)
 
 	// Carbonlink
@@ -504,6 +508,10 @@ date = "2012-12-12"
 extra-where = "AND case"
 input-file = "input"
 output-file = "output"
+threads = 5
+compression = "zstd"
+version = 42
+select-chunks-count = 15
 
 [carbonlink]
 server = "server:3333"
@@ -682,7 +690,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.ClickHouse, config.ClickHouse)
 
 	// Tags
-	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output"}
+	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output", 5, "zstd", 42, 15}
 	assert.Equal(t, expected.Tags, config.Tags)
 
 	// Carbonlink
@@ -814,6 +822,10 @@ date = "2012-12-12"
 extra-where = "AND case"
 input-file = "input"
 output-file = "output"
+threads = 5
+compression = "zstd"
+version = 42
+select-chunks-count = 15
 
 [carbonlink]
 server = "server:3333"
@@ -997,7 +1009,7 @@ sample-thereafter = 12
 	assert.Equal(t, expected.ClickHouse, config.ClickHouse)
 
 	// Tags
-	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output"}
+	expected.Tags = Tags{"filename", "2012-12-12", "AND case", "input", "output", 5, "zstd", 42, 15}
 	assert.Equal(t, expected.Tags, config.Tags)
 
 	// Carbonlink
