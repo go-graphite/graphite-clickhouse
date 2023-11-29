@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -325,6 +326,9 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 					read_bytes, _ = strconv.ParseInt(v, 10, 64)
 				}
 			}
+			sort.Slice(fields, func(i int, j int) bool {
+				return fields[i].Key < fields[j].Key
+			})
 			logger = logger.With(fields...)
 		} else {
 			logger.Warn("query", zap.Error(err), zap.String("clickhouse-summary", summaryHeader))
