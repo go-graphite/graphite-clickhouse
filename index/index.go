@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -81,12 +82,13 @@ func (i *Index) WriteJSON(w http.ResponseWriter) error {
 			continue
 		}
 
-		quote := []byte{'"'}
+		json_b, err := json.Marshal(string(b))
+		if err != nil {
+			return err
+		}
 		jsonParts := [][]byte{
 			nil,
-			quote,
-			b,
-			quote,
+			json_b,
 		}
 		if idx != 0 {
 			jsonParts[0] = []byte{','}
