@@ -20,7 +20,7 @@ import (
 
 var (
 	// ErrEmptyArgs         = errors.New("empty arguments")
-	ErrCostlySeriesByTag = errs.NewErrorWithCode("seriesByTag argument is too costly", http.StatusForbidden)
+	ErrCostlySeriesByTag = errs.NewErrorWithCode("seriesByTag argument has too much wildcard terms", http.StatusForbidden)
 )
 
 type TaggedTermOp int
