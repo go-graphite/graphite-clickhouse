@@ -1,3 +1,15 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:976d3997489cdc4998a52e6e6245cdd9487a1af915d5c068fd790c5dc4a5df7a
-size 318
+{
+  "short_name": "Prometheus UI",
+  "name": "Prometheus Server Web Interface",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
