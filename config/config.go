@@ -266,10 +266,10 @@ type Tags struct {
 	ExtraWhere        string                     `toml:"extra-where"         json:"extra-where"`
 	InputFile         string                     `toml:"input-file"          json:"input-file"`
 	OutputFile        string                     `toml:"output-file"         json:"output-file"`
-	Threads           int                        `toml:"threads"             json:"threads"`
-	Compression       clickhouse.ContentEncoding `toml:"compression"         json:"compression"` // "none", "gzip" (default), "zstd"
-	Version           uint32                     `toml:"version"             json:"version"`     // for testing purposes
-	SelectChunksCount int                        `toml:"select-chunks-count" json:"select-chunks-count"`
+	Threads           int                        `toml:"threads"             json:"threads"              comment:"number of threads for uploading tags to clickhouse (1 by default)"`
+	Compression       clickhouse.ContentEncoding `toml:"compression"         json:"compression"          comment:"compression method for tags before sending them to clickhouse (i.e. content encoding): gzip (default), none, zstd"`
+	Version           uint32                     `toml:"version"             json:"version"              comment:"fixed tags version for testing purposes (by default the current timestamp is used for each upload)"`
+	SelectChunksCount int                        `toml:"select-chunks-count" json:"select-chunks-count"  comment:"number of chunks for selecting metrics from clickhouse (10 by default)"`
 }
 
 // Carbonlink configuration
