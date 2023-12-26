@@ -384,6 +384,14 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  # extra-where = ""
  # input-file = ""
  # output-file = ""
+ # number of threads for uploading tags to clickhouse (1 by default)
+ # threads = 1
+ # compression method for tags before sending them to clickhouse (i.e. content encoding): gzip (default), none, zstd
+ # compression = "gzip"
+ # fixed tags version for testing purposes (by default the current timestamp is used for each upload)
+ # version = 0
+ # number of chunks for selecting metrics from clickhouse (10 by default)
+ # select-chunks-count = 0
 
 [carbonlink]
  server = ""

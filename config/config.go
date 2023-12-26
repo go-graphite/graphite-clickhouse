@@ -25,6 +25,7 @@ import (
 	"github.com/lomik/zapwriter"
 
 	"github.com/lomik/graphite-clickhouse/cache"
+	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/limiter"
@@ -260,11 +261,15 @@ func clickhouseURLValidate(chURL string) (*url.URL, error) {
 
 // Tags config
 type Tags struct {
-	Rules      string `toml:"rules"       json:"rules"`
-	Date       string `toml:"date"        json:"date"`
-	ExtraWhere string `toml:"extra-where" json:"extra-where"`
-	InputFile  string `toml:"input-file"  json:"input-file"`
-	OutputFile string `toml:"output-file" json:"output-file"`
+	Rules             string                     `toml:"rules"               json:"rules"`
+	Date              string                     `toml:"date"                json:"date"`
+	ExtraWhere        string                     `toml:"extra-where"         json:"extra-where"`
+	InputFile         string                     `toml:"input-file"          json:"input-file"`
+	OutputFile        string                     `toml:"output-file"         json:"output-file"`
+	Threads           int                        `toml:"threads"             json:"threads"              comment:"number of threads for uploading tags to clickhouse (1 by default)"`
+	Compression       clickhouse.ContentEncoding `toml:"compression"         json:"compression"          comment:"compression method for tags before sending them to clickhouse (i.e. content encoding): gzip (default), none, zstd"`
+	Version           uint32                     `toml:"version"             json:"version"              comment:"fixed tags version for testing purposes (by default the current timestamp is used for each upload)"`
+	SelectChunksCount int                        `toml:"select-chunks-count" json:"select-chunks-count"  comment:"number of chunks for selecting metrics from clickhouse (10 by default)"`
 }
 
 // Carbonlink configuration
@@ -385,7 +390,10 @@ func New() *Config {
 			FindLimiter:          limiter.NoopLimiter{},
 			TagsLimiter:          limiter.NoopLimiter{},
 		},
-		Tags: Tags{},
+		Tags: Tags{
+			Threads:     1,
+			Compression: "gzip",
+		},
 		Carbonlink: Carbonlink{
 			Threads:        10,
 			Retries:        2,
