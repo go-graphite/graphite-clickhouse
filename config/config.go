@@ -502,7 +502,7 @@ func PrintDefaultConfig() error {
 }
 
 // ReadConfig reads the content of the file with given name and process it to the *Config
-func ReadConfig(filename string) (*Config, []zap.Field, error) {
+func ReadConfig(filename string, exactConfig bool) (*Config, []zap.Field, error) {
 	var err error
 	var body []byte
 	if filename != "" {
@@ -512,11 +512,11 @@ func ReadConfig(filename string) (*Config, []zap.Field, error) {
 		}
 	}
 
-	return Unmarshal(body)
+	return Unmarshal(body, exactConfig)
 }
 
 // Unmarshal process the body to *Config
-func Unmarshal(body []byte) (cfg *Config, warns []zap.Field, err error) {
+func Unmarshal(body []byte, exactConfig bool) (cfg *Config, warns []zap.Field, err error) {
 	deprecations := make(map[string]error)
 
 	cfg = New()
@@ -529,9 +529,16 @@ func Unmarshal(body []byte) (cfg *Config, warns []zap.Field, err error) {
 				body = bytes.Replace(body, []byte("[logging]"), []byte("[[logging]]"), 1)
 			}
 		}
-		if err = toml.Unmarshal(body, cfg); err != nil {
+
+		decoder := toml.NewDecoder(bytes.NewReader(body))
+		decoder.Strict(exactConfig)
+
+		err := decoder.Decode(cfg)
+
+		if err != nil {
 			return nil, nil, err
 		}
+
 	}
 
 	if cfg.Logging == nil {
