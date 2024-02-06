@@ -320,7 +320,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, _, err := Unmarshal(body)
+	config, _, err := Unmarshal(body, false)
 	expected := New()
 	require.NoError(t, err)
 
@@ -554,7 +554,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, _, err := Unmarshal(body)
+	config, _, err := Unmarshal(body, false)
 	expected := New()
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
@@ -868,7 +868,7 @@ sample-initial = 10
 sample-thereafter = 12
 `,
 	)
-	config, _, err := Unmarshal(body)
+	config, _, err := Unmarshal(body, false)
 	expected := New()
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
@@ -1072,7 +1072,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, _, err := Unmarshal(config)
+	_, _, err := Unmarshal(config, false)
 	assert.Error(t, err)
 
 	config =
@@ -1087,7 +1087,7 @@ func TestGetQueryParamBroken(t *testing.T) {
 			  },
 			]`)
 
-	_, _, err = Unmarshal(config)
+	_, _, err = Unmarshal(config, false)
 	assert.Error(t, err)
 }
 
@@ -1250,7 +1250,7 @@ func TestGetQueryParam(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if config, _, err := Unmarshal(tt.config); err == nil {
+			if config, _, err := Unmarshal(tt.config, false); err == nil {
 				for i := range config.ClickHouse.QueryParams {
 					config.ClickHouse.QueryParams[i].Limiter = nil
 				}

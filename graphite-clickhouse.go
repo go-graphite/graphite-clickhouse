@@ -100,6 +100,7 @@ func main() {
 	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	printDefaultConfig := flag.Bool("config-print-default", false, "Print default config")
 	checkConfig := flag.Bool("check-config", false, "Check config and exit")
+	exactConfig := flag.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	buildTags := flag.Bool("tags", false, "Build tags table")
 	pprof := flag.String(
 		"pprof",
@@ -130,7 +131,7 @@ func main() {
 		return
 	}
 
-	cfg, warns, err := config.ReadConfig(*configFile)
+	cfg, warns, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
