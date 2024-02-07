@@ -102,7 +102,7 @@ github.com/go-kit/log/level
 # github.com/go-logfmt/logfmt v0.5.1
 ## explicit; go 1.17
 github.com/go-logfmt/logfmt
-# github.com/go-logr/logr v1.2.3
+# github.com/go-logr/logr v1.2.4
 ## explicit; go 1.16
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
@@ -341,8 +341,8 @@ github.com/shurcooL/httpfs/union
 # github.com/stretchr/objx v0.5.0
 ## explicit; go 1.12
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.8.2
-## explicit; go 1.13
+# github.com/stretchr/testify v1.8.4
+## explicit; go 1.20
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
@@ -355,11 +355,12 @@ go.mongodb.org/mongo-driver/bson/bsonrw
 go.mongodb.org/mongo-driver/bson/bsontype
 go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.36.4
-## explicit; go 1.18
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.44.0
+## explicit; go 1.19
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
-# go.opentelemetry.io/otel v1.11.1
-## explicit; go 1.18
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconvutil
+# go.opentelemetry.io/otel v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
 go.opentelemetry.io/otel/baggage
@@ -369,21 +370,13 @@ go.opentelemetry.io/otel/internal/attribute
 go.opentelemetry.io/otel/internal/baggage
 go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
-go.opentelemetry.io/otel/semconv/internal
-go.opentelemetry.io/otel/semconv/v1.12.0
-# go.opentelemetry.io/otel/metric v0.33.0
-## explicit; go 1.18
+go.opentelemetry.io/otel/semconv/v1.17.0
+# go.opentelemetry.io/otel/metric v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/metric
-go.opentelemetry.io/otel/metric/global
-go.opentelemetry.io/otel/metric/instrument
-go.opentelemetry.io/otel/metric/instrument/asyncfloat64
-go.opentelemetry.io/otel/metric/instrument/asyncint64
-go.opentelemetry.io/otel/metric/instrument/syncfloat64
-go.opentelemetry.io/otel/metric/instrument/syncint64
-go.opentelemetry.io/otel/metric/internal/global
-go.opentelemetry.io/otel/metric/unit
-# go.opentelemetry.io/otel/trace v1.11.1
-## explicit; go 1.18
+go.opentelemetry.io/otel/metric/embedded
+# go.opentelemetry.io/otel/trace v1.18.0
+## explicit; go 1.20
 go.opentelemetry.io/otel/trace
 # go.uber.org/atomic v1.10.0
 ## explicit; go 1.18
@@ -403,8 +396,8 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.14.0
-## explicit; go 1.17
+# golang.org/x/crypto v0.17.0
+## explicit; go 1.18
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 # golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
@@ -430,12 +423,12 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.1.0
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.13.0
-## explicit; go 1.17
+# golang.org/x/sys v0.15.0
+## explicit; go 1.18
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.13.0
-## explicit; go 1.17
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
