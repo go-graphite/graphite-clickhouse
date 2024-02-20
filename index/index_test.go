@@ -34,15 +34,16 @@ func TestWriteJSONNonleafRows(t *testing.T) {
 		"testing.leaf",
 		"testing.nonleaf.",
 		"testing.leaf.node",
+		"testing.\"broken\".node",
 	}
 	metrics, err := writeRows(rows)
 	if err != nil {
 		t.Fatalf("Error during transform or unmarshal: %s", err)
 	}
-	if len(metrics) != 2 {
+	if len(metrics) != 3 {
 		t.Fatalf("Wrong metrics slice length = %d: %s", len(metrics), metrics)
 	}
-	if metrics[0] != "testing.leaf" || metrics[1] != "testing.leaf.node" {
+	if metrics[0] != "testing.leaf" || metrics[1] != "testing.leaf.node" || metrics[2] != "testing.\"broken\".node" {
 		t.Fatalf("Wrong metrics contents: %s", metrics)
 	}
 }
