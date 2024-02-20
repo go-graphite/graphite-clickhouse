@@ -104,12 +104,14 @@ type Common struct {
 	MemoryReturnInterval   time.Duration    `toml:"memory-return-interval"     json:"memory-return-interval"     comment:"daemon will return the freed memory to the OS when it>0"`
 	HeadersToLog           []string         `toml:"headers-to-log"             json:"headers-to-log"             comment:"additional request headers to log"`
 
-	BaseWeight  int           `toml:"base_weight"            json:"base_weight"            comment:"service discovery base weight (on idle)"`
-	SDType      SDType        `toml:"service-discovery-type" json:"service-discovery-type" comment:"service discovery type"`
-	SD          string        `toml:"service-discovery"      json:"service-discovery"      comment:"service discovery address (consul)"`
-	SDNamespace string        `toml:"service-discovery-ns"   json:"service-discovery-ns"   comment:"service discovery namespace (graphite by default)"`
-	SDDc        []string      `toml:"service-discovery-ds"   json:"service-discovery-ds"   comment:"service discovery datacenters (first - is primary, in other register as backup)"`
-	SDExpire    time.Duration `toml:"service-discovery-expire"   json:"service-discovery-expire"   comment:"service discovery expire duration for cleanup (minimum is 24h, if enabled)"`
+	BaseWeight       int           `toml:"base_weight"            json:"base_weight"            comment:"service discovery base weight (on idle)"`
+	DegragedMultiply float64       `toml:"degraged_multiply"            json:"degraged_multiply"            comment:"service discovery degraded load avg multiplier (if normalized load avg > degraged_load_avg) (default 4.0)"`
+	DegragedLoad     float64       `toml:"degraged_load_avg"            json:"degraged_load_avg"            comment:"service discovery normilized load avg degraded point (default 1.0)"`
+	SDType           SDType        `toml:"service-discovery-type" json:"service-discovery-type" comment:"service discovery type"`
+	SD               string        `toml:"service-discovery"      json:"service-discovery"      comment:"service discovery address (consul)"`
+	SDNamespace      string        `toml:"service-discovery-ns"   json:"service-discovery-ns"   comment:"service discovery namespace (graphite by default)"`
+	SDDc             []string      `toml:"service-discovery-ds"   json:"service-discovery-ds"   comment:"service discovery datacenters (first - is primary, in other register as backup)"`
+	SDExpire         time.Duration `toml:"service-discovery-expire"   json:"service-discovery-expire"   comment:"service discovery expire duration for cleanup (minimum is 24h, if enabled)"`
 
 	FindCacheConfig CacheConfig `toml:"find-cache"      json:"find-cache"             comment:"find/tags cache config"`
 
@@ -732,6 +734,12 @@ func Unmarshal(body []byte, exactConfig bool) (cfg *Config, warns []zap.Field, e
 // NeedLoadAvgColect check if load avg collect is neeeded
 func (c *Config) NeedLoadAvgColect() bool {
 	if c.Common.SD != "" {
+		if c.Common.DegragedMultiply <= 0 {
+			c.Common.DegragedMultiply = 4.0
+		}
+		if c.Common.DegragedLoad <= 0 {
+			c.Common.DegragedLoad = 1.0
+		}
 		if c.Common.BaseWeight <= 0 {
 			c.Common.BaseWeight = 100
 		}

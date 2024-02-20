@@ -13,6 +13,7 @@ var (
 	checkDelay    = time.Second * 60
 )
 
+// calc reserved slots count based on load average (for protect overload)
 func getWeighted(n, max int) int {
 	if n <= 0 {
 		return 0
@@ -35,31 +36,31 @@ func getWeighted(n, max int) int {
 
 // ALimiter provide limiter amount of requests/concurrently executing requests (adaptive with load avg)
 type ALimiter struct {
-	l  limiter
-	cL limiter
-	c  int
-	n  int
+	limiter           limiter
+	concurrentLimiter limiter
+	concurrent        int
+	n                 int
 
 	m metrics.WaitMetric
 }
 
 // NewServerLimiter creates a limiter for specific servers list.
-func NewALimiter(l, c, n int, enableMetrics bool, scope, sub string) ServerLimiter {
-	if l <= 0 && c <= 0 {
+func NewALimiter(capacity, concurrent, n int, enableMetrics bool, scope, sub string) ServerLimiter {
+	if capacity <= 0 && concurrent <= 0 {
 		return NoopLimiter{}
 	}
-	if n >= c {
-		n = c - 1
+	if n >= concurrent {
+		n = concurrent - 1
 	}
 	if n <= 0 {
-		return NewWLimiter(l, c, enableMetrics, scope, sub)
+		return NewWLimiter(capacity, concurrent, enableMetrics, scope, sub)
 	}
 
 	a := &ALimiter{
-		m: metrics.NewWaitMetric(enableMetrics, scope, sub), c: c, n: n,
+		m: metrics.NewWaitMetric(enableMetrics, scope, sub), concurrent: concurrent, n: n,
 	}
-	a.cL.ch = make(chan struct{}, c)
-	a.cL.cap = c
+	a.concurrentLimiter.ch = make(chan struct{}, concurrent)
+	a.concurrentLimiter.cap = concurrent
 
 	go a.balance()
 
@@ -70,17 +71,17 @@ func (sl *ALimiter) balance() int {
 	var last int
 	for {
 		start := time.Now()
-		n := getWeighted(sl.n, sl.c)
+		n := getWeighted(sl.n, sl.concurrent)
 		if n > last {
 			for i := 0; i < n-last; i++ {
-				if sl.cL.enter(ctxMain, "balance") != nil {
+				if sl.concurrentLimiter.enter(ctxMain, "balance") != nil {
 					break
 				}
 			}
 			last = n
 		} else if n < last {
 			for i := 0; i < last-n; i++ {
-				sl.cL.leave(ctxMain, "balance")
+				sl.concurrentLimiter.leave(ctxMain, "balance")
 			}
 			last = n
 		}
@@ -92,20 +93,20 @@ func (sl *ALimiter) balance() int {
 }
 
 func (sl *ALimiter) Capacity() int {
-	return sl.l.capacity()
+	return sl.limiter.capacity()
 }
 
 func (sl *ALimiter) Enter(ctx context.Context, s string) (err error) {
-	if sl.l.cap > 0 {
-		if err = sl.l.tryEnter(ctx, s); err != nil {
+	if sl.limiter.cap > 0 {
+		if err = sl.limiter.tryEnter(ctx, s); err != nil {
 			sl.m.WaitErrors.Add(1)
 			return
 		}
 	}
-	if sl.cL.cap > 0 {
-		if sl.cL.enter(ctx, s) != nil {
-			if sl.l.cap > 0 {
-				sl.l.leave(ctx, s)
+	if sl.concurrentLimiter.cap > 0 {
+		if sl.concurrentLimiter.enter(ctx, s) != nil {
+			if sl.limiter.cap > 0 {
+				sl.limiter.leave(ctx, s)
 			}
 			sl.m.WaitErrors.Add(1)
 			err = ErrTimeout
@@ -117,16 +118,16 @@ func (sl *ALimiter) Enter(ctx context.Context, s string) (err error) {
 
 // TryEnter claims one of free slots without blocking.
 func (sl *ALimiter) TryEnter(ctx context.Context, s string) (err error) {
-	if sl.l.cap > 0 {
-		if err = sl.l.tryEnter(ctx, s); err != nil {
+	if sl.limiter.cap > 0 {
+		if err = sl.limiter.tryEnter(ctx, s); err != nil {
 			sl.m.WaitErrors.Add(1)
 			return
 		}
 	}
-	if sl.cL.cap > 0 {
-		if sl.cL.tryEnter(ctx, s) != nil {
-			if sl.l.cap > 0 {
-				sl.l.leave(ctx, s)
+	if sl.concurrentLimiter.cap > 0 {
+		if sl.concurrentLimiter.tryEnter(ctx, s) != nil {
+			if sl.limiter.cap > 0 {
+				sl.limiter.leave(ctx, s)
 			}
 			sl.m.WaitErrors.Add(1)
 			err = ErrTimeout
@@ -138,10 +139,10 @@ func (sl *ALimiter) TryEnter(ctx context.Context, s string) (err error) {
 
 // Frees a slot in limiter
 func (sl *ALimiter) Leave(ctx context.Context, s string) {
-	if sl.l.cap > 0 {
-		sl.l.leave(ctx, s)
+	if sl.limiter.cap > 0 {
+		sl.limiter.leave(ctx, s)
 	}
-	sl.cL.leave(ctx, s)
+	sl.concurrentLimiter.leave(ctx, s)
 }
 
 // SendDuration send StatsD duration iming
