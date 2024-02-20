@@ -35,31 +35,31 @@ func getWeighted(n, max int) int {
 
 // ALimiter provide limiter amount of requests/concurrently executing requests (adaptive with load avg)
 type ALimiter struct {
-	l  limiter
-	cL limiter
-	c  int
-	n  int
+	l   limiter
+	cL  limiter
+	max int
+	n   int
 
 	m metrics.WaitMetric
 }
 
 // NewServerLimiter creates a limiter for specific servers list.
-func NewALimiter(l, c, n int, enableMetrics bool, scope, sub string) ServerLimiter {
-	if l <= 0 && c <= 0 {
+func NewALimiter(l, max, n int, enableMetrics bool, scope, sub string) ServerLimiter {
+	if l <= 0 && max <= 0 {
 		return NoopLimiter{}
 	}
-	if n >= c {
-		n = c - 1
+	if n >= max {
+		n = max - 1
 	}
 	if n <= 0 {
-		return NewWLimiter(l, c, enableMetrics, scope, sub)
+		return NewWLimiter(l, max, enableMetrics, scope, sub)
 	}
 
 	a := &ALimiter{
-		m: metrics.NewWaitMetric(enableMetrics, scope, sub), c: c, n: n,
+		m: metrics.NewWaitMetric(enableMetrics, scope, sub), max: max, n: n,
 	}
-	a.cL.ch = make(chan struct{}, c)
-	a.cL.cap = c
+	a.cL.ch = make(chan struct{}, max)
+	a.cL.cap = max
 
 	go a.balance()
 
@@ -70,7 +70,7 @@ func (sl *ALimiter) balance() int {
 	var last int
 	for {
 		start := time.Now()
-		n := getWeighted(sl.n, sl.c)
+		n := getWeighted(sl.n, sl.max)
 		if n > last {
 			for i := 0; i < n-last; i++ {
 				if sl.cL.enter(ctxMain, "balance") != nil {

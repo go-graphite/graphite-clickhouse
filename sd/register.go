@@ -80,7 +80,7 @@ func Register(cfg *config.Common, logger *zap.Logger) {
 			zap.String("hostname", hostname),
 		)
 
-		w = load_avg.Weight(cfg.BaseWeight, load)
+		w = load_avg.Weight(cfg.BaseWeight, cfg.DegragedMultiply, cfg.DegragedLoad, load)
 		sd.Update(listenIP, cfg.Listen, cfg.SDDc, w)
 		sd.Clear(listenIP, cfg.Listen)
 	}
@@ -91,7 +91,7 @@ LOOP:
 			load_avg.Store(load)
 		}
 		if sd != nil {
-			w = load_avg.Weight(cfg.BaseWeight, load)
+			w = load_avg.Weight(cfg.BaseWeight, cfg.DegragedMultiply, cfg.DegragedLoad, load)
 
 			if registerFirst {
 				// if listen on all ip, try to register with first ip
