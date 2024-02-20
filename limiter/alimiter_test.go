@@ -47,11 +47,11 @@ func Test_getWeighted(t *testing.T) {
 }
 
 func TestNewALimiter(t *testing.T) {
-	l := 14
-	c := 12
+	capacity := 14
+	concurrent := 12
 	n := 10
 	checkDelay = time.Millisecond * 10
-	limiter := NewALimiter(l, c, n, false, "", "")
+	limiter := NewALimiter(capacity, concurrent, n, false, "", "")
 
 	// inital - load not collected
 	load_avg.Store(0)
@@ -59,13 +59,13 @@ func TestNewALimiter(t *testing.T) {
 	var i int
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 
-	for i = 0; i < c; i++ {
+	for i = 0; i < concurrent; i++ {
 		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 0 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
 
-	for i = 0; i < c; i++ {
+	for i = 0; i < concurrent; i++ {
 		limiter.Leave(ctx, "render")
 	}
 
@@ -73,24 +73,24 @@ func TestNewALimiter(t *testing.T) {
 
 	// load_avg 0.5
 	load_avg.Store(0.5)
-	k := getWeighted(n, c)
+	k := getWeighted(n, concurrent)
 	require.Equal(t, 0, k)
 
 	// load_avg 0.6
 	load_avg.Store(0.6)
-	k = getWeighted(n, c)
+	k = getWeighted(n, concurrent)
 	require.Equal(t, n*6/10, k)
 
 	time.Sleep(checkDelay * 2)
 
 	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*100)
-	for i = 0; i < c-k; i++ {
+	for i = 0; i < concurrent-k; i++ {
 		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 0.5 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
 
-	for i = 0; i < c-k; i++ {
+	for i = 0; i < concurrent-k; i++ {
 		limiter.Leave(ctx, "render")
 	}
 
@@ -98,19 +98,19 @@ func TestNewALimiter(t *testing.T) {
 
 	// // load_avg 1
 	load_avg.Store(1)
-	k = getWeighted(n, c)
+	k = getWeighted(n, concurrent)
 	require.Equal(t, n, k)
 
 	time.Sleep(checkDelay * 2)
 
 	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*10)
-	for i = 0; i < c-n; i++ {
+	for i = 0; i < concurrent-n; i++ {
 		require.NoError(t, limiter.Enter(ctx, "render"), "try to lock with load_avg = 1 [%d]", i)
 	}
 
 	require.Error(t, limiter.Enter(ctx, "render"))
 
-	for i = 0; i < c-n; i++ {
+	for i = 0; i < concurrent-n; i++ {
 		limiter.Leave(ctx, "render")
 	}
 
