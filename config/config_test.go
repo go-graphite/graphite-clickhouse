@@ -339,6 +339,8 @@ sample-thereafter = 12
 			DefaultTimeoutSec: 0,
 			ShortTimeoutSec:   0,
 		},
+		DegragedMultiply: 4.0,
+		DegragedLoad:     1.0,
 	}
 	expected.Metrics = metrics.Config{}
 
@@ -575,6 +577,8 @@ sample-thereafter = 12
 			DefaultTimeoutSec: 0,
 			ShortTimeoutSec:   0,
 		},
+		DegragedMultiply: 4.0,
+		DegragedLoad:     1.0,
 	}
 	expected.Metrics = metrics.Config{
 		MetricEndpoint: "127.0.0.1:2003",
@@ -889,6 +893,8 @@ sample-thereafter = 12
 			DefaultTimeoutSec: 0,
 			ShortTimeoutSec:   0,
 		},
+		DegragedMultiply: 4.0,
+		DegragedLoad:     1.0,
 	}
 	expected.Metrics = metrics.Config{
 		MetricEndpoint: "127.0.0.1:2003",
