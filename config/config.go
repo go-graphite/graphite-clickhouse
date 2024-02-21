@@ -371,6 +371,8 @@ func New() *Config {
 				ShortTimeoutSec:   0,
 				FindTimeoutSec:    0,
 			},
+			DegragedMultiply: 4.0,
+			DegragedLoad:     1.0,
 		},
 		ClickHouse: ClickHouse{
 			URL:                  "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1",

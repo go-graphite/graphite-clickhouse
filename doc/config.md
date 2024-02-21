@@ -195,9 +195,9 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  # service discovery base weight (on idle)
  base_weight = 0
  # service discovery degraded load avg multiplier (if normalized load avg > degraged_load_avg) (default 4.0)
- degraged_multiply = 0.0
+ degraged_multiply = 4.0
  # service discovery normilized load avg degraded point (default 1.0)
- degraged_load_avg = 0.0
+ degraged_load_avg = 1.0
  # service discovery type
  service-discovery-type = 0
  # service discovery address (consul)
