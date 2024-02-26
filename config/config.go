@@ -105,8 +105,8 @@ type Common struct {
 	HeadersToLog           []string         `toml:"headers-to-log"             json:"headers-to-log"             comment:"additional request headers to log"`
 
 	BaseWeight       int           `toml:"base_weight"            json:"base_weight"            comment:"service discovery base weight (on idle)"`
-	DegragedMultiply float64       `toml:"degraged_multiply"            json:"degraged_multiply"            comment:"service discovery degraded load avg multiplier (if normalized load avg > degraged_load_avg) (default 4.0)"`
-	DegragedLoad     float64       `toml:"degraged_load_avg"            json:"degraged_load_avg"            comment:"service discovery normilized load avg degraded point (default 1.0)"`
+	DegragedMultiply float64       `toml:"degraged-multiply"            json:"degraged-multiply"            comment:"service discovery degraded load avg multiplier (if normalized load avg > degraged_load_avg) (default 4.0)"`
+	DegragedLoad     float64       `toml:"degraged-load-avg"            json:"degraged-load-avg"            comment:"service discovery normilized load avg degraded point (default 1.0)"`
 	SDType           SDType        `toml:"service-discovery-type" json:"service-discovery-type" comment:"service discovery type"`
 	SD               string        `toml:"service-discovery"      json:"service-discovery"      comment:"service discovery address (consul)"`
 	SDNamespace      string        `toml:"service-discovery-ns"   json:"service-discovery-ns"   comment:"service discovery namespace (graphite by default)"`
