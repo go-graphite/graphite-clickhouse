@@ -81,6 +81,13 @@ func (app *App) Handler(handler http.Handler) http.Handler {
 
 		w.Header().Add("X-Gch-Request-ID", scope.RequestID(r.Context()))
 
+		var featFlagsContext context.Context
+		// if app.config.FeatureFlags.UseCarbonBehavior {
+		featFlagsContext = scope.With(r.Context(), "use-carbon-behaviour", true)
+		// }
+
+		r = r.WithContext(featFlagsContext)
+
 		handler.ServeHTTP(writer, r)
 	})
 }

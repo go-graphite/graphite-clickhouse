@@ -107,6 +107,11 @@ func TaggedTermWhere1(term *TaggedTerm) (string, error) {
 	// negative check in all Tags
 	switch term.Op {
 	case TaggedTermEq:
+		if term.Value == "" {
+			// special case
+			// container_name=""  ==> response should not contain container_name
+			return "NOT " + where.HasPrefix("Tag1", term.Key+"="), nil
+		}
 		if strings.Index(term.Value, "*") >= 0 {
 			return where.Like("Tag1", term.concatMask()), nil
 		}
@@ -127,19 +132,24 @@ func TaggedTermWhere1(term *TaggedTerm) (string, error) {
 			// container_name!=""  ==> container_name exists and it is not empty
 			return where.HasPrefixAndNotEq("Tag1", term.Key+"="), nil
 		}
+		whereLikeAnyVal := where.HasPrefix("Tag1", term.Key+"=")
 		if strings.Index(term.Value, "*") >= 0 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+			whereLike := where.Like("x", term.concatMask())
+			return fmt.Sprintf("%s AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
 		if len(values) == 1 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", values[0])), nil
+			whereEq := where.Eq("x", values[0])
+			return fmt.Sprintf("%s AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.In("x", values)), nil
+			whereIn := where.In("x", values)
+			return fmt.Sprintf("%s AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat())), nil
+			whereEq := where.Eq("x", term.concat())
+			return fmt.Sprintf("%s AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return where.Match("Tag1", term.Key, term.Value), nil
@@ -155,6 +165,11 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 	// arrayExists((x) -> %s, Tags)
 	switch term.Op {
 	case TaggedTermEq:
+		if term.Value == "" {
+			// special case
+			// container_name=""  ==> response should not contain container_name
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.HasPrefix("x", term.Key+"=")), nil
+		}
 		if strings.Index(term.Value, "*") >= 0 {
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
 		}
@@ -175,24 +190,31 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 			// container_name!=""  ==> container_name exists and it is not empty
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"=")), nil
 		}
+		whereLikeAnyVal := where.HasPrefix("x", term.Key+"=")
 		if strings.Index(term.Value, "*") >= 0 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+			whereLike := where.Like("x", term.concatMask())
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags) AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
 		if len(values) == 1 {
-			return "NOT arrayExists((x) -> " + where.Eq("x", values[0]) + ", Tags)", nil
+			whereEq := where.Eq("x", values[0])
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags) AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
-			return "NOT arrayExists((x) -> " + where.In("x", values) + ", Tags)", nil
+			whereIn := where.In("x", values)
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags) AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
-			return "NOT arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
+			whereEq := where.Eq("x", term.concat())
+			return fmt.Sprintf("arrayExists((x) -> %s, Tags) AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
+		whereLikeAnyVal := where.HasPrefix("x", term.Key+"=")
+		whereMatch := where.Match("x", term.Key, term.Value)
+		return fmt.Sprintf("arrayExists((x) -> %s, Tags) AND NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}

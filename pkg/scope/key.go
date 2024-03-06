@@ -67,3 +67,8 @@ func ClickhouseUserAgent(ctx context.Context) string {
 	}
 	return fmt.Sprintf("Graphite-Clickhouse/%s (table:%s)", Version, Table(ctx))
 }
+
+// UseCarbonBehavior ...
+func UseCarbonBehavior(ctx context.Context) bool {
+	return Bool(ctx, "use-carbon-behaviour")
+}

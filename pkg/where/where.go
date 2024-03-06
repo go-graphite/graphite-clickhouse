@@ -125,9 +125,9 @@ func quote(value interface{}) string {
 func quoteRegex(key, value string) string {
 	startLine := value[0] == '^'
 	if startLine {
-		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+		return fmt.Sprintf("'^%s%s(%s)'", key, opEq, escape(value[1:]))
 	}
-	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value))
+	return fmt.Sprintf("'^%s%s.*(%s)'", key, opEq, escape(value))
 }
 
 func Like(field, s string) string {
