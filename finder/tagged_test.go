@@ -58,15 +58,15 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=rps', 'key=~hello.world')", 0, "(Tag1='__name__=rps') AND (arrayExists((x) -> x LIKE 'key=%' AND match(x, '^key=.*(hello.world)'), Tags))", "", false},
 		{`seriesByTag('cpu=cpu-total','host=~Vladimirs-MacBook-Pro\.local')`, 0, `(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'host=%' AND match(x, '^host=.*(Vladimirs-MacBook-Pro\\.local)'), Tags))`, "", false},
 		// grafana multi-value variable produce this
-		{"seriesByTag('name=value','what=*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},         // If All masked to value with *
-		{"seriesByTag('name=value','what=*x')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},       // If All masked to value with *
-		{"seriesByTag('name=value','what!=*x')", 0, "(Tag1='__name__=value') AND ( NOT arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false}, // If All masked to value with *
+		{"seriesByTag('name=value','what=*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false},        // If All masked to value with *
+		{"seriesByTag('name=value','what=*x')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false},      // If All masked to value with *
+		{"seriesByTag('name=value','what!=*x')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x LIKE 'what=%x', Tags))", "", false}, // If All masked to value with *
 		{"seriesByTag('name={avg,max}')", 0, "Tag1 IN ('__name__=avg','__name__=max')", "", false},
 		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
 		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
-		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND ( NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
 		{"seriesByTag('name=value','what=~*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 		// empty tag value during autocompletion

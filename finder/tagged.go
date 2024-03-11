@@ -138,11 +138,11 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		}
 		var whereLikeAnyVal string
 		if dontMatchMissingTags {
-			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND"
+			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
 		}
 		if strings.Contains(term.Value, "*") {
 			whereLike := where.Like("x", term.concatMask())
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
@@ -150,13 +150,13 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		}
 		if len(values) == 1 {
 			whereEq := where.Eq("x", values[0])
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
 			whereIn := where.In("x", values)
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
 			whereEq := where.Eq("x", term.concat())
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return where.Match("Tag1", term.Key, term.Value), nil
@@ -164,10 +164,10 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		// return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", term.Key, term.Value), nil
 		var whereLikeAnyVal string
 		if useCarbonBehaviour {
-			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND"
+			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
 		}
 		whereMatch := where.Match("Tag1", term.Key, term.Value)
-		return fmt.Sprintf("%s NOT (%s)", whereLikeAnyVal, whereMatch), nil
+		return fmt.Sprintf("%sNOT (%s)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}
@@ -204,11 +204,11 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		}
 		var whereLikeAnyVal string
 		if dontMatchMissingTags {
-			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND", where.HasPrefix("x", term.Key+"="))
+			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
 		}
 		if strings.Contains(term.Value, "*") {
 			whereLike := where.Like("x", term.concatMask())
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
@@ -216,23 +216,23 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		}
 		if len(values) == 1 {
 			whereEq := where.Eq("x", values[0])
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
 			whereIn := where.In("x", values)
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
 			whereEq := where.Eq("x", term.concat())
-			return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	case TaggedTermNotMatch:
 		var whereLikeAnyVal string
 		if useCarbonBehaviour {
-			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND", where.HasPrefix("x", term.Key+"="))
+			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
 		}
 		whereMatch := where.Match("x", term.Key, term.Value)
-		return fmt.Sprintf("%s NOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
+		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}
