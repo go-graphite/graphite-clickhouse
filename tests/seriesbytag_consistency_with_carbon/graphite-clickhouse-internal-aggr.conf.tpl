@@ -7,6 +7,7 @@ headers-to-log = [ "X-Ctx-Carbonapi-Uuid" ]
 
 [feature-flags]
 use-carbon-behaviour = true
+dont-match-missing-tags = true
 
 [clickhouse]
 url = "{{ .CLICKHOUSE_URL }}/?max_rows_to_read=500000000&max_result_bytes=1073741824&readonly=2&log_queries=1"

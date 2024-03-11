@@ -1,13 +1,13 @@
 [test]
 precision = "10s"
 
-# [[test.clickhouse]]
-# version = "21.3"
-# dir = "tests/clickhouse/rollup"
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
 
-# [[test.clickhouse]]
-# version = "22.8"
-# dir = "tests/clickhouse/rollup"
+[[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
 
 [[test.clickhouse]]
 version = "latest"
@@ -17,7 +17,7 @@ dir = "tests/clickhouse/rollup"
 template = "carbon-clickhouse.conf.tpl"
 
 [[test.graphite_clickhouse]]
-template = "graphite-clickhouse-internal-aggr.conf"
+template = "graphite-clickhouse-internal-aggr.conf.tpl"
 
 #######################################################################################
 
@@ -49,794 +49,870 @@ points = [{value = 1.0, time = "rnow-10"}]
 name = "test;env=dr"
 points = [{value = 1.0, time = "rnow-10"}]
 
-# ############################################################################################
-# ### Tests that ensure that gch gives the same responses to seriesByTag targets as carbon ###
-# ############################################################################################
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
-#     # "seriesByTag('name=test')",
-#     # "seriesByTag('name=test','env!=~(stage|env)')",
-# ]
-
-# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST') ###
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=') ###
-
-# ## FAILS
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# ## seriesByTag('t=')
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# ## seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=~')
-
-# # FAILS
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=~')", 
-# ]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# ### seriesByTag('dc!=ru') ###
-
-# # FAILS
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('dc!=ru')", 
-# ]
-
-# ## seriesByTag('name=request_success_total.counter', 'dc!=ru') ###
-
-# ## FAILS
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'dc!=ru')", 
-# ]
-
-# ### seriesByTag('dc!=~ru') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('dc!=~ru')", 
-# ]
-
-# ### seriesByTag('name=request_success_total.counter','dc!=~ru')
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter','dc!=~ru')", 
-# ]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 'logger!=default') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 'logger!=default')", 
-# ]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ## seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
-# path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# # ### seriesByTag('name=test') ###
-
-# [[test.render_checks]]
-# from = "rnow-10"
-# until = "rnow+1"
-# timeout = "1h"
-# targets = [ 
-#     "seriesByTag('name=test')", 
-# ]
-
-# [[test.render_checks.result]]
-# name = "test;env=dr"
-# path = "seriesByTag('name=test')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
-
-# [[test.render_checks.result]]
-# name = "test;env=prod"
-# path = "seriesByTag('name=test')"
-# consolidation = "avg"
-# start = "rnow-10"
-# stop = "rnow+10"
-# step = 10
-# req_start = "rnow-10"
-# req_stop = "rnow+10"
-# values = [1.0, nan]
+############################################################################################
+### Tests that ensure that gch gives the same responses to seriesByTag targets as carbon ###
+############################################################################################
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+
+### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST') ###
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+## seriesByTag('t=')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('t=')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('t=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "test;env=dr"
+path = "seriesByTag('t=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "test;env=prod"
+path = "seriesByTag('t=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=~')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't!=~')", 
+]
+
+### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+### seriesByTag('dc!=ru') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('dc!=ru')", 
+]
+
+## seriesByTag('name=request_success_total.counter', 'dc!=ru') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'dc!=ru')", 
+]
+
+## seriesByTag('dc!=~ru') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('dc!=~ru')", 
+]
+
+## seriesByTag('name=request_success_total.counter','dc!=~ru')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter','dc!=~ru')", 
+]
+
+### seriesByTag('t!=~qac') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('t!=~qac')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('t!=~qac')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('t!=~qac')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+## seriesByTag('name=request_success_total.counter', 't!=~qac')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 't!=~qac')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 't!=~qac')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 't!=~qac')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 'logger!=default') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 'logger!=default')", 
+]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=q*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ## seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*c')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~c.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~q$')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~a')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*a$')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~.*c$')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~^q.*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=test') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=test')", 
+]
+
+[[test.render_checks.result]]
+name = "test;env=dr"
+path = "seriesByTag('name=test')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "test;env=prod"
+path = "seriesByTag('name=test')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
 
 # ### seriesByTag('name=test','env!=~stage|env') ###
 
@@ -870,5 +946,5 @@ req_start = "rnow-10"
 req_stop = "rnow+10"
 values = [1.0, nan]
 
-# End - Test seriesByTag
-##########################################################################
+# # End - Test seriesByTag
+# #########################################################################

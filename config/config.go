@@ -117,7 +117,8 @@ type Common struct {
 }
 
 type FeatureFlags struct {
-	UseCarbonBehavior bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, in cases where the behaivior is mutually exclusive, gch will treat tags the same way as carbon does"`
+	UseCarbonBehavior    bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, in cases where the behaivior is mutually exclusive, gch will treat tags the same way as carbon does"`
+	DontMatchMissingTags bool `toml:"dont-match-missing-tags" json:"dont-match-missing-tags" comment:"if true, seriesByTag requests containing 'not equal' terms will not match metrics that don't have the tag at all"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
