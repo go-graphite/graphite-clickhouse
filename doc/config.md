@@ -224,6 +224,12 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
   # offset beetween now and until for select short cache timeout
   short-offset = 0
 
+[feature-flags]
+ # if true, prefers carbon's behaviour on how tags are treated
+ use-carbon-behaviour = false
+ # if true, seriesByTag requests containing 'not equal' terms will not match metrics that don't have the tag at all
+ dont-match-missing-tags = false
+
 [metrics]
  # graphite relay address
  metric-endpoint = ""
