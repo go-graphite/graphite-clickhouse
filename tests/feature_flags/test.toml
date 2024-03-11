@@ -49,9 +49,7 @@ points = [{value = 1.0, time = "rnow-10"}]
 name = "test;env=dr"
 points = [{value = 1.0, time = "rnow-10"}]
 
-############################################################################################
-### Tests that ensure that gch gives the same responses to seriesByTag targets as carbon ###
-############################################################################################
+### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST') ###
 
 [[test.render_checks]]
 from = "rnow-10"
@@ -60,8 +58,6 @@ timeout = "1h"
 targets = [ 
     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
 ]
-
-### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST') ###
 
 [[test.render_checks.result]]
 name = "request_success_total.counter;app=test;environment=TEST;project=Test"
