@@ -34,7 +34,6 @@ func (q *Querier) Close() error {
 
 // LabelValues returns all potential values for a label name.
 func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
-	// @TODO: support matchers
 	terms := []finder.TaggedTerm{
 		{
 			Key:         label,
@@ -54,7 +53,6 @@ func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]stri
 	if err != nil {
 		return nil, nil, err
 	}
-	//wr.And(where.HasPrefix("Tag1", label+"="))
 
 	fromDate := timeNow().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	wr.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
@@ -89,12 +87,12 @@ func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]stri
 
 // LabelNames returns all the unique label names present in the block in sorted order.
 func (q *Querier) LabelNames(matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
-	// @TODO support matchers
 	terms, err := makeTaggedFromPromQL(matchers)
 	if err != nil {
 		return nil, nil, err
 	}
 	w := where.New()
+	// @TODO: this is duplicate to the for in finder.TaggedWhere. (different start...)
 	for i := 0; i < len(terms); i++ {
 		and, err := finder.TaggedTermWhereN(&terms[i])
 		if err != nil {
