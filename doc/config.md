@@ -36,12 +36,11 @@ findTimeoutSec = 600
 
 `use-carbon-behaviour=true`.
 
-- Tagged terms with `!=~` op only match metrics that have that tag.
-- Tagged terms with `=` op and empty value (e.g. `t=`) match all metrics that don't have that tag.
+- Tagged terms with `=` operator and empty value (e.g. `t=`) match all metrics that don't have that tag.
 
 `dont-match-missing-tags=true`.
 
-- Tagged terms with `!=` op only match metrics that have that tag.
+- Tagged terms with `!=`, `!=~` operators only match metrics that have that tag.
 
 ### Examples
 
@@ -55,13 +54,13 @@ metric.one;env=prod;dc=otherdc1
 |-----------------------------|----------------------|---------------------------------------------------|
 | seriesByTag('dc=')          | false                | -                                                 |
 | seriesByTag('dc=')          | true                 | metric.two;env=prod                               |
-| seriesByTag('dc!=~otherdc') | false                | metric.two;env=prod<br>metric.one;env=stage;dc=mydc1 |
-| seriesByTag('dc!=~otherdc') | true                 | metric.one;env=stage;dc=mydc1                     |
 
 | Target                   | dont-match-missing-tags | Matched metrics                                        |
 |--------------------------|-------------------------|--------------------------------------------------------|
 | seriesByTag('dc!=mydc1') | false                   | metric.two;env=prod<br>metric.one;env=prod;dc=otherdc1 |
 | seriesByTag('dc!=mydc1') | true                    | metric.one;env=prod;dc=otherdc1                        |
+| seriesByTag('dc!=~otherdc') | false                | metric.two;env=prod<br>metric.one;env=stage;dc=mydc1 |
+| seriesByTag('dc!=~otherdc') | true                 | metric.one;env=stage;dc=mydc1                     |
 
 ## ClickHouse `[clickhouse]`
 
@@ -258,7 +257,7 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
 [feature-flags]
  # if true, prefers carbon's behaviour on how tags are treated
  use-carbon-behaviour = false
- # if true, seriesByTag requests containing 'not equal' terms will not match metrics that don't have the tag at all
+ # if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all
  dont-match-missing-tags = false
 
 [metrics]
