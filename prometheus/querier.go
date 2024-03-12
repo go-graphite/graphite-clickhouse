@@ -17,7 +17,6 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
-	// "github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
 // Querier provides reading access to time series data.
