@@ -161,13 +161,12 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 	case TaggedTermMatch:
 		return where.Match("Tag1", term.Key, term.Value), nil
 	case TaggedTermNotMatch:
-		// return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", term.Key, term.Value), nil
 		var whereLikeAnyVal string
 		if useCarbonBehaviour {
 			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
 		}
-		whereMatch := where.Match("Tag1", term.Key, term.Value)
-		return fmt.Sprintf("%sNOT (%s)", whereLikeAnyVal, whereMatch), nil
+		whereMatch := where.Match("x", term.Key, term.Value)
+		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}
