@@ -36,7 +36,7 @@ func (q *Querier) Close() error {
 func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
 	terms := []finder.TaggedTerm{
 		{
-			Key:         label,
+			Key:         strings.ReplaceAll(label, `_`, `\_`),
 			Op:          finder.TaggedTermEq,
 			Value:       "*",
 			HasWildcard: true,
