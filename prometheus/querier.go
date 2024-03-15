@@ -100,6 +100,7 @@ func (q *Querier) LabelNames(matchers ...*labels.Matcher) ([]string, storage.War
 		}
 		w.And(and)
 	}
+	w.And("value != '__name__'")
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
