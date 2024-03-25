@@ -116,6 +116,7 @@ type Common struct {
 	FindCache cache.BytesCache `toml:"-" json:"-"`
 }
 
+// FeatureFlags contains feature flags that significantly change how gch responds to some requests
 type FeatureFlags struct {
 	UseCarbonBehavior    bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, prefers carbon's behaviour on how tags are treated"`
 	DontMatchMissingTags bool `toml:"dont-match-missing-tags" json:"dont-match-missing-tags" comment:"if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all"`
