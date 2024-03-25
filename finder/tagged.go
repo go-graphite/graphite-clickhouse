@@ -72,24 +72,28 @@ func (s TaggedTermList) Less(i, j int) bool {
 }
 
 type TaggedFinder struct {
-	url            string                   // clickhouse dsn
-	table          string                   // graphite_tag table
-	absKeepEncoded bool                     // Abs returns url encoded value. For queries from prometheus
-	opts           clickhouse.Options       // clickhouse query timeout
-	taggedCosts    map[string]*config.Costs // costs for taggs (sor tune index search)
-	dailyEnabled   bool
+	url                  string                   // clickhouse dsn
+	table                string                   // graphite_tag table
+	absKeepEncoded       bool                     // Abs returns url encoded value. For queries from prometheus
+	opts                 clickhouse.Options       // clickhouse query timeout
+	taggedCosts          map[string]*config.Costs // costs for taggs (sor tune index search)
+	dailyEnabled         bool
+	useCarbonBehavior    bool
+	dontMatchMissingTags bool
 
 	body []byte // clickhouse response
 }
 
-func NewTagged(url string, table string, dailyEnabled bool, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
+func NewTagged(url string, table string, dailyEnabled, useCarbonBehavior, dontMatchMissingTags, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
 	return &TaggedFinder{
-		url:            url,
-		table:          table,
-		absKeepEncoded: absKeepEncoded,
-		opts:           opts,
-		taggedCosts:    taggedCosts,
-		dailyEnabled:   dailyEnabled,
+		url:                  url,
+		table:                table,
+		absKeepEncoded:       absKeepEncoded,
+		opts:                 opts,
+		taggedCosts:          taggedCosts,
+		dailyEnabled:         dailyEnabled,
+		useCarbonBehavior:    useCarbonBehavior,
+		dontMatchMissingTags: dontMatchMissingTags,
 	}
 }
 
@@ -102,12 +106,17 @@ func (term *TaggedTerm) concatMask() string {
 	return fmt.Sprintf("%s=%s", term.Key, v)
 }
 
-func TaggedTermWhere1(term *TaggedTerm) (string, error) {
+func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags bool) (string, error) {
 	// positive expression check only in Tag1
 	// negative check in all Tags
 	switch term.Op {
 	case TaggedTermEq:
-		if strings.Index(term.Value, "*") >= 0 {
+		if useCarbonBehaviour && term.Value == "" {
+			// special case
+			// container_name=""  ==> response should not contain container_name
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.HasPrefix("x", term.Key+"=")), nil
+		}
+		if strings.Contains(term.Value, "*") {
 			return where.Like("Tag1", term.concatMask()), nil
 		}
 		var values []string
@@ -127,35 +136,52 @@ func TaggedTermWhere1(term *TaggedTerm) (string, error) {
 			// container_name!=""  ==> container_name exists and it is not empty
 			return where.HasPrefixAndNotEq("Tag1", term.Key+"="), nil
 		}
-		if strings.Index(term.Value, "*") >= 0 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+		var whereLikeAnyVal string
+		if dontMatchMissingTags {
+			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
+		}
+		if strings.Contains(term.Value, "*") {
+			whereLike := where.Like("x", term.concatMask())
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
 		if len(values) == 1 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", values[0])), nil
+			whereEq := where.Eq("x", values[0])
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.In("x", values)), nil
+			whereIn := where.In("x", values)
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Eq("x", term.concat())), nil
+			whereEq := where.Eq("x", term.concat())
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return where.Match("Tag1", term.Key, term.Value), nil
 	case TaggedTermNotMatch:
-		// return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", term.Key, term.Value), nil
-		return "NOT " + where.Match("Tag1", term.Key, term.Value), nil
+		var whereLikeAnyVal string
+		if dontMatchMissingTags {
+			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
+		}
+		whereMatch := where.Match("x", term.Key, term.Value)
+		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}
 }
 
-func TaggedTermWhereN(term *TaggedTerm) (string, error) {
+func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags bool) (string, error) {
 	// arrayExists((x) -> %s, Tags)
 	switch term.Op {
 	case TaggedTermEq:
-		if strings.Index(term.Value, "*") >= 0 {
+		if useCarbonBehaviour && term.Value == "" {
+			// special case
+			// container_name=""  ==> response should not contain container_name
+			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.HasPrefix("x", term.Key+"=")), nil
+		}
+		if strings.Contains(term.Value, "*") {
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
 		}
 		var values []string
@@ -175,24 +201,37 @@ func TaggedTermWhereN(term *TaggedTerm) (string, error) {
 			// container_name!=""  ==> container_name exists and it is not empty
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"=")), nil
 		}
-		if strings.Index(term.Value, "*") >= 0 {
-			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
+		var whereLikeAnyVal string
+		if dontMatchMissingTags {
+			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
+		}
+		if strings.Contains(term.Value, "*") {
+			whereLike := where.Like("x", term.concatMask())
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
 		if len(values) == 1 {
-			return "NOT arrayExists((x) -> " + where.Eq("x", values[0]) + ", Tags)", nil
+			whereEq := where.Eq("x", values[0])
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		} else if len(values) > 1 {
-			return "NOT arrayExists((x) -> " + where.In("x", values) + ", Tags)", nil
+			whereIn := where.In("x", values)
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereIn), nil
 		} else {
-			return "NOT arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
+			whereEq := where.Eq("x", term.concat())
+			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
 		}
 	case TaggedTermMatch:
 		return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
 	case TaggedTermNotMatch:
-		return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.Match("x", term.Key, term.Value)), nil
+		var whereLikeAnyVal string
+		if dontMatchMissingTags {
+			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
+		}
+		whereMatch := where.Match("x", term.Key, term.Value)
+		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
 	}
@@ -387,10 +426,10 @@ func ParseSeriesByTag(query string, config *config.Config) ([]TaggedTerm, error)
 	return ParseTaggedConditions(conditions, config, false)
 }
 
-func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
+func TaggedWhere(terms []TaggedTerm, useCarbonBehaviour, dontMatchMissingTags bool) (*where.Where, *where.Where, error) {
 	w := where.New()
 	pw := where.New()
-	x, err := TaggedTermWhere1(&terms[0])
+	x, err := TaggedTermWhere1(&terms[0], useCarbonBehaviour, dontMatchMissingTags)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -400,7 +439,7 @@ func TaggedWhere(terms []TaggedTerm) (*where.Where, *where.Where, error) {
 	w.And(x)
 
 	for i := 1; i < len(terms); i++ {
-		and, err := TaggedTermWhereN(&terms[i])
+		and, err := TaggedTermWhereN(&terms[i], useCarbonBehaviour, dontMatchMissingTags)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -426,7 +465,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query
 }
 
 func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) (*where.Where, *where.Where, error) {
-	w, pw, err := TaggedWhere(terms)
+	w, pw, err := TaggedWhere(terms, t.useCarbonBehavior, t.dontMatchMissingTags)
 	if err != nil {
 		return nil, nil, err
 	}

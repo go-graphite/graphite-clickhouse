@@ -118,6 +118,12 @@ type Common struct {
 	FindCache cache.BytesCache `toml:"-" json:"-"`
 }
 
+// FeatureFlags contains feature flags that significantly change how gch responds to some requests
+type FeatureFlags struct {
+	UseCarbonBehavior    bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, prefers carbon's behaviour on how tags are treated"`
+	DontMatchMissingTags bool `toml:"dont-match-missing-tags" json:"dont-match-missing-tags" comment:"if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all"`
+}
+
 // IndexReverseRule contains rules to use direct or reversed request to index table
 type IndexReverseRule struct {
 	Suffix   string         `toml:"suffix,omitempty" json:"suffix"  comment:"rule is used when the target suffix is matched"`
@@ -341,15 +347,16 @@ type Debug struct {
 
 // Config is the daemon configuration
 type Config struct {
-	Common     Common             `toml:"common"     json:"common"`
-	Metrics    metrics.Config     `toml:"metrics"    json:"metrics"`
-	ClickHouse ClickHouse         `toml:"clickhouse" json:"clickhouse"`
-	DataTable  []DataTable        `toml:"data-table" json:"data-table" comment:"data tables, see doc/config.md for additional info"`
-	Tags       Tags               `toml:"tags"       json:"tags"       comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
-	Carbonlink Carbonlink         `toml:"carbonlink" json:"carbonlink"`
-	Prometheus Prometheus         `toml:"prometheus" json:"prometheus"`
-	Debug      Debug              `toml:"debug"      json:"debug"      comment:"see doc/debugging.md"`
-	Logging    []zapwriter.Config `toml:"logging"    json:"logging"`
+	Common       Common             `toml:"common"        json:"common"`
+	FeatureFlags FeatureFlags       `toml:"feature-flags" json:"feature-flags"`
+	Metrics      metrics.Config     `toml:"metrics"       json:"metrics"`
+	ClickHouse   ClickHouse         `toml:"clickhouse"    json:"clickhouse"`
+	DataTable    []DataTable        `toml:"data-table"    json:"data-table" comment:"data tables, see doc/config.md for additional info"`
+	Tags         Tags               `toml:"tags"          json:"tags"       comment:"is not recommended to use, https://github.com/lomik/graphite-clickhouse/wiki/TagsRU" commented:"true"`
+	Carbonlink   Carbonlink         `toml:"carbonlink"    json:"carbonlink"`
+	Prometheus   Prometheus         `toml:"prometheus"    json:"prometheus"`
+	Debug        Debug              `toml:"debug"         json:"debug"      comment:"see doc/debugging.md"`
+	Logging      []zapwriter.Config `toml:"logging"       json:"logging"`
 }
 
 // New returns *Config with default values

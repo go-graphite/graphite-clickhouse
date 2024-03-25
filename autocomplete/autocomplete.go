@@ -93,7 +93,7 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 		return wr, pw, usedTags, err
 	}
 
-	wr, pw, err = finder.TaggedWhere(terms)
+	wr, pw, err = finder.TaggedWhere(terms, h.config.FeatureFlags.UseCarbonBehavior, h.config.FeatureFlags.DontMatchMissingTags)
 	if err != nil {
 		return wr, pw, usedTags, err
 	}
