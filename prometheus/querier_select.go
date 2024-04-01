@@ -19,7 +19,7 @@ import (
 // override in unit tests for stable results
 var timeNow = time.Now
 
-func (q *Querier) lookup(from, until int64, qlimiter limiter.ServerLimiter, queueDuration *time.Duration, labelsMatcher ...*labels.Matcher) (*alias.Map, error) {
+func (q *Querier) lookup(ctx context.Context, from, until int64, qlimiter limiter.ServerLimiter, queueDuration *time.Duration, labelsMatcher ...*labels.Matcher) (*alias.Map, error) {
 	terms, err := makeTaggedFromPromQL(labelsMatcher)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (q *Querier) lookup(from, until int64, qlimiter limiter.ServerLimiter, queu
 		cancel   context.CancelFunc
 	)
 	if qlimiter.Enabled() {
-		limitCtx, cancel = context.WithTimeout(q.ctx, q.config.ClickHouse.IndexTimeout)
+		limitCtx, cancel = context.WithTimeout(ctx, q.config.ClickHouse.IndexTimeout)
 		defer cancel()
 		start := time.Now()
 		err = qlimiter.Enter(limitCtx, "render")
@@ -44,7 +44,7 @@ func (q *Querier) lookup(from, until int64, qlimiter limiter.ServerLimiter, queu
 		defer qlimiter.Leave(limitCtx, "render")
 	}
 	// TODO: implement use stat for Prometheus queries
-	fndResult, err := finder.FindTagged(q.ctx, q.config, terms, from, until, &stat)
+	fndResult, err := finder.FindTagged(ctx, q.config, terms, from, until, &stat)
 
 	if err != nil {
 		return nil, err
@@ -86,13 +86,13 @@ func (q *Querier) timeRange(hints *storage.SelectHints) (int64, int64) {
 }
 
 // Select returns a set of series that matches the given label matchers.
-func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
+func (q *Querier) Select(ctx context.Context, sortSeries bool, hints *storage.SelectHints, labelsMatcher ...*labels.Matcher) storage.SeriesSet {
 	var (
 		queueDuration time.Duration
 	)
 	from, until := q.timeRange(hints)
 	qlimiter := data.GetQueryLimiterFrom("", q.config, from, until)
-	am, err := q.lookup(from, until, qlimiter, &queueDuration, labelsMatcher...)
+	am, err := q.lookup(ctx, from, until, qlimiter, &queueDuration, labelsMatcher...)
 	if err != nil {
 		return nil //, nil, err @TODO
 	}
@@ -120,7 +120,7 @@ func (q *Querier) Select(sortSeries bool, hints *storage.SelectHints, labelsMatc
 			MaxDataPoints: maxDataPoints,
 		}: data.NewTargets([]string{}, am),
 	}
-	reply, err := multiTarget.Fetch(q.ctx, q.config, config.ContextPrometheus, qlimiter, &queueDuration)
+	reply, err := multiTarget.Fetch(ctx, q.config, config.ContextPrometheus, qlimiter, &queueDuration)
 	if err != nil {
 		return nil // , nil, err @TODO
 	}

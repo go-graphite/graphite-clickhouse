@@ -4,7 +4,6 @@
 package prometheus
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -23,7 +22,6 @@ func TestQuerier_timeRange(t *testing.T) {
 			TaggedAutocompleDays: 4,
 		},
 	}
-	ctx := context.Background()
 	tests := []struct {
 		name string
 
@@ -81,7 +79,7 @@ func TestQuerier_timeRange(t *testing.T) {
 			s := newStorage(cfg)
 
 			// Querier returns a new Querier on the storage.
-			sq, err := s.Querier(ctx, tt.mint, tt.maxt)
+			sq, err := s.Querier(tt.mint, tt.maxt)
 			require.NoError(t, err)
 			q := sq.(*Querier)
 

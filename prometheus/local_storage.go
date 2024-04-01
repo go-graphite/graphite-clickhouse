@@ -4,6 +4,7 @@
 package prometheus
 
 import (
+	"context"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/index"
@@ -16,7 +17,7 @@ func (s *storageImpl) CleanTombstones() error {
 	return nil
 }
 
-func (s *storageImpl) Delete(mint, maxt int64, ms ...*labels.Matcher) error {
+func (s *storageImpl) Delete(ctx context.Context, mint, maxt int64, ms ...*labels.Matcher) error {
 	return nil
 }
 
