@@ -26,7 +26,7 @@ func (ms *metricsSet) At() storage.Series {
 }
 
 // Iterator returns a new iterator of the data of the series.
-func (s *metric) Iterator() chunkenc.Iterator {
+func (s *metric) Iterator(iterator chunkenc.Iterator) chunkenc.Iterator {
 	return emptyIteratorValue
 }
 

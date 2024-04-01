@@ -25,7 +25,7 @@ func (s *storageImpl) Snapshot(dir string, withHead bool) error {
 	return nil
 }
 
-func (s *storageImpl) Stats(statsByLabelName string) (*tsdb.Stats, error) {
+func (s *storageImpl) Stats(statsByLabelName string, limit int) (*tsdb.Stats, error) {
 	return &tsdb.Stats{
 		IndexPostingStats: &index.PostingsStats{},
 	}, nil
