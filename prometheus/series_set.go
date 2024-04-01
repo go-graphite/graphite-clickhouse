@@ -4,6 +4,7 @@
 package prometheus
 
 import (
+	"github.com/prometheus/prometheus/util/annotations"
 	"log"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
@@ -164,7 +165,7 @@ func (ss *seriesSet) Next() bool {
 }
 
 // Warnings ...
-func (s *seriesSet) Warnings() storage.Warnings {
+func (s *seriesSet) Warnings() annotations.Annotations {
 	return nil
 }
 

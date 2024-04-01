@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
+	"github.com/prometheus/prometheus/util/annotations"
 )
 
 // SeriesSet contains a set of series.
@@ -52,6 +53,4 @@ func newMetricsSet(metrics []string) storage.SeriesSet {
 }
 
 // Warnings ...
-func (s *metricsSet) Warnings() storage.Warnings {
-	return nil
-}
+func (s *metricsSet) Warnings() annotations.Annotations { return nil }
