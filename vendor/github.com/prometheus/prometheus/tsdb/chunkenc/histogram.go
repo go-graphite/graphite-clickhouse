@@ -15,6 +15,7 @@ package chunkenc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 
 	"github.com/prometheus/prometheus/model/histogram"
@@ -67,7 +68,7 @@ func (c *HistogramChunk) Layout() (
 	err error,
 ) {
 	if c.NumSamples() == 0 {
-		panic("HistoChunk.Layout() called on an empty chunk")
+		panic("HistogramChunk.Layout() called on an empty chunk")
 	}
 	b := newBReader(c.Bytes()[2:])
 	return readHistogramChunkLayout(&b)
@@ -88,21 +89,13 @@ const (
 	UnknownCounterReset CounterResetHeader = 0b00000000
 )
 
-// SetCounterResetHeader sets the counter reset header.
-func (c *HistogramChunk) SetCounterResetHeader(h CounterResetHeader) {
-	switch h {
-	case CounterReset, NotCounterReset, GaugeType, UnknownCounterReset:
-		bytes := c.Bytes()
-		bytes[2] = (bytes[2] & 0b00111111) | byte(h)
-	default:
-		panic("invalid CounterResetHeader type")
-	}
-}
+// CounterResetHeaderMask is the mask to get the counter reset header bits.
+const CounterResetHeaderMask byte = 0b11000000
 
 // GetCounterResetHeader returns the info about the first 2 bits of the chunk
 // header.
 func (c *HistogramChunk) GetCounterResetHeader() CounterResetHeader {
-	return CounterResetHeader(c.Bytes()[2] & 0b11000000)
+	return CounterResetHeader(c.Bytes()[2] & CounterResetHeaderMask)
 }
 
 // Compact implements the Chunk interface.
@@ -172,11 +165,12 @@ func newHistogramIterator(b []byte) *histogramIterator {
 	// The first 3 bytes contain chunk headers.
 	// We skip that for actual samples.
 	_, _ = it.br.readBits(24)
+	it.counterResetHeader = CounterResetHeader(b[2] & CounterResetHeaderMask)
 	return it
 }
 
 func (c *HistogramChunk) iterator(it Iterator) *histogramIterator {
-	// This commet is copied from XORChunk.iterator:
+	// This comment is copied from XORChunk.iterator:
 	//   Should iterators guarantee to act on a copy of the data so it doesn't lock append?
 	//   When using striped locks to guard access to chunks, probably yes.
 	//   Could only copy data if the chunk is not completed yet.
@@ -217,36 +211,53 @@ type HistogramAppender struct {
 	trailing uint8
 }
 
+func (a *HistogramAppender) GetCounterResetHeader() CounterResetHeader {
+	return CounterResetHeader(a.b.bytes()[2] & CounterResetHeaderMask)
+}
+
+func (a *HistogramAppender) setCounterResetHeader(cr CounterResetHeader) {
+	a.b.bytes()[2] = (a.b.bytes()[2] & (^CounterResetHeaderMask)) | (byte(cr) & CounterResetHeaderMask)
+}
+
+func (a *HistogramAppender) NumSamples() int {
+	return int(binary.BigEndian.Uint16(a.b.bytes()))
+}
+
 // Append implements Appender. This implementation panics because normal float
 // samples must never be appended to a histogram chunk.
 func (a *HistogramAppender) Append(int64, float64) {
 	panic("appended a float sample to a histogram chunk")
 }
 
-// Appendable returns whether the chunk can be appended to, and if so
-// whether any recoding needs to happen using the provided interjections
-// (in case of any new buckets, positive or negative range, respectively).
+// appendable returns whether the chunk can be appended to, and if so whether
+// any recoding needs to happen using the provided inserts (in case of any new
+// buckets, positive or negative range, respectively).  If the sample is a gauge
+// histogram, AppendableGauge must be used instead.
 //
 // The chunk is not appendable in the following cases:
 //
-// • The schema has changed.
-//
-// • The threshold for the zero bucket has changed.
-//
-// • Any buckets have disappeared.
-//
-// • There was a counter reset in the count of observations or in any bucket,
-// including the zero bucket.
-//
-// • The last sample in the chunk was stale while the current sample is not stale.
+//   - The schema has changed.
+//   - The threshold for the zero bucket has changed.
+//   - Any buckets have disappeared.
+//   - There was a counter reset in the count of observations or in any bucket,
+//     including the zero bucket.
+//   - The last sample in the chunk was stale while the current sample is not stale.
 //
 // The method returns an additional boolean set to true if it is not appendable
 // because of a counter reset. If the given sample is stale, it is always ok to
 // append. If counterReset is true, okToAppend is always false.
-func (a *HistogramAppender) Appendable(h *histogram.Histogram) (
-	positiveInterjections, negativeInterjections []Interjection,
+func (a *HistogramAppender) appendable(h *histogram.Histogram) (
+	positiveInserts, negativeInserts []Insert,
 	okToAppend, counterReset bool,
 ) {
+	if a.NumSamples() > 0 && a.GetCounterResetHeader() == GaugeType {
+		return
+	}
+	if h.CounterResetHint == histogram.CounterReset {
+		// Always honor the explicit counter reset hint.
+		counterReset = true
+		return
+	}
 	if value.IsStaleNaN(h.Sum) {
 		// This is a stale sample whose buckets and spans don't matter.
 		okToAppend = true
@@ -275,12 +286,12 @@ func (a *HistogramAppender) Appendable(h *histogram.Histogram) (
 	}
 
 	var ok bool
-	positiveInterjections, ok = compareSpans(a.pSpans, h.PositiveSpans)
+	positiveInserts, ok = expandSpansForward(a.pSpans, h.PositiveSpans)
 	if !ok {
 		counterReset = true
 		return
 	}
-	negativeInterjections, ok = compareSpans(a.nSpans, h.NegativeSpans)
+	negativeInserts, ok = expandSpansForward(a.nSpans, h.NegativeSpans)
 	if !ok {
 		counterReset = true
 		return
@@ -288,10 +299,54 @@ func (a *HistogramAppender) Appendable(h *histogram.Histogram) (
 
 	if counterResetInAnyBucket(a.pBuckets, h.PositiveBuckets, a.pSpans, h.PositiveSpans) ||
 		counterResetInAnyBucket(a.nBuckets, h.NegativeBuckets, a.nSpans, h.NegativeSpans) {
-		counterReset, positiveInterjections, negativeInterjections = true, nil, nil
+		counterReset, positiveInserts, negativeInserts = true, nil, nil
 		return
 	}
 
+	okToAppend = true
+	return
+}
+
+// appendableGauge returns whether the chunk can be appended to, and if so
+// whether:
+//  1. Any recoding needs to happen to the chunk using the provided inserts
+//     (in case of any new buckets, positive or negative range, respectively).
+//  2. Any recoding needs to happen for the histogram being appended, using the
+//     backward inserts (in case of any missing buckets, positive or negative
+//     range, respectively).
+//
+// This method must be only used for gauge histograms.
+//
+// The chunk is not appendable in the following cases:
+//   - The schema has changed.
+//   - The threshold for the zero bucket has changed.
+//   - The last sample in the chunk was stale while the current sample is not stale.
+func (a *HistogramAppender) appendableGauge(h *histogram.Histogram) (
+	positiveInserts, negativeInserts []Insert,
+	backwardPositiveInserts, backwardNegativeInserts []Insert,
+	positiveSpans, negativeSpans []histogram.Span,
+	okToAppend bool,
+) {
+	if a.NumSamples() > 0 && a.GetCounterResetHeader() != GaugeType {
+		return
+	}
+	if value.IsStaleNaN(h.Sum) {
+		// This is a stale sample whose buckets and spans don't matter.
+		okToAppend = true
+		return
+	}
+	if value.IsStaleNaN(a.sum) {
+		// If the last sample was stale, then we can only accept stale
+		// samples in this chunk.
+		return
+	}
+
+	if h.Schema != a.schema || h.ZeroThreshold != a.zThreshold {
+		return
+	}
+
+	positiveInserts, backwardPositiveInserts, positiveSpans = expandSpansBothWays(a.pSpans, h.PositiveSpans)
+	negativeInserts, backwardNegativeInserts, negativeSpans = expandSpansBothWays(a.nSpans, h.NegativeSpans)
 	okToAppend = true
 	return
 }
@@ -304,11 +359,16 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 		return false
 	}
 
-	oldSpanSliceIdx, newSpanSliceIdx := 0, 0                   // Index for the span slices.
-	oldInsideSpanIdx, newInsideSpanIdx := uint32(0), uint32(0) // Index inside a span.
-	oldIdx, newIdx := oldSpans[0].Offset, newSpans[0].Offset
+	var (
+		oldSpanSliceIdx, newSpanSliceIdx     int    = -1, -1 // Index for the span slices. Starts at -1 to indicate that the first non empty span is not yet found.
+		oldInsideSpanIdx, newInsideSpanIdx   uint32          // Index inside a span.
+		oldIdx, newIdx                       int32           // Index inside a bucket slice.
+		oldBucketSliceIdx, newBucketSliceIdx int             // Index inside bucket slice.
+	)
 
-	oldBucketSliceIdx, newBucketSliceIdx := 0, 0 // Index inside bucket slice.
+	// Find first non empty spans.
+	oldSpanSliceIdx, oldIdx = nextNonEmptySpanSliceIdx(oldSpanSliceIdx, oldIdx, oldSpans)
+	newSpanSliceIdx, newIdx = nextNonEmptySpanSliceIdx(newSpanSliceIdx, newIdx, newSpans)
 	oldVal, newVal := oldBuckets[0], newBuckets[0]
 
 	// Since we assume that new spans won't have missing buckets, there will never be a case
@@ -322,15 +382,14 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 
 		if oldIdx <= newIdx {
 			// Moving ahead old bucket and span by 1 index.
-			if oldInsideSpanIdx == oldSpans[oldSpanSliceIdx].Length-1 {
+			if oldInsideSpanIdx+1 >= oldSpans[oldSpanSliceIdx].Length {
 				// Current span is over.
-				oldSpanSliceIdx++
+				oldSpanSliceIdx, oldIdx = nextNonEmptySpanSliceIdx(oldSpanSliceIdx, oldIdx, oldSpans)
 				oldInsideSpanIdx = 0
 				if oldSpanSliceIdx >= len(oldSpans) {
 					// All old spans are over.
 					break
 				}
-				oldIdx += 1 + oldSpans[oldSpanSliceIdx].Offset
 			} else {
 				oldInsideSpanIdx++
 				oldIdx++
@@ -341,16 +400,15 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 
 		if oldIdx > newIdx {
 			// Moving ahead new bucket and span by 1 index.
-			if newInsideSpanIdx == newSpans[newSpanSliceIdx].Length-1 {
+			if newInsideSpanIdx+1 >= newSpans[newSpanSliceIdx].Length {
 				// Current span is over.
-				newSpanSliceIdx++
+				newSpanSliceIdx, newIdx = nextNonEmptySpanSliceIdx(newSpanSliceIdx, newIdx, newSpans)
 				newInsideSpanIdx = 0
 				if newSpanSliceIdx >= len(newSpans) {
 					// All new spans are over.
 					// This should not happen, old spans above should catch this first.
 					panic("new spans over before old spans in counterReset")
 				}
-				newIdx += 1 + newSpans[newSpanSliceIdx].Offset
 			} else {
 				newInsideSpanIdx++
 				newIdx++
@@ -363,11 +421,11 @@ func counterResetInAnyBucket(oldBuckets, newBuckets []int64, oldSpans, newSpans 
 	return false
 }
 
-// AppendHistogram appends a histogram to the chunk. The caller must ensure that
+// appendHistogram appends a histogram to the chunk. The caller must ensure that
 // the histogram is properly structured, e.g. the number of buckets used
 // corresponds to the number conveyed by the span structures. First call
 // Appendable() and act accordingly!
-func (a *HistogramAppender) AppendHistogram(t int64, h *histogram.Histogram) {
+func (a *HistogramAppender) appendHistogram(t int64, h *histogram.Histogram) {
 	var tDelta, cntDelta, zCntDelta int64
 	num := binary.BigEndian.Uint16(a.b.bytes())
 
@@ -425,8 +483,9 @@ func (a *HistogramAppender) AppendHistogram(t int64, h *histogram.Histogram) {
 			putVarbitInt(a.b, b)
 		}
 	} else {
-		// The case for the 2nd sample with single deltas is implicitly handled correctly with the double delta code,
-		// so we don't need a separate single delta logic for the 2nd sample.
+		// The case for the 2nd sample with single deltas is implicitly
+		// handled correctly with the double delta code, so we don't
+		// need a separate single delta logic for the 2nd sample.
 
 		tDelta = t - a.t
 		cntDelta = int64(h.Count) - int64(a.cnt)
@@ -475,13 +534,13 @@ func (a *HistogramAppender) AppendHistogram(t int64, h *histogram.Histogram) {
 	a.sum = h.Sum
 }
 
-// Recode converts the current chunk to accommodate an expansion of the set of
-// (positive and/or negative) buckets used, according to the provided
-// interjections, resulting in the honoring of the provided new positive and
-// negative spans. To continue appending, use the returned Appender rather than
-// the receiver of this method.
-func (a *HistogramAppender) Recode(
-	positiveInterjections, negativeInterjections []Interjection,
+// recode converts the current chunk to accommodate an expansion of the set of
+// (positive and/or negative) buckets used, according to the provided inserts,
+// resulting in the honoring of the provided new positive and negative spans. To
+// continue appending, use the returned Appender rather than the receiver of
+// this method.
+func (a *HistogramAppender) recode(
+	positiveInserts, negativeInserts []Insert,
 	positiveSpans, negativeSpans []histogram.Span,
 ) (Chunk, Appender) {
 	// TODO(beorn7): This currently just decodes everything and then encodes
@@ -493,12 +552,13 @@ func (a *HistogramAppender) Recode(
 	hc := NewHistogramChunk()
 	app, err := hc.Appender()
 	if err != nil {
-		panic(err)
+		panic(err) // This should never happen for an empty histogram chunk.
 	}
+	happ := app.(*HistogramAppender)
 	numPositiveBuckets, numNegativeBuckets := countSpans(positiveSpans), countSpans(negativeSpans)
 
 	for it.Next() == ValHistogram {
-		tOld, hOld := it.AtHistogram()
+		tOld, hOld := it.AtHistogram(nil)
 
 		// We have to newly allocate slices for the modified buckets
 		// here because they are kept by the appender until the next
@@ -514,27 +574,164 @@ func (a *HistogramAppender) Recode(
 
 		// Save the modified histogram to the new chunk.
 		hOld.PositiveSpans, hOld.NegativeSpans = positiveSpans, negativeSpans
-		if len(positiveInterjections) > 0 {
-			hOld.PositiveBuckets = interject(hOld.PositiveBuckets, positiveBuckets, positiveInterjections)
+		if len(positiveInserts) > 0 {
+			hOld.PositiveBuckets = insert(hOld.PositiveBuckets, positiveBuckets, positiveInserts, true)
 		}
-		if len(negativeInterjections) > 0 {
-			hOld.NegativeBuckets = interject(hOld.NegativeBuckets, negativeBuckets, negativeInterjections)
+		if len(negativeInserts) > 0 {
+			hOld.NegativeBuckets = insert(hOld.NegativeBuckets, negativeBuckets, negativeInserts, true)
 		}
-		app.AppendHistogram(tOld, hOld)
+		happ.appendHistogram(tOld, hOld)
 	}
 
-	hc.SetCounterResetHeader(CounterResetHeader(byts[2] & 0b11000000))
+	happ.setCounterResetHeader(CounterResetHeader(byts[2] & CounterResetHeaderMask))
 	return hc, app
+}
+
+// recodeHistogram converts the current histogram (in-place) to accommodate an
+// expansion of the set of (positive and/or negative) buckets used.
+func (a *HistogramAppender) recodeHistogram(
+	h *histogram.Histogram,
+	pBackwardInserts, nBackwardInserts []Insert,
+) {
+	if len(pBackwardInserts) > 0 {
+		numPositiveBuckets := countSpans(h.PositiveSpans)
+		h.PositiveBuckets = insert(h.PositiveBuckets, make([]int64, numPositiveBuckets), pBackwardInserts, true)
+	}
+	if len(nBackwardInserts) > 0 {
+		numNegativeBuckets := countSpans(h.NegativeSpans)
+		h.NegativeBuckets = insert(h.NegativeBuckets, make([]int64, numNegativeBuckets), nBackwardInserts, true)
+	}
 }
 
 func (a *HistogramAppender) writeSumDelta(v float64) {
 	xorWrite(a.b, v, a.sum, &a.leading, &a.trailing)
 }
 
+func (a *HistogramAppender) AppendFloatHistogram(*FloatHistogramAppender, int64, *histogram.FloatHistogram, bool) (Chunk, bool, Appender, error) {
+	panic("appended a float histogram sample to a histogram chunk")
+}
+
+func (a *HistogramAppender) AppendHistogram(prev *HistogramAppender, t int64, h *histogram.Histogram, appendOnly bool) (Chunk, bool, Appender, error) {
+	if a.NumSamples() == 0 {
+		a.appendHistogram(t, h)
+		if h.CounterResetHint == histogram.GaugeType {
+			a.setCounterResetHeader(GaugeType)
+			return nil, false, a, nil
+		}
+
+		switch {
+		case h.CounterResetHint == histogram.CounterReset:
+			// Always honor the explicit counter reset hint.
+			a.setCounterResetHeader(CounterReset)
+		case prev != nil:
+			// This is a new chunk, but continued from a previous one. We need to calculate the reset header unless already set.
+			_, _, _, counterReset := prev.appendable(h)
+			if counterReset {
+				a.setCounterResetHeader(CounterReset)
+			} else {
+				a.setCounterResetHeader(NotCounterReset)
+			}
+		}
+		return nil, false, a, nil
+	}
+
+	// Adding counter-like histogram.
+	if h.CounterResetHint != histogram.GaugeType {
+		pForwardInserts, nForwardInserts, okToAppend, counterReset := a.appendable(h)
+		if !okToAppend || counterReset {
+			if appendOnly {
+				if counterReset {
+					return nil, false, a, fmt.Errorf("histogram counter reset")
+				}
+				return nil, false, a, fmt.Errorf("histogram schema change")
+			}
+			newChunk := NewHistogramChunk()
+			app, err := newChunk.Appender()
+			if err != nil {
+				panic(err) // This should never happen for an empty histogram chunk.
+			}
+			happ := app.(*HistogramAppender)
+			if counterReset {
+				happ.setCounterResetHeader(CounterReset)
+			}
+			happ.appendHistogram(t, h)
+			return newChunk, false, app, nil
+		}
+		if len(pForwardInserts) > 0 || len(nForwardInserts) > 0 {
+			if appendOnly {
+				return nil, false, a, fmt.Errorf("histogram layout change with %d positive and %d negative forwards inserts", len(pForwardInserts), len(nForwardInserts))
+			}
+			chk, app := a.recode(
+				pForwardInserts, nForwardInserts,
+				h.PositiveSpans, h.NegativeSpans,
+			)
+			app.(*HistogramAppender).appendHistogram(t, h)
+			return chk, true, app, nil
+		}
+		a.appendHistogram(t, h)
+		return nil, false, a, nil
+	}
+	// Adding gauge histogram.
+	pForwardInserts, nForwardInserts, pBackwardInserts, nBackwardInserts, pMergedSpans, nMergedSpans, okToAppend := a.appendableGauge(h)
+	if !okToAppend {
+		if appendOnly {
+			return nil, false, a, fmt.Errorf("gauge histogram schema change")
+		}
+		newChunk := NewHistogramChunk()
+		app, err := newChunk.Appender()
+		if err != nil {
+			panic(err) // This should never happen for an empty histogram chunk.
+		}
+		happ := app.(*HistogramAppender)
+		happ.setCounterResetHeader(GaugeType)
+		happ.appendHistogram(t, h)
+		return newChunk, false, app, nil
+	}
+
+	if len(pBackwardInserts)+len(nBackwardInserts) > 0 {
+		if appendOnly {
+			return nil, false, a, fmt.Errorf("gauge histogram layout change with %d positive and %d negative backwards inserts", len(pBackwardInserts), len(nBackwardInserts))
+		}
+		h.PositiveSpans = pMergedSpans
+		h.NegativeSpans = nMergedSpans
+		a.recodeHistogram(h, pBackwardInserts, nBackwardInserts)
+	}
+
+	if len(pForwardInserts) > 0 || len(nForwardInserts) > 0 {
+		if appendOnly {
+			return nil, false, a, fmt.Errorf("gauge histogram layout change with %d positive and %d negative forwards inserts", len(pForwardInserts), len(nForwardInserts))
+		}
+		chk, app := a.recode(
+			pForwardInserts, nForwardInserts,
+			h.PositiveSpans, h.NegativeSpans,
+		)
+		app.(*HistogramAppender).appendHistogram(t, h)
+		return chk, true, app, nil
+	}
+
+	a.appendHistogram(t, h)
+	return nil, false, a, nil
+}
+
+func CounterResetHintToHeader(hint histogram.CounterResetHint) CounterResetHeader {
+	switch hint {
+	case histogram.CounterReset:
+		return CounterReset
+	case histogram.NotCounterReset:
+		return NotCounterReset
+	case histogram.GaugeType:
+		return GaugeType
+	default:
+		return UnknownCounterReset
+	}
+}
+
 type histogramIterator struct {
 	br       bstreamReader
 	numTotal uint16
 	numRead  uint16
+
+	counterResetHeader CounterResetHeader
 
 	// Layout:
 	schema         int32
@@ -579,40 +776,96 @@ func (it *histogramIterator) At() (int64, float64) {
 	panic("cannot call histogramIterator.At")
 }
 
-func (it *histogramIterator) AtHistogram() (int64, *histogram.Histogram) {
+func (it *histogramIterator) AtHistogram(h *histogram.Histogram) (int64, *histogram.Histogram) {
 	if value.IsStaleNaN(it.sum) {
 		return it.t, &histogram.Histogram{Sum: it.sum}
 	}
-	it.atHistogramCalled = true
-	return it.t, &histogram.Histogram{
-		Count:           it.cnt,
-		ZeroCount:       it.zCnt,
-		Sum:             it.sum,
-		ZeroThreshold:   it.zThreshold,
-		Schema:          it.schema,
-		PositiveSpans:   it.pSpans,
-		NegativeSpans:   it.nSpans,
-		PositiveBuckets: it.pBuckets,
-		NegativeBuckets: it.nBuckets,
+	if h == nil {
+		it.atHistogramCalled = true
+		return it.t, &histogram.Histogram{
+			CounterResetHint: counterResetHint(it.counterResetHeader, it.numRead),
+			Count:            it.cnt,
+			ZeroCount:        it.zCnt,
+			Sum:              it.sum,
+			ZeroThreshold:    it.zThreshold,
+			Schema:           it.schema,
+			PositiveSpans:    it.pSpans,
+			NegativeSpans:    it.nSpans,
+			PositiveBuckets:  it.pBuckets,
+			NegativeBuckets:  it.nBuckets,
+		}
 	}
+
+	h.CounterResetHint = counterResetHint(it.counterResetHeader, it.numRead)
+	h.Schema = it.schema
+	h.ZeroThreshold = it.zThreshold
+	h.ZeroCount = it.zCnt
+	h.Count = it.cnt
+	h.Sum = it.sum
+
+	h.PositiveSpans = resize(h.PositiveSpans, len(it.pSpans))
+	copy(h.PositiveSpans, it.pSpans)
+
+	h.NegativeSpans = resize(h.NegativeSpans, len(it.nSpans))
+	copy(h.NegativeSpans, it.nSpans)
+
+	h.PositiveBuckets = resize(h.PositiveBuckets, len(it.pBuckets))
+	copy(h.PositiveBuckets, it.pBuckets)
+
+	h.NegativeBuckets = resize(h.NegativeBuckets, len(it.nBuckets))
+	copy(h.NegativeBuckets, it.nBuckets)
+
+	return it.t, h
 }
 
-func (it *histogramIterator) AtFloatHistogram() (int64, *histogram.FloatHistogram) {
+func (it *histogramIterator) AtFloatHistogram(fh *histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {
 	if value.IsStaleNaN(it.sum) {
 		return it.t, &histogram.FloatHistogram{Sum: it.sum}
 	}
-	it.atFloatHistogramCalled = true
-	return it.t, &histogram.FloatHistogram{
-		Count:           float64(it.cnt),
-		ZeroCount:       float64(it.zCnt),
-		Sum:             it.sum,
-		ZeroThreshold:   it.zThreshold,
-		Schema:          it.schema,
-		PositiveSpans:   it.pSpans,
-		NegativeSpans:   it.nSpans,
-		PositiveBuckets: it.pFloatBuckets,
-		NegativeBuckets: it.nFloatBuckets,
+	if fh == nil {
+		it.atFloatHistogramCalled = true
+		return it.t, &histogram.FloatHistogram{
+			CounterResetHint: counterResetHint(it.counterResetHeader, it.numRead),
+			Count:            float64(it.cnt),
+			ZeroCount:        float64(it.zCnt),
+			Sum:              it.sum,
+			ZeroThreshold:    it.zThreshold,
+			Schema:           it.schema,
+			PositiveSpans:    it.pSpans,
+			NegativeSpans:    it.nSpans,
+			PositiveBuckets:  it.pFloatBuckets,
+			NegativeBuckets:  it.nFloatBuckets,
+		}
 	}
+
+	fh.CounterResetHint = counterResetHint(it.counterResetHeader, it.numRead)
+	fh.Schema = it.schema
+	fh.ZeroThreshold = it.zThreshold
+	fh.ZeroCount = float64(it.zCnt)
+	fh.Count = float64(it.cnt)
+	fh.Sum = it.sum
+
+	fh.PositiveSpans = resize(fh.PositiveSpans, len(it.pSpans))
+	copy(fh.PositiveSpans, it.pSpans)
+
+	fh.NegativeSpans = resize(fh.NegativeSpans, len(it.nSpans))
+	copy(fh.NegativeSpans, it.nSpans)
+
+	fh.PositiveBuckets = resize(fh.PositiveBuckets, len(it.pBuckets))
+	var currentPositive float64
+	for i, b := range it.pBuckets {
+		currentPositive += float64(b)
+		fh.PositiveBuckets[i] = currentPositive
+	}
+
+	fh.NegativeBuckets = resize(fh.NegativeBuckets, len(it.nBuckets))
+	var currentNegative float64
+	for i, b := range it.nBuckets {
+		currentNegative += float64(b)
+		fh.NegativeBuckets[i] = currentNegative
+	}
+
+	return it.t, fh
 }
 
 func (it *histogramIterator) AtT() int64 {
@@ -624,11 +877,13 @@ func (it *histogramIterator) Err() error {
 }
 
 func (it *histogramIterator) Reset(b []byte) {
-	// The first 2 bytes contain chunk headers.
+	// The first 3 bytes contain chunk headers.
 	// We skip that for actual samples.
-	it.br = newBReader(b[2:])
+	it.br = newBReader(b[3:])
 	it.numTotal = binary.BigEndian.Uint16(b)
 	it.numRead = 0
+
+	it.counterResetHeader = CounterResetHeader(b[2] & CounterResetHeaderMask)
 
 	it.t, it.cnt, it.zCnt = 0, 0, 0
 	it.tDelta, it.cntDelta, it.zCntDelta = 0, 0, 0
@@ -651,7 +906,7 @@ func (it *histogramIterator) Reset(b []byte) {
 	}
 
 	it.pBucketsDelta = it.pBucketsDelta[:0]
-	it.pBucketsDelta = it.pBucketsDelta[:0]
+	it.nBucketsDelta = it.nBucketsDelta[:0]
 
 	it.sum = 0
 	it.leading = 0
@@ -677,36 +932,17 @@ func (it *histogramIterator) Next() ValueType {
 		it.zThreshold = zeroThreshold
 		it.pSpans, it.nSpans = posSpans, negSpans
 		numPBuckets, numNBuckets := countSpans(posSpans), countSpans(negSpans)
-		// Allocate bucket slices as needed, recycling existing slices
-		// in case this iterator was reset and already has slices of a
-		// sufficient capacity.
+		// The code below recycles existing slices in case this iterator
+		// was reset and already has slices of a sufficient capacity.
 		if numPBuckets > 0 {
-			if cap(it.pBuckets) < numPBuckets {
-				it.pBuckets = make([]int64, numPBuckets)
-				// If cap(it.pBuckets) isn't sufficient, neither is the cap of the others.
-				it.pBucketsDelta = make([]int64, numPBuckets)
-				it.pFloatBuckets = make([]float64, numPBuckets)
-			} else {
-				for i := 0; i < numPBuckets; i++ {
-					it.pBuckets = append(it.pBuckets, 0)
-					it.pBucketsDelta = append(it.pBucketsDelta, 0)
-					it.pFloatBuckets = append(it.pFloatBuckets, 0)
-				}
-			}
+			it.pBuckets = append(it.pBuckets, make([]int64, numPBuckets)...)
+			it.pBucketsDelta = append(it.pBucketsDelta, make([]int64, numPBuckets)...)
+			it.pFloatBuckets = append(it.pFloatBuckets, make([]float64, numPBuckets)...)
 		}
 		if numNBuckets > 0 {
-			if cap(it.nBuckets) < numNBuckets {
-				it.nBuckets = make([]int64, numNBuckets)
-				// If cap(it.nBuckets) isn't sufficient, neither is the cap of the others.
-				it.nBucketsDelta = make([]int64, numNBuckets)
-				it.nFloatBuckets = make([]float64, numNBuckets)
-			} else {
-				for i := 0; i < numNBuckets; i++ {
-					it.nBuckets = append(it.nBuckets, 0)
-					it.nBucketsDelta = append(it.nBucketsDelta, 0)
-					it.pFloatBuckets = append(it.pFloatBuckets, 0)
-				}
-			}
+			it.nBuckets = append(it.nBuckets, make([]int64, numNBuckets)...)
+			it.nBucketsDelta = append(it.nBucketsDelta, make([]int64, numNBuckets)...)
+			it.nFloatBuckets = append(it.nFloatBuckets, make([]float64, numNBuckets)...)
 		}
 
 		// Now read the actual data.
@@ -807,7 +1043,7 @@ func (it *histogramIterator) Next() ValueType {
 		it.err = err
 		return ValNone
 	}
-	it.tDelta = it.tDelta + tDod
+	it.tDelta += tDod
 	it.t += it.tDelta
 
 	cntDod, err := readVarbitInt(&it.br)
@@ -815,7 +1051,7 @@ func (it *histogramIterator) Next() ValueType {
 		it.err = err
 		return ValNone
 	}
-	it.cntDelta = it.cntDelta + cntDod
+	it.cntDelta += cntDod
 	it.cnt = uint64(int64(it.cnt) + it.cntDelta)
 
 	zcntDod, err := readVarbitInt(&it.br)
@@ -823,7 +1059,7 @@ func (it *histogramIterator) Next() ValueType {
 		it.err = err
 		return ValNone
 	}
-	it.zCntDelta = it.zCntDelta + zcntDod
+	it.zCntDelta += zcntDod
 	it.zCnt = uint64(int64(it.zCnt) + it.zCntDelta)
 
 	ok := it.readSum()
@@ -873,4 +1109,11 @@ func (it *histogramIterator) readSum() bool {
 		return false
 	}
 	return true
+}
+
+func resize[T any](items []T, n int) []T {
+	if cap(items) < n {
+		return make([]T, n)
+	}
+	return items[:n]
 }
