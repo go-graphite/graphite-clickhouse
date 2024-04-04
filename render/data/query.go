@@ -15,6 +15,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
@@ -285,6 +286,17 @@ func (c *conditions) prepareLookup() {
 
 	for i := range c.metricsRequested {
 		step, agg := c.rollupRules.Lookup(c.metricsLookup[i], age)
+
+		// Override agregation with an argument of consolidateBy function.
+		// consoldiateBy with its argument is passed through FilteringFunctions field of carbonapi_v3_pb protocol.
+		// Currently it just finds the first target matching the metric
+		// to avoid making multiple request for every type of aggregation for a given metric.
+		for _, alias := range c.AM.Get(c.metricsUnreverse[i]) {
+			if requestedAgg := c.GetRequestedAggregation(alias.Target); requestedAgg != "" {
+				agg = rollup.AggrMap[requestedAgg]
+				break
+			}
+		}
 
 		if _, ok := c.steps[step]; !ok {
 			c.steps[step] = make([]string, 0)

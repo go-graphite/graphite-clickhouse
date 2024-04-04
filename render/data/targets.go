@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
+type FilteringFunctionsByTarget map[string][]*v3pb.FilteringFunction
 type Cache struct {
 	Cached     bool
 	TS         int64 // cached timestamp
@@ -26,35 +28,54 @@ type Targets struct {
 	Cache  []Cache
 	Cached bool // all is cached
 	// AM stores found expanded metrics
-	AM                *alias.Map
-	pointsTable       string
-	isReverse         bool
-	rollupRules       *rollup.Rules
-	rollupUseReverted bool
-	queryMetrics      *metrics.QueryMetrics
+	AM                         *alias.Map
+	filteringFunctionsByTarget FilteringFunctionsByTarget
+	pointsTable                string
+	isReverse                  bool
+	rollupRules                *rollup.Rules
+	rollupUseReverted          bool
+	queryMetrics               *metrics.QueryMetrics
 }
 
 func NewTargets(list []string, am *alias.Map) *Targets {
-	return &Targets{
-		List:  list,
-		Cache: make([]Cache, len(list)),
-		AM:    am,
+	targets := &Targets{
+		List:                       list,
+		Cache:                      make([]Cache, len(list)),
+		AM:                         am,
+		filteringFunctionsByTarget: make(FilteringFunctionsByTarget),
 	}
+	return targets
 }
 
 func NewTargetsOne(target string, capacity int, am *alias.Map) *Targets {
 	list := make([]string, 1, capacity)
 	list[0] = target
-	return &Targets{
-		List:  list,
-		Cache: make([]Cache, 1, capacity),
-		AM:    am,
+	targets := &Targets{
+		List:                       list,
+		Cache:                      make([]Cache, len(list)),
+		AM:                         am,
+		filteringFunctionsByTarget: make(FilteringFunctionsByTarget),
 	}
+	return targets
 }
 
 func (tt *Targets) Append(target string) {
 	tt.List = append(tt.List, target)
 	tt.Cache = append(tt.Cache, Cache{})
+}
+
+func (tt *Targets) AddFilteringFunc(target string, filteringFunction *v3pb.FilteringFunction) {
+	if _, ok := tt.filteringFunctionsByTarget[target]; !ok {
+		ffs := make([]*v3pb.FilteringFunction, 0)
+		ffs = append(ffs, filteringFunction)
+		tt.filteringFunctionsByTarget[target] = ffs
+	} else {
+		tt.filteringFunctionsByTarget[target] = append(tt.filteringFunctionsByTarget[target], filteringFunction)
+	}
+}
+
+func (tt *Targets) SetFilteringFunctions(target string, filteringFunctions []*v3pb.FilteringFunction) {
+	tt.filteringFunctionsByTarget[target] = filteringFunctions
 }
 
 func (tt *Targets) selectDataTable(cfg *config.Config, tf *TimeFrame, context string) error {
@@ -116,4 +137,19 @@ TableLoop:
 	}
 
 	return fmt.Errorf("data tables is not specified for %v", tt.List[0])
+}
+
+func (tt *Targets) GetRequestedAggregation(target string) string {
+	if ffs, ok := tt.filteringFunctionsByTarget[target]; !ok {
+		return ""
+	} else {
+		for _, filteringFunc := range ffs {
+			ffName := filteringFunc.GetName()
+			ffArgs := filteringFunc.GetArguments()
+			if ffName == "consolidateBy" && len(ffArgs) > 0 {
+				return ffArgs[0]
+			}
+		}
+	}
+	return ""
 }
