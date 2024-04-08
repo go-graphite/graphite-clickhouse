@@ -18,20 +18,20 @@ func Store(f float64) {
 	loadAvgStore.Store(f)
 }
 
-func Weight(n int, l float64) int64 {
-	if n <= 0 || l >= 2.0 {
+func Weight(weight int, degraged, degragedLoadAvg, normalizedLoadAvg float64) int64 {
+	if weight <= 0 || degraged <= 1 || normalizedLoadAvg >= 2.0 {
 		return 1
 	}
-	// (1 / normalized_load_avg - 1)
-	l = math.Round(10*l) / 10
-	if l == 0 {
-		return 2 * int64(n)
+
+	if normalizedLoadAvg > degragedLoadAvg {
+		normalizedLoadAvg *= degraged
 	}
-	if l > 1.0 {
-		l *= 4
+	normalizedLoadAvg = math.Round(10*normalizedLoadAvg) / 10
+	if normalizedLoadAvg == 0 {
+		return 2 * int64(weight)
 	}
-	l = math.Log10(l)
-	w := int64(n) - int64(float64(n)*l)
+	normalizedLoadAvg = math.Log10(normalizedLoadAvg)
+	w := int64(weight) - int64(float64(weight)*normalizedLoadAvg)
 	if w <= 0 {
 		return 1
 	}

@@ -2,7 +2,7 @@
 precision = "10s"
 
 [[test.clickhouse]]
-version = "latest"
+version = "23.12"
 dir = "tests/clickhouse/rollup"
 delay = "10s"
 

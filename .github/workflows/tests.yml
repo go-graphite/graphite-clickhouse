@@ -97,8 +97,9 @@ jobs:
 
     - name: Install packaging dependencies
       run: |
+        gem install dotenv -v 2.8.1 # workaroaund for ruby version 2.7.8.225
         gem install fpm package_cloud
-        GO111MODULE=off go get github.com/mitchellh/gox
+        go install github.com/mitchellh/gox@latest
 
     - name: Check packaging
       run: |
