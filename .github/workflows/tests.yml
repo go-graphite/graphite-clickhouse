@@ -93,14 +93,14 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '2.7' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
+        ruby-version: '3.3' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
 
+    # gem install dotenv -v 2.8.1 # workaroaund for ruby version 2.7.8.225
     - name: Install packaging dependencies
       run: |
-        gem install dotenv -v 2.8.1 # workaroaund for ruby version 2.7.8.225
         gem install fpm package_cloud
         go install github.com/mitchellh/gox@latest
-
+        
     - name: Check packaging
       run: |
         make DEVEL=1 gox-build fpm-deb fpm-rpm
