@@ -89,6 +89,7 @@ type conditions struct {
 	metricsRequested []string
 	metricsUnreverse []string
 	metricsLookup    []string
+	appliedFunctions map[string][]string
 }
 
 func newQuery(cfg *config.Config, targets int) *query {
@@ -240,6 +241,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 		From:                 cond.From,
 		Until:                cond.Until,
 		AppendOutEmptySeries: cond.appendEmptySeries,
+		AppliedFunctions:     cond.appliedFunctions,
 	})
 	return nil
 }
@@ -280,6 +282,7 @@ func (c *conditions) prepareMetricsLists() {
 func (c *conditions) prepareLookup() {
 	age := uint32(dry.Max(0, time.Now().Unix()-c.From))
 	c.aggregations = make(map[string][]string)
+	c.appliedFunctions = make(map[string][]string)
 	c.extDataBodies = make(map[string]*strings.Builder)
 	c.steps = make(map[uint32][]string)
 	aggName := ""
@@ -294,6 +297,7 @@ func (c *conditions) prepareLookup() {
 		for _, alias := range c.AM.Get(c.metricsUnreverse[i]) {
 			if requestedAgg := c.GetRequestedAggregation(alias.Target); requestedAgg != "" {
 				agg = rollup.AggrMap[requestedAgg]
+				c.appliedFunctions[alias.Target] = []string{"consolidateBy"}
 				break
 			}
 		}
