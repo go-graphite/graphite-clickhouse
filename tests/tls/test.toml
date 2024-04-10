@@ -12,7 +12,7 @@ tls = true
 dir = "tests/clickhouse/rollup_tls"
 
 [[test.clickhouse]]
-version = "23.12"
+version = "latest"
 tls = true
 dir = "tests/clickhouse/rollup_tls"
 

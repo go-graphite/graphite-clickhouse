@@ -2,7 +2,7 @@
 precision = "10s"
 
 [[test.clickhouse]]
-version = "23.12"
+version = "latest"
 dir = "tests/clickhouse/rollup"
 
 [test.carbon_clickhouse]
