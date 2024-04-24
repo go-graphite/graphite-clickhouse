@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
+	"github.com/prometheus/prometheus/util/annotations"
 )
 
 // SeriesSet contains a set of series.
@@ -26,7 +27,7 @@ func (ms *metricsSet) At() storage.Series {
 }
 
 // Iterator returns a new iterator of the data of the series.
-func (s *metric) Iterator() chunkenc.Iterator {
+func (s *metric) Iterator(iterator chunkenc.Iterator) chunkenc.Iterator {
 	return emptyIteratorValue
 }
 
@@ -52,6 +53,4 @@ func newMetricsSet(metrics []string) storage.SeriesSet {
 }
 
 // Warnings ...
-func (s *metricsSet) Warnings() storage.Warnings {
-	return nil
-}
+func (s *metricsSet) Warnings() annotations.Annotations { return nil }

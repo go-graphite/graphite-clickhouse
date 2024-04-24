@@ -6,16 +6,15 @@ package prometheus
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/prometheus/util/annotations"
 	"strings"
 	"time"
-
-	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
+	"github.com/prometheus/prometheus/model/labels"
 )
 
 // Querier provides reading access to time series data.
@@ -23,7 +22,6 @@ type Querier struct {
 	config *config.Config
 	mint   int64
 	maxt   int64
-	ctx    context.Context
 }
 
 // Close releases the resources of the Querier.
@@ -32,7 +30,7 @@ func (q *Querier) Close() error {
 }
 
 // LabelValues returns all potential values for a label name.
-func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
+func (q *Querier) LabelValues(ctx context.Context, label string, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	// @TODO: support matchers
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
@@ -46,7 +44,7 @@ func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]stri
 	)
 
 	body, _, _, err := clickhouse.Query(
-		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
+		scope.WithTable(ctx, q.config.ClickHouse.TaggedTable),
 		q.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
@@ -69,7 +67,7 @@ func (q *Querier) LabelValues(label string, matchers ...*labels.Matcher) ([]stri
 }
 
 // LabelNames returns all the unique label names present in the block in sorted order.
-func (q *Querier) LabelNames(matchers ...*labels.Matcher) ([]string, storage.Warnings, error) {
+func (q *Querier) LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	// @TODO support matchers
 	w := where.New()
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
@@ -81,7 +79,7 @@ func (q *Querier) LabelNames(matchers ...*labels.Matcher) ([]string, storage.War
 	)
 
 	body, _, _, err := clickhouse.Query(
-		scope.WithTable(q.ctx, q.config.ClickHouse.TaggedTable),
+		scope.WithTable(ctx, q.config.ClickHouse.TaggedTable),
 		q.config.ClickHouse.URL,
 		sql,
 		clickhouse.Options{
