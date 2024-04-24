@@ -104,6 +104,8 @@ func parseJson(body []byte) (*Rules, error) {
 	return r.compile()
 }
 
+var timeoutRulesLoad = 10 * time.Second
+
 func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) {
 	var db string
 	arr := strings.SplitN(table, ".", 2)
@@ -135,13 +137,14 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 		addr,
 		query,
 		clickhouse.Options{
-			Timeout:        10 * time.Second,
-			ConnectTimeout: 10 * time.Second,
+			Timeout:        timeoutRulesLoad,
+			ConnectTimeout: timeoutRulesLoad,
 			TLSConfig:      tlsConf,
 		},
 		nil,
 	)
 	if err != nil {
+		// for old version
 		query = `SELECT
 			regexp,
 			function,
@@ -163,8 +166,8 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 			addr,
 			query,
 			clickhouse.Options{
-				Timeout:        10 * time.Second,
-				ConnectTimeout: 10 * time.Second,
+				Timeout:        timeoutRulesLoad,
+				ConnectTimeout: timeoutRulesLoad,
 				TLSConfig:      tlsConf,
 			},
 			nil,
