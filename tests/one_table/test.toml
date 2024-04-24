@@ -10,7 +10,7 @@ version = "22.8"
 dir = "tests/clickhouse/rollup"
 
 [[test.clickhouse]]
-version = "23.12"
+version = "24.2"
 dir = "tests/clickhouse/rollup"
 
 [test.carbon_clickhouse]
