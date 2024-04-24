@@ -4,6 +4,7 @@
 package prometheus
 
 import (
+	"github.com/prometheus/prometheus/util/annotations"
 	"log"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
@@ -103,7 +104,7 @@ func (sit *seriesIterator) At() (t int64, v float64) {
 // AtHistogram returns the current timestamp/value pair if the value is
 // a histogram with integer counts. Before the iterator has advanced,
 // the behaviour is unspecified.
-func (sit *seriesIterator) AtHistogram() (int64, *histogram.Histogram) {
+func (sit *seriesIterator) AtHistogram(histogram *histogram.Histogram) (int64, *histogram.Histogram) {
 	log.Fatal("seriesIterator.AtHistogram not implemented")
 	return 0, nil // @TODO
 }
@@ -113,7 +114,7 @@ func (sit *seriesIterator) AtHistogram() (int64, *histogram.Histogram) {
 // value is a histogram with integer counts, in which case a
 // FloatHistogram copy of the histogram is returned. Before the iterator
 // has advanced, the behaviour is unspecified.
-func (sit *seriesIterator) AtFloatHistogram() (int64, *histogram.FloatHistogram) {
+func (sit *seriesIterator) AtFloatHistogram(histogram *histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {
 	log.Fatal("seriesIterator.AtFloatHistogram not implemented")
 	return 0, nil // @TODO
 }
@@ -164,12 +165,12 @@ func (ss *seriesSet) Next() bool {
 }
 
 // Warnings ...
-func (s *seriesSet) Warnings() storage.Warnings {
+func (s *seriesSet) Warnings() annotations.Annotations {
 	return nil
 }
 
 // Iterator returns a new iterator of the data of the series.
-func (s *series) Iterator() chunkenc.Iterator {
+func (s *series) Iterator(iterator chunkenc.Iterator) chunkenc.Iterator {
 	return &seriesIterator{metricName: s.metricName, points: s.points, current: -1}
 }
 

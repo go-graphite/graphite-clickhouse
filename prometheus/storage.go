@@ -21,17 +21,16 @@ func newStorage(config *config.Config) *storageImpl {
 }
 
 // Querier returns a new Querier on the storage.
-func (s *storageImpl) Querier(ctx context.Context, mint, maxt int64) (storage.Querier, error) {
+func (s *storageImpl) Querier(mint, maxt int64) (storage.Querier, error) {
 	return &Querier{
 		config: s.config,
-		ctx:    ctx,
 		mint:   mint,
 		maxt:   maxt,
 	}, nil
 }
 
 // ChunkQuerier ...
-func (s *storageImpl) ChunkQuerier(ctx context.Context, mint, maxt int64) (storage.ChunkQuerier, error) {
+func (s *storageImpl) ChunkQuerier(mint, maxt int64) (storage.ChunkQuerier, error) {
 	return nil, nil
 }
 
