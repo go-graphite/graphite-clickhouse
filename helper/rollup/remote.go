@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -16,11 +15,12 @@ import (
 )
 
 type rollupRulesResponseRecord struct {
-	Regexp    string `json:"regexp"`
-	Function  string `json:"function"`
-	Age       string `json:"age"`
-	Precision string `json:"precision"`
-	IsDefault int    `json:"is_default"`
+	RuleType  RuleType `json:"rule_type"`
+	Regexp    string   `json:"regexp"`
+	Function  string   `json:"function"`
+	Age       string   `json:"age"`
+	Precision string   `json:"precision"`
+	IsDefault int      `json:"is_default"`
 }
 type rollupRulesResponse struct {
 	Data []rollupRulesResponseRecord `json:"data"`
@@ -77,6 +77,7 @@ func parseJson(body []byte) (*Rules, error) {
 		} else {
 			if last() == nil || last().Regexp != d.Regexp || last().Function != d.Function {
 				r.Pattern = append(r.Pattern, Pattern{
+					RuleType:  d.RuleType,
 					Retention: make([]Retention, 0),
 					Regexp:    d.Regexp,
 					Function:  d.Function,
@@ -112,8 +113,8 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 		db, table = arr[0], arr[1]
 	}
 
-	query := fmt.Sprintf(`
-	SELECT
+	query := `SELECT
+	    rule_type,
 	    regexp,
 	    function,
 	    age,
@@ -121,14 +122,13 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 	    is_default
 	FROM system.graphite_retentions
 	ARRAY JOIN Tables AS table
-	WHERE (table.database = '%s') AND (table.table = '%s')
+	WHERE (table.database = '` + db + `') AND (table.table = '` + table + `')
 	ORDER BY
 	    is_default ASC,
 	    priority ASC,
 	    regexp ASC,
 		age ASC
-	FORMAT JSON
-	`, db, table)
+	FORMAT JSON`
 
 	body, _, _, err := clickhouse.Query(
 		scope.New(context.Background()).WithLogger(zapwriter.Logger("rollup")).WithTable("system.graphite_retentions"),
@@ -141,6 +141,36 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 		},
 		nil,
 	)
+	if err != nil {
+		query = `SELECT
+			regexp,
+			function,
+			age,
+			precision,
+			is_default
+		FROM system.graphite_retentions
+		ARRAY JOIN Tables AS table
+		WHERE (table.database = '` + db + `') AND (table.table = '` + table + `')
+		ORDER BY
+			is_default ASC,
+			priority ASC,
+			regexp ASC,
+			age ASC
+		FORMAT JSON`
+
+		body, _, _, err = clickhouse.Query(
+			scope.New(context.Background()).WithLogger(zapwriter.Logger("rollup")).WithTable("system.graphite_retentions"),
+			addr,
+			query,
+			clickhouse.Options{
+				Timeout:        10 * time.Second,
+				ConnectTimeout: 10 * time.Second,
+				TLSConfig:      tlsConf,
+			},
+			nil,
+		)
+	}
+
 	if err != nil {
 		return nil, err
 	}

@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,6 +28,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/healthcheck"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -117,7 +119,40 @@ func main() {
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
 
+	match := flag.String(
+		"match",
+		"",
+		"Match metric rollup rules (for rollup config file)",
+	)
+
 	flag.Parse()
+
+	if *match != "" {
+		metric, ageStr, _ := strings.Cut(*match, " ")
+		age, _ := strconv.ParseUint(ageStr, 10, 32)
+		// check metric roolup rules
+		if rollup, err := rollup.NewXMLFile(*configFile, 0, ""); err == nil {
+			prec, aggr, aggrPattern, retentionPattern := rollup.Rules().Lookup(metric, uint32(age), true)
+			fmt.Printf("metric %q, age %s -> precision=%d, aggr=%s\n", metric, ageStr, prec, aggr.Name())
+			if aggrPattern != nil {
+				fmt.Printf("aggr pattern: type=%s, regexp=%q, function=%s, retentions:\n", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
+				for i := range aggrPattern.Retention {
+					fmt.Printf("[age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
+				}
+			}
+			if retentionPattern != nil {
+				fmt.Printf("retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
+				for i := range retentionPattern.Retention {
+					fmt.Printf("[age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
+				}
+			}
+
+			return
+		} else {
+			fmt.Fprintf(os.Stderr, "%v", err)
+			os.Exit(1)
+		}
+	}
 
 	if *printVersion {
 		fmt.Print(Version)
@@ -160,11 +195,6 @@ func main() {
 				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
 				os.Exit(1)
 			}
-
-			// 		sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
-			// sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
-			// sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
-			// sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
 
 			if *sdDelete {
 				hostname, _ := os.Hostname()

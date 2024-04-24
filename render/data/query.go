@@ -284,7 +284,7 @@ func (c *conditions) prepareLookup() {
 	aggName := ""
 
 	for i := range c.metricsRequested {
-		step, agg := c.rollupRules.Lookup(c.metricsLookup[i], age)
+		step, agg, _, _ := c.rollupRules.Lookup(c.metricsLookup[i], age, false)
 
 		if _, ok := c.steps[step]; !ok {
 			c.steps[step] = make([]string, 0)
