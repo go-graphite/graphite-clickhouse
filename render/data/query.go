@@ -297,7 +297,7 @@ func (c *conditions) prepareLookup() {
 		for _, alias := range c.AM.Get(c.metricsUnreverse[i]) {
 			if requestedAgg := c.GetRequestedAggregation(alias.Target); requestedAgg != "" {
 				agg = rollup.AggrMap[requestedAgg]
-				c.appliedFunctions[alias.Target] = []string{GraphiteConsolidationFunction}
+				c.appliedFunctions[alias.Target] = []string{graphiteConsolidationFunction}
 				break
 			}
 		}
