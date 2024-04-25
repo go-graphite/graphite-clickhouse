@@ -237,7 +237,7 @@ func TestParseJsonTyped(t *testing.T) {
 }`
 
 	expected := &Rules{
-		Splitted: true,
+		Separated: true,
 		Pattern: []Pattern{
 			{
 				Regexp: "^hourly",

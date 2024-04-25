@@ -383,3 +383,464 @@ func TestRules_RollupPoints(t *testing.T) {
 		})
 	}
 }
+
+var benchConfig = `
+	<graphite_rollup>
+	 	<pattern>
+	 		<regexp>^hourly</regexp>
+	 		<retention>
+	 			<age>3600</age>
+	 			<precision>60</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>86400</age>
+	 			<precision>3600</precision>
+	 		</retention>
+		</pattern>
+		<pattern>
+	 		<regexp>^live</regexp>
+	 		<retention>
+	 			<age>0</age>
+	 			<precision>1</precision>
+	 		</retention>
+		</pattern>
+		<pattern>
+			<regexp>\.fake1\..*\.Fake1\.</regexp>
+			<retention>
+	 			<age>3600</age>
+	 			<precision>60</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>86400</age>
+	 			<precision>3600</precision>
+	 		</retention>
+ 		</pattern>
+		<pattern>
+			<regexp><![CDATA[fake1\?(.*&)*tag=Fake1(&|$)]]></regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	  	</pattern>
+		<pattern>
+			<regexp>\.fake2\..*\.Fake2\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <regexp><![CDATA[fake2\?(.*&)*tag=Fake2(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<regexp>\.fake3\..*\.Fake3\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <regexp><![CDATA[fake3\?(.*&)*tag=Fake3(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<regexp>\.fake4\..*\.Fake4\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <regexp><![CDATA[fake\?(.*&)*tag=Fake4(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<regexp>total$</regexp>
+			<function>sum</function>
+   		</pattern>
+		<pattern>
+		   <regexp>min$</regexp>
+		   <function>min</function>
+		</pattern>
+		<pattern>
+		   <regexp>max$</regexp>
+		   <function>max</function>
+		</pattern>
+		<pattern>
+			<regexp>total?</regexp>
+			<function>sum</function>
+   		</pattern>
+		<pattern>
+		   <regexp>min\?</regexp>
+		   <function>min</function>
+		</pattern>
+		<pattern>
+		   <regexp>max\?</regexp>
+		   <function>max</function>
+		</pattern>
+		<pattern>
+			<regexp>^hourly</regexp>
+			<function>sum</function>
+		</pattern>
+	 	<default>
+	 		<function>avg</function>
+	 		<retention>
+	 			<age>0</age>
+	 			<precision>42</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>60</age>
+	 			<precision>10</precision>
+	 		</retention>
+	 	</default>
+	</graphite_rollup>
+	`
+
+var benchConfigSeparated = `
+	<graphite_rollup>
+	 	<pattern>
+			<rule_type>plain</rule_type>
+	 		<regexp>^hourly</regexp>
+	 		<retention>
+	 			<age>3600</age>
+	 			<precision>60</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>86400</age>
+	 			<precision>3600</precision>
+	 		</retention>
+		</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+	 		<regexp>^live</regexp>
+	 		<retention>
+	 			<age>0</age>
+	 			<precision>1</precision>
+	 		</retention>
+		</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+			<regexp>\.fake1\..*\.Fake1\.</regexp>
+			<retention>
+	 			<age>3600</age>
+	 			<precision>60</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>86400</age>
+	 			<precision>3600</precision>
+	 		</retention>
+ 		</pattern>
+		<pattern>
+			<rule_type>tagged</rule_type>
+			<regexp><![CDATA[fake1\?(.*&)*tag=Fake1(&|$)]]></regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	  	</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+			<regexp>\.fake2\..*\.Fake2\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <rule_type>tagged</rule_type>
+		  <regexp><![CDATA[fake2\?(.*&)*tag=Fake2(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+			<regexp>\.fake3\..*\.Fake3\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <rule_type>tagged</rule_type>
+		  <regexp><![CDATA[fake3\?(.*&)*tag=Fake3(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+			<regexp>\.fake4\..*\.Fake4\.</regexp>
+			<retention>
+				<age>3600</age>
+				<precision>60</precision>
+			</retention>
+			<retention>
+				<age>86400</age>
+				<precision>3600</precision>
+			</retention>
+	   	</pattern>
+	  	<pattern>
+		  <rule_type>tagged</rule_type>
+		  <regexp><![CDATA[fake\?(.*&)*tag=Fake4(&|$)]]></regexp>
+		  <retention>
+			  <age>3600</age>
+			  <precision>60</precision>
+		  </retention>
+		  <retention>
+			  <age>86400</age>
+			  <precision>3600</precision>
+		  </retention>
+		</pattern>
+		<pattern>
+			<rule_type>plain</rule_type>
+			<regexp>total$</regexp>
+			<function>sum</function>
+   		</pattern>
+		<pattern>
+		   <rule_type>plain</rule_type>
+		   <regexp>min$</regexp>
+		   <function>min</function>
+		</pattern>
+		<pattern>
+		   <rule_type>plain</rule_type>
+		   <regexp>max$</regexp>
+		   <function>max</function>
+		</pattern>
+		<pattern>
+			<rule_type>tagged</rule_type>
+			<regexp>total?</regexp>
+			<function>sum</function>
+   		</pattern>
+		<pattern>
+		   <rule_type>tagged</rule_type>
+		   <regexp>min\?</regexp>
+		   <function>min</function>
+		</pattern>
+		<pattern>
+		   <rule_type>tagged</rule_type>
+		   <regexp>max\?</regexp>
+		   <function>max</function>
+		</pattern>
+		<pattern>
+			<rule_type>tagged</rule_type>
+			<regexp>^hourly</regexp>
+			<function>sum</function>
+		</pattern>
+	 	<default>
+	 		<function>avg</function>
+	 		<retention>
+	 			<age>0</age>
+	 			<precision>42</precision>
+	 		</retention>
+	 		<retention>
+	 			<age>60</age>
+	 			<precision>10</precision>
+	 		</retention>
+	 	</default>
+	</graphite_rollup>
+	`
+
+func BenchmarkLookupSum(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.sum", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupSumSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.sum", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupSumTagged(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("sum?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupSumTaggedSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("sum?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupMax(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.max", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupMaxSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.max", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupMaxTagged(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("max?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupMaxTaggedSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("max?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupDefault(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.p95", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupDefaultSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("test.p95", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupDefaultTagged(b *testing.B) {
+	r, err := parseXML([]byte(benchConfig))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("p95?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}
+
+func BenchmarkLookupDefaultTaggedSeparated(b *testing.B) {
+	r, err := parseXML([]byte(benchConfigSeparated))
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		precision, ag, _, _ := r.Lookup("p95?env=test&tag=Fake5", 1, false)
+		_ = precision
+		_ = ag
+	}
+}

@@ -178,7 +178,7 @@ func TestParseXMLTyped(t *testing.T) {
 `
 
 	expected := (&Rules{
-		Splitted: true,
+		Separated: true,
 		Pattern: []Pattern{
 			{
 				Regexp: "click_cost", Function: "any", Retention: []Retention{

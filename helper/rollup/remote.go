@@ -143,7 +143,7 @@ func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 		},
 		nil,
 	)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), " Missing columns: 'rule_type' ") {
 		// for old version
 		query = `SELECT
 			regexp,

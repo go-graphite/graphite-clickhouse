@@ -144,7 +144,7 @@ type Pattern struct {
 type Rules struct {
 	Pattern       []Pattern `json:"pattern"`
 	Updated       int64     `json:"updated"`
-	Splitted      bool      `json:"-"`
+	Separated     bool      `json:"-"`
 	PatternPlain  []Pattern `json:"-"`
 	PatternTagged []Pattern `json:"-"`
 }
@@ -211,17 +211,17 @@ func (r *Rules) compile() (*Rules, error) {
 	r.PatternPlain = make([]Pattern, 0)
 	r.PatternTagged = make([]Pattern, 0)
 
-	r.Splitted = false
+	r.Separated = false
 	for i := range r.Pattern {
 		if err := r.Pattern[i].compile(); err != nil {
 			return r, err
 		}
-		if !r.Splitted && r.Pattern[i].RuleType != RuleAll {
-			r.Splitted = true
+		if !r.Separated && r.Pattern[i].RuleType != RuleAll {
+			r.Separated = true
 		}
 	}
 
-	if r.Splitted {
+	if r.Separated {
 		for i := range r.Pattern {
 			switch r.Pattern[i].RuleType {
 			case RulePlain:
@@ -275,7 +275,7 @@ func (r *Rules) withSuperDefault() *Rules {
 
 // Lookup returns precision and aggregate function for metric name and age
 func (r *Rules) Lookup(metric string, age uint32, verbose bool) (precision uint32, ag *Aggr, aggrPattern, retentionPattern *Pattern) {
-	if r.Splitted {
+	if r.Separated {
 		if strings.Contains(metric, "?") {
 			return lookup(metric, age, r.PatternTagged, verbose)
 		}
