@@ -11,6 +11,8 @@ import (
 	"github.com/lomik/graphite-clickhouse/pkg/alias"
 )
 
+const GraphiteConsolidationFunction = "consolidateBy"
+
 type FilteringFunctionsByTarget map[string][]*v3pb.FilteringFunction
 type Cache struct {
 	Cached     bool
@@ -62,16 +64,6 @@ func NewTargetsOne(target string, capacity int, am *alias.Map) *Targets {
 func (tt *Targets) Append(target string) {
 	tt.List = append(tt.List, target)
 	tt.Cache = append(tt.Cache, Cache{})
-}
-
-func (tt *Targets) AddFilteringFunc(target string, filteringFunction *v3pb.FilteringFunction) {
-	if _, ok := tt.filteringFunctionsByTarget[target]; !ok {
-		ffs := make([]*v3pb.FilteringFunction, 0)
-		ffs = append(ffs, filteringFunction)
-		tt.filteringFunctionsByTarget[target] = ffs
-	} else {
-		tt.filteringFunctionsByTarget[target] = append(tt.filteringFunctionsByTarget[target], filteringFunction)
-	}
 }
 
 func (tt *Targets) SetFilteringFunctions(target string, filteringFunctions []*v3pb.FilteringFunction) {
@@ -146,7 +138,7 @@ func (tt *Targets) GetRequestedAggregation(target string) string {
 		for _, filteringFunc := range ffs {
 			ffName := filteringFunc.GetName()
 			ffArgs := filteringFunc.GetArguments()
-			if ffName == "consolidateBy" && len(ffArgs) > 0 {
+			if ffName == GraphiteConsolidationFunction && len(ffArgs) > 0 {
 				return ffArgs[0]
 			}
 		}

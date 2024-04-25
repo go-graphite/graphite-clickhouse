@@ -291,13 +291,13 @@ func (c *conditions) prepareLookup() {
 		step, agg := c.rollupRules.Lookup(c.metricsLookup[i], age)
 
 		// Override agregation with an argument of consolidateBy function.
-		// consoldiateBy with its argument is passed through FilteringFunctions field of carbonapi_v3_pb protocol.
+		// consolidateBy with its argument is passed through FilteringFunctions field of carbonapi_v3_pb protocol.
 		// Currently it just finds the first target matching the metric
 		// to avoid making multiple request for every type of aggregation for a given metric.
 		for _, alias := range c.AM.Get(c.metricsUnreverse[i]) {
 			if requestedAgg := c.GetRequestedAggregation(alias.Target); requestedAgg != "" {
 				agg = rollup.AggrMap[requestedAgg]
-				c.appliedFunctions[alias.Target] = []string{"consolidateBy"}
+				c.appliedFunctions[alias.Target] = []string{GraphiteConsolidationFunction}
 				break
 			}
 		}
