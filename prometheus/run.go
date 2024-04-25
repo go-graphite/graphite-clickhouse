@@ -11,6 +11,7 @@ import (
 	"github.com/grafana/regexp"
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/zapwriter"
+	"github.com/prometheus/client_golang/prometheus"
 	promConfig "github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/notifier"
 	"github.com/prometheus/prometheus/promql"
@@ -38,7 +39,10 @@ func Run(config *config.Config) error {
 		LookbackDelta: config.Prometheus.LookbackDelta,
 	})
 
-	scrapeManager := scrape.NewManager(&scrape.Options{}, zapLogger, storage)
+	scrapeManager, err := scrape.NewManager(&scrape.Options{}, zapLogger, storage, prometheus.DefaultRegisterer)
+	if err != nil {
+		return err
+	}
 
 	rulesManager := rules.NewManager(&rules.ManagerOptions{
 		Logger:     zapLogger,

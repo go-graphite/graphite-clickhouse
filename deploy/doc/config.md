@@ -29,6 +29,36 @@ shortTimeoutSec = 300
 findTimeoutSec = 600
 ```
 
+## Feature flags `[feature-flags]`
+
+`use-carbon-behaviour=true`.
+
+- Tagged terms with `=` operator and empty value (e.g. `t=`) match all metrics that don't have that tag.
+
+`dont-match-missing-tags=true`.
+
+- Tagged terms with `!=`, `!=~` operators only match metrics that have that tag.
+
+### Examples
+
+Given tagged metrics:
+```
+metric.two;env=prod
+metric.one;env=stage;dc=mydc1
+metric.one;env=prod;dc=otherdc1
+```
+| Target                      | use-carbon-behaviour | Matched metrics                                   |
+|-----------------------------|----------------------|---------------------------------------------------|
+| seriesByTag('dc=')          | false                | -                                                 |
+| seriesByTag('dc=')          | true                 | metric.two;env=prod                               |
+
+| Target                   | dont-match-missing-tags | Matched metrics                                        |
+|--------------------------|-------------------------|--------------------------------------------------------|
+| seriesByTag('dc!=mydc1') | false                   | metric.two;env=prod<br>metric.one;env=prod;dc=otherdc1 |
+| seriesByTag('dc!=mydc1') | true                    | metric.one;env=prod;dc=otherdc1                        |
+| seriesByTag('dc!=~otherdc') | false                | metric.two;env=prod<br>metric.one;env=stage;dc=mydc1 |
+| seriesByTag('dc!=~otherdc') | true                 | metric.one;env=stage;dc=mydc1                     |
+
 ## ClickHouse `[clickhouse]`
 
 ### URL `url`

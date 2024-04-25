@@ -38,7 +38,16 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 	var f Finder
 
 	if config.ClickHouse.TaggedTable != "" && strings.HasPrefix(strings.TrimSpace(query), "seriesByTag") {
-		f = NewTagged(config.ClickHouse.URL, config.ClickHouse.TaggedTable, config.ClickHouse.TaggedUseDaily, false, opts, config.ClickHouse.TaggedCosts)
+		f = NewTagged(
+			config.ClickHouse.URL,
+			config.ClickHouse.TaggedTable,
+			config.ClickHouse.TaggedUseDaily,
+			config.FeatureFlags.UseCarbonBehavior,
+			config.FeatureFlags.DontMatchMissingTags,
+			false,
+			opts,
+			config.ClickHouse.TaggedCosts,
+		)
 
 		if len(config.Common.Blacklist) > 0 {
 			f = WrapBlacklist(f, config.Common.Blacklist)
@@ -121,7 +130,16 @@ func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, 
 		return Result(plain), nil
 	}
 
-	fnd := NewTagged(config.ClickHouse.URL, config.ClickHouse.TaggedTable, config.ClickHouse.TaggedUseDaily, true, opts, config.ClickHouse.TaggedCosts)
+	fnd := NewTagged(
+		config.ClickHouse.URL,
+		config.ClickHouse.TaggedTable,
+		config.ClickHouse.TaggedUseDaily,
+		config.FeatureFlags.UseCarbonBehavior,
+		config.FeatureFlags.DontMatchMissingTags,
+		true,
+		opts,
+		config.ClickHouse.TaggedCosts,
+	)
 
 	err := fnd.ExecutePrepared(ctx, terms, from, until, stat)
 	if err != nil {

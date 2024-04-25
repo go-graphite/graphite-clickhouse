@@ -32,7 +32,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '2.7' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
+        ruby-version: '3.3' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
     - name: Install packaging dependencies
       run: |
         gem install fpm package_cloud
