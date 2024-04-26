@@ -17,6 +17,7 @@ type CHResponse struct {
 	Until int64
 	// if true, return points for all metrics, replacing empty results with list of NaN
 	AppendOutEmptySeries bool
+	AppliedFunctions     map[string][]string
 }
 
 // CHResponses is a slice of CHResponse
@@ -142,6 +143,7 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 				XFilesFactor:            0,
 				HighPrecisionTimestamps: false,
 				Values:                  values,
+				AppliedFunctions:        c.AppliedFunctions[a.Target],
 				RequestStartTime:        c.From,
 				RequestStopTime:         c.Until,
 			}
