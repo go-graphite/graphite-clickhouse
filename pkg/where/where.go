@@ -99,6 +99,14 @@ func escape(s string) string {
 	return s
 }
 
+func escapeRegex(s string) string {
+	s = escape(s)
+	if strings.Contains(s, "|") {
+		s = "(" + s + ")"
+	}
+	return s
+}
+
 func likeEscape(s string) string {
 	s = strings.ReplaceAll(s, `_`, `\_`)
 	s = strings.ReplaceAll(s, `%`, `\%`)
@@ -125,9 +133,9 @@ func quote(value interface{}) string {
 func quoteRegex(key, value string) string {
 	startLine := value[0] == '^'
 	if startLine {
-		return fmt.Sprintf("'^%s%s%s'", key, opEq, escape(value[1:]))
+		return fmt.Sprintf("'^%s%s%s'", key, opEq, escapeRegex(value[1:]))
 	}
-	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escape(value))
+	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escapeRegex(value))
 }
 
 func Like(field, s string) string {

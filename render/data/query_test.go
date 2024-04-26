@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/rollup"
@@ -303,6 +304,56 @@ func TestPrepareLookup(t *testing.T) {
 		}
 		assert.Equal(t, steps, cond.steps)
 		assert.Equal(t, aggregations, cond.aggregations)
+	})
+
+	t.Run("non-reverse query with overriden aggregation", func(t *testing.T) {
+		cond := newCondition(5400, 1800, 5)
+
+		cond.aggregated = true
+		cond.isReverse = false
+		cond.prepareMetricsLists()
+		sort.Strings(cond.metricsLookup)
+		sort.Strings(cond.metricsRequested)
+		sort.Strings(cond.metricsUnreverse)
+		var aggregations map[string][]string
+		for _, aggrStr := range []string{"avg", "min", "max", "sum"} {
+			cond.SetFilteringFunctions(
+				"*.name.*",
+				[]*v3pb.FilteringFunction{{Name: "consolidateBy", Arguments: []string{aggrStr}}},
+			)
+			cond.prepareLookup()
+			aggregations = map[string][]string{
+				aggrStr: {"10_min.name.any", "1_min.name.avg", "5_min.name.min", "5_sec.name.max"},
+			}
+			assert.Equal(t, aggregations, cond.aggregations)
+		}
+
+		// Steps saves only values, not the metrics list
+		steps := map[uint32][]string{
+			30:   {},
+			60:   {},
+			300:  {},
+			1200: {},
+		}
+		assert.Equal(t, steps, cond.steps)
+		bodies := make(map[string]string)
+		for a, m := range aggregations {
+			bodies[a] = strings.Join(m, "\n") + "\n"
+		}
+		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
+
+		cond.From = ageToTimestamp(1800)
+		cond.Until = ageToTimestamp(0)
+		cond.prepareLookup()
+		steps = map[uint32][]string{
+			30:  {},
+			60:  {},
+			300: {},
+			5:   {},
+		}
+		assert.Equal(t, steps, cond.steps)
+		assert.Equal(t, aggregations, cond.aggregations)
+		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
 	})
 }
 

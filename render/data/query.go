@@ -15,6 +15,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
 	"github.com/lomik/graphite-clickhouse/pkg/reverse"
@@ -88,6 +89,7 @@ type conditions struct {
 	metricsRequested []string
 	metricsUnreverse []string
 	metricsLookup    []string
+	appliedFunctions map[string][]string
 }
 
 func newQuery(cfg *config.Config, targets int) *query {
@@ -239,6 +241,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 		From:                 cond.From,
 		Until:                cond.Until,
 		AppendOutEmptySeries: cond.appendEmptySeries,
+		AppliedFunctions:     cond.appliedFunctions,
 	})
 	return nil
 }
@@ -279,12 +282,25 @@ func (c *conditions) prepareMetricsLists() {
 func (c *conditions) prepareLookup() {
 	age := uint32(dry.Max(0, time.Now().Unix()-c.From))
 	c.aggregations = make(map[string][]string)
+	c.appliedFunctions = make(map[string][]string)
 	c.extDataBodies = make(map[string]*strings.Builder)
 	c.steps = make(map[uint32][]string)
 	aggName := ""
 
 	for i := range c.metricsRequested {
 		step, agg, _, _ := c.rollupRules.Lookup(c.metricsLookup[i], age, false)
+
+		// Override agregation with an argument of consolidateBy function.
+		// consolidateBy with its argument is passed through FilteringFunctions field of carbonapi_v3_pb protocol.
+		// Currently it just finds the first target matching the metric
+		// to avoid making multiple request for every type of aggregation for a given metric.
+		for _, alias := range c.AM.Get(c.metricsUnreverse[i]) {
+			if requestedAgg := c.GetRequestedAggregation(alias.Target); requestedAgg != "" {
+				agg = rollup.AggrMap[requestedAgg]
+				c.appliedFunctions[alias.Target] = []string{graphiteConsolidationFunction}
+				break
+			}
+		}
 
 		if _, ok := c.steps[step]; !ok {
 			c.steps[step] = make([]string, 0)

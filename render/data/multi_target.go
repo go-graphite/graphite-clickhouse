@@ -43,6 +43,9 @@ func MFRToMultiTarget(v3Request *v3pb.MultiFetchRequest) MultiTarget {
 			} else {
 				multiTarget[tf] = NewTargetsOne(m.PathExpression, len(v3Request.Metrics), alias.New())
 			}
+			if len(m.FilterFunctions) > 0 {
+				multiTarget[tf].SetFilteringFunctions(m.PathExpression, m.FilterFunctions)
+			}
 		}
 	}
 	return multiTarget

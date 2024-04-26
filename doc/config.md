@@ -32,6 +32,36 @@ shortTimeoutSec = 300
 findTimeoutSec = 600
 ```
 
+## Feature flags `[feature-flags]`
+
+`use-carbon-behaviour=true`.
+
+- Tagged terms with `=` operator and empty value (e.g. `t=`) match all metrics that don't have that tag.
+
+`dont-match-missing-tags=true`.
+
+- Tagged terms with `!=`, `!=~` operators only match metrics that have that tag.
+
+### Examples
+
+Given tagged metrics:
+```
+metric.two;env=prod
+metric.one;env=stage;dc=mydc1
+metric.one;env=prod;dc=otherdc1
+```
+| Target                      | use-carbon-behaviour | Matched metrics                                   |
+|-----------------------------|----------------------|---------------------------------------------------|
+| seriesByTag('dc=')          | false                | -                                                 |
+| seriesByTag('dc=')          | true                 | metric.two;env=prod                               |
+
+| Target                   | dont-match-missing-tags | Matched metrics                                        |
+|--------------------------|-------------------------|--------------------------------------------------------|
+| seriesByTag('dc!=mydc1') | false                   | metric.two;env=prod<br>metric.one;env=prod;dc=otherdc1 |
+| seriesByTag('dc!=mydc1') | true                    | metric.one;env=prod;dc=otherdc1                        |
+| seriesByTag('dc!=~otherdc') | false                | metric.two;env=prod<br>metric.one;env=stage;dc=mydc1 |
+| seriesByTag('dc!=~otherdc') | true                 | metric.one;env=stage;dc=mydc1                     |
+
 ## ClickHouse `[clickhouse]`
 
 ### URL `url`
@@ -227,6 +257,12 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
   short-duration = "0s"
   # offset beetween now and until for select short cache timeout
   short-offset = 0
+
+[feature-flags]
+ # if true, prefers carbon's behaviour on how tags are treated
+ use-carbon-behaviour = false
+ # if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all
+ dont-match-missing-tags = false
 
 [metrics]
  # graphite relay address
