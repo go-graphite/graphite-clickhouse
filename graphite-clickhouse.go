@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -92,6 +91,165 @@ var (
 	srv          *http.Server
 )
 
+func sdList(args []string) {
+	flag := flag.NewFlagSet("List registered nodes in SD", flag.ExitOnError)
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flag.Parse(args)
+
+	cfg, _, err := config.ReadConfig(*configFile, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if nodes, err := s.Nodes(); err == nil {
+			for _, node := range nodes {
+				fmt.Printf("%s/%s: %s (%s)\n", s.Namespace(), node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdDelete(args []string) {
+	flag := flag.NewFlagSet("-sd-delete\nDelete registered nodes for local hostname in SD", flag.ExitOnError)
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flag.Parse(args)
+
+	cfg, _, err := config.ReadConfig(*configFile, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		hostname, _ := os.Hostname()
+		hostname, _, _ = strings.Cut(hostname, ".")
+		if err = s.Clear("", ""); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdEvict(args []string) {
+	flag := flag.NewFlagSet("-sd-evict\nDelete registered nodes for hostname in SD", flag.ExitOnError)
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	host := flag.String("host", "", "host")
+	flag.Parse(args)
+
+	cfg, _, err := config.ReadConfig(*configFile, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() && *host != "" {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, *host, logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+		err = s.Clear("", "")
+	}
+}
+
+func sdExpired(args []string) {
+	flag := flag.NewFlagSet("-sd-expired\nList expired registered nodes in SD", flag.ExitOnError)
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flag.Parse(args)
+
+	cfg, _, err := config.ReadConfig(*configFile, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if err = sd.Cleanup(&cfg.Common, s, true); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdClean(args []string) {
+	flag := flag.NewFlagSet("-sd-clean\nCleanup expired registered nodes in SD", flag.ExitOnError)
+	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flag.Parse(args)
+
+	cfg, _, err := config.ReadConfig(*configFile, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if err = sd.Cleanup(&cfg.Common, s, false); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func checkRollupMatch(args []string) {
+	flag := flag.NewFlagSet("Match metric against rollup rules", flag.ExitOnError)
+	rollupFile := flag.String("rollup", "/etc/graphite-clickhouse/rollup_full.xml", "Filename of rollup config file")
+	age := flag.Uint64("age", 0, "Age")
+	flag.Usage = func() {
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  METRIC	[]string\n    	List of metric names\n")
+	}
+	flag.Parse(args)
+
+	for _, metric := range flag.Args() {
+		// check metric roolup rules
+		if rollup, err := rollup.NewXMLFile(*rollupFile, 0, ""); err == nil {
+			prec, aggr, aggrPattern, retentionPattern := rollup.Rules().Lookup(metric, uint32(*age), true)
+			fmt.Printf("metric %q, age %d -> precision=%d, aggr=%s\n", metric, *age, prec, aggr.Name())
+			if aggrPattern != nil {
+				fmt.Printf("aggr pattern: type=%s, regexp=%q, function=%s, retentions:\n", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
+				for i := range aggrPattern.Retention {
+					fmt.Printf("[age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
+				}
+			}
+			if retentionPattern != nil {
+				fmt.Printf("retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
+				for i := range retentionPattern.Retention {
+					fmt.Printf("[age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -110,49 +268,47 @@ func main() {
 		"Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ",
 	)
 
-	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
-	sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
-	sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
-	sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
-	sdExpired := flag.Bool("sd-expired", false, "List expired registered nodes in SD")
-
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
 
-	match := flag.String(
-		"match",
-		"",
-		"Match metric rollup rules (for rollup config file)",
-	)
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 
-	flag.Parse()
+		flag.PrintDefaults()
 
-	if *match != "" {
-		metric, ageStr, _ := strings.Cut(*match, " ")
-		age, _ := strconv.ParseUint(ageStr, 10, 32)
-		// check metric roolup rules
-		if rollup, err := rollup.NewXMLFile(*configFile, 0, ""); err == nil {
-			prec, aggr, aggrPattern, retentionPattern := rollup.Rules().Lookup(metric, uint32(age), true)
-			fmt.Printf("metric %q, age %s -> precision=%d, aggr=%s\n", metric, ageStr, prec, aggr.Name())
-			if aggrPattern != nil {
-				fmt.Printf("aggr pattern: type=%s, regexp=%q, function=%s, retentions:\n", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
-				for i := range aggrPattern.Retention {
-					fmt.Printf("[age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
-				}
-			}
-			if retentionPattern != nil {
-				fmt.Printf("retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
-				for i := range retentionPattern.Retention {
-					fmt.Printf("[age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
-				}
-			}
+		fmt.Fprintf(os.Stderr, "\n\nAdditional commands:\n")
+		fmt.Fprintf(os.Stderr, "	-sd-list	List registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	-sd-delete	Delete registered nodes for local hostname in SD\n")
+		fmt.Fprintf(os.Stderr, "	-sd-evict	Delete registered nodes for  hostname in SD\n")
+		fmt.Fprintf(os.Stderr, "	-sd-clean	Cleanup expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	-sd-expired	List expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	-match	Match metric against rollup rules\n")
+	}
 
+	if len(os.Args) > 0 {
+		switch os.Args[1] {
+		case "-sd-list":
+			sdList(os.Args[2:])
 			return
-		} else {
-			fmt.Fprintf(os.Stderr, "%v", err)
-			os.Exit(1)
+		case "-sd-delete":
+			sdDelete(os.Args[2:])
+			return
+		case "-sd-evict":
+			sdEvict(os.Args[2:])
+			return
+		case "-sd-clean":
+			sdClean(os.Args[2:])
+			return
+		case "-sd-expired":
+			sdExpired(os.Args[2:])
+			return
+		case "-match":
+			checkRollupMatch(os.Args[2:])
+			return
 		}
 	}
+
+	flag.Parse()
 
 	if *printVersion {
 		fmt.Print(Version)
@@ -173,60 +329,6 @@ func main() {
 
 	// config parsed successfully. Exit in check-only mode
 	if *checkConfig {
-		return
-	}
-
-	if *sdEvict != "" {
-		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
-			var s sd.SD
-			logger := zapwriter.Default()
-			if s, err = sd.New(&cfg.Common, *sdEvict, logger); err != nil {
-				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
-				os.Exit(1)
-			}
-			err = s.Clear("", "")
-		}
-		return
-	} else if *sdList || *sdDelete || *sdExpired || *sdClean {
-		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
-			var s sd.SD
-			logger := zapwriter.Default()
-			if s, err = sd.New(&cfg.Common, "", logger); err != nil {
-				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
-				os.Exit(1)
-			}
-
-			if *sdDelete {
-				hostname, _ := os.Hostname()
-				hostname, _, _ = strings.Cut(hostname, ".")
-				if err = s.Clear("", ""); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else if *sdExpired {
-				if err = sd.Cleanup(&cfg.Common, s, true); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else if *sdClean {
-				if err = sd.Cleanup(&cfg.Common, s, false); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else {
-				if nodes, err := s.Nodes(); err == nil {
-					for _, node := range nodes {
-						fmt.Printf("%s/%s: %s (%s)\n", s.Namespace(), node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
-					}
-				} else {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			}
-		} else {
-			fmt.Fprintln(os.Stderr, "SD not enabled")
-			os.Exit(1)
-		}
 		return
 	}
 
