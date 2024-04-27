@@ -91,10 +91,21 @@ var (
 	srv          *http.Server
 )
 
-func sdList(args []string) {
-	flag := flag.NewFlagSet("List registered nodes in SD", flag.ExitOnError)
-	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
-	flag.Parse(args)
+func sdList(name string, args []string) {
+	descr := "List registered nodes in SD"
+	flagName := "sd-list"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
 
 	cfg, _, err := config.ReadConfig(*configFile, false)
 	if err != nil {
@@ -120,10 +131,21 @@ func sdList(args []string) {
 	}
 }
 
-func sdDelete(args []string) {
-	flag := flag.NewFlagSet("-sd-delete\nDelete registered nodes for local hostname in SD", flag.ExitOnError)
-	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
-	flag.Parse(args)
+func sdDelete(name string, args []string) {
+	descr := "Delete registered nodes for local hostname in SD"
+	flagName := "sd-delete"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
 
 	cfg, _, err := config.ReadConfig(*configFile, false)
 	if err != nil {
@@ -147,32 +169,55 @@ func sdDelete(args []string) {
 	}
 }
 
-func sdEvict(args []string) {
-	flag := flag.NewFlagSet("-sd-evict\nDelete registered nodes for hostname in SD", flag.ExitOnError)
-	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
-	host := flag.String("host", "", "host")
-	flag.Parse(args)
-
+func sdEvict(name string, args []string) {
+	descr := "Delete registered nodes for hostnames in SD"
+	flagName := "sd-evict"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  HOST []string\n    	List of hostnames\n")
+	}
+	flagSet.Parse(args)
+	if *help {
+		flagSet.Usage()
+		return
+	}
 	cfg, _, err := config.ReadConfig(*configFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() && *host != "" {
-		var s sd.SD
-		logger := zapwriter.Default()
-		if s, err = sd.New(&cfg.Common, *host, logger); err != nil {
-			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
-			os.Exit(1)
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		for _, host := range flagSet.Args() {
+			var s sd.SD
+			logger := zapwriter.Default()
+			if s, err = sd.New(&cfg.Common, host, logger); err != nil {
+				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+				os.Exit(1)
+			}
+			err = s.Clear("", "")
 		}
-		err = s.Clear("", "")
 	}
 }
 
-func sdExpired(args []string) {
-	flag := flag.NewFlagSet("-sd-expired\nList expired registered nodes in SD", flag.ExitOnError)
-	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
-	flag.Parse(args)
+func sdExpired(name string, args []string) {
+	descr := "List expired registered nodes in SD"
+	flagName := "sd-expired"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
 
 	cfg, _, err := config.ReadConfig(*configFile, false)
 	if err != nil {
@@ -194,10 +239,21 @@ func sdExpired(args []string) {
 	}
 }
 
-func sdClean(args []string) {
-	flag := flag.NewFlagSet("-sd-clean\nCleanup expired registered nodes in SD", flag.ExitOnError)
-	configFile := flag.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
-	flag.Parse(args)
+func sdClean(name string, args []string) {
+	descr := "Cleanup expired registered nodes in SD"
+	flagName := "sd-clean"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
 
 	cfg, _, err := config.ReadConfig(*configFile, false)
 	if err != nil {
@@ -219,17 +275,25 @@ func sdClean(args []string) {
 	}
 }
 
-func checkRollupMatch(args []string) {
-	flag := flag.NewFlagSet("Match metric against rollup rules", flag.ExitOnError)
-	rollupFile := flag.String("rollup", "/etc/graphite-clickhouse/rollup_full.xml", "Filename of rollup config file")
-	age := flag.Uint64("age", 0, "Age")
-	flag.Usage = func() {
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "  METRIC	[]string\n    	List of metric names\n")
+func checkRollupMatch(name string, args []string) {
+	descr := "Match metric against rollup rules"
+	flagName := "match"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	rollupFile := flagSet.String("rollup", "/etc/graphite-clickhouse/rollup_full.xml", "Filename of rollup config file")
+	age := flagSet.Uint64("age", 0, "Age")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		flagSet.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  METRIC []string\n    	List of metric names\n")
 	}
-	flag.Parse(args)
+	flagSet.Parse(args)
+	if *help {
+		flagSet.Usage()
+		return
+	}
 
-	for _, metric := range flag.Args() {
+	for _, metric := range flagSet.Args() {
 		// check metric roolup rules
 		if rollup, err := rollup.NewXMLFile(*rollupFile, 0, ""); err == nil {
 			prec, aggr, aggrPattern, retentionPattern := rollup.Rules().Lookup(metric, uint32(*age), true)
@@ -279,7 +343,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\n\nAdditional commands:\n")
 		fmt.Fprintf(os.Stderr, "	-sd-list	List registered nodes in SD\n")
 		fmt.Fprintf(os.Stderr, "	-sd-delete	Delete registered nodes for local hostname in SD\n")
-		fmt.Fprintf(os.Stderr, "	-sd-evict	Delete registered nodes for  hostname in SD\n")
+		fmt.Fprintf(os.Stderr, "	-sd-evict	Delete registered nodes for  hostnames in SD\n")
 		fmt.Fprintf(os.Stderr, "	-sd-clean	Cleanup expired registered nodes in SD\n")
 		fmt.Fprintf(os.Stderr, "	-sd-expired	List expired registered nodes in SD\n")
 		fmt.Fprintf(os.Stderr, "	-match	Match metric against rollup rules\n")
@@ -288,22 +352,22 @@ func main() {
 	if len(os.Args) > 0 {
 		switch os.Args[1] {
 		case "-sd-list":
-			sdList(os.Args[2:])
+			sdList(os.Args[0], os.Args[2:])
 			return
 		case "-sd-delete":
-			sdDelete(os.Args[2:])
+			sdDelete(os.Args[0], os.Args[2:])
 			return
 		case "-sd-evict":
-			sdEvict(os.Args[2:])
+			sdEvict(os.Args[0], os.Args[2:])
 			return
 		case "-sd-clean":
-			sdClean(os.Args[2:])
+			sdClean(os.Args[0], os.Args[2:])
 			return
 		case "-sd-expired":
-			sdExpired(os.Args[2:])
+			sdExpired(os.Args[0], os.Args[2:])
 			return
 		case "-match":
-			checkRollupMatch(os.Args[2:])
+			checkRollupMatch(os.Args[0], os.Args[2:])
 			return
 		}
 	}
