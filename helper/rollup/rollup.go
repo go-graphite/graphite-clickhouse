@@ -82,7 +82,7 @@ func (r *Rollup) Rules() *Rules {
 }
 
 func (r *Rollup) update() error {
-	rules, err := remoteLoad(r.addr, r.tlsConfig, r.table)
+	rules, err := RemoteLoad(r.addr, r.tlsConfig, r.table)
 	if err != nil {
 		zapwriter.Logger("rollup").Error(fmt.Sprintf("rollup rules update failed for table %#v", r.table), zap.Error(err))
 		return err

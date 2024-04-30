@@ -97,6 +97,7 @@ func sdList(name string, args []string) {
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
 		flagSet.PrintDefaults()
@@ -107,7 +108,7 @@ func sdList(name string, args []string) {
 		return
 	}
 
-	cfg, _, err := config.ReadConfig(*configFile, false)
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,6 +138,7 @@ func sdDelete(name string, args []string) {
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
 		flagSet.PrintDefaults()
@@ -147,7 +149,7 @@ func sdDelete(name string, args []string) {
 		return
 	}
 
-	cfg, _, err := config.ReadConfig(*configFile, false)
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -175,6 +177,7 @@ func sdEvict(name string, args []string) {
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
 		flagSet.PrintDefaults()
@@ -185,7 +188,7 @@ func sdEvict(name string, args []string) {
 		flagSet.Usage()
 		return
 	}
-	cfg, _, err := config.ReadConfig(*configFile, false)
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -209,6 +212,7 @@ func sdExpired(name string, args []string) {
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
 		flagSet.PrintDefaults()
@@ -219,7 +223,7 @@ func sdExpired(name string, args []string) {
 		return
 	}
 
-	cfg, _, err := config.ReadConfig(*configFile, false)
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -245,6 +249,7 @@ func sdClean(name string, args []string) {
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
 		flagSet.PrintDefaults()
@@ -255,7 +260,7 @@ func sdClean(name string, args []string) {
 		return
 	}
 
-	cfg, _, err := config.ReadConfig(*configFile, false)
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -275,12 +280,40 @@ func sdClean(name string, args []string) {
 	}
 }
 
+func printMatchedRollupRules(metric string, age uint32, rollupRules *rollup.Rules) {
+	// check metric rollup rules
+	prec, aggr, aggrPattern, retentionPattern := rollupRules.Lookup(metric, age, true)
+	fmt.Printf("  metric %q, age %d -> precision=%d, aggr=%s\n", metric, age, prec, aggr.Name())
+	if aggrPattern != nil {
+		fmt.Printf("    aggr pattern: type=%s, regexp=%q, function=%s", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
+		if len(aggrPattern.Retention) > 0 {
+			fmt.Print(", retentions:\n")
+			for i := range aggrPattern.Retention {
+				fmt.Printf("    [age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
+			}
+		} else {
+			fmt.Print("\n")
+		}
+	}
+	if retentionPattern != nil {
+		fmt.Printf("    retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
+		for i := range retentionPattern.Retention {
+			fmt.Printf("    [age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
+		}
+	}
+}
+
 func checkRollupMatch(name string, args []string) {
 	descr := "Match metric against rollup rules"
 	flagName := "match"
 	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
 	help := flagSet.Bool("help", false, "Print help")
-	rollupFile := flagSet.String("rollup", "/etc/graphite-clickhouse/rollup_full.xml", "Filename of rollup config file")
+
+	rollupFile := flagSet.String("rollup", "", "Filename of rollup rules file")
+	configFile := flagSet.String("config", "", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	table := flagSet.String("table", "", "Table in config for lookup rules")
+
 	age := flagSet.Uint64("age", 0, "Age")
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
@@ -293,24 +326,59 @@ func checkRollupMatch(name string, args []string) {
 		return
 	}
 
-	for _, metric := range flagSet.Args() {
-		// check metric roolup rules
+	if *rollupFile == "" && *configFile == "" {
+		fmt.Fprintln(os.Stderr, "set roolup and/or config file\n")
+		os.Exit(1)
+	}
+
+	if *rollupFile != "" {
+		fmt.Printf("rollup file %q\n", *rollupFile)
 		if rollup, err := rollup.NewXMLFile(*rollupFile, 0, ""); err == nil {
-			prec, aggr, aggrPattern, retentionPattern := rollup.Rules().Lookup(metric, uint32(*age), true)
-			fmt.Printf("metric %q, age %d -> precision=%d, aggr=%s\n", metric, *age, prec, aggr.Name())
-			if aggrPattern != nil {
-				fmt.Printf("aggr pattern: type=%s, regexp=%q, function=%s, retentions:\n", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
-				for i := range aggrPattern.Retention {
-					fmt.Printf("[age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
-				}
+			for _, metric := range flagSet.Args() {
+				printMatchedRollupRules(metric, uint32(*age), rollup.Rules())
 			}
-			if retentionPattern != nil {
-				fmt.Printf("retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
-				for i := range retentionPattern.Retention {
-					fmt.Printf("[age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
+		} else {
+			log.Fatal(err)
+		}
+	}
+	if *configFile != "" {
+		cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ec := 0
+		for i := range cfg.DataTable {
+			var rulesTable string
+			if *table == "" || *table == cfg.DataTable[i].Table {
+				if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
+					rulesTable = cfg.DataTable[i].Table
+					if cfg.DataTable[i].RollupAutoTable != "" {
+						rulesTable = cfg.DataTable[i].RollupAutoTable
+					}
+					fmt.Printf("table %q, rollup rules table %q in Clickhouse\n", cfg.DataTable[i].Table, rulesTable)
+				} else {
+					fmt.Printf("rollup file %q\n", cfg.DataTable[i].RollupConf)
+				}
+
+				rules := cfg.DataTable[i].Rollup.Rules()
+				if rules == nil {
+					if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
+						rules, err = rollup.RemoteLoad(cfg.ClickHouse.URL,
+							cfg.ClickHouse.TLSConfig, rulesTable)
+						if err != nil {
+							ec = 1
+							fmt.Fprintf(os.Stderr, "%v\n", err)
+						}
+					}
+				}
+				if rules != nil {
+					for _, metric := range flagSet.Args() {
+						printMatchedRollupRules(metric, uint32(*age), rules)
+					}
 				}
 			}
 		}
+		os.Exit(ec)
 	}
 }
 

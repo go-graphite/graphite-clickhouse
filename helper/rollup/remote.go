@@ -106,7 +106,7 @@ func parseJson(body []byte) (*Rules, error) {
 
 var timeoutRulesLoad = 10 * time.Second
 
-func remoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) {
+func RemoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) {
 	var db string
 	arr := strings.SplitN(table, ".", 2)
 	if len(arr) == 1 {

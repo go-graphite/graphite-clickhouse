@@ -288,7 +288,7 @@ func (r *Rules) Lookup(metric string, age uint32, verbose bool) (precision uint3
 func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precision uint32, ag *Aggr, aggrPattern, retentionPattern *Pattern) {
 	precisionFound := false
 
-	for _, p := range patterns {
+	for n, p := range patterns {
 		// pattern hasn't interested data
 		if (ag != nil || p.aggr == nil) && (precisionFound || len(p.Retention) == 0) {
 			continue
@@ -301,7 +301,7 @@ func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precis
 
 		if ag == nil && p.aggr != nil {
 			if verbose {
-				aggrPattern = &p
+				aggrPattern = &patterns[n]
 			}
 			ag = p.aggr
 		}
@@ -313,7 +313,7 @@ func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precis
 						precision = p.Retention[i-1].Precision
 						precisionFound = true
 						if verbose {
-							retentionPattern = &p
+							retentionPattern = &patterns[n]
 						}
 					}
 					break
@@ -322,7 +322,7 @@ func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precis
 					precision = r.Precision
 					precisionFound = true
 					if verbose {
-						retentionPattern = &p
+						retentionPattern = &patterns[n]
 					}
 					break
 				}
