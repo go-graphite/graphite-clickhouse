@@ -327,7 +327,7 @@ func checkRollupMatch(name string, args []string) {
 	}
 
 	if *rollupFile == "" && *configFile == "" {
-		fmt.Fprintln(os.Stderr, "set roolup and/or config file\n")
+		fmt.Fprint(os.Stderr, "set roolup and/or config file\n")
 		os.Exit(1)
 	}
 
