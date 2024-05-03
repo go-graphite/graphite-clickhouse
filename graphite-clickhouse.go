@@ -99,7 +99,7 @@ func sdList(name string, args []string) {
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
@@ -140,7 +140,7 @@ func sdDelete(name string, args []string) {
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
@@ -179,7 +179,7 @@ func sdEvict(name string, args []string) {
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "  HOST []string\n    	List of hostnames\n")
 	}
@@ -214,7 +214,7 @@ func sdExpired(name string, args []string) {
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
@@ -251,7 +251,7 @@ func sdClean(name string, args []string) {
 	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
 	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
@@ -316,7 +316,7 @@ func checkRollupMatch(name string, args []string) {
 
 	age := flagSet.Uint64("age", 0, "Age")
 	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s -%s:\n", name, flagName)
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
 		flagSet.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "  METRIC []string\n    	List of metric names\n")
 	}
@@ -327,7 +327,7 @@ func checkRollupMatch(name string, args []string) {
 	}
 
 	if *rollupFile == "" && *configFile == "" {
-		fmt.Fprint(os.Stderr, "set roolup and/or config file\n")
+		fmt.Fprint(os.Stderr, "set rollup and/or config file\n")
 		os.Exit(1)
 	}
 
@@ -409,32 +409,32 @@ func main() {
 		flag.PrintDefaults()
 
 		fmt.Fprintf(os.Stderr, "\n\nAdditional commands:\n")
-		fmt.Fprintf(os.Stderr, "	-sd-list	List registered nodes in SD\n")
-		fmt.Fprintf(os.Stderr, "	-sd-delete	Delete registered nodes for local hostname in SD\n")
-		fmt.Fprintf(os.Stderr, "	-sd-evict	Delete registered nodes for  hostnames in SD\n")
-		fmt.Fprintf(os.Stderr, "	-sd-clean	Cleanup expired registered nodes in SD\n")
-		fmt.Fprintf(os.Stderr, "	-sd-expired	List expired registered nodes in SD\n")
-		fmt.Fprintf(os.Stderr, "	-match	Match metric against rollup rules\n")
+		fmt.Fprintf(os.Stderr, "	sd-list	List registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-delete	Delete registered nodes for local hostname in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-evict	Delete registered nodes for  hostnames in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-clean	Cleanup expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-expired	List expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	match	Match metric against rollup rules\n")
 	}
 
 	if len(os.Args) > 0 {
 		switch os.Args[1] {
-		case "-sd-list":
+		case "sd-list", "-sd-list":
 			sdList(os.Args[0], os.Args[2:])
 			return
-		case "-sd-delete":
+		case "sd-delete", "-sd-delete":
 			sdDelete(os.Args[0], os.Args[2:])
 			return
-		case "-sd-evict":
+		case "sd-evict", "-sd-evict":
 			sdEvict(os.Args[0], os.Args[2:])
 			return
-		case "-sd-clean":
+		case "sd-clean", "-sd-clean":
 			sdClean(os.Args[0], os.Args[2:])
 			return
-		case "-sd-expired":
+		case "sd-expired", "-sd-expired":
 			sdExpired(os.Args[0], os.Args[2:])
 			return
-		case "-match":
+		case "match", "-match":
 			checkRollupMatch(os.Args[0], os.Args[2:])
 			return
 		}
