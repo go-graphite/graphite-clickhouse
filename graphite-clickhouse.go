@@ -27,6 +27,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/find"
 	"github.com/lomik/graphite-clickhouse/healthcheck"
+	"github.com/lomik/graphite-clickhouse/helper/rollup"
 	"github.com/lomik/graphite-clickhouse/index"
 	"github.com/lomik/graphite-clickhouse/logs"
 	"github.com/lomik/graphite-clickhouse/metrics"
@@ -90,6 +91,297 @@ var (
 	srv          *http.Server
 )
 
+func sdList(name string, args []string) {
+	descr := "List registered nodes in SD"
+	flagName := "sd-list"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
+
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if nodes, err := s.Nodes(); err == nil {
+			for _, node := range nodes {
+				fmt.Printf("%s/%s: %s (%s)\n", s.Namespace(), node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdDelete(name string, args []string) {
+	descr := "Delete registered nodes for local hostname in SD"
+	flagName := "sd-delete"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
+
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		hostname, _ := os.Hostname()
+		hostname, _, _ = strings.Cut(hostname, ".")
+		if err = s.Clear("", ""); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdEvict(name string, args []string) {
+	descr := "Delete registered nodes for hostnames in SD"
+	flagName := "sd-evict"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  HOST []string\n    	List of hostnames\n")
+	}
+	flagSet.Parse(args)
+	if *help {
+		flagSet.Usage()
+		return
+	}
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		for _, host := range flagSet.Args() {
+			var s sd.SD
+			logger := zapwriter.Default()
+			if s, err = sd.New(&cfg.Common, host, logger); err != nil {
+				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+				os.Exit(1)
+			}
+			err = s.Clear("", "")
+		}
+	}
+}
+
+func sdExpired(name string, args []string) {
+	descr := "List expired registered nodes in SD"
+	flagName := "sd-expired"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
+
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if err = sd.Cleanup(&cfg.Common, s, true); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func sdClean(name string, args []string) {
+	descr := "Cleanup expired registered nodes in SD"
+	flagName := "sd-clean"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+	configFile := flagSet.String("config", "/etc/graphite-clickhouse/graphite-clickhouse.conf", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+	}
+	flagSet.Parse(args)
+	if *help || flagSet.NArg() > 0 {
+		flagSet.Usage()
+		return
+	}
+
+	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
+		var s sd.SD
+		logger := zapwriter.Default()
+		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
+			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
+			os.Exit(1)
+		}
+
+		if err = sd.Cleanup(&cfg.Common, s, false); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func printMatchedRollupRules(metric string, age uint32, rollupRules *rollup.Rules) {
+	// check metric rollup rules
+	prec, aggr, aggrPattern, retentionPattern := rollupRules.Lookup(metric, age, true)
+	fmt.Printf("  metric %q, age %d -> precision=%d, aggr=%s\n", metric, age, prec, aggr.Name())
+	if aggrPattern != nil {
+		fmt.Printf("    aggr pattern: type=%s, regexp=%q, function=%s", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
+		if len(aggrPattern.Retention) > 0 {
+			fmt.Print(", retentions:\n")
+			for i := range aggrPattern.Retention {
+				fmt.Printf("    [age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
+			}
+		} else {
+			fmt.Print("\n")
+		}
+	}
+	if retentionPattern != nil {
+		fmt.Printf("    retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
+		for i := range retentionPattern.Retention {
+			fmt.Printf("    [age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
+		}
+	}
+}
+
+func checkRollupMatch(name string, args []string) {
+	descr := "Match metric against rollup rules"
+	flagName := "match"
+	flagSet := flag.NewFlagSet(descr, flag.ExitOnError)
+	help := flagSet.Bool("help", false, "Print help")
+
+	rollupFile := flagSet.String("rollup", "", "Filename of rollup rules file")
+	configFile := flagSet.String("config", "", "Filename of config")
+	exactConfig := flagSet.Bool("exact-config", false, "Ensure that all config params are contained in the target struct.")
+	table := flagSet.String("table", "", "Table in config for lookup rules")
+
+	age := flagSet.Uint64("age", 0, "Age")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s %s:\n", name, flagName)
+		flagSet.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  METRIC []string\n    	List of metric names\n")
+	}
+	flagSet.Parse(args)
+	if *help {
+		flagSet.Usage()
+		return
+	}
+
+	if *rollupFile == "" && *configFile == "" {
+		fmt.Fprint(os.Stderr, "set rollup and/or config file\n")
+		os.Exit(1)
+	}
+
+	if *rollupFile != "" {
+		fmt.Printf("rollup file %q\n", *rollupFile)
+		if rollup, err := rollup.NewXMLFile(*rollupFile, 0, ""); err == nil {
+			for _, metric := range flagSet.Args() {
+				printMatchedRollupRules(metric, uint32(*age), rollup.Rules())
+			}
+		} else {
+			log.Fatal(err)
+		}
+	}
+	if *configFile != "" {
+		cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ec := 0
+		for i := range cfg.DataTable {
+			var rulesTable string
+			if *table == "" || *table == cfg.DataTable[i].Table {
+				if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
+					rulesTable = cfg.DataTable[i].Table
+					if cfg.DataTable[i].RollupAutoTable != "" {
+						rulesTable = cfg.DataTable[i].RollupAutoTable
+					}
+					fmt.Printf("table %q, rollup rules table %q in Clickhouse\n", cfg.DataTable[i].Table, rulesTable)
+				} else {
+					fmt.Printf("rollup file %q\n", cfg.DataTable[i].RollupConf)
+				}
+
+				rules := cfg.DataTable[i].Rollup.Rules()
+				if rules == nil {
+					if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
+						rules, err = rollup.RemoteLoad(cfg.ClickHouse.URL,
+							cfg.ClickHouse.TLSConfig, rulesTable)
+						if err != nil {
+							ec = 1
+							fmt.Fprintf(os.Stderr, "%v\n", err)
+						}
+					}
+				}
+				if rules != nil {
+					for _, metric := range flagSet.Args() {
+						printMatchedRollupRules(metric, uint32(*age), rules)
+					}
+				}
+			}
+		}
+		os.Exit(ec)
+	}
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -108,14 +400,45 @@ func main() {
 		"Additional pprof listen addr for non-server modes (tagger, etc..), overrides pprof-listen from common ",
 	)
 
-	sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
-	sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
-	sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
-	sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
-	sdExpired := flag.Bool("sd-expired", false, "List expired registered nodes in SD")
-
 	printVersion := flag.Bool("version", false, "Print version")
 	verbose := flag.Bool("verbose", false, "Verbose (print config on startup)")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+
+		flag.PrintDefaults()
+
+		fmt.Fprintf(os.Stderr, "\n\nAdditional commands:\n")
+		fmt.Fprintf(os.Stderr, "	sd-list	List registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-delete	Delete registered nodes for local hostname in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-evict	Delete registered nodes for  hostnames in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-clean	Cleanup expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	sd-expired	List expired registered nodes in SD\n")
+		fmt.Fprintf(os.Stderr, "	match	Match metric against rollup rules\n")
+	}
+
+	if len(os.Args) > 0 {
+		switch os.Args[1] {
+		case "sd-list", "-sd-list":
+			sdList(os.Args[0], os.Args[2:])
+			return
+		case "sd-delete", "-sd-delete":
+			sdDelete(os.Args[0], os.Args[2:])
+			return
+		case "sd-evict", "-sd-evict":
+			sdEvict(os.Args[0], os.Args[2:])
+			return
+		case "sd-clean", "-sd-clean":
+			sdClean(os.Args[0], os.Args[2:])
+			return
+		case "sd-expired", "-sd-expired":
+			sdExpired(os.Args[0], os.Args[2:])
+			return
+		case "match", "-match":
+			checkRollupMatch(os.Args[0], os.Args[2:])
+			return
+		}
+	}
 
 	flag.Parse()
 
@@ -138,65 +461,6 @@ func main() {
 
 	// config parsed successfully. Exit in check-only mode
 	if *checkConfig {
-		return
-	}
-
-	if *sdEvict != "" {
-		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
-			var s sd.SD
-			logger := zapwriter.Default()
-			if s, err = sd.New(&cfg.Common, *sdEvict, logger); err != nil {
-				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
-				os.Exit(1)
-			}
-			err = s.Clear("", "")
-		}
-		return
-	} else if *sdList || *sdDelete || *sdExpired || *sdClean {
-		if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
-			var s sd.SD
-			logger := zapwriter.Default()
-			if s, err = sd.New(&cfg.Common, "", logger); err != nil {
-				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
-				os.Exit(1)
-			}
-
-			// 		sdList := flag.Bool("sd-list", false, "List registered nodes in SD")
-			// sdDelete := flag.Bool("sd-delete", false, "Delete registered nodes for this hostname in SD")
-			// sdEvict := flag.String("sd-evict", "", "Delete registered nodes for  hostname in SD")
-			// sdClean := flag.Bool("sd-clean", false, "Cleanup expired registered nodes in SD")
-
-			if *sdDelete {
-				hostname, _ := os.Hostname()
-				hostname, _, _ = strings.Cut(hostname, ".")
-				if err = s.Clear("", ""); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else if *sdExpired {
-				if err = sd.Cleanup(&cfg.Common, s, true); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else if *sdClean {
-				if err = sd.Cleanup(&cfg.Common, s, false); err != nil {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			} else {
-				if nodes, err := s.Nodes(); err == nil {
-					for _, node := range nodes {
-						fmt.Printf("%s/%s: %s (%s)\n", s.Namespace(), node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
-					}
-				} else {
-					fmt.Fprintln(os.Stderr, err.Error())
-					os.Exit(1)
-				}
-			}
-		} else {
-			fmt.Fprintln(os.Stderr, "SD not enabled")
-			os.Exit(1)
-		}
 		return
 	}
 

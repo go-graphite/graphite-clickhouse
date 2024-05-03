@@ -288,7 +288,7 @@ func (c *conditions) prepareLookup() {
 	aggName := ""
 
 	for i := range c.metricsRequested {
-		step, agg := c.rollupRules.Lookup(c.metricsLookup[i], age)
+		step, agg, _, _ := c.rollupRules.Lookup(c.metricsLookup[i], age, false)
 
 		// Override agregation with an argument of consolidateBy function.
 		// consolidateBy with its argument is passed through FilteringFunctions field of carbonapi_v3_pb protocol.

@@ -46,6 +46,7 @@ type RetentionXML struct {
 }
 
 type PatternXML struct {
+	RuleType  RuleType        `xml:"rule_type"`
 	Regexp    string          `xml:"regexp"`
 	Function  string          `xml:"function"`
 	Retention []*RetentionXML `xml:"retention"`
@@ -62,6 +63,7 @@ func (r *RetentionXML) retention() Retention {
 
 func (p *PatternXML) pattern() Pattern {
 	result := Pattern{
+		RuleType:  p.RuleType,
 		Regexp:    p.Regexp,
 		Function:  p.Function,
 		Retention: make([]Retention, 0, len(p.Retention)),

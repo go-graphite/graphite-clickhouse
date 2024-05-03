@@ -1,9 +1,11 @@
 package rollup
 
 import (
+	"encoding/xml"
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/pkg/dry"
@@ -16,7 +18,122 @@ type Retention struct {
 	Precision uint32 `json:"precision"`
 }
 
+type RuleType uint8
+
+const (
+	RuleAll RuleType = iota
+	RulePlain
+	RuleTagged
+	RuleTagList
+)
+
+var timeNow = time.Now
+
+var ruleTypeStrings []string = []string{"all", "plain", "tagged", "tag_list"}
+
+func (r *RuleType) String() string {
+	return ruleTypeStrings[*r]
+}
+
+func (r *RuleType) Set(value string) error {
+	switch strings.ToLower(value) {
+	case "all":
+		*r = RuleAll
+	case "plain":
+		*r = RulePlain
+	case "tagged":
+		*r = RuleTagged
+	case "tag_list":
+		*r = RuleTagList
+	default:
+		return fmt.Errorf("invalid rule type %s", value)
+	}
+	return nil
+}
+
+func (r *RuleType) UnmarshalJSON(data []byte) error {
+	s := string(data)
+	if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
+		s = s[1 : len(s)-1]
+	}
+	return r.Set(s)
+}
+
+func (r *RuleType) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var s string
+	if err := d.DecodeElement(&s, &start); err != nil {
+		return err
+	}
+
+	return r.Set(s)
+}
+
+func splitTags(tagsStr string) (tags []string) {
+	vals := strings.Split(tagsStr, ";")
+	tags = make([]string, 0, len(vals))
+	// remove empthy elements
+	for _, v := range vals {
+		if v != "" {
+			tags = append(tags, v)
+		}
+	}
+	return
+}
+
+func buildTaggedRegex(regexpStr string) string {
+	// see buildTaggedRegex in https://github.com/ClickHouse/ClickHouse/blob/780a1b2abea918d3205d149db7689a31fdff2f70/src/Processors/Merges/Algorithms/Graphite.cpp#L241
+	//
+	// * tags list in format (for name or any value can use regexp, alphabet sorting not needed)
+	// * spaces are not stiped and used as tag and value part
+	// * name must be first (if used)
+	// *
+	// * tag1=value1; tag2=VALUE2_REGEX;tag3=value3
+	// * or
+	// * name;tag1=value1;tag2=VALUE2_REGEX;tag3=value3
+	// * or for one tag
+	// * tag1=value1
+	// *
+	// * Resulting regex against metric like
+	// * name?tag1=value1&tag2=value2
+	// *
+	// * So,
+	// *
+	// * name
+	// * produce
+	// * name\?
+	// *
+	// * tag2=val2
+	// * produce
+	// * [\?&]tag2=val2(&.*)?$
+	// *
+	// * nam.* ; tag1=val1 ; tag2=val2
+	// * produce
+	// * nam.*\?(.*&)?tag1=val1&(.*&)?tag2=val2(&.*)?$
+
+	tags := splitTags(regexpStr)
+
+	if strings.Contains(tags[0], "=") {
+		regexpStr = "[\\?&]"
+	} else {
+		if len(tags) == 1 {
+			// only name
+			return "^" + tags[0] + "\\?"
+		}
+		// start with name value
+		regexpStr = "^" + tags[0] + "\\?(.*&)?"
+		tags = tags[1:]
+	}
+
+	sort.Strings(tags) // sorted tag keys
+	regexpStr = regexpStr +
+		strings.Join(tags, "&(.*&)?") +
+		"(&.*)?$" // close regex
+
+	return regexpStr
+}
+
 type Pattern struct {
+	RuleType  RuleType    `json:"rule_type"`
 	Regexp    string      `json:"regexp"`
 	Function  string      `json:"function"`
 	Retention []Retention `json:"retention"`
@@ -25,8 +142,11 @@ type Pattern struct {
 }
 
 type Rules struct {
-	Pattern []Pattern `json:"pattern"`
-	Updated int64     `json:"updated"`
+	Pattern       []Pattern `json:"pattern"`
+	Updated       int64     `json:"updated"`
+	Separated     bool      `json:"-"`
+	PatternPlain  []Pattern `json:"-"`
+	PatternTagged []Pattern `json:"-"`
 }
 
 // NewMockRulles creates mock rollup for tests
@@ -48,6 +168,12 @@ var superDefaultFunction = AggrMap["avg"]
 const superDefaultPrecision = uint32(60)
 
 func (p *Pattern) compile() error {
+	if p.RuleType == RuleTagList {
+		// convert to tagged rule type
+		p.RuleType = RuleTagged
+		p.Regexp = buildTaggedRegex(p.Regexp)
+	}
+
 	var err error
 	if p.Regexp != "" && p.Regexp != ".*" {
 		p.re, err = regexp.Compile(p.Regexp)
@@ -82,10 +208,30 @@ func (r *Rules) compile() (*Rules, error) {
 	if r.Pattern == nil {
 		r.Pattern = make([]Pattern, 0)
 	}
+	r.PatternPlain = make([]Pattern, 0)
+	r.PatternTagged = make([]Pattern, 0)
 
+	r.Separated = false
 	for i := range r.Pattern {
 		if err := r.Pattern[i].compile(); err != nil {
 			return r, err
+		}
+		if !r.Separated && r.Pattern[i].RuleType != RuleAll {
+			r.Separated = true
+		}
+	}
+
+	if r.Separated {
+		for i := range r.Pattern {
+			switch r.Pattern[i].RuleType {
+			case RulePlain:
+				r.PatternPlain = append(r.PatternPlain, r.Pattern[i])
+			case RuleTagged:
+				r.PatternTagged = append(r.PatternTagged, r.Pattern[i])
+			default:
+				r.PatternPlain = append(r.PatternPlain, r.Pattern[i])
+				r.PatternTagged = append(r.PatternTagged, r.Pattern[i])
+			}
 		}
 	}
 
@@ -119,7 +265,7 @@ func (r *Rules) withDefault(defaultPrecision uint32, defaultFunction *Aggr) *Rul
 }
 
 func (r *Rules) setUpdated() *Rules {
-	r.Updated = time.Now().Unix()
+	r.Updated = timeNow().Unix()
 	return r
 }
 
@@ -128,10 +274,21 @@ func (r *Rules) withSuperDefault() *Rules {
 }
 
 // Lookup returns precision and aggregate function for metric name and age
-func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
+func (r *Rules) Lookup(metric string, age uint32, verbose bool) (precision uint32, ag *Aggr, aggrPattern, retentionPattern *Pattern) {
+	if r.Separated {
+		if strings.Contains(metric, "?") {
+			return lookup(metric, age, r.PatternTagged, verbose)
+		}
+		return lookup(metric, age, r.PatternPlain, verbose)
+	}
+	return lookup(metric, age, r.Pattern, verbose)
+}
+
+// Lookup returns precision and aggregate function for metric name and age
+func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precision uint32, ag *Aggr, aggrPattern, retentionPattern *Pattern) {
 	precisionFound := false
 
-	for _, p := range r.Pattern {
+	for n, p := range patterns {
 		// pattern hasn't interested data
 		if (ag != nil || p.aggr == nil) && (precisionFound || len(p.Retention) == 0) {
 			continue
@@ -143,6 +300,9 @@ func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
 		}
 
 		if ag == nil && p.aggr != nil {
+			if verbose {
+				aggrPattern = &patterns[n]
+			}
 			ag = p.aggr
 		}
 
@@ -152,12 +312,18 @@ func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
 					if i > 0 {
 						precision = p.Retention[i-1].Precision
 						precisionFound = true
+						if verbose {
+							retentionPattern = &patterns[n]
+						}
 					}
 					break
 				}
 				if i == len(p.Retention)-1 {
 					precision = r.Precision
 					precisionFound = true
+					if verbose {
+						retentionPattern = &patterns[n]
+					}
 					break
 				}
 			}
@@ -181,8 +347,8 @@ func (r *Rules) Lookup(metric string, age uint32) (precision uint32, ag *Aggr) {
 }
 
 // LookupBytes returns precision and aggregate function for metric name and age
-func (r *Rules) LookupBytes(metric []byte, age uint32) (precision uint32, ag *Aggr) {
-	return r.Lookup(dry.UnsafeString(metric), age)
+func (r *Rules) LookupBytes(metric []byte, age uint32, verbose bool) (precision uint32, ag *Aggr, aggrPattern, retentionPattern *Pattern) {
+	return r.Lookup(dry.UnsafeString(metric), age, verbose)
 }
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
@@ -229,7 +395,7 @@ func (r *Rules) RollupMetricAge(metricName string, age uint32, points []point.Po
 		return points, 1, nil
 	}
 
-	precision, ag := r.Lookup(metricName, age)
+	precision, ag, _, _ := r.Lookup(metricName, age, false)
 	points = doMetricPrecision(points, precision, ag)
 
 	return points, precision, nil
@@ -238,7 +404,7 @@ func (r *Rules) RollupMetricAge(metricName string, age uint32, points []point.Po
 // RollupMetric rolling up list of points of ONE metric sorted by key "time"
 // returns (new points slice, precision)
 func (r *Rules) RollupMetric(metricName string, from uint32, points []point.Point) ([]point.Point, uint32, error) {
-	now := uint32(time.Now().Unix())
+	now := uint32(timeNow().Unix())
 	age := uint32(0)
 	if now > from {
 		age = now - from
@@ -252,6 +418,13 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 	if from < 0 || step < 0 {
 		return fmt.Errorf("from and step must be >= 0: %v, %v", from, step)
 	}
+
+	now := int64(timeNow().Unix())
+	age := int64(0)
+	if now > from {
+		age = now - from
+	}
+
 	var i, n int
 	// i - current position of iterator
 	// n - position of the first record with current metric
@@ -265,9 +438,9 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 		metricName := pp.MetricName(p[0].MetricID)
 		var err error
 		if step == 0 {
-			p, _, err = r.RollupMetric(metricName, uint32(from), p)
+			p, _, err = r.RollupMetricAge(metricName, uint32(age), p)
 		} else {
-			_, agg := r.Lookup(metricName, uint32(from))
+			_, agg, _, _ := r.Lookup(metricName, uint32(from), false)
 			p = doMetricPrecision(p, uint32(step), agg)
 		}
 		for i := range p {
