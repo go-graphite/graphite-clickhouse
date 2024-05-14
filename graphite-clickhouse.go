@@ -417,7 +417,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "	match	Match metric against rollup rules\n")
 	}
 
-	if len(os.Args) > 0 {
+	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "sd-list", "-sd-list":
 			sdList(os.Args[0], os.Args[2:])
