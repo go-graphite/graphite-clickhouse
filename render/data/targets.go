@@ -139,6 +139,12 @@ func (tt *Targets) GetRequestedAggregation(target string) string {
 			ffName := filteringFunc.GetName()
 			ffArgs := filteringFunc.GetArguments()
 			if ffName == graphiteConsolidationFunction && len(ffArgs) > 0 {
+				// Graphite standard supports both average and avg.
+				// It is the only aggregation that has two aliases.
+				// https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.consolidateBy
+				if ffArgs[0] == "average" {
+					return "avg"
+				}
 				return ffArgs[0]
 			}
 		}
