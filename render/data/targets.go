@@ -139,13 +139,22 @@ func (tt *Targets) GetRequestedAggregation(target string) string {
 			ffName := filteringFunc.GetName()
 			ffArgs := filteringFunc.GetArguments()
 			if ffName == graphiteConsolidationFunction && len(ffArgs) > 0 {
+				switch ffArgs[0] {
+				// 'last' in graphite == clickhouse aggregate function 'anyLast'
+				case "last":
+					return "anyLast"
+				// 'first' in graphite == clickhouse aggregate function 'any'
+				case "first":
+					return "any"
 				// Graphite standard supports both average and avg.
 				// It is the only aggregation that has two aliases.
 				// https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.consolidateBy
-				if ffArgs[0] == "average" {
+				case "average":
 					return "avg"
+				// avg, sum, max, min have the same name in clickhouse
+				default:
+					return ffArgs[0]
 				}
-				return ffArgs[0]
 			}
 		}
 	}
