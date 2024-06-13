@@ -1,0 +1,297 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "24.2"
+dir = "tests/clickhouse/rollup"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+#######################################################################################
+
+[[test.input]]
+name = "request_success_total.counter;app=test;project=Test;environment=TEST"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "request_success_total.counter;app=test;project=Test;environment=TEST;t=q"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "test;env=prod"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "test;env=dr"
+points = [{value = 1.0, time = "rnow-10"}]
+
+# consolidateBy('max')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('max')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "max"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "max"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('min')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('min')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "min"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "min"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('sum')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('sum')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "sum"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "sum"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('avg')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('avg')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('average')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('average')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('last')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('last')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "last"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "last"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('first')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('first')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "first"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "first"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# consolidateBy('invalid')
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('invalid')"
+]
+error_regexp = "^500: Storage error"
