@@ -37,7 +37,7 @@ type Metric struct {
 
 // Render do /metrics/find/ request
 // Valid formats are carbonapi_v3_pb. protobuf, pickle, json
-func Render(client *http.Client, address string, format FormatType, targets []string, from, until int64) (string, []Metric, http.Header, error) {
+func Render(client *http.Client, address string, format FormatType, targets []string, filteringFunctions []*protov3.FilteringFunction, from, until int64) (string, []Metric, http.Header, error) {
 	rUrl := "/render/"
 	if format == FormatDefault {
 		format = FormatPb_v3
@@ -77,10 +77,11 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		}
 		for i, target := range targets {
 			r.Metrics[i] = protov3.FetchRequest{
-				Name:           target,
-				StartTime:      from,
-				StopTime:       until,
-				PathExpression: target,
+				Name:            target,
+				StartTime:       from,
+				StopTime:        until,
+				PathExpression:  target,
+				FilterFunctions: filteringFunctions,
 			}
 		}
 

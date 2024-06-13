@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/datetime"
 )
@@ -182,7 +183,7 @@ func main() {
 		if formatRender == client.FormatDefault {
 			formatRender = client.FormatPb_v3
 		}
-		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, []*carbonapi_v3_pb.FilteringFunction{}, int64(from), int64(until))
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}

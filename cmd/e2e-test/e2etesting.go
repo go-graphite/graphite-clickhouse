@@ -59,13 +59,14 @@ type Metric struct {
 }
 
 type RenderCheck struct {
-	Name        string              `toml:"name"`
-	Formats     []client.FormatType `toml:"formats"`
-	From        string              `toml:"from"`
-	Until       string              `toml:"until"`
-	Targets     []string            `toml:"targets"`
-	Timeout     time.Duration       `toml:"timeout"`
-	DumpIfEmpty []string            `toml:"dump_if_empty"`
+	Name               string              `toml:"name"`
+	Formats            []client.FormatType `toml:"formats"`
+	From               string              `toml:"from"`
+	Until              string              `toml:"until"`
+	Targets            []string            `toml:"targets"`
+	FilteringFunctions []string            `toml:"filtering_functions"`
+	Timeout            time.Duration       `toml:"timeout"`
+	DumpIfEmpty        []string            `toml:"dump_if_empty"`
 
 	Optimize []string `toml:"optimize"` // optimize tables before run tests
 
@@ -338,6 +339,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 						zap.String("clickhouse config", clickhouseDir),
 						zap.String("graphite-clickhouse config", gch.ConfigTpl),
 						zap.Strings("targets", check.Targets),
+						zap.Strings("filtering_functions", check.FilteringFunctions),
 						zap.String("from_raw", check.From),
 						zap.String("until_raw", check.Until),
 						zap.Int64("from", check.from),
@@ -361,6 +363,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("clickhouse config", clickhouseDir),
 				zap.String("graphite-clickhouse config", gch.ConfigTpl),
 				zap.Strings("targets", check.Targets),
+				zap.Strings("filtering_functions", check.FilteringFunctions),
 				zap.String("from_raw", check.From),
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
@@ -377,6 +380,7 @@ func verifyGraphiteClickhouse(test *TestSchema, gch *GraphiteClickhouse, clickho
 				zap.String("clickhouse config", clickhouseDir),
 				zap.String("graphite-clickhouse config", gch.ConfigTpl),
 				zap.Strings("targets", check.Targets),
+				zap.Strings("filtering_functions", check.FilteringFunctions),
 				zap.String("from_raw", check.From),
 				zap.String("until_raw", check.Until),
 				zap.Int64("from", check.from),
