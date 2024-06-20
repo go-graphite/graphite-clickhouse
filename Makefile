@@ -68,6 +68,9 @@ gox-build:
 	ls -la out/
 	mkdir -p out/root/etc/$(NAME)/
 	./out/$(NAME)-$(OS)-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
+	install -D --mode=0644 \
+		deploy/root/etc/logrotate.d/graphite-clickhouse \
+		out/root/etc/logrotate.d/graphite-clickhouse
 
 fpm-deb:
 	$(MAKE) fpm-build-deb ARCH=amd64
@@ -85,8 +88,7 @@ fpm-build-deb:
 		-m $(MAINTAINER) \
 		--license "MIT" \
 		-a $(ARCH) \
-		--config-files /etc/$(NAME)/$(NAME).conf \
-		--config-files /etc/logrotate.d/$(NAME) \
+		--config-files /etc \
 		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
 		deploy/root/=/ \
 		out/root/=/
@@ -101,8 +103,7 @@ fpm-build-rpm:
 		-m $(MAINTAINER) \
 		--license "MIT" \
 		-a $(ARCH) \
-		--config-files /etc/$(NAME)/$(NAME).conf \
-		--config-files /etc/logrotate.d/$(NAME) \
+		--config-files /etc \
 		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
 		deploy/root/=/ \
 		out/root/=/
