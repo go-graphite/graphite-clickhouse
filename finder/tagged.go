@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 var (
 	// ErrEmptyArgs         = errors.New("empty arguments")
 	ErrCostlySeriesByTag = errs.NewErrorWithCode("seriesByTag argument has too much wildcard and regex terms", http.StatusForbidden)
+	ErrIncorrectRegex    = errs.NewErrorWithCode("incorrect regex syntax", http.StatusBadRequest)
 )
 
 type TaggedTermOp int
@@ -253,6 +255,15 @@ func setCost(term *TaggedTerm, costs *config.Costs) {
 	}
 }
 
+func validateRegex(regex string) error {
+	if regex != "*" {
+		if _, err := regexp.Compile(regex); err != nil {
+			return ErrIncorrectRegex
+		}
+	}
+	return nil
+}
+
 func ParseTaggedConditions(conditions []string, config *config.Config, autocomplete bool) ([]TaggedTerm, error) {
 	nonWildcards := 0
 	terms := make([]TaggedTerm, len(conditions))
@@ -297,8 +308,14 @@ func ParseTaggedConditions(conditions []string, config *config.Config, autocompl
 		case "!=":
 			terms[i].Op = TaggedTermNe
 		case "=~":
+			if err := validateRegex(terms[i].Value); err != nil {
+				return nil, err
+			}
 			terms[i].Op = TaggedTermMatch
 		case "!=~":
+			if err := validateRegex(terms[i].Value); err != nil {
+				return nil, err
+			}
 			terms[i].Op = TaggedTermNotMatch
 		default:
 			return nil, fmt.Errorf("wrong seriesByTag expr: %#v", s)
