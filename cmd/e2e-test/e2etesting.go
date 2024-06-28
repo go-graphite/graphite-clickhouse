@@ -64,6 +64,7 @@ type RenderCheck struct {
 	From               string              `toml:"from"`
 	Until              string              `toml:"until"`
 	Targets            []string            `toml:"targets"`
+	MaxDataPoints      int64               `toml:"max_data_points"`
 	FilteringFunctions []string            `toml:"filtering_functions"`
 	Timeout            time.Duration       `toml:"timeout"`
 	DumpIfEmpty        []string            `toml:"dump_if_empty"`

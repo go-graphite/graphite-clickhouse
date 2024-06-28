@@ -310,7 +310,7 @@ func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, d
 			}
 		}
 
-		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, filteringFunctions, from, until); err == nil {
+		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, filteringFunctions, check.MaxDataPoints, from, until); err == nil {
 			id := requestId(respHeader)
 			name := ""
 			if check.ErrorRegexp != "" {
@@ -333,7 +333,7 @@ func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, d
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached
 				name = "cache"
-				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, filteringFunctions, from, until); err == nil {
+				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, filteringFunctions, check.MaxDataPoints, from, until); err == nil {
 					compareRender(&errors, name, url, result, check.result, true, respHeader, check.CacheTTL)
 				} else {
 					errStr := strings.TrimRight(err.Error(), "\n")

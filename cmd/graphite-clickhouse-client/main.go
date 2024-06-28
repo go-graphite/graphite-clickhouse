@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,7 @@ func main() {
 	address := flag.String("address", "http://127.0.0.1:9090", "Address of graphite-clickhouse server")
 	fromStr := flag.String("from", "0", "from")
 	untilStr := flag.String("until", "", "until")
+	maxDataPointsStr := flag.String("maxDataPoints", "1048576", "Maximum amount of datapoints in response")
 
 	metricsFind := flag.String("find", "", "Query for /metrics/find/ , valid formats are carbonapi_v3_pb. protobuf, pickle")
 
@@ -70,6 +72,11 @@ func main() {
 	until = datetime.DateParamToEpoch(*untilStr, tz, now, 0)
 	if until == 0 && len(targets) > 0 {
 		fmt.Printf("invalid until: %s\n", *untilStr)
+		os.Exit(1)
+	}
+	maxDataPoints, err := strconv.ParseInt(*maxDataPointsStr, 10, 64)
+	if err != nil {
+		fmt.Printf("invalid maxDataPoints: %s\n", *maxDataPointsStr)
 		os.Exit(1)
 	}
 
@@ -183,7 +190,7 @@ func main() {
 		if formatRender == client.FormatDefault {
 			formatRender = client.FormatPb_v3
 		}
-		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, []*carbonapi_v3_pb.FilteringFunction{}, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, []*carbonapi_v3_pb.FilteringFunction{}, maxDataPoints, int64(from), int64(until))
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}
