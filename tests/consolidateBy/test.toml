@@ -302,4 +302,4 @@ targets = [
 filtering_functions = [
     "consolidateBy('invalid')"
 ]
-error_regexp = "^500: Storage error"
+error_regexp = "^400: failed to choose appropriate aggregation"
