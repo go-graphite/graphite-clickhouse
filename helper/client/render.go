@@ -37,7 +37,7 @@ type Metric struct {
 
 // Render do /metrics/find/ request
 // Valid formats are carbonapi_v3_pb. protobuf, pickle, json
-func Render(client *http.Client, address string, format FormatType, targets []string, from, until int64) (string, []Metric, http.Header, error) {
+func Render(client *http.Client, address string, format FormatType, targets []string, filteringFunctions []*protov3.FilteringFunction, maxDataPoints, from, until int64) (string, []Metric, http.Header, error) {
 	rUrl := "/render/"
 	if format == FormatDefault {
 		format = FormatPb_v3
@@ -56,6 +56,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	}
 	fromStr := strconv.FormatInt(from, 10)
 	untilStr := strconv.FormatInt(until, 10)
+	maxDataPointsStr := strconv.FormatInt(maxDataPoints, 10)
 
 	u, err := url.Parse(address + rUrl)
 	if err != nil {
@@ -77,10 +78,12 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		}
 		for i, target := range targets {
 			r.Metrics[i] = protov3.FetchRequest{
-				Name:           target,
-				StartTime:      from,
-				StopTime:       until,
-				PathExpression: target,
+				Name:            target,
+				StartTime:       from,
+				StopTime:        until,
+				PathExpression:  target,
+				FilterFunctions: filteringFunctions,
+				MaxDataPoints:   maxDataPoints,
 			}
 		}
 
@@ -93,10 +96,11 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		}
 	case FormatPb_v2, FormatProtobuf, FormatPickle, FormatJSON:
 		v := url.Values{
-			"format": []string{format.String()},
-			"from":   []string{fromStr},
-			"until":  []string{untilStr},
-			"target": targets,
+			"format":        []string{format.String()},
+			"from":          []string{fromStr},
+			"until":         []string{untilStr},
+			"target":        targets,
+			"maxDataPoints": []string{maxDataPointsStr},
 		}
 		u.RawQuery = v.Encode()
 	default:

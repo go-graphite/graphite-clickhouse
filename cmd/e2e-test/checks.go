@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/helper/client"
 	"github.com/lomik/graphite-clickhouse/helper/datetime"
 	"github.com/lomik/graphite-clickhouse/helper/tests/compare"
@@ -271,6 +272,24 @@ func compareRender(errors *[]string, name, url string, actual, expected []client
 	}
 }
 
+func parseFilteringFunctions(strFilteringFuncs []string) ([]*carbonapi_v3_pb.FilteringFunction, error) {
+	res := make([]*carbonapi_v3_pb.FilteringFunction, 0, len(strFilteringFuncs))
+	for _, strFF := range strFilteringFuncs {
+		strFFSplit := strings.Split(strFF, "(")
+		if len(strFFSplit) != 2 {
+			return nil, fmt.Errorf("could not parse filtering function: %s", strFF)
+		}
+		name := strFFSplit[0]
+		args := strings.Split(strFFSplit[1], ",")
+		for i := range args {
+			args[i] = strings.TrimSpace(args[i])
+			args[i] = strings.Trim(args[i], ")'")
+		}
+		res = append(res, &carbonapi_v3_pb.FilteringFunction{Name: name, Arguments: args})
+	}
+	return res, nil
+}
+
 func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, defaultPreision time.Duration) []string {
 	var errors []string
 	httpClient := http.Client{
@@ -280,7 +299,18 @@ func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, d
 	from := datetime.TimestampTruncate(check.from, defaultPreision)
 	until := datetime.TimestampTruncate(check.until, defaultPreision)
 	for _, format := range check.Formats {
-		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, from, until); err == nil {
+
+		var filteringFunctions []*carbonapi_v3_pb.FilteringFunction
+		if format == client.FormatPb_v3 {
+			var err error
+			filteringFunctions, err = parseFilteringFunctions(check.FilteringFunctions)
+			if err != nil {
+				errors = append(errors, err.Error())
+				continue
+			}
+		}
+
+		if url, result, respHeader, err := client.Render(&httpClient, address, format, check.Targets, filteringFunctions, check.MaxDataPoints, from, until); err == nil {
 			id := requestId(respHeader)
 			name := ""
 			if check.ErrorRegexp != "" {
@@ -303,7 +333,7 @@ func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, d
 			if check.CacheTTL > 0 && check.ErrorRegexp == "" {
 				// second query must be find-cached
 				name = "cache"
-				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, from, until); err == nil {
+				if url, result, respHeader, err = client.Render(&httpClient, address, format, check.Targets, filteringFunctions, check.MaxDataPoints, from, until); err == nil {
 					compareRender(&errors, name, url, result, check.result, true, respHeader, check.CacheTTL)
 				} else {
 					errStr := strings.TrimRight(err.Error(), "\n")

@@ -54,7 +54,10 @@ func (d *Data) GetAggregation(id uint32) (string, error) {
 	if err != nil {
 		return function, err
 	}
-	if function == "any" || function == "anyLast" {
+	switch function {
+	case "any":
+		return "first", nil
+	case "anyLast":
 		return "last", nil
 	}
 	return function, nil

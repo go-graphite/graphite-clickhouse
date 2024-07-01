@@ -131,23 +131,47 @@ TableLoop:
 	return fmt.Errorf("data tables is not specified for %v", tt.List[0])
 }
 
-func (tt *Targets) GetRequestedAggregation(target string) string {
+func (tt *Targets) GetRequestedAggregation(target string) (string, error) {
 	if ffs, ok := tt.filteringFunctionsByTarget[target]; !ok {
-		return ""
+		return "", nil
 	} else {
 		for _, filteringFunc := range ffs {
 			ffName := filteringFunc.GetName()
 			ffArgs := filteringFunc.GetArguments()
-			if ffName == graphiteConsolidationFunction && len(ffArgs) > 0 {
-				// Graphite standard supports both average and avg.
-				// It is the only aggregation that has two aliases.
-				// https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.consolidateBy
-				if ffArgs[0] == "average" {
-					return "avg"
-				}
-				return ffArgs[0]
+
+			if ffName != graphiteConsolidationFunction {
+				continue
+			}
+
+			if len(ffArgs) < 1 {
+				return "", fmt.Errorf("no argumets were provided to consolidateBy function")
+			}
+
+			switch ffArgs[0] {
+			// 'last' in graphite == clickhouse aggregate function 'anyLast'
+			case "last":
+				return "anyLast", nil
+			// 'first' in graphite == clickhouse aggregate function 'any'
+			case "first":
+				return "any", nil
+			// Graphite standard supports both average and avg.
+			// It is the only aggregation that has two aliases.
+			// https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.consolidateBy
+			case "average":
+				return "avg", nil
+			// avg, sum, max, min have the same name in clickhouse
+			case "avg", "sum", "max", "min":
+				return ffArgs[0], nil
+			default:
+				return "",
+					fmt.Errorf(
+						"unknown \"%s\" argument function (allowed argumets are: 'avg', 'average', 'sum', 'max', 'min', 'last', 'first'): recieved %s",
+						graphiteConsolidationFunction,
+						ffArgs[0],
+					)
+
 			}
 		}
 	}
-	return ""
+	return "", nil
 }
