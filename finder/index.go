@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -153,7 +155,18 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 	return w
 }
 
+func (idx *IndexFinder) validateQuery(query string) error {
+	if where.HasUnmatchedBrackets(query) {
+		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
+	}
+	return nil
+}
+
 func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+	err = idx.validateQuery(query)
+	if err != nil {
+		return err
+	}
 	w := idx.whereFilter(query, from, until)
 
 	idx.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
