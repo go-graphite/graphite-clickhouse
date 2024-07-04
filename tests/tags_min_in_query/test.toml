@@ -1,0 +1,159 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "24.2"
+dir = "tests/clickhouse/rollup"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+#######################################################################################
+
+[[test.input]]
+name = "test;env=prod"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "test;env=dev"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "test;env=stage"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=test')", 
+]
+
+[[test.render_checks.result]]
+name = "test;env=prod"
+path = "seriesByTag('name=test')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "test;env=dev"
+path = "seriesByTag('name=test')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "test;env=stage"
+path = "seriesByTag('name=test')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env=dev')", 
+]
+
+[[test.render_checks.result]]
+name = "test;env=dev"
+path = "seriesByTag('env=dev')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# due to 'use-carbon-behaviour = true'
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env=')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env!=prod')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env!=')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env=~')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env=~pr')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env!=~')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('env!=~pr')", 
+]
+error_regexp = "^403: seriesByTag argument has too much wildcard and regex terms"
