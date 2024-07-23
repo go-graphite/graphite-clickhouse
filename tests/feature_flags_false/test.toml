@@ -38,10 +38,6 @@ name = "request_success_total.counter;app=test;project=Test;environment=TEST;t=c
 points = [{value = 1.0, time = "rnow-10"}]
 
 [[test.input]]
-name = "request_success_total.counter;app=test;project=Test;environment=TEST;t=cqa"
-points = [{value = 1.0, time = "rnow-10"}]
-
-[[test.input]]
 name = "test;env=prod"
 points = [{value = 1.0, time = "rnow-10"}]
 
@@ -1284,6 +1280,60 @@ values = [1.0, nan]
 [[test.render_checks.result]]
 name = "test;env=prod"
 path = "seriesByTag('name=test','env!=~stage|env')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*a*') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*a*')", 
+]
+error_regexp = "^400: incorrect regex syntax"
+
+# ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*') ###
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*')", 
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=cqa"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*')"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=qac"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*')"
 consolidation = "avg"
 start = "rnow-10"
 stop = "rnow+10"
