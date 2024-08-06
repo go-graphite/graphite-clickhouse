@@ -72,7 +72,10 @@ func extractClickhouseError(e string) (int, string) {
 			return http.StatusServiceUnavailable, "Storage configuration error"
 		}
 	}
-	return http.StatusInternalServerError, "Storage error"
+	if strings.HasPrefix(e, "clickhouse response status 404: Code: 60. DB::Exception: Table default.") {
+		return http.StatusServiceUnavailable, "Storage default tables damaged"
+	}
+	return http.StatusServiceUnavailable, "Storage unavailable"
 }
 
 func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) {
