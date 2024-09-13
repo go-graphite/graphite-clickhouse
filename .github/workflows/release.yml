@@ -56,7 +56,7 @@ jobs:
 
     - name: Artifact
       id: artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: packages
         retention-days: 1
