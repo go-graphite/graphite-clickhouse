@@ -3,7 +3,8 @@ set -e
 
 cd "$(dirname "$0")"
 
-BRANCH=$(grep 'github.com/prometheus/prometheus' go.mod | awk '{print $2}')
+# BRANCH=$(grep 'github.com/prometheus/prometheus' go.mod | awk '{print $2}')
+BRANCH=v2.54.1
 
 rm -rf tmp
 mkdir tmp

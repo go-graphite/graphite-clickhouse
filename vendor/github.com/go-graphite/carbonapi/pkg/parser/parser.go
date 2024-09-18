@@ -3,8 +3,11 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	"github.com/go-graphite/carbonapi/expr/holtwinters"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -137,23 +140,23 @@ func (e *expr) NamedArg(name string) (Expr, bool) {
 	return expr, exist
 }
 
-func (e *expr) Metrics() []MetricRequest {
+func (e *expr) Metrics(from, until int64) []MetricRequest {
 	switch e.etype {
 	case EtName:
-		return []MetricRequest{{Metric: e.target}}
+		return []MetricRequest{{Metric: e.target, From: from, Until: until}}
 	case EtConst, EtString:
 		return nil
 	case EtFunc:
 		var r []MetricRequest
 		for _, a := range e.args {
-			r = append(r, a.Metrics()...)
+			r = append(r, a.Metrics(from, until)...)
 		}
 
 		switch e.target {
 		case "transformNull":
 			referenceSeriesExpr := e.GetNamedArg("referenceSeries")
 			if !referenceSeriesExpr.IsInterfaceNil() {
-				r = append(r, referenceSeriesExpr.Metrics()...)
+				r = append(r, referenceSeriesExpr.Metrics(from, until)...)
 			}
 		case "timeShift":
 			offs, err := e.GetIntervalArg(1, -1)
@@ -194,9 +197,40 @@ func (e *expr) Metrics() []MetricRequest {
 			}
 
 			return r2
-		case "holtWintersForecast", "holtWintersConfidenceBands", "holtWintersAberration":
+		case "holtWintersForecast":
+			bootstrapInterval, err := e.GetIntervalNamedOrPosArgDefault("bootstrapInterval", 1, 1, holtwinters.DefaultBootstrapInterval)
+			if err != nil {
+				return nil
+			}
+
 			for i := range r {
-				r[i].From -= 7 * 86400 // starts -7 days from where the original starts
+				r[i].From -= bootstrapInterval
+			}
+		case "holtWintersConfidenceBands", "holtWintersConfidenceArea":
+			bootstrapInterval, err := e.GetIntervalNamedOrPosArgDefault("bootstrapInterval", 2, 1, holtwinters.DefaultBootstrapInterval)
+			if err != nil {
+				return nil
+			}
+
+			for i := range r {
+				r[i].From -= bootstrapInterval
+			}
+		case "holtWintersAberration":
+			bootstrapInterval, err := e.GetIntervalNamedOrPosArgDefault("bootstrapInterval", 2, 1, holtwinters.DefaultBootstrapInterval)
+			if err != nil {
+				return nil
+			}
+
+			// For this function, we also need to pull data with an adjusted From time,
+			// so additional requests are added with the adjusted start time based on the
+			// bootstrapInterval
+			for i := range r {
+				adjustedReq := MetricRequest{
+					Metric: r[i].Metric,
+					From:   r[i].From - bootstrapInterval,
+					Until:  r[i].Until,
+				}
+				r = append(r, adjustedReq)
 			}
 		case "movingAverage", "movingMedian", "movingMin", "movingMax", "movingSum", "exponentialMovingAverage":
 			if len(e.args) < 2 {
@@ -210,6 +244,55 @@ func (e *expr) Metrics() []MetricRequest {
 				for i := range r {
 					fromNew := r[i].From - int64(offs)
 					r[i].From = fromNew
+				}
+			}
+		case "hitcount":
+			if len(e.args) < 2 {
+				return nil
+			}
+
+			alignToInterval, err := e.GetBoolNamedOrPosArgDefault("alignToInterval", 2, false)
+			if err != nil {
+				return nil
+			}
+			if alignToInterval {
+				bucketSizeInt32, err := e.GetIntervalArg(1, 1)
+				if err != nil {
+					return nil
+				}
+
+				interval := int64(bucketSizeInt32)
+				// This is done in order to replicate the behavior in Graphite web when alignToInterval is set,
+				// in which new data is fetched with the adjusted start time.
+				for i, _ := range r {
+					start := r[i].From
+					for _, v := range []int64{86400, 3600, 60} {
+						if interval >= v {
+							start -= start % v
+							break
+						}
+					}
+
+					r[i].From = start
+				}
+			}
+		case "smartSummarize":
+			if len(e.args) < 2 {
+				return nil
+			}
+
+			alignToInterval, err := e.GetStringNamedOrPosArgDefault("alignTo", 3, "")
+			if err != nil {
+				return nil
+			}
+
+			if alignToInterval != "" {
+				for i, _ := range r {
+					newStart, err := StartAlignTo(r[i].From, alignToInterval)
+					if err != nil {
+						return nil
+					}
+					r[i].From = newStart
 				}
 			}
 		}
@@ -389,6 +472,30 @@ func (e *expr) GetIntNamedOrPosArgDefault(k string, n, d int) (int, error) {
 	return e.GetIntArgDefault(n, d)
 }
 
+func (e *expr) GetIntOrInfArg(n int) (IntOrInf, error) {
+	if len(e.args) <= n {
+		return IntOrInf{}, ErrMissingArgument
+	}
+
+	return e.args[n].doGetIntOrInfArg()
+}
+
+func (e *expr) GetIntOrInfArgDefault(n int, d IntOrInf) (IntOrInf, error) {
+	if len(e.args) <= n {
+		return d, nil
+	}
+
+	return e.args[n].doGetIntOrInfArg()
+}
+
+func (e *expr) GetIntOrInfNamedOrPosArgDefault(k string, n int, d IntOrInf) (IntOrInf, error) {
+	if a := e.getNamedArg(k); a != nil {
+		return a.doGetIntOrInfArg()
+	}
+
+	return e.GetIntOrInfArgDefault(n, d)
+}
+
 func (e *expr) GetNamedArg(name string) Expr {
 	return e.getNamedArg(name)
 }
@@ -460,11 +567,19 @@ func (e *expr) insertFirstArg(exp *expr) error {
 	return nil
 }
 
-func parseExprWithoutPipe(e string) (Expr, string, error) {
-	// skip whitespace
-	for len(e) > 1 && e[0] == ' ' {
-		e = e[1:]
+func skipWhitespace(e string) string {
+	skipTo := len(e)
+	for i, r := range e {
+		if !unicode.IsSpace(r) {
+			skipTo = i
+			break
+		}
 	}
+	return e[skipTo:]
+}
+
+func parseExprWithoutPipe(e string) (Expr, string, error) {
+	e = skipWhitespace(e)
 
 	if e == "" {
 		return nil, "", ErrMissingExpr
@@ -532,9 +647,7 @@ func ParseExpr(e string) (Expr, string, error) {
 }
 
 func pipe(exp *expr, e string) (*expr, string, error) {
-	for len(e) > 1 && e[0] == ' ' {
-		e = e[1:]
-	}
+	e = skipWhitespace(e)
 
 	if e == "" || e[0] != '|' {
 		return exp, e, nil
@@ -594,7 +707,7 @@ func parseArgList(e string) (string, []*expr, map[string]*expr, string, error) {
 	e = e[1:]
 
 	// check for empty args
-	t := strings.TrimLeft(e, " ")
+	t := skipWhitespace(e)
 	if t != "" && t[0] == ')' {
 		return "", posArgs, namedArgs, t[1:], nil
 	}
@@ -667,9 +780,7 @@ func parseArgList(e string) (string, []*expr, map[string]*expr, string, error) {
 		}
 
 		// after the argument, trim any trailing spaces
-		for len(e) > 0 && e[0] == ' ' {
-			e = e[1:]
-		}
+		e = skipWhitespace(e)
 
 		if e[0] == ')' {
 			return argStringBuffer.String(), posArgs, namedArgs, e[1:], nil
@@ -779,7 +890,7 @@ FOR:
 		case '=':
 			// allow metric name to end with any amount of `=` without treating it as a named arg or tag
 			if !isEscape {
-				if s[i+1] == '=' || s[i+1] == ',' || s[i+1] == ')' {
+				if len(s) < i+2 || s[i+1] == '=' || s[i+1] == ',' || s[i+1] == ')' {
 					continue
 				}
 			}
@@ -809,7 +920,6 @@ FOR:
 }
 
 func parseString(s string) (string, string, error) {
-
 	if s[0] != '\'' && s[0] != '"' {
 		panic("string should start with open quote")
 	}
@@ -829,4 +939,45 @@ func parseString(s string) (string, string, error) {
 	}
 
 	return s[:i], s[i+1:], nil
+}
+
+func StartAlignTo(start int64, alignTo string) (int64, error) {
+	var newDate time.Time
+	re := regexp.MustCompile(`^[0-9]+`)
+	alignTo = re.ReplaceAllString(alignTo, "")
+
+	startDate := time.Unix(start, 0).UTC()
+	switch {
+	case strings.HasPrefix(alignTo, "y"):
+		newDate = time.Date(startDate.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	case strings.HasPrefix(alignTo, "mon"):
+		newDate = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+	case strings.HasPrefix(alignTo, "w"):
+		if !IsDigit(alignTo[len(alignTo)-1]) {
+			return start, ErrInvalidInterval
+		}
+		newDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
+		dayOfWeek, err := strconv.Atoi(alignTo[len(alignTo)-1:])
+		if err != nil {
+			return start, ErrInvalidInterval
+		}
+
+		startDayOfWeek := int(startDate.Weekday())
+		daysToSubtract := startDayOfWeek - dayOfWeek
+		if daysToSubtract < 0 {
+			daysToSubtract += 7
+		}
+		newDate = newDate.AddDate(0, 0, -daysToSubtract)
+	case strings.HasPrefix(alignTo, "d"):
+		newDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
+	case strings.HasPrefix(alignTo, "h"):
+		newDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), 0, 0, 0, time.UTC)
+	case strings.HasPrefix(alignTo, "min"):
+		newDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(), 0, 0, time.UTC)
+	case strings.HasPrefix(alignTo, "s"):
+		newDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(), startDate.Second(), 0, time.UTC)
+	default:
+		return start, ErrInvalidInterval
+	}
+	return newDate.Unix(), nil
 }

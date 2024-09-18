@@ -44,8 +44,14 @@ var (
 	ErrMissingArgument = errors.New("missing argument")
 	// ErrMissingTimeseries is an eval error returned when a time series argument is missing.
 	ErrMissingTimeseries = errors.New("missing time series argument")
+	// ErrMissingValues is an eval error returned when an empty time series is returned but is expected to be non-empty.
+	ErrMissingValues = errors.New("unexpected empty time series")
 	// ErrUnknownTimeUnits is an eval error returned when a time unit is unknown to system
 	ErrUnknownTimeUnits = errors.New("unknown time units")
+	// ErrInvalidArg is eval error for invalid or mismatch function arg
+	ErrInvalidArg = errors.New("invalid function arg")
+	//ErrInvalidInterval is an eval error returned when an interval is set to 0
+	ErrInvalidInterval = errors.New("invalid interval arg")
 )
 
 // NodeOrTag structure contains either Node (=integer) or Tag (=string)
@@ -53,6 +59,13 @@ var (
 type NodeOrTag struct {
 	IsTag bool
 	Value interface{}
+}
+
+// IntOrInf is either positive infinity or an integer value.
+// They are distinguished by "IsInf" = true if it is positive infinity.
+type IntOrInf struct {
+	IsInf  bool
+	IntVal int
 }
 
 // Expr defines an interface to talk with expressions
@@ -106,7 +119,7 @@ type Expr interface {
 	MutateRawArgs(args string) Expr
 
 	// Metrics returns list of metric requests
-	Metrics() []MetricRequest
+	Metrics(from, until int64) []MetricRequest
 
 	// GetIntervalArg returns interval typed argument.
 	GetIntervalArg(n int, defaultSign int) (int32, error)
@@ -142,6 +155,10 @@ type Expr interface {
 	GetIntNamedOrPosArgWithIndication(k string, n int) (int, bool, error)
 	// GetIntNamedOrPosArgDefault returns specific positioned int-typed argument or replace it with default if none found.
 	GetIntNamedOrPosArgDefault(k string, n int, d int) (int, error)
+
+	GetIntOrInfArg(n int) (IntOrInf, error)
+	GetIntOrInfArgDefault(n int, d IntOrInf) (IntOrInf, error)
+	GetIntOrInfNamedOrPosArgDefault(k string, n int, d IntOrInf) (IntOrInf, error)
 
 	GetNamedArg(name string) Expr
 
