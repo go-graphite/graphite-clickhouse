@@ -367,12 +367,16 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/linode/linodego v1.40.0 h1:7ESY0PwK94hoggoCtIroT1Xk6b1flrFBNZ6KwqbTqlI=
 github.com/linode/linodego v1.40.0/go.mod h1:NsUw4l8QrLdIofRg1NYFBbW5ZERnmbZykVBszPZLORM=
-github.com/lomik/carbon-clickhouse v0.11.8 h1:/iVEAJfUpEhMclt3hL5mrptVY3yw4vyp48SI+ye5KGI=
+github.com/lomik/carbon-clickhouse v0.11.8 h1:Kgix46vequoJ60Qd4+3k2ocEh0hLBrdOO7df/G3D1aY=
 github.com/lomik/carbon-clickhouse v0.11.8/go.mod h1:c9H5G+2CwVqOcxxUc2WOL6i+rlOTmbd9G+AqIeLttgs=
 github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119 h1:9kRJjaYdyzqGcGMeWeVif1vkToJvqzPEe5Vqx4IDXBg=
 github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119/go.mod h1:C0xsTshsU0n/LkhSbjZx2UkLuWSa3uFmq9D35Ch4rNE=
 github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80 h1:KVyDGUXjVOdHQt24wIgY4ZdGFXHtQHLWw0L/MAK3Kb0=
 github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80/go.mod h1:T7SQVaLtK7mcQIEVzveZVJzsDQpAtzTs2YoezrIBdvI=
+github.com/lomik/prometheus-embedded v0.2.54-1.2 h1:ljtqvSwSD+fxIpVUB1lFM5+C9dFYgWR1gSvXblRnGr8=
+github.com/lomik/prometheus-embedded v0.2.54-1.2/go.mod h1:xlLByHhk2g3ycakQGrMaU8K7OySZx98BzeCR99991NY=
+github.com/lomik/prometheus-ui-static v0.2.54-1.1 h1:ilVQwP1nKxW85y3BD41mttIInQ/3pCNrTJvqI3znP3A=
+github.com/lomik/prometheus-ui-static v0.2.54-1.1/go.mod h1:aYbUFvTr1G39aW1WMI4Bp1nKhI9u/DsBcLaR5nKz0KE=
 github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd h1:hUNpVzZOYNANa5s8XMBEt8IBj3m1GWcUN6ewUXPVA6c=
 github.com/lomik/stop v0.0.0-20161127103810-188e98d969bd/go.mod h1:3pLqdYIrxHYk+VsfIlrTcBD9J34YkGq8iN9yzJuhrP0=
 github.com/lomik/zapwriter v0.0.0-20210624082824-c1161d1eb463 h1:SN/0TEkyYpp8tit79JPUnecebCGZsXiYYPxN8i3I6Rk=
@@ -475,8 +479,6 @@ github.com/prometheus/procfs v0.1.3/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/prometheus/prometheus v0.0.0-20240827104400-e6cfa720fbe6 h1:T1gXvCkxUmoQYSlrM+eXRrLfzHAVDyONlWVXtfWugoo=
-github.com/prometheus/prometheus v0.0.0-20240827104400-e6cfa720fbe6/go.mod h1:xlLByHhk2g3ycakQGrMaU8K7OySZx98BzeCR99991NY=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=

@@ -2,6 +2,8 @@ module github.com/lomik/graphite-clickhouse
 
 go 1.23.1
 
+replace github.com/prometheus/prometheus v1.99.0 => github.com/lomik/prometheus-embedded v0.2.54-1.2
+
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
@@ -15,6 +17,7 @@ require (
 	github.com/lomik/carbon-clickhouse v0.11.8
 	github.com/lomik/graphite-pickle v0.0.0-20171221213606-614e8df42119
 	github.com/lomik/og-rek v0.0.0-20170411191824-628eefeb8d80
+	github.com/lomik/prometheus-ui-static v0.2.54-1.1
 	github.com/lomik/zapwriter v0.0.0-20210624082824-c1161d1eb463
 	github.com/msaf1980/go-expirecache v0.0.2
 	github.com/msaf1980/go-metrics v0.0.14
@@ -25,7 +28,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.3
 	github.com/prometheus/client_model v0.6.1
-	github.com/prometheus/prometheus v0.0.0-20240827104400-e6cfa720fbe6
+	github.com/prometheus/common/assets v0.2.0
+	github.com/prometheus/prometheus v1.99.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.8.0
@@ -97,7 +101,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/alertmanager v0.27.0 // indirect
 	github.com/prometheus/common v0.59.1 // indirect
-	github.com/prometheus/common/assets v0.2.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.12.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
