@@ -6,15 +6,16 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/prometheus/util/annotations"
 	"strings"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/util/annotations"
 )
 
 // Querier provides reading access to time series data.
@@ -31,9 +32,25 @@ func (q *Querier) Close() error {
 
 // LabelValues returns all potential values for a label name.
 func (q *Querier) LabelValues(ctx context.Context, label string, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
-	// @TODO: support matchers
-	w := where.New()
-	w.And(where.HasPrefix("Tag1", label+"="))
+	terms := []finder.TaggedTerm{
+		{
+			Key:         strings.ReplaceAll(label, `_`, `\_`),
+			Op:          finder.TaggedTermEq,
+			Value:       "*",
+			HasWildcard: true,
+		},
+	}
+
+	matcherTerms, err := makeTaggedFromPromQL(matchers)
+	if err != nil {
+		return nil, nil, err
+	}
+	terms = append(terms, matcherTerms...)
+
+	w, _, err := finder.TaggedWhere(terms, q.config.FeatureFlags.UseCarbonBehavior, q.config.FeatureFlags.DontMatchMissingTags)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	fromDate := timeNow().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays)
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
@@ -68,8 +85,19 @@ func (q *Querier) LabelValues(ctx context.Context, label string, matchers ...*la
 
 // LabelNames returns all the unique label names present in the block in sorted order.
 func (q *Querier) LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
-	// @TODO support matchers
+	terms, err := makeTaggedFromPromQL(matchers)
+	if err != nil {
+		return nil, nil, err
+	}
 	w := where.New()
+	// @TODO: this is duplicate to the for in finder.TaggedWhere. (different start...)
+	for i := 0; i < len(terms); i++ {
+		and, err := finder.TaggedTermWhereN(&terms[i], q.config.FeatureFlags.UseCarbonBehavior, q.config.FeatureFlags.DontMatchMissingTags)
+		if err != nil {
+			return nil, nil, err
+		}
+		w.And(and)
+	}
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
 	w.Andf("Date >= '%s'", fromDate.Format("2006-01-02"))
 
