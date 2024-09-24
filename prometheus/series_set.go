@@ -6,6 +6,7 @@ package prometheus
 import (
 	"github.com/prometheus/prometheus/util/annotations"
 	"log"
+	"math"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 
@@ -21,12 +22,14 @@ type seriesIterator struct {
 	metricName string
 	points     []point.Point
 	current    int
+	step       int64
 }
 
 // Series represents a single time series.
 type series struct {
 	metricName string
 	points     []point.Point
+	step       int64
 }
 
 // SeriesSet contains a set of series.
@@ -37,7 +40,7 @@ type seriesSet struct {
 
 var _ storage.SeriesSet = &seriesSet{}
 
-func makeSeriesSet(data *data.Data) (storage.SeriesSet, error) {
+func makeSeriesSet(data *data.Data, step int64) (storage.SeriesSet, error) {
 	ss := &seriesSet{series: make([]series, 0), current: -1}
 	if data == nil {
 		return ss, nil
@@ -56,7 +59,7 @@ func makeSeriesSet(data *data.Data) (storage.SeriesSet, error) {
 
 		metricName := data.MetricName(points[0].MetricID)
 		for _, v := range data.AM.Get(metricName) {
-			ss.series = append(ss.series, series{metricName: v.DisplayName, points: points})
+			ss.series = append(ss.series, series{metricName: v.DisplayName, points: points, step: step})
 		}
 	}
 
@@ -93,6 +96,9 @@ func (sit *seriesIterator) Seek(t int64) chunkenc.ValueType {
 // At returns the current timestamp/value pair.
 func (sit *seriesIterator) At() (t int64, v float64) {
 	index := sit.current
+	if index == len(sit.points) {
+		return int64(sit.points[len(sit.points)-1].Time)*1000 + sit.step, math.NaN()
+	}
 	if index < 0 || index >= len(sit.points) {
 		index = 0
 	}
@@ -128,7 +134,10 @@ func (sit *seriesIterator) AtT() int64 {
 
 // Next advances the iterator by one.
 func (sit *seriesIterator) Next() chunkenc.ValueType {
-	if sit.current+1 < len(sit.points) {
+	if sit.current < len(sit.points) {
+		if sit.step == 0 && sit.current == len(sit.points)-1 {
+			return chunkenc.ValNone
+		}
 		sit.current++
 		// sit.logger().Debug("seriesIterator.Next", zap.Bool("ret", true))
 		return chunkenc.ValFloat
@@ -171,7 +180,7 @@ func (s *seriesSet) Warnings() annotations.Annotations {
 
 // Iterator returns a new iterator of the data of the series.
 func (s *series) Iterator(iterator chunkenc.Iterator) chunkenc.Iterator {
-	return &seriesIterator{metricName: s.metricName, points: s.points, current: -1}
+	return &seriesIterator{metricName: s.metricName, points: s.points, current: -1, step: s.step}
 }
 
 func (s *series) name() string {
