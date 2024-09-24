@@ -2,8 +2,6 @@ module github.com/lomik/graphite-clickhouse
 
 go 1.23.1
 
-replace github.com/prometheus/prometheus v1.99.0 => github.com/lomik/prometheus-embedded v0.2.54-1.2
-
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
@@ -29,7 +27,7 @@ require (
 	github.com/prometheus/client_golang v1.20.3
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common/assets v0.2.0
-	github.com/prometheus/prometheus v1.99.0
+	github.com/prometheus/prometheus v0.0.0-20240827104400-e6cfa720fbe6
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.8.0
