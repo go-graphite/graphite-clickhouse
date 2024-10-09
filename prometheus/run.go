@@ -6,6 +6,7 @@ package prometheus
 import (
 	"context"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/grafana/regexp"
@@ -18,9 +19,16 @@ import (
 	"github.com/prometheus/prometheus/rules"
 	"github.com/prometheus/prometheus/scrape"
 	"github.com/prometheus/prometheus/web"
+	"github.com/prometheus/prometheus/web/ui"
+
+	uiStatic "github.com/lomik/prometheus-ui-static"
+	"github.com/prometheus/common/assets"
 )
 
 func Run(config *config.Config) error {
+	// use precompiled static from github.com/lomik/prometheus-ui-static
+	ui.Assets = http.FS(assets.New(uiStatic.EmbedFS))
+
 	zapLogger := &logger{
 		z: zapwriter.Logger("prometheus"),
 	}
