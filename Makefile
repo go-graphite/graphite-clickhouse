@@ -113,6 +113,7 @@ packagecloud-push-rpm: $(wildcard $(NAME)-$(RPM_VERSION)-1.*.rpm)
 	for pkg in $^; do
 		package_cloud push $(REPO)/el/7 $${pkg} || true
 		package_cloud push $(REPO)/el/8 $${pkg} || true
+		package_cloud push $(REPO)/el/9 $${pkg} || true
 	done
 
 .ONESHELL:
