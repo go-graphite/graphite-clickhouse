@@ -1,0 +1,34 @@
+---
+name: ${NAME}
+description: ${DESCRIPTION}
+
+# Common packages config
+arch: "${ARCH}"  # amd64, arm64
+platform: "linux"
+version: "${VERSION_STRING}"
+maintainer: &m "Roman Lomonosov <r.lomonosov@gmail.com>"
+vendor: *m
+homepage: "https://github.com/go-graphite/${NAME}"
+license: "MIT"
+section: "admin"
+priority: "optional"
+
+contents:
+  - src: deploy/root/usr/
+    dst: /usr
+    expand: true
+  - src: deploy/root/etc/logrotate.d/${NAME}
+    dst: /etc/logrotate.d/${NAME}
+    type: config|noreplace
+    expand: true
+  - src: out/root/etc/${NAME}/${NAME}.conf
+    dst: /etc/${NAME}/${NAME}.conf
+    type: config|noreplace
+    expand: true
+  - src: "out/${NAME}-linux-${ARCH}"
+    dst: /usr/bin/${NAME}
+    expand: true
+    # docs
+  - src: LICENSE
+    dst: /usr/share/doc/${NAME}/LICENSE
+    expand: true
