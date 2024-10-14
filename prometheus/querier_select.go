@@ -129,7 +129,7 @@ func (q *Querier) Select(ctx context.Context, sortSeries bool, hints *storage.Se
 		return emptySeriesSet() //, nil, nil
 	}
 
-	ss, err := makeSeriesSet(reply[0].Data)
+	ss, err := makeSeriesSet(reply[0].Data, step)
 	if err != nil {
 		return nil // , nil, err @TODO
 	}

@@ -3,7 +3,6 @@ DESCRIPTION:="Graphite cluster backend with ClickHouse support"
 MODULE:=github.com/lomik/graphite-clickhouse
 
 GO ?= go
-export GOFLAGS +=  -mod=vendor
 export GO111MODULE := on
 TEMPDIR:=$(shell mktemp -d)
 
@@ -26,10 +25,10 @@ clean:
 	rm -f sha256sum md5sum
 
 $(NAME): $(SRCS)
-	$(GO) build -tags builtinassets -ldflags '-X main.BuildVersion=$(VERSION)' $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' $(MODULE) 
 
 debug: $(SRCS)
-	$(GO) build -tags builtinassets -ldflags '-X main.BuildVersion=$(VERSION)' -gcflags=all='-N -l' $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' -gcflags=all='-N -l' $(MODULE)
 
 deploy/doc/graphite-clickhouse.conf: $(NAME)
 	./$(NAME) -config-print-default > $@

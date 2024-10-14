@@ -6,9 +6,11 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/prometheus/util/annotations"
 	"strings"
 	"time"
+
+	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/util/annotations"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
@@ -30,7 +32,7 @@ func (q *Querier) Close() error {
 }
 
 // LabelValues returns all potential values for a label name.
-func (q *Querier) LabelValues(ctx context.Context, label string, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
+func (q *Querier) LabelValues(ctx context.Context, label string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	// @TODO: support matchers
 	w := where.New()
 	w.And(where.HasPrefix("Tag1", label+"="))
@@ -67,7 +69,7 @@ func (q *Querier) LabelValues(ctx context.Context, label string, matchers ...*la
 }
 
 // LabelNames returns all the unique label names present in the block in sorted order.
-func (q *Querier) LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
+func (q *Querier) LabelNames(ctx context.Context, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	// @TODO support matchers
 	w := where.New()
 	fromDate := time.Now().AddDate(0, 0, -q.config.ClickHouse.TaggedAutocompleDays).UTC()
