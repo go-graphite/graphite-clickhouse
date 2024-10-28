@@ -155,7 +155,7 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 	return w
 }
 
-func (idx *IndexFinder) validateQuery(query string) error {
+func (idx *IndexFinder) validatePlainQuery(query string) error {
 	if where.HasUnmatchedBrackets(query) {
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
 	}
@@ -163,7 +163,7 @@ func (idx *IndexFinder) validateQuery(query string) error {
 }
 
 func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
-	err = idx.validateQuery(query)
+	err = idx.validatePlainQuery(query)
 	if err != nil {
 		return err
 	}

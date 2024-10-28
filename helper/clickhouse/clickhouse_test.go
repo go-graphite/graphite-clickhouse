@@ -40,6 +40,16 @@ func Test_extractClickhouseError(t *testing.T) {
 			wantMessage: "Storage default tables damaged",
 		},
 		{
+			errStr:      `clickhouse response status 500: Code: 427, e.displayText() = DB::Exception: OptimizedRegularExpression: cannot compile re2: ^t=.**a*, error: bad repetition operator: **. Look at https://github.com/google/re2/wiki/Syntax for reference. Please note that if you specify regex as an SQL string literal, the slashes have to be additionally escaped. For example, to match an opening brace, write '\(' -- the first slash is for SQL and the second one is for regex: while executing 'FUNCTION match(x :: 0, '^t=.**a*' :: 2) -> match(x, '^t=.**a*') UInt8 : 1': while executing 'FUNCTION arrayExists(__lambda_11 :: 7, Tags :: 3) -> arrayExists(lambda(tuple(x), and(like(x, 't=%'), match(x, '^t=.**a*'))), Tags) UInt8 : 6' (version 21.3.20.1 (official build))`,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: "Incorrect regex syntax",
+		},
+		{
+			errStr:      `clickhouse response status 500: Code: 427. DB::Exception: OptimizedRegularExpression: cannot compile re2: ^t=.**a*, error: bad repetition operator: **. Look at https://github.com/google/re2/wiki/Syntax for reference. Please note that if you specify regex as an SQL string literal, the slashes have to be additionally escaped. For example, to match an opening brace, write '\(' -- the first slash is for SQL and the second one is for regex: while executing 'FUNCTION and(like(x, 't=%') :: 3, match(x, '^t=.**a*') :: 1) -> and(like(x, 't=%'), match(x, '^t=.**a*')) UInt8 : 2': while executing 'FUNCTION and(and(greaterOrEquals(Date, '2024-10-28'), lessOrEquals(Date, '2024-10-28')) :: 0, and(equals(Tag1, '__name__=request_success_total.counter'), arrayExists(lambda(tuple(x), equals(x, 'app=test')), Tags), arrayExists(lambda(tuple(x), equals(x, 'project=Test')), Tags), arrayExists(lambda(tuple(x), equals(x, 'environment=TEST')), Tags), arrayExists(lambda(tuple(x), and(like(x, 't=%'), match(x, '^t=.**a*'))), Tags)) :: 3) -> and(and(greaterOrEquals(Date, '2024-10-28'), lessOrEquals(Date, '2024-10-28')), and(equals(Tag1, '__name__=request_success_total.counter'), arrayExists(lambda(tuple(x), equals(x, 'app=test')), Tags), arrayExists(lambda(tuple(x), equals(x, 'project=Test')), Tags), arrayExists(lambda(tuple(x), equals(x, 'environment=TEST')), Tags), arrayExists(lambda(tuple(x), and(like(x, 't=%'), match(x, '^t=.**a*'))), Tags))) UInt8 : 6'. (CANNOT_COMPILE_REGEXP) (version 22.8.21.38 (official build))`,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: "Incorrect regex syntax",
+		},
+		{
 			errStr:      "Other error",
 			wantStatus:  http.StatusServiceUnavailable,
 			wantMessage: "Storage unavailable",

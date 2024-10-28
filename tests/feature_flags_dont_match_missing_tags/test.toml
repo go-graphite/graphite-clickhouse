@@ -935,7 +935,7 @@ timeout = "1h"
 targets = [ 
     "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*a*')", 
 ]
-error_regexp = "^400: incorrect regex syntax"
+error_regexp = "^400: Incorrect regex syntax"
 
 # ### seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST', 't=~*') ###
 
