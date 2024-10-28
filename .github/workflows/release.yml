@@ -17,11 +17,11 @@ jobs:
       matrix: ${{ steps.build.outputs.matrix }}
     steps:
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ^1
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       name: Checkout
 
     - name: Test
@@ -29,19 +29,11 @@ jobs:
       env:
         CGO_ENABLED: 1
 
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.3' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
-    - name: Install packaging dependencies
-      run: |
-        gem install fpm package_cloud
-        GO111MODULE=off go get github.com/mitchellh/gox
-
     - name: Build packages
       id: build
       run: |
-        make gox-build fpm-deb fpm-rpm
+        go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.40.0
+        make nfpm-deb nfpm-rpm
         make sum-files
         ARTIFACTS=
         # Upload all deb and rpm packages
@@ -56,7 +48,7 @@ jobs:
 
     - name: Artifact
       id: artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: packages
         retention-days: 1
@@ -78,7 +70,7 @@ jobs:
       matrix: ${{fromJson(needs.build.outputs.matrix)}}
     steps:
     - name: Download artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4.1.7
       with:
         name: packages
     - name: Upload ${{ matrix.file }}

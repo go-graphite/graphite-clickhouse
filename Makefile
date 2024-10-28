@@ -1,10 +1,8 @@
 NAME:=graphite-clickhouse
-MAINTAINER:="Roman Lomonosov <r.lomonosov@gmail.com>"
 DESCRIPTION:="Graphite cluster backend with ClickHouse support"
 MODULE:=github.com/lomik/graphite-clickhouse
 
 GO ?= go
-export GOFLAGS +=  -mod=vendor
 export GO111MODULE := on
 TEMPDIR:=$(shell mktemp -d)
 
@@ -14,8 +12,6 @@ VERSION:=$(shell sh -c 'grep "const Version" $(NAME).go  | cut -d\" -f2')
 else
 VERSION:=$(shell sh -c 'git describe --always --tags | sed -e "s/^v//i"')
 endif
-
-OS ?= linux
 
 SRCS:=$(shell find . -name '*.go')
 
@@ -29,10 +25,10 @@ clean:
 	rm -f sha256sum md5sum
 
 $(NAME): $(SRCS)
-	$(GO) build -tags builtinassets -ldflags '-X main.BuildVersion=$(VERSION)' $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' $(MODULE) 
 
 debug: $(SRCS)
-	$(GO) build -tags builtinassets -ldflags '-X main.BuildVersion=$(VERSION)' -gcflags=all='-N -l' $(MODULE)
+	$(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' -gcflags=all='-N -l' $(MODULE)
 
 deploy/doc/graphite-clickhouse.conf: $(NAME)
 	./$(NAME) -config-print-default > $@
@@ -57,55 +53,32 @@ test:
 
 e2e-test: $(NAME)
 	$(GO) build $(MODULE)/cmd/e2e-test
-	
+
 client: $(NAME)
 	$(GO) build $(MODULE)/cmd/graphite-clickhouse-client
 
-gox-build:
-	rm -rf out
+gox-build: out/$(NAME)-linux-amd64 out/$(NAME)-linux-arm64 out/root/etc/$(NAME)/$(NAME).conf
+
+ARCH = amd64 arm64
+out/$(NAME)-linux-%: out $(SRCS)
+	GOOS=linux GOARCH=$* $(GO) build -ldflags '-X main.BuildVersion=$(VERSION)' -o $@ $(MODULE)
+
+out:
 	mkdir -p out
-	gox -ldflags '-X main.BuildVersion=$(VERSION)' -os="$(OS)" -arch="amd64" -arch="arm64" -output="out/$(NAME)-{{.OS}}-{{.Arch}}"  github.com/lomik/$(NAME)
-	ls -la out/
-	mkdir -p out/root/etc/$(NAME)/
-	./out/$(NAME)-$(OS)-amd64 -config-print-default > out/root/etc/$(NAME)/$(NAME).conf
 
-fpm-deb:
-	$(MAKE) fpm-build-deb ARCH=amd64
-	$(MAKE) fpm-build-deb ARCH=arm64
-fpm-rpm:
-	$(MAKE) fpm-build-rpm ARCH=amd64
-	$(MAKE) fpm-build-rpm ARCH=arm64
+out/root/etc/$(NAME)/$(NAME).conf: $(NAME)
+	mkdir -p "$(shell dirname $@)"
+	./$(NAME) -config-print-default > $@
 
-fpm-build-deb:
-	fpm -s dir -t deb -n $(NAME) -v $(VERSION) \
-		--deb-priority optional --category admin \
-		--force \
-		--url https://github.com/lomik/$(NAME) \
-		--description $(DESCRIPTION) \
-		-m $(MAINTAINER) \
-		--license "MIT" \
-		-a $(ARCH) \
-		--config-files /etc/$(NAME)/$(NAME).conf \
-		--config-files /etc/logrotate.d/$(NAME) \
-		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
-		deploy/root/=/ \
-		out/root/=/
+nfpm-deb: gox-build
+	$(MAKE) nfpm-build-deb ARCH=amd64
+	$(MAKE) nfpm-build-deb ARCH=arm64
+nfpm-rpm: gox-build
+	$(MAKE) nfpm-build-rpm ARCH=amd64
+	$(MAKE) nfpm-build-rpm ARCH=arm64
 
-
-fpm-build-rpm:
-	fpm -s dir -t rpm -n $(NAME) -v $(VERSION) \
-		--force \
-		--rpm-compression bzip2 --rpm-os linux \
-		--url https://github.com/lomik/$(NAME) \
-		--description $(DESCRIPTION) \
-		-m $(MAINTAINER) \
-		--license "MIT" \
-		-a $(ARCH) \
-		--config-files /etc/$(NAME)/$(NAME).conf \
-		--config-files /etc/logrotate.d/$(NAME) \
-		out/$(NAME)-linux-$(ARCH)=/usr/bin/$(NAME) \
-		deploy/root/=/ \
-		out/root/=/
+nfpm-build-%: nfpm.yaml
+	NAME=$(NAME) DESCRIPTION=$(DESCRIPTION) ARCH=$(ARCH) VERSION_STRING=$(VERSION) nfpm package --packager $*
 
 .ONESHELL:
 RPM_VERSION:=$(subst -,_,$(VERSION))

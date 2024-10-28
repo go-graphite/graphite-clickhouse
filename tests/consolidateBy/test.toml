@@ -1,0 +1,305 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "24.2"
+dir = "tests/clickhouse/rollup"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+#######################################################################################
+
+[[test.input]]
+name = "request_success_total.counter;app=test;project=Test;environment=TEST"
+points = [{value = 3.0, time = "1000"}, {value = 0.0, time = "1010"}, {value = 1.0, time = "1020"}, {value = 2.0, time = "1030"}]
+
+[[test.input]]
+name = "request_success_total.counter;app=test;project=Test;environment=TEST;t=q"
+points = [{value = 3.0, time = "1000"}, {value = 0.0, time = "1010"}, {value = 1.0, time = "1020"}, {value = 2.0, time = "1030"}]
+
+[[test.input]]
+name = "test;env=prod"
+points = [{value = 3.0, time = "1000"}, {value = 0.0, time = "1010"}, {value = 1.0, time = "1020"}, {value = 2.0, time = "1030"}]
+
+[[test.input]]
+name = "test;env=dr"
+points = [{value = 3.0, time = "1000"}, {value = 0.0, time = "1010"}, {value = 1.0, time = "1020"}, {value = 2.0, time = "1030"}]
+
+# consolidateBy('max')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('max')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "max"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 2.0]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "max"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 2.0]
+
+# consolidateBy('min')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('min')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "min"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [0.0, 1.0]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "min"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [0.0, 1.0]
+
+
+# consolidateBy('sum')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('sum')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "sum"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 3.0]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "sum"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 3.0]
+
+# consolidateBy('avg')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('avg')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [1.5, 1.5]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [1.5, 1.5]
+
+# consolidateBy('average')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('average')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [1.5, 1.5]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "avg"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [1.5, 1.5]
+
+# consolidateBy('last')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('last')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "last"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [0.0, 2.0]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "last"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [0.0, 2.0]
+
+# consolidateBy('first')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+max_data_points = 2
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('first')"
+]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "first"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 1.0]
+
+[[test.render_checks.result]]
+name = "request_success_total.counter;app=test;environment=TEST;project=Test;t=q"
+path = "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')"
+consolidation = "first"
+start = "1000"
+stop = "1040"
+step = 20
+req_start = "1000"
+req_stop = "1040"
+values = [3.0, 1.0]
+
+# consolidateBy('invalid')
+
+[[test.render_checks]]
+from = "1000"
+until = "1030"
+timeout = "1h"
+targets = [ 
+    "seriesByTag('name=request_success_total.counter', 'app=test', 'project=Test', 'environment=TEST')", 
+]
+filtering_functions = [
+    "consolidateBy('invalid')"
+]
+error_regexp = "^400: failed to choose appropriate aggregation"

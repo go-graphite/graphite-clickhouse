@@ -35,9 +35,14 @@ func Test_extractClickhouseError(t *testing.T) {
 			wantMessage: "Storage read limit for memory",
 		},
 		{
+			errStr:      "clickhouse response status 404: Code: 60. DB::Exception: Table default.graphite_index does not exist. (UNKNOWN_TABLE) (version 23.12.6.19 (official build))\n",
+			wantStatus:  http.StatusServiceUnavailable,
+			wantMessage: "Storage default tables damaged",
+		},
+		{
 			errStr:      "Other error",
-			wantStatus:  http.StatusInternalServerError,
-			wantMessage: "Storage error",
+			wantStatus:  http.StatusServiceUnavailable,
+			wantMessage: "Storage unavailable",
 		},
 	}
 	for _, tt := range tests {

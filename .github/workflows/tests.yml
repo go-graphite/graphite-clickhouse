@@ -22,12 +22,12 @@ jobs:
     steps:
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
 
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Checkout to the latest tag
       run: |
@@ -90,25 +90,15 @@ jobs:
     #     sudo timedatectl set-timezone Etc/GMT+5
     #     ./e2e-test -config issues/daytime
 
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.3' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
-
-    # gem install dotenv -v 2.8.1 # workaroaund for ruby version 2.7.8.225
-    - name: Install packaging dependencies
-      run: |
-        gem install fpm package_cloud
-        go install github.com/mitchellh/gox@latest
-        
     - name: Check packaging
       run: |
-        make DEVEL=1 gox-build fpm-deb fpm-rpm
+        go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.40.0
+        make DEVEL=1 nfpm-deb nfpm-rpm
         make sum-files
 
     - name: Artifact
       id: artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: packages-${{ matrix.go }}
         path: |
