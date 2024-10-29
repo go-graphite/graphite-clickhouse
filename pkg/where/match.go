@@ -98,14 +98,10 @@ func HasUnmatchedBrackets(query string) bool {
 				stack = append(stack, c)
 			}
 			if c == '}' || c == ']' {
-				if len(stack) == 0 {
+				if len(stack) == 0 || stack[len(stack)-1] != matchingBracket[c] {
 					return true
 				}
-				if stack[len(stack)-1] == matchingBracket[c] {
-					stack = stack[:len(stack)-1]
-				} else {
-					return true
-				}
+				stack = stack[:len(stack)-1]
 			}
 		}
 		return len(stack) != 0
