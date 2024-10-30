@@ -19,7 +19,6 @@ import (
 )
 
 var (
-	// ErrEmptyArgs         = errors.New("empty arguments")
 	ErrCostlySeriesByTag = errs.NewErrorWithCode("seriesByTag argument has too much wildcard and regex terms", http.StatusForbidden)
 )
 

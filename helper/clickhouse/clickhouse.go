@@ -75,6 +75,9 @@ func extractClickhouseError(e string) (int, string) {
 	if strings.HasPrefix(e, "clickhouse response status 404: Code: 60. DB::Exception: Table default.") {
 		return http.StatusServiceUnavailable, "Storage default tables damaged"
 	}
+	if strings.HasPrefix(e, "clickhouse response status 500: Code: 427") || strings.HasPrefix(e, "clickhouse response status 400: Code: 427.") {
+		return http.StatusBadRequest, "Incorrect regex syntax"
+	}
 	return http.StatusServiceUnavailable, "Storage unavailable"
 }
 

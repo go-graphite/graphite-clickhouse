@@ -85,6 +85,37 @@ func clearGlob(query string) string {
 	return query
 }
 
+func HasUnmatchedBrackets(query string) bool {
+	matchingBracket := map[rune]rune{
+		'}': '{',
+		']': '[',
+	}
+	stack := make([]rune, 0)
+
+	nodeHasUnmatched := func(query string) bool {
+		for _, c := range query {
+			if c == '{' || c == '[' {
+				stack = append(stack, c)
+			}
+			if c == '}' || c == ']' {
+				if len(stack) == 0 || stack[len(stack)-1] != matchingBracket[c] {
+					return true
+				}
+				stack = stack[:len(stack)-1]
+			}
+		}
+		return len(stack) != 0
+	}
+
+	for _, node := range strings.Split(query, ".") {
+		if nodeHasUnmatched(node) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func glob(field string, query string, optionalDotAtEnd bool) string {
 	if query == "*" {
 		return ""
