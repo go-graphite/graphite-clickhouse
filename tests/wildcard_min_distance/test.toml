@@ -1,0 +1,192 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "21.3"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "22.8"
+dir = "tests/clickhouse/rollup"
+
+[[test.clickhouse]]
+version = "24.2"
+dir = "tests/clickhouse/rollup"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse.conf.tpl"
+
+[[test.input]]
+name = "team_one.prod.test.metric_one"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "team_two.stage.test.metric_one"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "team_one.dev.test.metric_two"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.input]]
+name = "team_one.dev.nontest.metric_one"
+points = [{value = 1.0, time = "rnow-10"}]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "team_one.prod.test.metric_one", 
+]
+
+[[test.render_checks.result]]
+name = "team_one.prod.test.metric_one"
+path = "team_one.prod.test.metric_one"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.dev.test.metric_two", 
+]
+
+[[test.render_checks.result]]
+name = "team_one.dev.test.metric_two"
+path = "*.dev.test.metric_two"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.*.test.metric_one", 
+]
+
+[[test.render_checks.result]]
+name = "team_one.prod.test.metric_one"
+path = "*.*.test.metric_one"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "team_two.stage.test.metric_one"
+path = "*.*.test.metric_one"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "team_two.stage.test.*", 
+]
+
+[[test.render_checks.result]]
+name = "team_two.stage.test.metric_one"
+path = "team_two.stage.test.*"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "team_one.*.test.*", 
+]
+
+[[test.render_checks.result]]
+name = "team_one.prod.test.metric_one"
+path = "team_one.*.test.*"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks.result]]
+name = "team_one.dev.test.metric_two"
+path = "team_one.*.test.*"
+consolidation = "avg"
+start = "rnow-10"
+stop = "rnow+10"
+step = 10
+req_start = "rnow-10"
+req_stop = "rnow+10"
+values = [1.0, nan]
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.prod.test.*", 
+]
+error_regexp = "^400: query has wildcards way too early at the start and at the end of it"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.*.test.*", 
+]
+error_regexp = "^400: query has wildcards way too early at the start and at the end of it"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.*.*.*", 
+]
+error_regexp = "^400: query has wildcards way too early at the start and at the end of it"
+
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*.*", 
+]
+error_regexp = "^400: query has wildcards way too early at the start and at the end of it"

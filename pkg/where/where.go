@@ -77,6 +77,19 @@ func IndexWildcard(target string) int {
 	return strings.IndexAny(target, "[]{}*?")
 }
 
+func MaxWildcardDistance(query string) int {
+	if !HasWildcard(query) {
+		return -1
+	}
+
+	w := IndexWildcard(query)
+	firstWildcardNode := strings.Count(query[:w], ".")
+	w = IndexLastWildcard(query)
+	lastWildcardNode := strings.Count(query[w:], ".")
+
+	return max(firstWildcardNode, lastWildcardNode)
+}
+
 func NonRegexpPrefix(expr string) string {
 	s := regexp.QuoteMeta(expr)
 	for i := 0; i < len(expr); i++ {
