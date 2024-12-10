@@ -311,6 +311,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  tags-concurrent-queries = 0
  # Tags adaptive queries (based on load average) for increase/decrease concurrent queries
  tags-adaptive-queries = 0
+ # If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries.
+ wildcard-min-distance = 0
  # Minimum tags in seriesByTag query
  tags-min-in-query = 0
  # Minimum tags in autocomplete query
