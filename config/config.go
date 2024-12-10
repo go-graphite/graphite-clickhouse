@@ -221,6 +221,7 @@ type ClickHouse struct {
 	TagsAdaptiveQueries   int                   `toml:"tags-adaptive-queries" json:"tags-adaptive-queries" comment:"Tags adaptive queries (based on load average) for increase/decrease concurrent queries"`
 	TagsLimiter           limiter.ServerLimiter `toml:"-"                        json:"-"`
 
+	WildcardMinDistance   int `toml:"wildcard-min-distance" json:"wildcard-min-distance" comment:"If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries."`
 	TagsMinInQuery        int `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
 	TagsMinInAutocomplete int `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
 
