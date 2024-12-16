@@ -160,7 +160,9 @@ func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
 	}
 
-	if where.HasWildcard(query) && where.MaxWildcardDistance(query) < wildcardMinDistance {
+	var maxDist = where.MaxWildcardDistance(query)
+
+	if maxDist != -1 && maxDist < wildcardMinDistance {
 		return errs.NewErrorWithCode("query has wildcards way too early at the start and at the end of it", http.StatusBadRequest)
 	}
 
