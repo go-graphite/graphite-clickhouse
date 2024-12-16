@@ -72,3 +72,23 @@ func TestNonRegexpPrefix(t *testing.T) {
 		assert.Equal(t, test.prefix, prefix, testName)
 	}
 }
+
+func TestMaxWildcardDistance(t *testing.T) {
+	table := []struct {
+		glob string
+		dist int
+	}{
+		{`a.b.c.d.e`, -1},
+		{`test.*.foo.bar`, 2},
+		{`test.foo.*.*.bar.count`, 2},
+		{`test.foo.bar.*.bar.foo.test`, 3},
+		{`test.foo.bar.foobar.*.middle.*.foobar.bar.foo.test`, 4},
+		{`*.test.foo.bar.*`, 0},
+	}
+
+	for _, test := range table {
+		testName := fmt.Sprintf("glob: %#v", test.glob)
+		dist := MaxWildcardDistance(test.glob)
+		assert.Equal(t, test.dist, dist, testName)
+	}
+}
