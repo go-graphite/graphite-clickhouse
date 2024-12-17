@@ -190,3 +190,11 @@ targets = [
     "*.*", 
 ]
 error_regexp = "^400: query has wildcards way too early at the start and at the end of it"
+
+[[test.render_checks]]
+from = "rnow-10"
+until = "rnow+1"
+timeout = "1h"
+targets = [ 
+    "*", 
+]
