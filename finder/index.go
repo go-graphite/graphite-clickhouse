@@ -162,7 +162,12 @@ func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int
 
 	var maxDist = where.MaxWildcardDistance(query)
 
-	if maxDist != -1 && maxDist < wildcardMinDistance {
+	// If the amount of nodes in a plain query is equal to 1,
+	// then make an exception
+	// This allows to check which root nodes exist
+	moreThanOneNode := strings.Count(query, ".") >= 1
+
+	if maxDist != -1 && maxDist < wildcardMinDistance && moreThanOneNode {
 		return errs.NewErrorWithCode("query has wildcards way too early at the start and at the end of it", http.StatusBadRequest)
 	}
 
