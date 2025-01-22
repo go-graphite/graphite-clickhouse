@@ -221,9 +221,10 @@ type ClickHouse struct {
 	TagsAdaptiveQueries   int                   `toml:"tags-adaptive-queries" json:"tags-adaptive-queries" comment:"Tags adaptive queries (based on load average) for increase/decrease concurrent queries"`
 	TagsLimiter           limiter.ServerLimiter `toml:"-"                        json:"-"`
 
-	WildcardMinDistance   int `toml:"wildcard-min-distance" json:"wildcard-min-distance" comment:"If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries."`
-	TagsMinInQuery        int `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
-	TagsMinInAutocomplete int `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
+	WildcardMinDistance   int  `toml:"wildcard-min-distance" json:"wildcard-min-distance" comment:"If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries."`
+	TrySplitQuery         bool `toml:"try-split-query" json:"try-split-query" comment:"Plain queries like '{first,second}.custom.metric.*' are also a subject to wildcard-min-distance restriction. But can be split into 2 queries: 'first.custom.metric.*', 'second.custom.metric.*'."`
+	TagsMinInQuery        int  `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
+	TagsMinInAutocomplete int  `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
 
 	UserLimits           map[string]UserLimits `toml:"user-limits"              json:"user-limits"              comment:"customized query limiter for some users"                                                                                        commented:"true"`
 	DateFormat           string                `toml:"date-format"              json:"date-format"              comment:"Date format (default, utc, both)"`

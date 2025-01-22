@@ -78,6 +78,10 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		}
 	}
 
+	if config.ClickHouse.TrySplitQuery {
+		f = WrapSplit(f, useCache)
+	}
+
 	if config.ClickHouse.TagTable != "" {
 		f = WrapTag(f, config.ClickHouse.URL, config.ClickHouse.TagTable, opts)
 	}
