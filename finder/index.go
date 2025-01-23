@@ -155,7 +155,7 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 	return w
 }
 
-func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int) error {
+func validatePlainQuery(query string, wildcardMinDistance int) error {
 	if where.HasUnmatchedBrackets(query) {
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
 	}
@@ -175,7 +175,7 @@ func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int
 }
 
 func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
-	err = idx.validatePlainQuery(query, config.ClickHouse.WildcardMinDistance)
+	err = validatePlainQuery(query, config.ClickHouse.WildcardMinDistance)
 	if err != nil {
 		return err
 	}

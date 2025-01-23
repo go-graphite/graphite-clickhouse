@@ -66,6 +66,10 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 			opts,
 			useCache,
 		)
+
+		if config.ClickHouse.TrySplitQuery {
+			f = WrapSplitIndex(f, opts, useCache)
+		}
 	} else {
 		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {
 			f = NewDateFinder(config.ClickHouse.URL, config.ClickHouse.DateTreeTable, config.ClickHouse.DateTreeTableVersion, opts)
@@ -76,10 +80,6 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		if config.ClickHouse.ReverseTreeTable != "" {
 			f = WrapReverse(f, config.ClickHouse.URL, config.ClickHouse.ReverseTreeTable, opts)
 		}
-	}
-
-	if config.ClickHouse.TrySplitQuery {
-		f = WrapSplit(f, useCache)
 	}
 
 	if config.ClickHouse.TagTable != "" {
