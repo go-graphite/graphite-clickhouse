@@ -100,11 +100,24 @@ func splitQuery(query string) ([]string, error) {
 	directNodeCount := strings.Count(query[:firstOpenBracketsIndex], ".")
 	directWildcardIndex := where.IndexWildcard(query[:firstOpenBracketsIndex])
 	choicesInLeftMost := strings.Count(query[firstOpenBracketsIndex:firstClosingBracketIndex], ",")
+	//fmt.Printf("\ndirect:\n\tnodeCount = %v\n\twildcardIndex = %v\n\tchoices = %v\n",
+	//	directNodeCount,
+	//	directWildcardIndex,
+	//	choicesInLeftMost)
 
 	lastClosingBracketIndex := strings.LastIndex(query, "}")
 	reverseNodeCount := strings.Count(query[lastClosingBracketIndex:], ".")
-	reversWildcardIndex := where.IndexLastWildcard(query[lastClosingBracketIndex:])
+	var reversWildcardIndex int
+	if lastClosingBracketIndex == len(query)-1 {
+		reversWildcardIndex = -1
+	} else {
+		reversWildcardIndex = where.IndexLastWildcard(query[lastClosingBracketIndex+1:])
+	}
 	choicesInRightMost := strings.Count(query[lastOpenBracketIndex:lastClosingBracketIndex], ",")
+	//fmt.Printf("\nreverse:\n\tnodeCount = %v\n\twildcardIndex = %v\n\tchoices = %v\n",
+	//	reverseNodeCount,
+	//	reversWildcardIndex,
+	//	choicesInRightMost)
 
 	useDirect := true
 	if directWildcardIndex >= 0 && reversWildcardIndex < 0 {
