@@ -68,7 +68,16 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		)
 
 		if config.ClickHouse.TrySplitQuery {
-			f = WrapSplitIndex(f, opts, useCache)
+			f = WrapSplitIndex(
+				f,
+				config.ClickHouse.URL,
+				config.ClickHouse.IndexTable,
+				config.ClickHouse.IndexUseDaily,
+				config.ClickHouse.IndexReverse,
+				config.ClickHouse.IndexReverses,
+				opts,
+				useCache,
+			)
 		}
 	} else {
 		if from > 0 && until > 0 && config.ClickHouse.DateTreeTable != "" {

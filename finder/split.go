@@ -2,33 +2,64 @@ package finder
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
+
+type indexFinderParams struct {
+	url          string
+	table        string
+	opts         clickhouse.Options
+	dailyEnabled bool
+	useCache     bool
+	reverse      string
+	confReverses config.IndexReverses
+}
 
 // SplitIndexFinder will try to split queries like {first,second}.some.metric into n queries (n - number of cases inside {}).
 // No matter if '{}' in first node or not. Only one {} will be split.
 type SplitIndexFinder struct {
+	indexFinderParams
 	// wrapped finder will be called if we can't split query.
 	wrapped Finder
+	body    []byte
+	rows    [][]byte
 	// useWrapped indicated if we should use wrapped Finder.
 	useWrapped bool
-	opts       clickhouse.Options
-	useCache   bool
+	useReverse bool
 }
 
 // WrapSplitIndex wraps given finder with SplitIndexFinder logic.
-func WrapSplitIndex(f Finder, opts clickhouse.Options, useCache bool) *SplitIndexFinder {
+func WrapSplitIndex(
+	f Finder,
+	url string,
+	table string,
+	dailyEnabled bool,
+	reverse string,
+	reverses config.IndexReverses,
+	opts clickhouse.Options,
+	useCache bool,
+) *SplitIndexFinder {
 	return &SplitIndexFinder{
 		wrapped:    f,
 		useWrapped: false,
-		opts:       opts,
-		useCache:   useCache,
+		useReverse: false,
+		indexFinderParams: indexFinderParams{
+			url:          url,
+			table:        table,
+			dailyEnabled: dailyEnabled,
+			reverse:      reverse,
+			confReverses: reverses,
+			opts:         opts,
+			useCache:     useCache,
+		},
 	}
 }
 
@@ -55,32 +86,39 @@ func (splitFinder *SplitIndexFinder) Execute(
 		return err
 	}
 
-	aggregatedWhere := where.New()
 	for _, q := range splitQueries {
 		err = validatePlainQuery(q, config.ClickHouse.WildcardMinDistance)
 		if err != nil {
 			return err
 		}
-
-		indexFinder := NewIndex(
-			config.ClickHouse.URL,
-			config.ClickHouse.IndexTable,
-			config.ClickHouse.IndexUseDaily,
-			config.ClickHouse.IndexReverse,
-			config.ClickHouse.IndexReverses,
-			splitFinder.opts,
-			splitFinder.useCache,
-		).(*IndexFinder)
-
-		aggregatedWhere.Or(indexFinder.whereFilter(q, from, until).String())
 	}
 
-	// TODO: think about max_query_size
+	w, err := splitFinder.whereFilter(splitQueries, from, until)
+	if err != nil {
+		return err
+	}
 
+	splitFinder.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
+		scope.WithTable(ctx, splitFinder.table),
+		splitFinder.url,
+		// TODO: consider consistent query generator
+		fmt.Sprintf("SELECT Path FROM %s WHERE %s GROUP BY Path FORMAT TabSeparatedRaw", splitFinder.table, w),
+		splitFinder.opts,
+		nil,
+	)
+	stat.Table = splitFinder.table
+	if err != nil {
+		return err
+	}
+
+	stat.ReadBytes = int64(len(splitFinder.body))
+	splitFinder.body, splitFinder.rows, _ = splitIndexBody(splitFinder.body, splitFinder.useReverse, splitFinder.useCache)
 	return nil
 }
 
 func splitQuery(query string) ([]string, error) {
+	// TODO: think about using IndexFinder.useReverse
+
 	splitQueries := make([]string, 0, 1)
 
 	firstClosingBracketIndex := strings.Index(query, "}")
@@ -178,12 +216,42 @@ func splitPartOfQuery(prefix, queryPart, suffix string) ([]string, error) {
 	return splitQueries, nil
 }
 
+func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until int64) (*where.Where, error) {
+	splitFinder.useReverse = NewIndex(
+		splitFinder.url,
+		splitFinder.table,
+		splitFinder.dailyEnabled,
+		splitFinder.reverse,
+		splitFinder.confReverses,
+		splitFinder.opts,
+		splitFinder.useCache,
+	).(*IndexFinder).useReverse(queries[0])
+
+	aggregatedWhere := where.New()
+	for _, q := range queries {
+		if splitFinder.useReverse {
+			q = ReverseString(q)
+		}
+
+		aggregatedWhere.Or(where.TreeGlob("Path", q))
+	}
+
+	useDates := useDaily(splitFinder.dailyEnabled, from, until)
+	levelOffset := calculateIndexLevelOffset(useDates, splitFinder.useReverse)
+	level := strings.Count(queries[0], ".") + 1
+
+	aggregatedWhere.And(where.Eq("Level", level+levelOffset))
+	addDatesToWhere(aggregatedWhere, useDates, from, until)
+
+	return aggregatedWhere, nil
+}
+
 func (splitFinder *SplitIndexFinder) List() [][]byte {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.List()
 	}
 
-	return EmptyList
+	return makeList(splitFinder.rows, false)
 }
 
 func (splitFinder *SplitIndexFinder) Series() [][]byte {
@@ -191,7 +259,7 @@ func (splitFinder *SplitIndexFinder) Series() [][]byte {
 		return splitFinder.wrapped.Series()
 	}
 
-	return nil
+	return makeList(splitFinder.rows, true)
 }
 
 func (splitFinder *SplitIndexFinder) Abs(v []byte) []byte {
@@ -199,7 +267,7 @@ func (splitFinder *SplitIndexFinder) Abs(v []byte) []byte {
 		return splitFinder.wrapped.Abs(v)
 	}
 
-	return nil
+	return v
 }
 
 func (splitFinder *SplitIndexFinder) Bytes() ([]byte, error) {
@@ -207,5 +275,5 @@ func (splitFinder *SplitIndexFinder) Bytes() ([]byte, error) {
 		return splitFinder.wrapped.Bytes()
 	}
 
-	return nil, ErrNotImplemented
+	return splitFinder.body, nil
 }
