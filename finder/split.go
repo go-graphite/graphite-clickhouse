@@ -218,15 +218,10 @@ func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until i
 	}
 
 	if queryWithWildcardIdx >= 0 {
-		splitFinder.useReverse = NewIndex(
-			splitFinder.url,
-			splitFinder.table,
-			splitFinder.dailyEnabled,
-			splitFinder.reverse,
-			splitFinder.confReverses,
-			splitFinder.opts,
-			splitFinder.useCache,
-		).(*IndexFinder).useReverse(queries[queryWithWildcardIdx])
+		splitFinder.useReverse = (&IndexFinder{
+			confReverses: splitFinder.confReverses,
+			confReverse:  config.IndexReverse[splitFinder.reverse],
+		}).useReverse(queries[queryWithWildcardIdx])
 	} else {
 		splitFinder.useReverse = false
 	}

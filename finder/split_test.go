@@ -2,12 +2,14 @@ package finder
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
+	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -286,7 +288,16 @@ func TestSplitIndexFinder_whereFilter(t *testing.T) {
 			givenUntil:   someUntil,
 			expectedWhereStr: "((((Path LIKE 'count.metric.%' AND match(Path, '^count[.]metric[.]([^.]*?)first[.]help[.]?$')) OR (Path LIKE 'count.metric.th%' AND match(Path, '^count[.]metric[.]th([^.]*?)rd[.]help[.]?$'))) OR (Path IN ('count.metric.second.help','count.metric.second.help.','count.metric.forth.help','count.metric.forth.help.'))) AND (Level=10004)) AND (Date >='" +
 				date.FromTimestampToDaysFormat(someFrom) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(someUntil) + "')",
-			expectedErr: nil,
+		},
+		{
+			name: "queries do not satisfy wildcard min distance",
+			givenQueries: []string{
+				"*.first.metric.*",
+				"*.second.metric.*",
+			},
+			wildcardMinDistance: 1,
+			expectedWhereStr:    "",
+			expectedErr:         errs.NewErrorWithCode("query has wildcards way too early at the start and at the end of it", http.StatusBadRequest),
 		},
 	}
 
@@ -305,7 +316,9 @@ func TestSplitIndexFinder_whereFilter(t *testing.T) {
 
 			got, err := f.whereFilter(tc.givenQueries, tc.givenFrom, tc.givenUntil)
 			assert.Equal(t, tc.expectedErr, err)
-			assert.Equal(t, tc.expectedWhereStr, got.String())
+			if err == nil {
+				assert.Equal(t, tc.expectedWhereStr, got.String())
+			}
 		})
 	}
 }
