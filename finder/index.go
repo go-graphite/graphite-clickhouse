@@ -249,31 +249,6 @@ func (idx *IndexFinder) bodySplit() {
 	if setDirect {
 		idx.reverse = queryDirect
 	}
-
-	//if len(idx.body) == 0 {
-	//	return
-	//}
-	//
-	//idx.rows = bytes.Split(bytes.TrimSuffix(idx.body, []byte{'\n'}), []byte{'\n'})
-	//
-	//if idx.useReverse("") {
-	//	// rotate names for reduce
-	//	var buf bytes.Buffer
-	//	if idx.useCache {
-	//		buf.Grow(len(idx.body))
-	//	}
-	//	for i := 0; i < len(idx.rows); i++ {
-	//		idx.rows[i] = ReverseBytes(idx.rows[i])
-	//		if idx.useCache {
-	//			buf.Write(idx.rows[i])
-	//			buf.WriteByte('\n')
-	//		}
-	//	}
-	//	if idx.useCache {
-	//		idx.body = buf.Bytes()
-	//		idx.reverse = queryDirect
-	//	}
-	//}
 }
 
 func makeList(rows [][]byte, onlySeries bool) [][]byte {
