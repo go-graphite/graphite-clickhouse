@@ -2,7 +2,7 @@ package where
 
 import "testing"
 
-func Test_clearGlob(t *testing.T) {
+func Test_ClearGlob(t *testing.T) {
 	type args struct {
 		query string
 	}
@@ -21,8 +21,8 @@ func Test_clearGlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.query, func(t *testing.T) {
-			if got := clearGlob(tt.query); got != tt.want {
-				t.Errorf("clearGlob() = %v, want %v", got, tt.want)
+			if got := ClearGlob(tt.query); got != tt.want {
+				t.Errorf("ClearGlob() = %v, want %v", got, tt.want)
 			}
 		})
 	}

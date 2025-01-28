@@ -70,6 +70,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		if config.ClickHouse.TrySplitQuery {
 			f = WrapSplitIndex(
 				f,
+				config.ClickHouse.WildcardMinDistance,
 				config.ClickHouse.URL,
 				config.ClickHouse.IndexTable,
 				config.ClickHouse.IndexUseDaily,

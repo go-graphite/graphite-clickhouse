@@ -9,8 +9,8 @@ var (
 	opEq string = "="
 )
 
-// clearGlob cleanup grafana globs like {name}
-func clearGlob(query string) string {
+// ClearGlob cleanup grafana globs like {name}
+func ClearGlob(query string) string {
 	p := 0
 	s := strings.IndexAny(query, "{[")
 	if s == -1 {
@@ -121,7 +121,7 @@ func glob(field string, query string, optionalDotAtEnd bool) string {
 		return ""
 	}
 
-	query = clearGlob(query)
+	query = ClearGlob(query)
 
 	if !HasWildcard(query) {
 		if optionalDotAtEnd {

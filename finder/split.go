@@ -32,13 +32,15 @@ type SplitIndexFinder struct {
 	body    []byte
 	rows    [][]byte
 	// useWrapped indicated if we should use wrapped Finder.
-	useWrapped bool
-	useReverse bool
+	useWrapped          bool
+	useReverse          bool
+	wildcardMinDistance int
 }
 
 // WrapSplitIndex wraps given finder with SplitIndexFinder logic.
 func WrapSplitIndex(
 	f Finder,
+	wildcardMinDistance int,
 	url string,
 	table string,
 	dailyEnabled bool,
@@ -48,9 +50,10 @@ func WrapSplitIndex(
 	useCache bool,
 ) *SplitIndexFinder {
 	return &SplitIndexFinder{
-		wrapped:    f,
-		useWrapped: false,
-		useReverse: false,
+		wrapped:             f,
+		useWrapped:          false,
+		useReverse:          false,
+		wildcardMinDistance: wildcardMinDistance,
 		indexFinderParams: indexFinderParams{
 			url:          url,
 			table:        table,
@@ -75,6 +78,8 @@ func (splitFinder *SplitIndexFinder) Execute(
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
 	}
 
+	query = where.ClearGlob(query)
+
 	idx := strings.IndexAny(query, "{}")
 	if idx == -1 {
 		splitFinder.useWrapped = true
@@ -84,13 +89,6 @@ func (splitFinder *SplitIndexFinder) Execute(
 	splitQueries, err := splitQuery(query)
 	if err != nil {
 		return err
-	}
-
-	for _, q := range splitQueries {
-		err = validatePlainQuery(q, config.ClickHouse.WildcardMinDistance)
-		if err != nil {
-			return err
-		}
 	}
 
 	w, err := splitFinder.whereFilter(splitQueries, from, until)
@@ -117,8 +115,6 @@ func (splitFinder *SplitIndexFinder) Execute(
 }
 
 func splitQuery(query string) ([]string, error) {
-	// TODO: think about using IndexFinder.useReverse
-
 	splitQueries := make([]string, 0, 1)
 
 	firstClosingBracketIndex := strings.Index(query, "}")
@@ -138,10 +134,6 @@ func splitQuery(query string) ([]string, error) {
 	directNodeCount := strings.Count(query[:firstOpenBracketsIndex], ".")
 	directWildcardIndex := where.IndexWildcard(query[:firstOpenBracketsIndex])
 	choicesInLeftMost := strings.Count(query[firstOpenBracketsIndex:firstClosingBracketIndex], ",")
-	//fmt.Printf("\ndirect:\n\tnodeCount = %v\n\twildcardIndex = %v\n\tchoices = %v\n",
-	//	directNodeCount,
-	//	directWildcardIndex,
-	//	choicesInLeftMost)
 
 	lastClosingBracketIndex := strings.LastIndex(query, "}")
 	reverseNodeCount := strings.Count(query[lastClosingBracketIndex:], ".")
@@ -152,10 +144,6 @@ func splitQuery(query string) ([]string, error) {
 		reversWildcardIndex = where.IndexLastWildcard(query[lastClosingBracketIndex+1:])
 	}
 	choicesInRightMost := strings.Count(query[lastOpenBracketIndex:lastClosingBracketIndex], ",")
-	//fmt.Printf("\nreverse:\n\tnodeCount = %v\n\twildcardIndex = %v\n\tchoices = %v\n",
-	//	reverseNodeCount,
-	//	reversWildcardIndex,
-	//	choicesInRightMost)
 
 	useDirect := true
 	if directWildcardIndex >= 0 && reversWildcardIndex < 0 {
@@ -217,23 +205,48 @@ func splitPartOfQuery(prefix, queryPart, suffix string) ([]string, error) {
 }
 
 func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until int64) (*where.Where, error) {
-	splitFinder.useReverse = NewIndex(
-		splitFinder.url,
-		splitFinder.table,
-		splitFinder.dailyEnabled,
-		splitFinder.reverse,
-		splitFinder.confReverses,
-		splitFinder.opts,
-		splitFinder.useCache,
-	).(*IndexFinder).useReverse(queries[0])
+	queryWithWildcardIdx := -1
+	for i, q := range queries {
+		err := validatePlainQuery(q, splitFinder.wildcardMinDistance)
+		if err != nil {
+			return nil, err
+		}
 
+		if queryWithWildcardIdx < 0 && where.HasWildcard(q) {
+			queryWithWildcardIdx = i
+		}
+	}
+
+	if queryWithWildcardIdx >= 0 {
+		splitFinder.useReverse = NewIndex(
+			splitFinder.url,
+			splitFinder.table,
+			splitFinder.dailyEnabled,
+			splitFinder.reverse,
+			splitFinder.confReverses,
+			splitFinder.opts,
+			splitFinder.useCache,
+		).(*IndexFinder).useReverse(queries[queryWithWildcardIdx])
+	} else {
+		splitFinder.useReverse = false
+	}
+
+	nonWildcardQueries := make([]string, 0)
 	aggregatedWhere := where.New()
 	for _, q := range queries {
 		if splitFinder.useReverse {
 			q = ReverseString(q)
 		}
 
-		aggregatedWhere.Or(where.TreeGlob("Path", q))
+		if !where.HasWildcard(q) {
+			nonWildcardQueries = append(nonWildcardQueries, q, q+".")
+		} else {
+			aggregatedWhere.Or(where.TreeGlob("Path", q))
+		}
+	}
+
+	if len(nonWildcardQueries) > 0 {
+		aggregatedWhere.Or(where.In("Path", nonWildcardQueries))
 	}
 
 	useDates := useDaily(splitFinder.dailyEnabled, from, until)
