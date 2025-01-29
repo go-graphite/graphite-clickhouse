@@ -223,6 +223,7 @@ type ClickHouse struct {
 
 	WildcardMinDistance   int  `toml:"wildcard-min-distance" json:"wildcard-min-distance" comment:"If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries."`
 	TrySplitQuery         bool `toml:"try-split-query" json:"try-split-query" comment:"Plain queries like '{first,second}.custom.metric.*' are also a subject to wildcard-min-distance restriction. But can be split into 2 queries: 'first.custom.metric.*', 'second.custom.metric.*'."`
+	MaxNodeToSplitIndex   int  `toml:"max-node-to-split-index" json:"max-node-to-split-index" comment:"Used only if try-split-query is true. Query that contains list will be split if its (list) node index is less or equal to max-node-to-split-index."`
 	TagsMinInQuery        int  `toml:"tags-min-in-query" json:"tags-min-in-query" comment:"Minimum tags in seriesByTag query"`
 	TagsMinInAutocomplete int  `toml:"tags-min-in-autocomplete" json:"tags-min-in-autocomplete" comment:"Minimum tags in autocomplete query"`
 
@@ -402,6 +403,7 @@ func New() *Config {
 			InternalAggregation:  true,
 			FindLimiter:          limiter.NoopLimiter{},
 			TagsLimiter:          limiter.NoopLimiter{},
+			MaxNodeToSplitIndex:  -1,
 		},
 		Tags: Tags{
 			Threads:     1,

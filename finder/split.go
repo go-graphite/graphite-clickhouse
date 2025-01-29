@@ -86,9 +86,14 @@ func (splitFinder *SplitIndexFinder) Execute(
 		return splitFinder.wrapped.Execute(ctx, config, query, from, until, stat)
 	}
 
-	splitQueries, err := splitQuery(query)
+	splitQueries, err := splitQuery(query, config.ClickHouse.MaxNodeToSplitIndex)
 	if err != nil {
 		return err
+	}
+
+	if len(splitQueries) <= 1 {
+		splitFinder.useWrapped = true
+		return splitFinder.wrapped.Execute(ctx, config, query, from, until, stat)
 	}
 
 	w, err := splitFinder.whereFilter(splitQueries, from, until)
@@ -114,11 +119,43 @@ func (splitFinder *SplitIndexFinder) Execute(
 	return nil
 }
 
-func splitQuery(query string) ([]string, error) {
+func splitQuery(query string, maxNodeToSplitIdx int) ([]string, error) {
 	splitQueries := make([]string, 0, 1)
 
 	firstClosingBracketIndex := strings.Index(query, "}")
 	lastOpenBracketIndex := strings.LastIndex(query, "{")
+
+	firstOpenBracketsIndex := strings.Index(query, "{")
+	directNodeCount := strings.Count(query[:firstOpenBracketsIndex], ".")
+	directWildcardIndex := where.IndexWildcard(query[:firstOpenBracketsIndex])
+
+	lastClosingBracketIndex := strings.LastIndex(query, "}")
+	reverseNodeCount := strings.Count(query[lastClosingBracketIndex:], ".")
+	var reverseWildcardIndex int
+	if lastClosingBracketIndex == len(query)-1 {
+		reverseWildcardIndex = -1
+	} else {
+		reverseWildcardIndex = where.IndexLastWildcard(query[lastClosingBracketIndex+1:])
+	}
+
+	useDirect := true
+	if directWildcardIndex >= 0 && reverseWildcardIndex >= 0 {
+		return []string{query}, nil
+	} else if directWildcardIndex < 0 && reverseWildcardIndex >= 0 {
+		if directNodeCount > maxNodeToSplitIdx {
+			return []string{query}, nil
+		}
+		useDirect = true
+	} else if directWildcardIndex >= 0 && reverseWildcardIndex < 0 {
+		if reverseNodeCount > maxNodeToSplitIdx {
+			return []string{query}, nil
+		}
+		useDirect = false
+	} else {
+		if directNodeCount > maxNodeToSplitIdx && reverseNodeCount > maxNodeToSplitIdx {
+			return []string{query}, nil
+		}
+	}
 
 	if lastOpenBracketIndex < firstClosingBracketIndex {
 		// we have only one bracket in query
@@ -130,36 +167,19 @@ func splitQuery(query string) ([]string, error) {
 		return splitQueries, nil
 	}
 
-	firstOpenBracketsIndex := strings.Index(query, "{")
-	directNodeCount := strings.Count(query[:firstOpenBracketsIndex], ".")
-	directWildcardIndex := where.IndexWildcard(query[:firstOpenBracketsIndex])
 	choicesInLeftMost := strings.Count(query[firstOpenBracketsIndex:firstClosingBracketIndex], ",")
-
-	lastClosingBracketIndex := strings.LastIndex(query, "}")
-	reverseNodeCount := strings.Count(query[lastClosingBracketIndex:], ".")
-	var reversWildcardIndex int
-	if lastClosingBracketIndex == len(query)-1 {
-		reversWildcardIndex = -1
-	} else {
-		reversWildcardIndex = where.IndexLastWildcard(query[lastClosingBracketIndex+1:])
-	}
 	choicesInRightMost := strings.Count(query[lastOpenBracketIndex:lastClosingBracketIndex], ",")
 
-	useDirect := true
-	if directWildcardIndex >= 0 && reversWildcardIndex < 0 {
-		useDirect = false
-	} else if directWildcardIndex < 0 && reversWildcardIndex >= 0 {
-		useDirect = true
-	} else if directWildcardIndex >= 0 && reversWildcardIndex >= 0 {
-		if choicesInLeftMost >= choicesInRightMost {
-			useDirect = true
-		} else {
-			useDirect = false
-		}
-	} else {
+	if directWildcardIndex < 0 && reverseWildcardIndex < 0 {
 		if directNodeCount > reverseNodeCount {
+			if directNodeCount > maxNodeToSplitIdx {
+				return []string{query}, nil
+			}
 			useDirect = true
 		} else if reverseNodeCount > directNodeCount {
+			if reverseNodeCount > maxNodeToSplitIdx {
+				return []string{query}, nil
+			}
 			useDirect = false
 		} else {
 			if choicesInLeftMost >= choicesInRightMost {

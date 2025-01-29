@@ -15,152 +15,174 @@ import (
 
 func Test_splitQuery(t *testing.T) {
 	type testcase struct {
-		givenQuery      string
-		expectedQueries []string
-		expectedErr     error
-		desc            string
+		givenQuery               string
+		givenMaxNodeToSplitIndex int
+		expectedQueries          []string
+		expectedErr              error
+		desc                     string
 	}
 
 	cases := []testcase{
 		{
-			givenQuery: "{first,second}.some.metric.*",
+			givenQuery:               "some.*.{a,b,c}.{first,second}.*.test.metric",
+			givenMaxNodeToSplitIndex: 3,
+			expectedQueries: []string{
+				"some.*.{a,b,c}.{first,second}.*.test.metric",
+			},
+			expectedErr: nil,
+			desc:        "have wildcards on both direct and reverse, so no split",
+		},
+		{
+			givenQuery:               "some.long.{a,b,c}.{first,second}.*.metric",
+			givenMaxNodeToSplitIndex: 1,
+			expectedQueries: []string{
+				"some.long.{a,b,c}.{first,second}.*.metric",
+			},
+			expectedErr: nil,
+			desc:        "have wildcard on reverse but index of list is greater than given in config",
+		},
+		{
+			givenQuery:               "some.long.{a,b,c}.{first,second}.*.metric",
+			givenMaxNodeToSplitIndex: 2,
+			expectedQueries: []string{
+				"some.long.a.{first,second}.*.metric",
+				"some.long.b.{first,second}.*.metric",
+				"some.long.c.{first,second}.*.metric",
+			},
+			expectedErr: nil,
+			desc:        "have wildcard on reverse and index of list is less or equal than given in config",
+		},
+		{
+			givenQuery:               "some.*.{a,b,c}.{first,second}.test.metric",
+			givenMaxNodeToSplitIndex: 1,
+			expectedQueries: []string{
+				"some.*.{a,b,c}.{first,second}.test.metric",
+			},
+			expectedErr: nil,
+			desc:        "have wildcard on direct but index of list is greater than given in config",
+		},
+		{
+			givenQuery:               "some.*.{a,b,c}.{first,second}.test.metric",
+			givenMaxNodeToSplitIndex: 2,
+			expectedQueries: []string{
+				"some.*.{a,b,c}.first.test.metric",
+				"some.*.{a,b,c}.second.test.metric",
+			},
+			expectedErr: nil,
+			desc:        "have wildcard on direct and index of list is less or equal than given in config",
+		},
+		{
+			givenQuery:               "some.long.{a,b,c}.{first,second}.test.metric",
+			givenMaxNodeToSplitIndex: 1,
+			expectedQueries: []string{
+				"some.long.{a,b,c}.{first,second}.test.metric",
+			},
+			expectedErr: nil,
+			desc:        "no wildcards on both but indexes of lists are greater than given in config",
+		},
+		{
+			givenQuery:               "{first,second}.some.metric.*",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
 				"first.some.metric.*",
 				"second.some.metric.*",
 			},
 			expectedErr: nil,
-			desc:        "brackets in the start of query",
+			desc:        "only one bracket with wildcard on reverse",
 		},
 		{
-			givenQuery: "some.metric.*.{first,second}",
+			givenQuery:               "*.some.metric.{first,second}",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
-				"some.metric.*.first",
-				"some.metric.*.second",
+				"*.some.metric.first",
+				"*.some.metric.second",
 			},
 			expectedErr: nil,
-			desc:        "brackets in the end of query",
+			desc:        "only one bracket and wildcard on direct",
 		},
 		{
-			givenQuery: "some.{first,second}.metric.*",
+			givenQuery:               "some.very.long.{a,b}.*.{first,second}.metric",
+			givenMaxNodeToSplitIndex: 2,
 			expectedQueries: []string{
-				"some.first.metric.*",
-				"some.second.metric.*",
+				"some.very.long.{a,b}.*.{first,second}.metric",
 			},
 			expectedErr: nil,
-			desc:        "brackets in the middle of query",
+			desc:        "no wildcards, but direct has more nodes than max-node-to-split-index",
 		},
 		{
-			givenQuery: "some.{fi*rst,second,th*ird}.metric.*",
+			givenQuery:               "some.very.long.{a,b}.*.{first,second}.metric",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
-				"some.fi*rst.metric.*",
-				"some.second.metric.*",
-				"some.th*ird.metric.*",
+				"some.very.long.a.*.{first,second}.metric",
+				"some.very.long.b.*.{first,second}.metric",
 			},
 			expectedErr: nil,
-			desc:        "brackets in the middle of query and some have wildcard",
+			desc:        "no wildcards, direct has more nodes than reverse",
 		},
 		{
-			givenQuery: "some.help_{fi*rst,second,th*ird}_me.metric.*",
+			givenQuery:               "some.{a,b}.*.{first,second}.long.test.metric",
+			givenMaxNodeToSplitIndex: 2,
 			expectedQueries: []string{
-				"some.help_fi*rst_me.metric.*",
-				"some.help_second_me.metric.*",
-				"some.help_th*ird_me.metric.*",
+				"some.{a,b}.*.{first,second}.long.test.metric",
 			},
 			expectedErr: nil,
-			desc:        "brackets in the middle of query, in the middle of node and some have wildcard",
+			desc:        "no wildcards, but reverse has more nodes than max-node-to-split-index",
 		},
 		{
-			givenQuery: "{first,second}.some.{a,b,c}.metric",
+			givenQuery:               "some.{a,b}.*.{first,second}.long.test.metric",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
-				"{first,second}.some.a.metric",
-				"{first,second}.some.b.metric",
-				"{first,second}.some.c.metric",
+				"some.{a,b}.*.first.long.test.metric",
+				"some.{a,b}.*.second.long.test.metric",
 			},
 			expectedErr: nil,
-			desc:        "more than one bracket and reverse preferred",
+			desc:        "no wildcards, reverse has more nodes than direct",
 		},
 		{
-			givenQuery: "some.{a,b,c}.metric.{first,second}",
+			givenQuery:               "some.very.long.{a,b,c}.*.{first,second}.long.test.metric",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
-				"some.a.metric.{first,second}",
-				"some.b.metric.{first,second}",
-				"some.c.metric.{first,second}",
+				"some.very.long.a.*.{first,second}.long.test.metric",
+				"some.very.long.b.*.{first,second}.long.test.metric",
+				"some.very.long.c.*.{first,second}.long.test.metric",
 			},
 			expectedErr: nil,
-			desc:        "more than one bracket and direct preferred",
+			desc:        "no wildcards, direct nd reverse has equal nodes, but leftmost has more choices",
 		},
 		{
-			givenQuery: "some.{a,b}.{first,second}.metric",
+			givenQuery:               "some.very.long.{a,b}.*.{first,second,third}.long.test.metric",
+			givenMaxNodeToSplitIndex: 3,
 			expectedQueries: []string{
-				"some.a.{first,second}.metric",
-				"some.b.{first,second}.metric",
+				"some.very.long.{a,b}.*.first.long.test.metric",
+				"some.very.long.{a,b}.*.second.long.test.metric",
+				"some.very.long.{a,b}.*.third.long.test.metric",
 			},
 			expectedErr: nil,
-			desc:        "more than one bracket on equal distance, direct preferred",
+			desc:        "no wildcards, direct nd reverse has equal nodes, but leftmost has more choices",
 		},
 		{
-			givenQuery: "*.{a,b}.{first,second}.metric",
+			givenQuery:               "query.{a,b}",
+			givenMaxNodeToSplitIndex: -1,
 			expectedQueries: []string{
-				"*.{a,b}.first.metric",
-				"*.{a,b}.second.metric",
+				"query.{a,b}",
 			},
 			expectedErr: nil,
-			desc:        "equal distance, but has wildcard on direct, so reverse preferred",
+			desc:        "not split query",
 		},
 		{
-			givenQuery: "some.{a,b}.{first,second}.metric.hello.*",
+			givenQuery:               "*.query.{a,b}",
+			givenMaxNodeToSplitIndex: -1,
 			expectedQueries: []string{
-				"some.a.{first,second}.metric.hello.*",
-				"some.b.{first,second}.metric.hello.*",
+				"*.query.{a,b}",
 			},
 			expectedErr: nil,
-			desc:        "reverse has more nodes, but also has wildcard, so direct preferred",
-		},
-		{
-			givenQuery: "some.*.{a,b,c}.{first,second}.*.test.metric",
-			expectedQueries: []string{
-				"some.*.a.{first,second}.*.test.metric",
-				"some.*.b.{first,second}.*.test.metric",
-				"some.*.c.{first,second}.*.test.metric",
-			},
-			expectedErr: nil,
-			desc:        "have wildcards on both direct and reverse, but leftmost has more choices, so direct preferred",
-		},
-		{
-			givenQuery: "some.*.{a,b}.{first,second,third}.*.test.metric",
-			expectedQueries: []string{
-				"some.*.{a,b}.first.*.test.metric",
-				"some.*.{a,b}.second.*.test.metric",
-				"some.*.{a,b}.third.*.test.metric",
-			},
-			expectedErr: nil,
-			desc:        "have wildcards on both direct and reverse, but rightmost has more choices, so reverse preferred",
-		},
-		{
-			givenQuery: "some.{a,b,c}.{first,second}.metric",
-			expectedQueries: []string{
-				"some.a.{first,second}.metric",
-				"some.b.{first,second}.metric",
-				"some.c.{first,second}.metric",
-			},
-			expectedErr: nil,
-			desc:        "no wildcards, brackets on equal distance, but leftmost has more choices, so direct preferred",
-		},
-		{
-			givenQuery: "some.{a,b}.{first,second,third}.metric",
-			expectedQueries: []string{
-				"some.{a,b}.first.metric",
-				"some.{a,b}.second.metric",
-				"some.{a,b}.third.metric",
-			},
-			expectedErr: nil,
-			desc:        "no wildcards, brackets on equal distance, but rightmost has more choices, so reverse preferred",
+			desc:        "not split query",
 		},
 	}
 
 	for i, singleCase := range cases {
 		t.Run(fmt.Sprintf("case %v: %s", i+1, singleCase.desc), func(t *testing.T) {
-			gotQueries, gotErr := splitQuery(singleCase.givenQuery)
+			gotQueries, gotErr := splitQuery(singleCase.givenQuery, singleCase.givenMaxNodeToSplitIndex)
 
 			assert.Equal(t, singleCase.expectedQueries, gotQueries, singleCase.desc)
 			assert.Equal(t, singleCase.expectedErr, gotErr, singleCase.desc)
@@ -292,8 +314,8 @@ func TestSplitIndexFinder_whereFilter(t *testing.T) {
 		{
 			name: "queries do not satisfy wildcard min distance",
 			givenQueries: []string{
-				"*.first.metric.*",
-				"*.second.metric.*",
+				"a*.first.metric.*",
+				"b*.second.metric.*",
 			},
 			wildcardMinDistance: 1,
 			expectedWhereStr:    "",
