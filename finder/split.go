@@ -66,6 +66,8 @@ func WrapSplitIndex(
 	}
 }
 
+// Execute will try to split query if it contains list in it. If query can't be split wrapped Finder will be used.
+// Use List, Series or Bytes after calling Execute to get data.
 func (splitFinder *SplitIndexFinder) Execute(
 	ctx context.Context,
 	config *config.Config,
@@ -274,6 +276,8 @@ func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until i
 	return aggregatedWhere, nil
 }
 
+// List returns clickhouse response split by delimiter.
+// If there was no split, wrapped.List will be used.
 func (splitFinder *SplitIndexFinder) List() [][]byte {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.List()
@@ -282,6 +286,7 @@ func (splitFinder *SplitIndexFinder) List() [][]byte {
 	return makeList(splitFinder.rows, false)
 }
 
+// Series same as List. If there was no split, wrapped.Series will be used.
 func (splitFinder *SplitIndexFinder) Series() [][]byte {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.Series()
@@ -290,6 +295,8 @@ func (splitFinder *SplitIndexFinder) Series() [][]byte {
 	return makeList(splitFinder.rows, true)
 }
 
+// Abs for this implementation returns given v.
+// If there was no split, wrapped.Abs will be used.
 func (splitFinder *SplitIndexFinder) Abs(v []byte) []byte {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.Abs(v)
@@ -298,6 +305,8 @@ func (splitFinder *SplitIndexFinder) Abs(v []byte) []byte {
 	return v
 }
 
+// Bytes returns clickhouse response bytes.
+// If there was no split, wrapped.Bytes will be used.
 func (splitFinder *SplitIndexFinder) Bytes() ([]byte, error) {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.Bytes()
