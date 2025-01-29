@@ -315,8 +315,8 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  wildcard-min-distance = 0
  # Plain queries like '{first,second}.custom.metric.*' are also a subject to wildcard-min-distance restriction. But can be split into 2 queries: 'first.custom.metric.*', 'second.custom.metric.*'.
  try-split-query = false
- # Used only if try-split-query is true. Query that contains list will be split if its node index is less or equal to max-node-to-split-index.
- max-node-to-split-index = -1
+ # Used only if try-split-query is true. Query that contains list will be split if its (list) node index is less or equal to max-node-to-split-index. By default is 0
+ max-node-to-split-index = 0
  # Minimum tags in seriesByTag query
  tags-min-in-query = 0
  # Minimum tags in autocomplete query
