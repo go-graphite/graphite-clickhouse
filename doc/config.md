@@ -313,9 +313,9 @@ Only one tag used as filter for index field Tag1, see graphite_tagged table [str
  tags-adaptive-queries = 0
  # If a wildcard appears both at the start and the end of a plain query at a distance (in terms of nodes) less than wildcard-min-distance, then it will be discarded. This parameter can be used to discard expensive queries.
  wildcard-min-distance = 0
- # Plain queries like '{first,second}.custom.metric.*' are also a subject to wildcard-min-distance restriction. But can be split into 2 queries: 'first.custom.metric.*', 'second.custom.metric.*'.
+ # Plain queries like '{first,second}.custom.metric.*' are also a subject to wildcard-min-distance restriction. But can be split into 2 queries: 'first.custom.metric.*', 'second.custom.metric.*'. Note that: only one list will be split; if there are wildcard in query before (after) list then reverse (direct) notation will be preferred; if there are wildcards before and after list, then query will not be split
  try-split-query = false
- # Used only if try-split-query is true. Query that contains list will be split if its (list) node index is less or equal to max-node-to-split-index. By default is 0
+ # Used only if try-split-query is true. Query that contains list will be split if its (list) node index is less or equal to max-node-to-split-index. By default is 0. It is recommended to have this value set to 2 or 3 and increase it very carefully, because 3 or 4 plain nodes without wildcards have good selectivity
  max-node-to-split-index = 0
  # Minimum tags in seriesByTag query
  tags-min-in-query = 0
