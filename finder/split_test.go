@@ -178,6 +178,16 @@ func Test_splitQuery(t *testing.T) {
 			expectedErr: nil,
 			desc:        "not split query",
 		},
+		{
+			givenQuery:               "*.query.{a,b}",
+			givenMaxNodeToSplitIndex: 20,
+			expectedQueries: []string{
+				"*.query.a",
+				"*.query.b",
+			},
+			expectedErr: nil,
+			desc:        "query split if MaxNodeToSplitIndex is greater than nodes amount in query",
+		},
 	}
 
 	for i, singleCase := range cases {
