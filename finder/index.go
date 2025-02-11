@@ -119,20 +119,13 @@ func (idx *IndexFinder) useReverse(query string) bool {
 	return idx.useReverse(query)
 }
 
-func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *where.Where {
-	reverse := idx.useReverse(query)
-	if reverse {
-		query = ReverseString(query)
-	}
+func useDaily(dailyEnabled bool, from, until int64) bool {
+	return dailyEnabled && from > 0 && until > 0
+}
 
-	if idx.dailyEnabled && from > 0 && until > 0 {
-		idx.useDaily = true
-	} else {
-		idx.useDaily = false
-	}
-
+func calculateIndexLevelOffset(useDaily, reverse bool) int {
 	var levelOffset int
-	if idx.useDaily {
+	if useDaily {
 		if reverse {
 			levelOffset = ReverseLevelOffset
 		}
@@ -142,8 +135,11 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 		levelOffset = TreeLevelOffset
 	}
 
-	w := idx.where(query, levelOffset)
-	if idx.useDaily {
+	return levelOffset
+}
+
+func addDatesToWhere(w *where.Where, useDaily bool, from, until int64) {
+	if useDaily {
 		w.Andf(
 			"Date >='%s' AND Date <= '%s'",
 			date.FromTimestampToDaysFormat(from),
@@ -152,10 +148,24 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 	} else {
 		w.And(where.Eq("Date", DefaultTreeDate))
 	}
+}
+
+func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *where.Where {
+	reverse := idx.useReverse(query)
+	if reverse {
+		query = ReverseString(query)
+	}
+
+	idx.useDaily = useDaily(idx.dailyEnabled, from, until)
+
+	levelOffset := calculateIndexLevelOffset(idx.useDaily, reverse)
+
+	w := idx.where(query, levelOffset)
+	addDatesToWhere(w, idx.useDaily, from, until)
 	return w
 }
 
-func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int) error {
+func validatePlainQuery(query string, wildcardMinDistance int) error {
 	if where.HasUnmatchedBrackets(query) {
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
 	}
@@ -175,7 +185,7 @@ func (idx *IndexFinder) validatePlainQuery(query string, wildcardMinDistance int
 }
 
 func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
-	err = idx.validatePlainQuery(query, config.ClickHouse.WildcardMinDistance)
+	err = validatePlainQuery(query, config.ClickHouse.WildcardMinDistance)
 	if err != nil {
 		return err
 	}
@@ -202,45 +212,61 @@ func (idx *IndexFinder) Abs(v []byte) []byte {
 	return v
 }
 
-func (idx *IndexFinder) bodySplit() {
-	if len(idx.body) == 0 {
-		return
+func splitIndexBody(body []byte, useReverse, useCache bool) ([]byte, [][]byte, bool) {
+	if len(body) == 0 {
+		return body, [][]byte{}, false
 	}
 
-	idx.rows = bytes.Split(bytes.TrimSuffix(idx.body, []byte{'\n'}), []byte{'\n'})
+	rows := bytes.Split(bytes.TrimSuffix(body, []byte{'\n'}), []byte{'\n'})
+	setDirect := false
 
-	if idx.useReverse("") {
-		// rotate names for reduce
+	if useReverse {
 		var buf bytes.Buffer
-		if idx.useCache {
-			buf.Grow(len(idx.body))
+		if useCache {
+			buf.Grow(len(body))
 		}
-		for i := 0; i < len(idx.rows); i++ {
-			idx.rows[i] = ReverseBytes(idx.rows[i])
-			if idx.useCache {
-				buf.Write(idx.rows[i])
+
+		for i := range rows {
+			rows[i] = ReverseBytes(rows[i])
+			if useCache {
+				buf.Write(rows[i])
 				buf.WriteByte('\n')
 			}
 		}
-		if idx.useCache {
-			idx.body = buf.Bytes()
-			idx.reverse = queryDirect
+
+		if useCache {
+			body = buf.Bytes()
+			setDirect = true
 		}
+	}
+
+	return body, rows, setDirect
+}
+
+func (idx *IndexFinder) bodySplit() {
+	setDirect := false
+	idx.body, idx.rows, setDirect = splitIndexBody(idx.body, idx.useReverse(""), idx.useCache)
+	if setDirect {
+		idx.reverse = queryDirect
 	}
 }
 
-func (idx *IndexFinder) makeList(onlySeries bool) [][]byte {
-	if len(idx.rows) == 0 {
+func makeList(rows [][]byte, onlySeries bool) [][]byte {
+	if len(rows) == 0 {
 		return [][]byte{}
 	}
 
-	rows := make([][]byte, len(idx.rows))
+	resRows := make([][]byte, len(rows))
 
-	for i := 0; i < len(idx.rows); i++ {
-		rows[i] = idx.rows[i]
+	for i := 0; i < len(rows); i++ {
+		resRows[i] = rows[i]
 	}
 
-	return rows
+	return resRows
+}
+
+func (idx *IndexFinder) makeList(onlySeries bool) [][]byte {
+	return makeList(idx.rows, onlySeries)
 }
 
 func (idx *IndexFinder) List() [][]byte {
