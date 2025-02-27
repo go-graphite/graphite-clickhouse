@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS default.tag1_count_per_day
 ENGINE = SummingMergeTree
 ORDER BY (Date, Tag1);
 
-CREATE MATERIALIZED VIEW default.tag1_count_per_day_mv TO default.tag1_count_per_day AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS default.tag1_count_per_day_mv TO default.tag1_count_per_day AS
 SELECT Date AS Date,
        Tag1 AS Tag1,
        count(*) AS Count
