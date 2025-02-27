@@ -200,3 +200,29 @@ Depends on it for having a proper retention and aggregation you must additionall
 
 #### Additional tuning tagged find for seriesByTag and autocomplete
 Only one tag used as filter for index field Tag1, see graphite_tagged table [structure](https://github.com/lomik/
+
+To always choose the best Tag1 you can set the parameter `tag1-count-table = <table_name>`. The value should be a table in clickhouse that has columns (Date, Tag1, Count) similar to the graphite_tagged table. The table can be defined like this:
+
+```
+CREATE TABLE IF NOT EXISTS default.tag1_count_per_day
+(
+  Date Date,
+  Tag1 String,
+  Count UInt64
+)
+ENGINE = SummingMergeTree
+ORDER BY (Date, Tag1);
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS default.tag1_count_per_day_mv TO default.tag1_count_per_day AS
+SELECT Date AS Date,
+       Tag1 AS Tag1,
+       count(*) AS Count
+FROM default.graphite_tags
+GROUP BY (Date, Tag1);
+```
+
+Here we additionally create a materialized view to automatically save the quantities of rows with each unique Tag1 as the metrics are being written.
+graphite-clickhouse will query this table when it tries to decide which tag should be used when querying graphite_tagged table.
+Overall using this parameter will somewhat increase writing load but can improve reading tagged metrics greatly in some cases.
+
+Note that this option only works for terms with '=' operator in them.
