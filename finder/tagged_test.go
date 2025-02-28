@@ -845,7 +845,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 	)
 
 	ok(
-		`3 TaggedTermEq, database contains all of them`,
+		`Clickhouse returned broken response`,
 		`seriesByTag('environment=production', 'dc=west', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='key=value')) `+
