@@ -601,9 +601,6 @@ func BenchmarkParseSeriesByTag(b *testing.B) {
 func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 	assert := assert.New(t)
 
-	srv := chtest.NewTestServer()
-	defer srv.Close()
-
 	var from, until int64
 	// 2022-11-11 00:01:00 +05:00 && 2022-11-11 00:01:10 +05:00
 	from, until = 1668106860, 1668106870
@@ -615,6 +612,8 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		metricMightExist bool,
 		expectedErr error,
 	) {
+		srv := chtest.NewTestServer()
+		defer srv.Close()
 
 		cfg, _ := config.DefaultConfig()
 		cfg.ClickHouse.URL = srv.URL
@@ -669,7 +668,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='key=value')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\nkey=value\t1\n"),
@@ -688,7 +687,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='key=value')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\nkey=value\t1\n"),
@@ -703,7 +702,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='key=value')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte(""),
@@ -718,7 +717,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=*', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`((Tag1='environment=production') OR (Tag1='key=value')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\nkey=value\t2\n"),
@@ -737,7 +736,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'status=~^o.*', 'key=~val.*')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`((Tag1='environment=production') OR (Tag1='dc=west')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\n"),
@@ -757,7 +756,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'status!=on', 'key!=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`((Tag1='environment=production') OR (Tag1='dc=west')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\n"),
@@ -777,7 +776,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'status!=~^o.*', 'key!=~val.*')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`((Tag1='environment=production') OR (Tag1='dc=west')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\n"),
@@ -811,7 +810,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'dc=east')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='dc=east')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\ndc=east\t5\n"),
@@ -830,7 +829,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('name=load.avg', 'environment=production', 'dc=west')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='__name__=load.avg') OR (Tag1='environment=production')) OR (Tag1='dc=west')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\ndc=west\t10\n__name__=load.avg\t10000\n"),
@@ -849,7 +848,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		`seriesByTag('environment=production', 'dc=west', 'key=value')`,
 		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
 			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='key=value')) `+
-			`AND (Date >= '2022-11-11' AND Date <= '2022-11-11') `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
 			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
 		&chtest.TestResponse{
 			Body: []byte("broken_response"),
