@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	ErrCostlySeriesByTag  = errs.NewErrorWithCode("seriesByTag argument has too much wildcard and regex terms", http.StatusForbidden)
-	ErrInvalidSeriesByTag = errs.NewErrorWithCode("wrong seriesByTag call", http.StatusBadRequest)
+	ErrCostlySeriesByTag        = errs.NewErrorWithCode("seriesByTag argument has too much wildcard and regex terms", http.StatusForbidden)
+	ErrSyntaxSeriesByTag        = errs.NewErrorWithCode("invalid seriesByTag syntax", http.StatusBadRequest)
+	ErrNotEnoughArgsSeriesByTag = errs.NewErrorWithCode("not enough arguments in seriesByTag", http.StatusBadRequest)
 )
 
 type TaggedTermOp int
@@ -352,10 +353,10 @@ func seriesByTagArgs(query string) ([]string, error) {
 	// trim spaces
 	e := strings.Trim(query, " ")
 	if !strings.HasPrefix(e, "seriesByTag(") {
-		return nil, ErrInvalidSeriesByTag
+		return nil, ErrSyntaxSeriesByTag
 	}
 	if e[len(e)-1] != ')' {
-		return nil, ErrInvalidSeriesByTag
+		return nil, ErrSyntaxSeriesByTag
 	}
 	e = e[12 : len(e)-1]
 
@@ -385,7 +386,7 @@ func ParseSeriesByTag(query string, config *config.Config) ([]TaggedTerm, error)
 	}
 
 	if len(conditions) < 1 {
-		return nil, ErrInvalidSeriesByTag
+		return nil, ErrNotEnoughArgsSeriesByTag
 	}
 
 	return ParseTaggedConditions(conditions, config, false)
