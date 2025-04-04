@@ -380,8 +380,8 @@ Note that this option only works for terms with '=' operator in them.
  index-timeout = "1m0s"
  # 'tagged' table from carbon-clickhouse, required for seriesByTag
  tagged-table = "graphite_tagged"
- # Table that contains the amounts of rows with each tag1 value, used to determine which Tag1 value to use in a query based on its cardinality. If left empty, basic sorting will be used.
- tag1-count-table = ""
+ # Table that contains the total amounts of each tag-value pair. It is used to avoid usage of high cardinality tag-value pairs when querying TaggedTable. If left empty, basic sorting will be used. See more detailed description in doc/config.md
+ tags-count-table = ""
  # or how long the daemon will query tags during autocomplete
  tagged-autocomplete-days = 7
  # whether to use date filter when searching for the metrics in the tagged-table
