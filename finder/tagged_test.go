@@ -641,11 +641,11 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		stat := &FinderStat{}
 		terms, err := taggedFinder.PrepareTaggedTerms(context.Background(), cfg, query, from, until, stat)
 		if expectedErr != nil {
-			assert.Equal(err, expectedErr, testName+", err")
+			assert.Equal(expectedErr, err, testName+", err")
 			return
 		}
 		assert.NoError(err)
-		assert.Equal(taggedFinder.metricMightExists, metricMightExist, testName+", metricMightExist")
+		assert.Equal(metricMightExist, taggedFinder.metricMightExists, testName+", metricMightExist")
 
 		length := len(expected)
 		if length < len(terms) {
@@ -692,7 +692,11 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		&chtest.TestResponse{
 			Body: []byte("environment=production\t100\nkey=value\t1\n"),
 		},
-		nil,
+		[]TaggedTerm{
+			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "key", Value: "value", Cost: 0, NonDefaultCost: false},
+		},
 		false,
 		nil,
 	)
@@ -707,7 +711,11 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		&chtest.TestResponse{
 			Body: []byte(""),
 		},
-		nil,
+		[]TaggedTerm{
+			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "key", Value: "value", Cost: 0, NonDefaultCost: false},
+		},
 		false,
 		nil,
 	)
@@ -840,6 +848,25 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "__name__", Value: "load.avg", Cost: 10000, NonDefaultCost: true},
 		},
 		true,
+		nil,
+	)
+
+	ok(
+		`3 TaggedTermEq, 1 of them has __name__ key, 1 does not exist in count table`,
+		`seriesByTag('environment=production', 'dc=west', 'name=load.avg')`,
+		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
+			`(((Tag1='environment=production') OR (Tag1='dc=west')) OR (Tag1='__name__=load.avg')) `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
+			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
+		&chtest.TestResponse{
+			Body: []byte("environment=production\t100\n__name__=load.avg\t10000\n"),
+		},
+		[]TaggedTerm{
+			{Op: TaggedTermEq, Key: "__name__", Value: "load.avg", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 0, NonDefaultCost: false},
+			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
+		},
+		false,
 		nil,
 	)
 
