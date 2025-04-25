@@ -558,17 +558,14 @@ func (t *TaggedFinder) PrepareTaggedTerms(ctx context.Context, cfg *config.Confi
 		if err != nil {
 			return nil, err
 		}
-		if !t.metricMightExists {
-			return nil, nil
-		}
 	}
 
-	if len(t.taggedCosts) != 0 {
+	// Set costs from count table only if it has all tag-value pairs contained in the seriesByTag query (t.metricMightExist == true)
+	// or if tagged costs were set in the config file and t.metricMightExist == false
+	if t.metricMightExists || len(t.taggedCosts) != 0 {
 		SetCosts(terms, t.taggedCosts)
-		SortTaggedTermsByCost(terms)
-	} else {
-		sort.Sort(TaggedTermList(terms))
 	}
+	SortTaggedTermsByCost(terms)
 
 	return terms, nil
 }
@@ -651,7 +648,9 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 
 	rows := t.List()
 
-	t.taggedCosts, err = chResultToCosts(rows)
+	// create cost var to validate CH response without writing to t.taggedCosts
+	var costs map[string]*config.Costs
+	costs, err = chResultToCosts(rows)
 	if err != nil {
 		return err
 	}
@@ -665,6 +664,8 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 		t.metricMightExists = false
 		return nil
 	}
+
+	t.taggedCosts = costs
 
 	return nil
 }
