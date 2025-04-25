@@ -605,18 +605,30 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 	// 2022-11-11 00:01:00 +05:00 && 2022-11-11 00:01:10 +05:00
 	from, until = 1668106860, 1668106870
 
+	taggedCosts := map[string]*config.Costs{
+		"environment": {Cost: newInt(100)},
+		"dc":          {Cost: newInt(60)},
+		"project":     {Cost: newInt(50)},
+		"__name__":    {Cost: newInt(0), ValuesCost: map[string]int{"high_cost": 70}},
+		"key":         {ValuesCost: map[string]int{"value2": 70, "value3": -1, "val*4": -1, "^val.*4$": -1}},
+	}
+
 	ok := func(
 		testName, query, sql string,
 		response *chtest.TestResponse,
 		expected []TaggedTerm,
 		metricMightExist bool,
 		expectedErr error,
+		useTagCostsFromConfig bool,
 	) {
 		srv := chtest.NewTestServer()
 		defer srv.Close()
 
 		cfg, _ := config.DefaultConfig()
 		cfg.ClickHouse.URL = srv.URL
+		if useTagCostsFromConfig {
+			cfg.ClickHouse.TaggedCosts = taggedCosts
+		}
 
 		srv.AddResponce(sql, response)
 
@@ -680,6 +692,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -699,6 +712,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		false,
 		nil,
+		false,
 	)
 
 	ok(
@@ -718,6 +732,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		false,
 		nil,
+		false,
 	)
 
 	ok(
@@ -737,6 +752,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -757,6 +773,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -777,6 +794,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -797,6 +815,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -811,6 +830,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -830,6 +850,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -849,6 +870,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		true,
 		nil,
+		false,
 	)
 
 	ok(
@@ -868,6 +890,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		},
 		false,
 		nil,
+		false,
 	)
 
 	ok(
@@ -883,6 +906,27 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		nil,
 		true,
 		fmt.Errorf("failed to parse result from clickhouse while querying for tag costs: no tag count"),
+		false,
+	)
+
+	ok(
+		`3 TaggedTermEq, 1 of them has __name__ key, 1 does not exist in count table, fallback to config costs`,
+		`seriesByTag('name=high_cost', 'environment=production', 'dc=west')`,
+		`SELECT Tag1, sum(Count) as cnt FROM tag1_count_table WHERE `+
+			`(((Tag1='__name__=high_cost') OR (Tag1='environment=production')) OR (Tag1='dc=west')) `+
+			`AND (Date >= '`+date.FromTimestampToDaysFormat(from)+`' AND Date <= '`+date.FromTimestampToDaysFormat(until)+`') `+
+			`GROUP BY Tag1 FORMAT TabSeparatedRaw`,
+		&chtest.TestResponse{
+			Body: []byte("environment=production\t100\n__name__=load.avg\t10000\n"),
+		},
+		[]TaggedTerm{
+			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 60, NonDefaultCost: true},
+			{Op: TaggedTermEq, Key: "__name__", Value: "high_cost", Cost: 70, NonDefaultCost: true},
+			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
+		},
+		false,
+		nil,
+		true,
 	)
 }
 
