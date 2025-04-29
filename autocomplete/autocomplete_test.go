@@ -67,7 +67,7 @@ func TestHandler_ServeValues(t *testing.T) {
 	from := strconv.FormatInt(now.Add(-time.Minute).Unix(), 10)
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
 
-	srv.AddResponce(//"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (has(Tags, 'project=web'))) AND (arrayJoin(Tags) LIKE 'host=%')) AND (Date >= '2022-11-22' AND Date <= '2022-11-29') GROUP BY value ORDER BY value LIMIT 10000"
+	srv.AddResponce(
 		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (has(Tags, 'project=web'))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
 			"(Date >= '"+fromDate+"' AND Date <= '"+untilDate+"') GROUP BY value ORDER BY value LIMIT 10000",
 		&chtest.TestResponse{
