@@ -65,7 +65,7 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
-		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND ((has(Tags, 'what=avg')) AND (has(Tags, 'what=max')))", "", false},
 		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
 		{"seriesByTag('name=value','what=~*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
@@ -73,7 +73,7 @@ func TestTaggedWhere(t *testing.T) {
 		{"seriesByTag('name=value','what=~')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 		// testcases for useCarbonBehaviour=false
 		{"seriesByTag('what=')", 0, "Tag1='what='", "", false},
-		{"seriesByTag('name=value','what=')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x='what=', Tags))", "", false},
+		{"seriesByTag('name=value','what=')", 0, "(Tag1='__name__=value') AND (has(Tags, 'what='))", "", false},
 		// testcases for dontMatchMissingTags=false
 		{"seriesByTag('key!=value')", 0, "NOT arrayExists((x) -> x='key=value', Tags)", "", false},
 		{"seriesByTag('dc!=de', 'cpu=cpu-total')", 0, "(Tag1='cpu=cpu-total') AND (NOT arrayExists((x) -> x='dc=de', Tags))", "", false},
@@ -164,7 +164,7 @@ func TestTaggedWhere_UseCarbonBehaviourFlag(t *testing.T) {
 		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
-		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND ((has(Tags, 'what=avg')) AND (has(Tags, 'what=max')))", "", false},
 		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
 		{"seriesByTag('name=value','what=~*')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
@@ -264,7 +264,7 @@ func TestTaggedWhere_DontMatchMissingTagsFlag(t *testing.T) {
 		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
-		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND ((has(Tags, 'what=avg')) AND (has(Tags, 'what=max')))", "", false},
 		// {"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags) AND NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
@@ -273,7 +273,7 @@ func TestTaggedWhere_DontMatchMissingTagsFlag(t *testing.T) {
 		{"seriesByTag('name=value','what=~')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags))", "", false}, // If All masked to value with *
 		// testcases for useCarbonBehaviour=false
 		{"seriesByTag('what=')", 0, "Tag1='what='", "", false},
-		{"seriesByTag('name=value','what=')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x='what=', Tags))", "", false},
+		{"seriesByTag('name=value','what=')", 0, "(Tag1='__name__=value') AND (has(Tags, 'what='))", "", false},
 		// testcases for dontMatchMissingTags=true
 		{"seriesByTag('key!=value')", 0, "Tag1 LIKE 'key=%' AND NOT arrayExists((x) -> x='key=value', Tags)", "", false},
 		{"seriesByTag('dc!=de', 'cpu=cpu-total')", 0, "(Tag1='cpu=cpu-total') AND (arrayExists((x) -> x LIKE 'dc=%', Tags) AND NOT arrayExists((x) -> x='dc=de', Tags))", "", false},
@@ -365,7 +365,7 @@ func TestTaggedWhere_BothFeatureFlags(t *testing.T) {
 		{"seriesByTag('name=m{in}')", 0, "Tag1='__name__=min'", "", false},
 		{"seriesByTag('name=m{in,ax}')", 0, "Tag1 IN ('__name__=min','__name__=max')", "", false},
 		{"seriesByTag('name=m{in,ax')", 0, "", "", true},
-		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
+		{"seriesByTag('name=value','what={avg,max}')", 0, "(Tag1='__name__=value') AND ((has(Tags, 'what=avg')) AND (has(Tags, 'what=max')))", "", false},
 		// {"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		{"seriesByTag('name=value','what!={avg,max}')", 0, "(Tag1='__name__=value') AND (arrayExists((x) -> x LIKE 'what=%', Tags) AND NOT arrayExists((x) -> x IN ('what=avg','what=max'), Tags))", "", false},
 		// grafana workaround for multi-value variables default, masked with *
