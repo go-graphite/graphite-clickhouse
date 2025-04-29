@@ -192,7 +192,7 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		} else if len(values) > 1 {
 			w := where.New()
 			for _, v := range values {
-				w.And(where.ArrayHas("Tags", v))
+				w.Or(where.ArrayHas("Tags", v))
 			}
 			return w.String(), nil
 		} else {
