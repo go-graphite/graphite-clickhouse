@@ -430,9 +430,6 @@ func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query
 	if err != nil {
 		return err
 	}
-	if !t.metricMightExists {
-		return nil
-	}
 	return t.ExecutePrepared(ctx, terms, from, until, stat)
 }
 
