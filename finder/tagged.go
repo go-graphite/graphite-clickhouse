@@ -188,11 +188,15 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			return "", err
 		}
 		if len(values) == 1 {
-			return "arrayExists((x) -> " + where.Eq("x", values[0]) + ", Tags)", nil
+			return where.ArrayHas("Tags", values[0]), nil
 		} else if len(values) > 1 {
-			return "arrayExists((x) -> " + where.In("x", values) + ", Tags)", nil
+			w := where.New()
+			for _, v := range values {
+				w.Or(where.ArrayHas("Tags", v))
+			}
+			return w.String(), nil
 		} else {
-			return "arrayExists((x) -> " + where.Eq("x", term.concat()) + ", Tags)", nil
+			return where.ArrayHas("Tags", term.concat()), nil
 		}
 	case TaggedTermNe:
 		if term.Value == "" {

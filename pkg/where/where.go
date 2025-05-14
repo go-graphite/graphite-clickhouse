@@ -171,6 +171,10 @@ func HasPrefixBytes(field, prefix []byte) string {
 	return fmt.Sprintf("%s LIKE '%s%%'", field, likeEscape(unsafeString(prefix)))
 }
 
+func ArrayHas(field, element string) string {
+	return fmt.Sprintf("has(%s, %s)", field, quote(element))
+}
+
 func In(field string, list []string) string {
 	if len(list) == 1 {
 		return Eq(field, list[0])

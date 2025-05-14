@@ -529,8 +529,9 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			valueSQL = fmt.Sprintf("substr(Tag1, %d) AS value", len(tag)+2)
 			wr.And(where.HasPrefix("Tag1", tag+"="+valuePrefix))
 		} else {
-			valueSQL = fmt.Sprintf("substr(arrayJoin(Tags), %d) AS value", len(tag)+2)
-			wr.And(where.HasPrefix("arrayJoin(Tags)", tag+"="+valuePrefix))
+			prefixSelector := where.HasPrefix("x", tag+"="+valuePrefix)
+			valueSQL = fmt.Sprintf("substr(arrayFilter(x -> %s, Tags)[1], %d) AS value", prefixSelector, len(tag)+2)
+			wr.And("arrayExists(x -> " + prefixSelector + ", Tags)")
 		}
 
 		wr.Andf("Date >= '%s' AND Date <= '%s'", fromDate, untilDate)

@@ -68,7 +68,7 @@ func TestHandler_ServeValues(t *testing.T) {
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
 
 	srv.AddResponce(
-		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
+		"SELECT substr(arrayFilter(x -> x LIKE 'host=%', Tags)[1], 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (has(Tags, 'project=web'))) AND (arrayExists(x -> x LIKE 'host=%', Tags))) AND "+
 			"(Date >= '"+fromDate+"' AND Date <= '"+untilDate+"') GROUP BY value ORDER BY value LIMIT 10000",
 		&chtest.TestResponse{
 			Body: []byte("host1\nhost2\ndc-host2\ndc-host3\n"),
@@ -129,7 +129,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 	fromDate, untilDate := dateString(h.config.ClickHouse.TaggedAutocompleDays, now)
 
 	srv.AddResponce(
-		"SELECT substr(arrayJoin(Tags), 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (arrayExists((x) -> x='project=web', Tags))) AND (arrayJoin(Tags) LIKE 'host=%')) AND "+
+		"SELECT substr(arrayFilter(x -> x LIKE 'host=%', Tags)[1], 6) AS value FROM graphite_tagged  WHERE (((Tag1='environment=production') AND (has(Tags, 'project=web'))) AND (arrayExists(x -> x LIKE 'host=%', Tags))) AND "+
 			"(Date >= '"+fromDate+"' AND Date <= '"+untilDate+"') GROUP BY value ORDER BY value LIMIT 10000",
 		&chtest.TestResponse{
 			Body: []byte("host1\nhost2\ndc-host2\ndc-host3\n"),
