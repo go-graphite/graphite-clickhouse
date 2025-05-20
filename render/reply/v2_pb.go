@@ -29,6 +29,7 @@ func (v *V2PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	if scope.Debug(r.Context(), "Protobuf") {
 		v.replyDebug(w, r, multiData)
 	}
+
 	replyProtobuf(v, w, r, multiData)
 }
 
@@ -42,10 +43,12 @@ func (v *V2PB) replyDebug(w http.ResponseWriter, r *http.Request, multiData data
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to convert response to v2pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
 	}
+
 	response, err := mfr.Marshal()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to marshal v2pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
 	}
+
 	w.Write(response)
 }
 
@@ -90,11 +93,14 @@ func (v *V2PB) writeBody(writer *bufio.Writer, target, name, function string, fr
 			// if err is not point.ErrTimeGreaterStop, the points are corrupted
 			return
 		}
+
 		if !math.IsNaN(value) {
 			ProtobufWriteDouble(v.b1, value)
 			v.b2.WriteByte(0)
+
 			continue
 		}
+
 		ProtobufWriteDouble(v.b1, 0)
 		v.b2.WriteByte(1)
 	}

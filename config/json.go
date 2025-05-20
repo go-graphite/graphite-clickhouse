@@ -18,6 +18,7 @@ func (c *ClickHouse) MarshalJSON() ([]byte, error) {
 		if _, isSet := u.User.Password(); isSet {
 			u.User = url.UserPassword(u.User.Username(), "xxxxxx")
 		}
+
 		a.URL = u.String()
 	}
 

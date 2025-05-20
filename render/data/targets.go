@@ -46,6 +46,7 @@ func NewTargets(list []string, am *alias.Map) *Targets {
 		AM:                         am,
 		filteringFunctionsByTarget: make(FilteringFunctionsByTarget),
 	}
+
 	return targets
 }
 
@@ -58,6 +59,7 @@ func NewTargetsOne(target string, capacity int, am *alias.Map) *Targets {
 		AM:                         am,
 		filteringFunctionsByTarget: make(FilteringFunctionsByTarget),
 	}
+
 	return targets
 }
 

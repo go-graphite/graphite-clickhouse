@@ -38,11 +38,13 @@ func (c *GraphiteClickhouse) Start(testDir, chURL, chProxyURL, chTLSURL string) 
 	if len(c.Binary) == 0 {
 		c.Binary = "./graphite-clickhouse"
 	}
+
 	if len(c.ConfigTpl) == 0 {
 		return errors.New("graphite-clickhouse config template not set")
 	}
 
 	var err error
+
 	c.storeDir, err = os.MkdirTemp("", "graphite-clickhouse")
 	if err != nil {
 		return err
@@ -60,11 +62,13 @@ func (c *GraphiteClickhouse) Start(testDir, chURL, chProxyURL, chTLSURL string) 
 	}
 
 	name := filepath.Base(c.ConfigTpl)
+
 	tmpl, err := template.New(name).ParseFiles(path.Join(testDir, c.ConfigTpl))
 	if err != nil {
 		c.Cleanup()
 		return err
 	}
+
 	param := struct {
 		CLICKHOUSE_URL     string
 		CLICKHOUSE_TLS_URL string
@@ -83,10 +87,12 @@ func (c *GraphiteClickhouse) Start(testDir, chURL, chProxyURL, chTLSURL string) 
 
 	c.configFile = path.Join(c.storeDir, "graphite-clickhouse.conf")
 	f, err := os.OpenFile(c.configFile, os.O_WRONLY|os.O_CREATE, 0644)
+
 	if err != nil {
 		c.Cleanup()
 		return err
 	}
+
 	err = tmpl.ExecuteTemplate(f, name, param)
 	if err != nil {
 		c.Cleanup()
@@ -96,9 +102,11 @@ func (c *GraphiteClickhouse) Start(testDir, chURL, chProxyURL, chTLSURL string) 
 	c.cmd = exec.Command(c.Binary, "-config", c.configFile)
 	c.cmd.Stdout = os.Stdout
 	c.cmd.Stderr = os.Stderr
+
 	if c.TZ != "" {
 		c.cmd.Env = append(c.cmd.Env, "TZ="+c.TZ)
 	}
+
 	err = c.cmd.Start()
 	if err != nil {
 		c.Cleanup()
@@ -112,7 +120,9 @@ func (c *GraphiteClickhouse) Alive() bool {
 	if c.cmd == nil {
 		return false
 	}
+
 	_, _, _, err := client.MetricsFind(http.DefaultClient, "http://"+c.address+"/alive", client.FormatDefault, "NonExistentTarget", 0, 0)
+
 	return err == nil
 }
 
@@ -124,6 +134,7 @@ func (c *GraphiteClickhouse) Stop(cleanup bool) error {
 	if c.cmd == nil {
 		return nil
 	}
+
 	var err error
 	if err = c.cmd.Process.Kill(); err == nil {
 		if err = c.cmd.Wait(); err != nil {
@@ -137,6 +148,7 @@ func (c *GraphiteClickhouse) Stop(cleanup bool) error {
 			}
 		}
 	}
+
 	return err
 }
 

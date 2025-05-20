@@ -22,6 +22,7 @@ func TestQuerier_timeRange(t *testing.T) {
 			TaggedAutocompleDays: 4,
 		},
 	}
+
 	tests := []struct {
 		name string
 
@@ -81,12 +82,14 @@ func TestQuerier_timeRange(t *testing.T) {
 			// Querier returns a new Querier on the storage.
 			sq, err := s.Querier(tt.mint, tt.maxt)
 			require.NoError(t, err)
+
 			q := sq.(*Querier)
 
 			gotFrom, gotUntil := q.timeRange(tt.hints)
 			if gotFrom != tt.wantFrom {
 				t.Errorf("Querier.timeRange().from got = %v, want %v", gotFrom, tt.wantFrom)
 			}
+
 			if gotUntil != tt.wantUntil {
 				t.Errorf("Querier.timeRange().until got = %v, want %v", gotUntil, tt.wantUntil)
 			}

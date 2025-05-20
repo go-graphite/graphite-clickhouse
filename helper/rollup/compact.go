@@ -20,14 +20,17 @@ func parseCompact(body string) (*Rules, error) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+
 		p2 := strings.LastIndexByte(line, ';')
 		if p2 < 0 {
 			return nil, fmt.Errorf("can't parse line: %#v", line)
 		}
+
 		p1 := strings.LastIndexByte(line[:p2], ';')
 		if p1 < 0 {
 			return nil, fmt.Errorf("can't parse line: %#v", line)
 		}
+
 		regexp := strings.TrimSpace(line[:p1])
 		function := strings.TrimSpace(line[p1+1 : p2])
 		retention := make([]Retention, 0)

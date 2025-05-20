@@ -37,12 +37,14 @@ func (w *Encoder) Uint8(value uint8) error {
 func (w *Encoder) Uint16(value uint16) error {
 	binary.LittleEndian.PutUint16(w.buffer, value)
 	_, err := w.wrapped.Write(w.buffer[:2])
+
 	return err
 }
 
 func (w *Encoder) Uint32(value uint32) error {
 	binary.LittleEndian.PutUint32(w.buffer, value)
 	_, err := w.wrapped.Write(w.buffer[:4])
+
 	return err
 }
 
@@ -51,16 +53,19 @@ func (w *Encoder) NullableUint32(value uint32) error {
 		_, err := w.wrapped.Write([]byte{1})
 		return err
 	}
+
 	_, err := w.wrapped.Write([]byte{0})
 	if err != nil {
 		return err
 	}
+
 	return w.Uint32(value)
 }
 
 func (w *Encoder) Uint64(value uint64) error {
 	binary.LittleEndian.PutUint64(w.buffer, value)
 	_, err := w.wrapped.Write(w.buffer[:8])
+
 	return err
 }
 
@@ -73,21 +78,25 @@ func (w *Encoder) NullableFloat64(value float64) error {
 		_, err := w.wrapped.Write([]byte{1})
 		return err
 	}
+
 	_, err := w.wrapped.Write([]byte{0})
 	if err != nil {
 		return err
 	}
+
 	return w.Float64(value)
 }
 
 func (w *Encoder) Bytes(value []byte) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err
 	}
 
 	_, err = w.wrapped.Write(value)
+
 	return err
 }
 
@@ -97,6 +106,7 @@ func (w *Encoder) String(value string) error {
 
 func (w *Encoder) StringList(value []string) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err
@@ -114,6 +124,7 @@ func (w *Encoder) StringList(value []string) error {
 
 func (w *Encoder) Uint32List(value []uint32) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err
@@ -131,6 +142,7 @@ func (w *Encoder) Uint32List(value []uint32) error {
 
 func (w *Encoder) NullableUint32List(value []uint32) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err
@@ -148,6 +160,7 @@ func (w *Encoder) NullableUint32List(value []uint32) error {
 
 func (w *Encoder) Float64List(value []float64) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err
@@ -165,6 +178,7 @@ func (w *Encoder) Float64List(value []float64) error {
 
 func (w *Encoder) NullableFloat64List(value []float64) error {
 	n := binary.PutUvarint(w.buffer, uint64(len(value)))
+
 	_, err := w.wrapped.Write(w.buffer[:n])
 	if err != nil {
 		return err

@@ -38,6 +38,7 @@ func (*V3PB) ParseRequest(r *http.Request) (data.MultiTarget, error) {
 	}
 
 	multiTarget := data.MFRToMultiTarget(&pv3Request)
+
 	if len(pv3Request.Metrics) > 0 {
 		for _, m := range pv3Request.Metrics {
 			logger.Info(
@@ -65,6 +66,7 @@ func (v *V3PB) Reply(w http.ResponseWriter, r *http.Request, multiData data.CHRe
 	if scope.Debug(r.Context(), "Protobuf") {
 		v.replyDebug(w, r, multiData)
 	}
+
 	replyProtobuf(v, w, r, multiData)
 }
 
@@ -77,10 +79,12 @@ func (v *V3PB) replyDebug(w http.ResponseWriter, r *http.Request, multiData data
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to convert response to v3pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
 	}
+
 	response, err := mfr.Marshal()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to marshal v3pb.MultiFetchResponse: %v", err), http.StatusInternalServerError)
 	}
+
 	w.Write(response)
 }
 
@@ -129,6 +133,7 @@ func (v *V3PB) writeBody(writer *bufio.Writer, target, name, function string, fr
 	// Values header
 	VarintWrite(v.b, (9<<3)+repeated) // tag
 	VarintWrite(v.b, uint64(8*count))
+
 	for {
 		value, err := getValue()
 		if err != nil {
@@ -138,6 +143,7 @@ func (v *V3PB) writeBody(writer *bufio.Writer, target, name, function string, fr
 			// if err is not point.ErrTimeGreaterStop, the points are corrupted
 			return
 		}
+
 		ProtobufWriteDouble(v.b, value)
 	}
 

@@ -52,6 +52,7 @@ func makeSeriesSet(data *data.Data, step int64) (storage.SeriesSet, error) {
 	}
 
 	nextMetric := data.GroupByMetric()
+
 	for {
 		points := nextMetric()
 		if len(points) == 0 {
@@ -100,9 +101,11 @@ func (sit *seriesIterator) At() (t int64, v float64) {
 	if index == len(sit.points) {
 		return int64(sit.points[len(sit.points)-1].Time)*1000 + sit.step, math.NaN()
 	}
+
 	if index < 0 || index >= len(sit.points) {
 		index = 0
 	}
+
 	p := sit.points[index]
 	// sit.logger().Debug("seriesIterator.At", zap.Int64("t", int64(p.Time)*1000), zap.Float64("v", p.Value))
 	return int64(p.Time) * 1000, p.Value
@@ -139,6 +142,7 @@ func (sit *seriesIterator) Next() chunkenc.ValueType {
 		if sit.step == 0 && sit.current == len(sit.points)-1 {
 			return chunkenc.ValNone
 		}
+
 		sit.current++
 		// sit.logger().Debug("seriesIterator.Next", zap.Bool("ret", true))
 		return chunkenc.ValFloat
@@ -158,6 +162,7 @@ func (ss *seriesSet) At() storage.Series {
 		// zap.L().Debug("seriesSet.At", zap.String("metricName", "nil"))
 		return nil
 	}
+
 	s := &ss.series[ss.current]
 	// zap.L().Debug("seriesSet.At", zap.String("metricName", s.name()))
 	return s

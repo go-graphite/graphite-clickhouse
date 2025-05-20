@@ -57,6 +57,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var pv3Request v3pb.CapabilityRequest
+
 		err = pv3Request.Unmarshal(body)
 		if err != nil {
 			status = http.StatusBadRequest
@@ -67,6 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			hostname = "(unknown)"
 		}
+
 		pvResponse := v3pb.CapabilityResponse{
 			SupportedProtocols:        []string{"carbonapi_v3_pb", "carbonapi_v2_pb", "graphite-web-pickle"},
 			Name:                      hostname,
@@ -77,22 +79,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var data []byte
+
 		contentType := ""
+
 		switch format {
 		case "json":
 			contentType = "application/json"
+
 			data, err = json.Marshal(pvResponse)
 			if err != nil {
 				status = http.StatusInternalServerError
 				http.Error(w, err.Error(), status)
+
 				return
 			}
 		case "carbonapi_v3_pb":
 			contentType = "application/x-carbonapi-v3-pb"
+
 			data, err = pvResponse.Marshal()
 			if err != nil {
 				status = http.StatusBadRequest
 				http.Error(w, "Bad request (unsupported format)", status)
+
 				return
 			}
 		}

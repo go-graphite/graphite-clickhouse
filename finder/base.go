@@ -36,6 +36,7 @@ func (b *BaseFinder) where(query string) *where.Where {
 	w := where.New()
 	w.And(where.Eq("Level", level))
 	w.And(where.TreeGlob("Path", query))
+
 	return w
 }
 
@@ -51,6 +52,7 @@ func (b *BaseFinder) Execute(ctx context.Context, config *config.Config, query s
 	)
 	stat.Table = b.table
 	stat.ReadBytes = int64(len(b.body))
+
 	return
 }
 
@@ -62,15 +64,18 @@ func (b *BaseFinder) makeList(onlySeries bool) [][]byte {
 	rows := bytes.Split(b.body, []byte{'\n'})
 
 	skip := 0
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			skip++
 			continue
 		}
+
 		if onlySeries && rows[i][len(rows[i])-1] == '.' {
 			skip++
 			continue
 		}
+
 		if skip > 0 {
 			rows[i-skip] = rows[i]
 		}

@@ -48,6 +48,7 @@ func (r *RuleType) Set(value string) error {
 	default:
 		return fmt.Errorf("invalid rule type %s", value)
 	}
+
 	return nil
 }
 
@@ -56,6 +57,7 @@ func (r *RuleType) UnmarshalJSON(data []byte) error {
 	if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
 		s = s[1 : len(s)-1]
 	}
+
 	return r.Set(s)
 }
 
@@ -77,6 +79,7 @@ func splitTags(tagsStr string) (tags []string) {
 			tags = append(tags, v)
 		}
 	}
+
 	return
 }
 
@@ -109,7 +112,6 @@ func buildTaggedRegex(regexpStr string) string {
 	// * nam.* ; tag1=val1 ; tag2=val2
 	// * produce
 	// * nam.*\?(.*&)?tag1=val1&(.*&)?tag2=val2(&.*)?$
-
 	tags := splitTags(regexpStr)
 
 	if strings.Contains(tags[0], "=") {
@@ -155,10 +157,12 @@ func NewMockRules(pattern []Pattern, defaultPrecision uint32, defaultFunction st
 	if err != nil {
 		return nil, err
 	}
+
 	rules, err = rules.prepare(defaultPrecision, defaultFunction)
 	if err != nil {
 		return nil, err
 	}
+
 	return rules, nil
 }
 
@@ -208,6 +212,7 @@ func (r *Rules) compile() (*Rules, error) {
 	if r.Pattern == nil {
 		r.Pattern = make([]Pattern, 0)
 	}
+
 	r.PatternPlain = make([]Pattern, 0)
 	r.PatternTagged = make([]Pattern, 0)
 
@@ -216,6 +221,7 @@ func (r *Rules) compile() (*Rules, error) {
 		if err := r.Pattern[i].compile(); err != nil {
 			return r, err
 		}
+
 		if !r.Separated && r.Pattern[i].RuleType != RuleAll {
 			r.Separated = true
 		}
@@ -243,6 +249,7 @@ func (r *Rules) prepare(defaultPrecision uint32, defaultFunction string) (*Rules
 	if defaultFunction != "" && defaultAggr == nil {
 		return r, fmt.Errorf("unknown function %#v", defaultFunction)
 	}
+
 	return r.withDefault(defaultPrecision, defaultAggr).withSuperDefault().setUpdated(), nil
 }
 
@@ -261,6 +268,7 @@ func (r *Rules) withDefault(defaultPrecision uint32, defaultFunction *Aggr) *Rul
 		Retention: retention,
 	})
 	n, _ := (&Rules{Pattern: patterns, Updated: r.Updated}).compile()
+
 	return n
 }
 
@@ -279,8 +287,10 @@ func (r *Rules) Lookup(metric string, age uint32, verbose bool) (precision uint3
 		if strings.Contains(metric, "?") {
 			return lookup(metric, age, r.PatternTagged, verbose)
 		}
+
 		return lookup(metric, age, r.PatternPlain, verbose)
 	}
+
 	return lookup(metric, age, r.Pattern, verbose)
 }
 
@@ -303,6 +313,7 @@ func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precis
 			if verbose {
 				aggrPattern = &patterns[n]
 			}
+
 			ag = p.aggr
 		}
 
@@ -312,18 +323,23 @@ func lookup(metric string, age uint32, patterns []Pattern, verbose bool) (precis
 					if i > 0 {
 						precision = p.Retention[i-1].Precision
 						precisionFound = true
+
 						if verbose {
 							retentionPattern = &patterns[n]
 						}
 					}
+
 					break
 				}
+
 				if i == len(p.Retention)-1 {
 					precision = r.Precision
 					precisionFound = true
+
 					if verbose {
 						retentionPattern = &patterns[n]
 					}
+
 					break
 				}
 			}
@@ -353,6 +369,7 @@ func (r *Rules) LookupBytes(metric []byte, age uint32, verbose bool) (precision 
 
 func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []point.Point {
 	l := len(points)
+
 	var i, n int
 	// i - current position of iterator
 	// n - position of the first record with time rounded to precision
@@ -377,9 +394,11 @@ func doMetricPrecision(points []point.Point, precision uint32, aggr *Aggr) []poi
 			if i > n+1 {
 				points[n].Value = aggr.Do(points[n:i])
 			}
+
 			n = i
 		}
 	}
+
 	if i > n+1 {
 		points[n].Value = aggr.Do(points[n:i])
 	}
@@ -406,9 +425,11 @@ func (r *Rules) RollupMetricAge(metricName string, age uint32, points []point.Po
 func (r *Rules) RollupMetric(metricName string, from uint32, points []point.Point) ([]point.Point, uint32, error) {
 	now := uint32(timeNow().Unix())
 	age := uint32(0)
+
 	if now > from {
 		age = now - from
 	}
+
 	return r.RollupMetricAge(metricName, age, points)
 }
 
@@ -421,6 +442,7 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 
 	now := timeNow().Unix()
 	age := int64(0)
+
 	if now > from {
 		age = now - from
 	}
@@ -432,20 +454,25 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 	if l == 0 {
 		return nil
 	}
+
 	oldPoints := pp.List()
 	newPoints := make([]point.Point, 0, pp.Len())
 	rollup := func(p []point.Point) ([]point.Point, error) {
 		metricName := pp.MetricName(p[0].MetricID)
+
 		var err error
+
 		if step == 0 {
 			p, _, err = r.RollupMetricAge(metricName, uint32(age), p)
 		} else {
 			_, agg, _, _ := r.Lookup(metricName, uint32(from), false)
 			p = doMetricPrecision(p, uint32(step), agg)
 		}
+
 		for i := range p {
 			p[i].MetricID = p[0].MetricID
 		}
+
 		return p, err
 	}
 
@@ -455,8 +482,10 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 			if err != nil {
 				return err
 			}
+
 			newPoints = append(newPoints, points...)
 			n = i
+
 			continue
 		}
 	}
@@ -465,7 +494,9 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 	if err != nil {
 		return err
 	}
+
 	newPoints = append(newPoints, points...)
 	pp.ReplaceList(newPoints)
+
 	return nil
 }

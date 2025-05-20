@@ -53,7 +53,9 @@ func TestHandler_ServeValues(t *testing.T) {
 	timeNow = func() time.Time {
 		return time.Unix(1669714247, 0)
 	}
+
 	metrics.DisableMetrics()
+
 	srv := chtest.NewTestServer()
 	defer srv.Close()
 
@@ -86,6 +88,7 @@ func TestHandler_ServeValues(t *testing.T) {
 	}
 
 	var queries uint64
+
 	for i, tt := range tests {
 		t.Run(tt.request.URL.RawQuery+"#"+strconv.Itoa(i), func(t *testing.T) {
 			for i := 0; i < 2; i++ {
@@ -102,7 +105,9 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 	timeNow = func() time.Time {
 		return time.Unix(1669714247, 0)
 	}
+
 	metrics.DisableMetrics()
+
 	srv := chtest.NewTestServer()
 	defer srv.Close()
 
@@ -115,7 +120,9 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 		Size:           8192,
 		FindTimeoutSec: 1,
 	}
+
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("autocomplete", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
@@ -147,6 +154,7 @@ func TestTagsAutocomplete_ServeValuesCached(t *testing.T) {
 	}
 
 	var queries uint64
+
 	for i, tt := range tests {
 		t.Run(tt.request.URL.RawQuery+"#"+strconv.Itoa(i), func(t *testing.T) {
 			testResponce(t, 0, h, &tt, "")

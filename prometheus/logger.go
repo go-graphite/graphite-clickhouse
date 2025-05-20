@@ -17,11 +17,14 @@ type logger struct {
 
 func (l *logger) Log(keyvals ...interface{}) error {
 	lg := l.z
+
 	var msg string
+
 	var level errorLevel
 
 	for i := 1; i < len(keyvals); i += 2 {
 		keyObj := keyvals[i-1]
+
 		keyStr, ok := keyObj.(string)
 		if !ok {
 			l.z.Error("can't handle log, wrong key", zap.Any("keyvals", keyvals))
@@ -34,6 +37,7 @@ func (l *logger) Log(keyvals ...interface{}) error {
 				l.z.Error("can't handle log, wrong level", zap.Any("keyvals", keyvals))
 				return nil
 			}
+
 			continue
 		}
 
@@ -43,6 +47,7 @@ func (l *logger) Log(keyvals ...interface{}) error {
 				l.z.Error("can't handle log, wrong msg", zap.Any("keyvals", keyvals))
 				return nil
 			}
+
 			continue
 		}
 
@@ -62,5 +67,6 @@ func (l *logger) Log(keyvals ...interface{}) error {
 		l.z.Error("can't handle log, unknown level", zap.Any("keyvals", keyvals))
 		return nil
 	}
+
 	return nil
 }

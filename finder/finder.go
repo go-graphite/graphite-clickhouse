@@ -110,10 +110,12 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 
 func Find(config *config.Config, ctx context.Context, query string, from int64, until int64, stat *FinderStat) (Result, error) {
 	fnd := newPlainFinder(ctx, config, query, from, until, config.Common.FindCache != nil)
+
 	err := fnd.Execute(ctx, config, query, from, until, stat)
 	if err != nil {
 		return nil, err
 	}
+
 	return fnd.(Result), nil
 }
 
@@ -138,10 +140,12 @@ func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, 
 	plain := makePlainFromTagged(terms)
 	if plain != nil {
 		plain.wrappedPlain = newPlainFinder(ctx, config, plain.Target(), from, until, useCache)
+
 		err := plain.Execute(ctx, config, plain.Target(), from, until, stat)
 		if err != nil {
 			return nil, err
 		}
+
 		return Result(plain), nil
 	}
 

@@ -21,6 +21,7 @@ type KV struct {
 
 func HttpGet(url string) ([]byte, error) {
 	client := &http.Client{Timeout: 2 * time.Second}
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
@@ -28,12 +29,15 @@ func HttpGet(url string) ([]byte, error) {
 
 	data, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
+
 	return data, err
 }
 
@@ -42,20 +46,27 @@ func HttpPut(url string, body []byte) error {
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
+
 	client := &http.Client{Timeout: 2 * time.Second}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
+
 	return nil
 }
 
@@ -64,19 +75,25 @@ func HttpDelete(url string) error {
 	if err != nil {
 		return err
 	}
+
 	client := &http.Client{Timeout: 2 * time.Second}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
+
 	return nil
 }
 
@@ -86,6 +103,7 @@ func GetLocalIP() string {
 	if err != nil {
 		return ""
 	}
+
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -94,5 +112,6 @@ func GetLocalIP() string {
 			}
 		}
 	}
+
 	return ""
 }

@@ -34,8 +34,11 @@ func (nopCloser) Close() error { return nil }
 
 func countMetrics(body []byte) (int, error) {
 	var namelen uint64
+
 	bodyLen := len(body)
+
 	var count, offset, readBytes int
+
 	var err error
 
 	for {
@@ -43,6 +46,7 @@ func countMetrics(body []byte) (int, error) {
 			if offset == bodyLen {
 				return count, nil
 			}
+
 			return 0, clickhouse.ErrClickHouseResponse
 		}
 
@@ -50,6 +54,7 @@ func countMetrics(body []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+
 		offset += readBytes + int(namelen)
 		count++
 	}
@@ -69,6 +74,7 @@ func pathLevel(path []byte) int {
 
 func Make(cfg *config.Config) error {
 	var start time.Time
+
 	var block string
 
 	logger := zapwriter.Logger("tagger")
@@ -81,12 +87,15 @@ func Make(cfg *config.Config) error {
 	begin := func(b string, fields ...zapcore.Field) {
 		block = b
 		start = time.Now()
+
 		logger.Info(fmt.Sprintf("begin %s", block), fields...)
 	}
 
 	end := func() {
 		var m runtime.MemStats
+
 		runtime.ReadMemStats(&m)
+
 		d := time.Since(start)
 		logger.Info(fmt.Sprintf("end %s", block),
 			zap.Duration("time", d),
@@ -104,6 +113,7 @@ func Make(cfg *config.Config) error {
 
 	// Parse rules
 	begin("parse rules")
+
 	rules, err := ParseGlob(cfg.Tags.Rules)
 	if err != nil {
 		return err
@@ -113,6 +123,7 @@ func Make(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+
 	end()
 
 	selectChunksCount := SelectChunksCount
@@ -130,13 +141,16 @@ func Make(cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
+
 		bodies = [][]byte{body}
 	} else {
 		bodies = make([][]byte, selectChunksCount)
+
 		extraWhere := ""
 		if cfg.Tags.ExtraWhere != "" {
 			extraWhere = fmt.Sprintf("AND (%s)", cfg.Tags.ExtraWhere)
 		}
+
 		for i := 0; i < selectChunksCount; i++ {
 			bodies[i], _, _, err = clickhouse.Query(
 				scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.IndexTable),
@@ -168,6 +182,7 @@ func Make(cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
+
 		count += c
 	}
 
@@ -179,8 +194,11 @@ func Make(cfg *config.Config) error {
 
 	for i := 0; i < len(bodies); i++ {
 		body := bodies[i]
+
 		var namelen uint64
+
 		bodyLen := len(body)
+
 		var offset, readBytes int
 
 		for ; ; index++ {
@@ -188,6 +206,7 @@ func Make(cfg *config.Config) error {
 				if offset == bodyLen {
 					break
 				}
+
 				return clickhouse.ErrClickHouseResponse
 			}
 
@@ -206,15 +225,20 @@ func Make(cfg *config.Config) error {
 			offset += readBytes + int(namelen)
 		}
 	}
+
 	end()
 
 	begin("sort")
+
 	start = time.Now()
+
 	sort.Slice(metricList, func(i, j int) bool { return bytes.Compare(metricList[i].Path, metricList[j].Path) < 0 })
 	end()
 
 	begin("make map")
+
 	levelMap := make([]int, maxLevel+1)
+
 	for index := 0; index < len(metricList); index++ {
 		m := &metricList[index]
 		levelMap[m.Level] = index
@@ -228,9 +252,11 @@ func Make(cfg *config.Config) error {
 			}
 		}
 	}
+
 	end()
 
 	begin("match", zap.Int("metrics_count", len(metricList)))
+
 	for index := 0; index < count; index++ {
 		m := &metricList[index]
 
@@ -242,10 +268,12 @@ func Make(cfg *config.Config) error {
 
 		rules.Match(m)
 	}
+
 	end()
 
 	// copy from childs to parents
 	begin("copy tags from childs to parents")
+
 	for index := 0; index < count; index++ {
 		m := &metricList[index]
 
@@ -253,18 +281,24 @@ func Make(cfg *config.Config) error {
 			metricList[p].Tags = metricList[p].Tags.Merge(m.Tags)
 		}
 	}
+
 	end()
 
 	begin("remove metrics without tags", zap.Int("metrics_count", len(metricList)))
+
 	i := 0
+
 	for _, m := range metricList {
 		if m.Tags == nil || m.Tags.Len() == 0 {
 			continue
 		}
+
 		metricList[i] = m
 		i++
 	}
+
 	metricList = metricList[:i]
+
 	end()
 
 	if len(metricList) == 0 {
@@ -275,6 +309,7 @@ func Make(cfg *config.Config) error {
 	begin("cut metrics into parts", zap.Int("metrics_count", len(metricList)))
 	metricListParts, tagsCount := cutMetricsIntoParts(metricList, cfg.Tags.Threads)
 	threads := len(metricListParts)
+
 	end()
 
 	begin("marshal RowBinary",
@@ -287,56 +322,70 @@ func Make(cfg *config.Config) error {
 
 	eg := new(errgroup.Group)
 	eg.SetLimit(cfg.Common.MaxCPU)
+
 	for i := 0; i < threads; i++ {
 		binaryParts[i] = new(bytes.Buffer)
+
 		wc, err := wrapWithCompressor(cfg, binaryParts[i])
 		if err != nil {
 			return err
 		}
+
 		metricList := metricListParts[i]
+
 		eg.Go(func() error {
 			return encodeMetricsToRowBinary(metricList, date, version, wc)
 		})
 	}
+
 	err = eg.Wait()
 	if err != nil {
 		return err
 	}
 
 	emptyRecord := new(bytes.Buffer)
+
 	wc, err := wrapWithCompressor(cfg, emptyRecord)
 	if err != nil {
 		return err
 	}
+
 	err = encodeEmptyMetricToRowBinary(date, version, wc)
 	if err != nil {
 		return err
 	}
+
 	end()
 
 	if cfg.Tags.OutputFile != "" {
 		begin(fmt.Sprintf("write to %#v", cfg.Tags.OutputFile))
+
 		f, err := os.Create(cfg.Tags.OutputFile)
 		if err != nil {
 			return err
 		}
+
 		for i := 0; i < threads; i++ { // just concatenate the parts because zstd and gzip allow it
 			_, err = binaryParts[i].WriteTo(f)
 			if err != nil {
 				return err
 			}
 		}
+
 		_, err = emptyRecord.WriteTo(f)
 		if err != nil {
 			return err
 		}
+
 		err = f.Close()
 		if err != nil {
 			return err
 		}
+
 		end()
 	} else {
 		begin("upload to clickhouse", zap.Int("threads", threads))
+
 		upload := func(outBuf *bytes.Buffer) error {
 			_, _, _, err := clickhouse.PostWithEncoding(
 				scope.New(context.Background()).WithLogger(logger).WithTable(cfg.ClickHouse.TagTable),
@@ -347,23 +396,29 @@ func Make(cfg *config.Config) error {
 				chOpts,
 				nil,
 			)
+
 			return err
 		}
 		eg := new(errgroup.Group)
+
 		for i := 0; i < threads; i++ {
 			outBuf := binaryParts[i]
+
 			eg.Go(func() error {
 				return upload(outBuf)
 			})
 		}
+
 		err = eg.Wait()
 		if err != nil {
 			return err
 		}
+
 		err = upload(emptyRecord)
 		if err != nil {
 			return err
 		}
+
 		end()
 	}
 
@@ -375,12 +430,15 @@ func cutMetricsIntoParts(metricList []Metric, threads int) ([][]Metric, int) {
 	for _, m := range metricList {
 		tagsCount += m.Tags.Len()
 	}
+
 	if threads < 2 {
 		return [][]Metric{metricList}, tagsCount
 	}
+
 	parts := make([][]Metric, 0, threads)
 	i := 0
 	partSize := (tagsCount-1)/threads + 1 // round up for cases like 99/50
+
 	cnt := 0
 	for j, m := range metricList {
 		// assert m.Tags != nil && m.Tags.Len() != 0
@@ -391,15 +449,19 @@ func cutMetricsIntoParts(metricList []Metric, threads int) ([][]Metric, int) {
 			cnt = 0
 		}
 	}
+
 	if i < len(metricList) {
 		parts = append(parts, metricList[i:])
 	}
+
 	return parts, tagsCount
 }
 
 func wrapWithCompressor(cfg *config.Config, writer io.Writer) (io.WriteCloser, error) {
 	var wc io.WriteCloser
+
 	var err error
+
 	switch cfg.Tags.Compression {
 	case clickhouse.ContentEncodingNone:
 		wc = nopCloser{writer}
@@ -413,6 +475,7 @@ func wrapWithCompressor(cfg *config.Config, writer io.Writer) (io.WriteCloser, e
 	default:
 		return nil, fmt.Errorf("unknown compression: %s", cfg.Tags.Compression)
 	}
+
 	return wc, nil
 }
 
@@ -477,6 +540,7 @@ func encodeMetricsToRowBinary(metricList []Metric, date time.Time, version uint3
 	}
 
 	wc.Close()
+
 	return nil
 }
 
@@ -523,5 +587,6 @@ func encodeEmptyMetricToRowBinary(date time.Time, version uint32, wc io.WriteClo
 	}
 
 	wc.Close()
+
 	return nil
 }

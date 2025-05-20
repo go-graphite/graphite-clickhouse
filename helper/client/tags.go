@@ -38,6 +38,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	}
 
 	var tagPrefix string
+
 	var exprs []string
 
 	if query != "" && query != "<>" {
@@ -47,6 +48,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 		}
 
 		exprs = make([]string, 0, len(args))
+
 		for i, arg := range args {
 			delim := strings.IndexRune(arg, '=')
 			if i == 0 && delim == -1 {
@@ -60,20 +62,26 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	}
 
 	v := make([]string, 0, 2+len(exprs))
+
 	var rawQuery stringutils.Builder
+
 	rawQuery.Grow(128)
 
 	v = append(v, "format="+format.String())
+
 	rawQuery.WriteString("format=")
 	rawQuery.WriteString(url.QueryEscape(format.String()))
 
 	if tagPrefix != "" {
 		v = append(v, "tagPrefix="+tagPrefix)
+
 		rawQuery.WriteString("&tagPrefix=")
 		rawQuery.WriteString(url.QueryEscape(tagPrefix))
 	}
+
 	for _, expr := range exprs {
 		v = append(v, "expr="+expr)
+
 		rawQuery.WriteString("&expr=")
 		rawQuery.WriteString(url.QueryEscape(expr))
 	}
@@ -81,18 +89,23 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if from > 0 {
 		fromStr := strconv.FormatInt(from, 10)
 		v = append(v, "from="+fromStr)
+
 		rawQuery.WriteString("&from=")
 		rawQuery.WriteString(fromStr)
 	}
+
 	if until > 0 {
 		untilStr := strconv.FormatInt(until, 10)
 		v = append(v, "until="+untilStr)
+
 		rawQuery.WriteString("&until=")
 		rawQuery.WriteString(untilStr)
 	}
+
 	if limit > 0 {
 		limitStr := strconv.FormatUint(limit, 10)
 		v = append(v, "limit="+limitStr)
+
 		rawQuery.WriteString("&limit=")
 		rawQuery.WriteString(limitStr)
 	}
@@ -105,6 +118,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return queryParams, nil, nil, err
@@ -116,6 +130,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	if resp.StatusCode == http.StatusNotFound {
 		return u.RawQuery, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
@@ -123,6 +138,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	}
 
 	var values []string
+
 	err = json.Unmarshal(b, &values)
 	if err != nil {
 		return queryParams, nil, resp.Header, errors.New(err.Error() + ": " + string(b))
@@ -169,6 +185,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 
 		vals := strings.Split(args[0], "=")
 		tag = vals[0]
+
 		if len(vals) > 2 {
 			return queryParams, nil, nil, errors.New("invalid tag: " + args[0])
 		} else if len(vals) == 2 {
@@ -176,35 +193,45 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 		}
 
 		exprs = make([]string, 0, len(args)-1)
+
 		for i := 1; i < len(args); i++ {
 			expr := args[i]
 			if strings.IndexRune(expr, '=') <= 0 {
 				return queryParams, nil, nil, errors.New("invalid expr: " + expr)
 			}
+
 			exprs = append(exprs, expr)
 		}
 	}
 
 	v := make([]string, 0, 2+len(exprs))
+
 	var rawQuery stringutils.Builder
+
 	rawQuery.Grow(128)
 
 	v = append(v, "format="+format.String())
+
 	rawQuery.WriteString("format=")
 	rawQuery.WriteString(url.QueryEscape(format.String()))
 
 	if tag != "" {
 		v = append(v, "tag="+tag)
+
 		rawQuery.WriteString("&tag=")
 		rawQuery.WriteString(url.QueryEscape(tag))
 	}
+
 	if valuePrefix != "" {
 		v = append(v, "valuePrefix="+valuePrefix)
+
 		rawQuery.WriteString("&valuePrefix=")
 		rawQuery.WriteString(url.QueryEscape(valuePrefix))
 	}
+
 	for _, expr := range exprs {
 		v = append(v, "expr="+expr)
+
 		rawQuery.WriteString("&expr=")
 		rawQuery.WriteString(url.QueryEscape(expr))
 	}
@@ -212,18 +239,23 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if from > 0 {
 		fromStr := strconv.FormatInt(from, 10)
 		v = append(v, "from="+fromStr)
+
 		rawQuery.WriteString("&from=")
 		rawQuery.WriteString(fromStr)
 	}
+
 	if until > 0 {
 		untilStr := strconv.FormatInt(until, 10)
 		v = append(v, "until="+untilStr)
+
 		rawQuery.WriteString("&until=")
 		rawQuery.WriteString(untilStr)
 	}
+
 	if limit > 0 {
 		limitStr := strconv.FormatUint(limit, 10)
 		v = append(v, "limit="+limitStr)
+
 		rawQuery.WriteString("&limit=")
 		rawQuery.WriteString(limitStr)
 	}
@@ -236,15 +268,19 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return u.RawQuery, nil, nil, err
 	}
+
 	defer resp.Body.Close()
+
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	if resp.StatusCode == http.StatusNotFound {
 		return queryParams, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
@@ -252,6 +288,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	}
 
 	var values []string
+
 	err = json.Unmarshal(b, &values)
 	if err != nil {
 		return queryParams, nil, resp.Header, errors.New(err.Error() + ": " + string(b))

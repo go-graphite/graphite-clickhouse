@@ -87,6 +87,7 @@ func (f *Find) WritePickle(w io.Writer) error {
 	}
 
 	p.Stop()
+
 	return nil
 }
 
@@ -185,6 +186,7 @@ func (f *Find) WriteProtobufV3(w io.Writer) error {
 			response,
 		},
 	}
+
 	body, err := proto.Marshal(&multiGlobResponse)
 	if err != nil {
 		return err
@@ -203,6 +205,7 @@ func (f *Find) WriteJSON(w io.Writer) error {
 	}
 
 	var numResults int
+
 	var sb stringutils.Builder
 
 	sb.WriteString("[")

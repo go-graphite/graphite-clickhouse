@@ -25,6 +25,7 @@ func HttpRequest(r *http.Request) *http.Request {
 	requestID := r.Header.Get("X-Request-Id")
 	if requestID == "" || !requestIdRegexp.MatchString(requestID) {
 		var b [16]byte
+
 		binary.LittleEndian.PutUint64(b[:], rand.Uint64())
 		binary.LittleEndian.PutUint64(b[8:], rand.Uint64())
 		requestID = fmt.Sprintf("%x", b)
@@ -62,5 +63,6 @@ func Grafana(ctx context.Context) string {
 	if o != "" || d != "" || p != "" {
 		return fmt.Sprintf("Org:%s; Dashboard:%s; Panel:%s", o, d, p)
 	}
+
 	return ""
 }

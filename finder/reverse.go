@@ -21,6 +21,7 @@ type ReverseFinder struct {
 func ReverseString(target string) string {
 	a := strings.Split(target, ".")
 	l := len(a)
+
 	for i := 0; i < l/2; i++ {
 		a[i], a[l-i-1] = a[l-i-1], a[i]
 	}
@@ -60,6 +61,7 @@ func (r *ReverseFinder) Execute(ctx context.Context, config *config.Config, quer
 	}
 
 	r.isUsed = true
+
 	return r.baseFinder.Execute(ctx, config, ReverseString(query), from, until, stat)
 }
 

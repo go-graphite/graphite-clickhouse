@@ -17,13 +17,16 @@ var (
 // Logger returns zap.Logger instance
 func Logger(ctx context.Context) *zap.Logger {
 	logger := ctx.Value(scopeKey("logger"))
+
 	var zapLogger *zap.Logger
+
 	if logger != nil {
 		if zl, ok := logger.(*zap.Logger); ok {
 			zapLogger = zl
 			return zapLogger
 		}
 	}
+
 	if zapLogger == nil {
 		zapLogger = zapwriter.Default()
 	}
@@ -39,13 +42,16 @@ func Logger(ctx context.Context) *zap.Logger {
 // Logger returns zap.Logger instance
 func LoggerWithHeaders(ctx context.Context, r *http.Request, headersToLog []string) *zap.Logger {
 	logger := ctx.Value(scopeKey("logger"))
+
 	var zapLogger *zap.Logger
+
 	if logger != nil {
 		if zl, ok := logger.(*zap.Logger); ok {
 			zapLogger = zl
 			return zapLogger
 		}
 	}
+
 	if zapLogger == nil {
 		zapLogger = zapwriter.Default()
 	}
@@ -59,6 +65,7 @@ func LoggerWithHeaders(ctx context.Context, r *http.Request, headersToLog []stri
 	if carbonapiUUID != "" {
 		zapLogger = zapLogger.With(zap.String("carbonapi_uuid", carbonapiUUID))
 	}
+
 	requestHeaders := headers.GetHeaders(&r.Header, headersToLog)
 	if len(requestHeaders) > 0 {
 		zapLogger = zapLogger.With(zap.Any("request_headers", requestHeaders))

@@ -31,16 +31,20 @@ var (
 
 func splitNode(node string) (dc, host, listen string, ok bool) {
 	var v string
+
 	dc, v, ok = strings.Cut(node, "/")
 	if !ok {
 		return
 	}
+
 	host, v, ok = strings.Cut(v, "/")
 	if !ok {
 		return
 	}
+
 	listen, _, ok = strings.Cut(v, "/")
 	ok = !ok
+
 	return
 }
 
@@ -62,6 +66,7 @@ func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
 	if namespace == "" {
 		namespace = "graphite"
 	}
+
 	sd := &Nginx{
 		logger:     logger,
 		body:       make([]byte, 128),
@@ -74,10 +79,12 @@ func New(url, namespace, hostname string, logger *zap.Logger) *Nginx {
 
 	sd.url.WriteString(url)
 	sd.url.WriteByte('/')
+
 	if namespace != "" {
 		sd.url.WriteString(namespace)
 		sd.url.WriteByte('/')
 	}
+
 	sd.pos = sd.url.Len()
 
 	return sd
@@ -87,6 +94,7 @@ func (sd *Nginx) setWeight(weight int64) {
 	if weight <= 0 {
 		weight = 1
 	}
+
 	if sd.weight != weight {
 		sd.weight = weight
 		sd.body = sd.body[:0]
@@ -103,15 +111,19 @@ func (sd *Nginx) Namespace() string {
 func (sd *Nginx) List() (nodes []string, err error) {
 	sd.url.Truncate(sd.pos)
 	sd.url.WriteString("?recurse")
+
 	var data []byte
+
 	data, err = utils.HttpGet(sd.url.String())
 	if err != nil {
 		return
 	}
+
 	var iNodes []interface{}
 	if err = json.Unmarshal(data, &iNodes); err != nil {
 		return nil, err
 	}
+
 	nodes = make([]string, 0, len(iNodes))
 
 	for _, i := range iNodes {
@@ -121,6 +133,7 @@ func (sd *Nginx) List() (nodes []string, err error) {
 					if strings.HasPrefix(s, sd.nsEnd) {
 						s = s[len(sd.nsEnd):]
 						_, host, _, ok := splitNode(s)
+
 						if ok && host == sd.hostname {
 							nodes = append(nodes, s)
 						}
@@ -142,15 +155,19 @@ func (sd *Nginx) List() (nodes []string, err error) {
 func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 	sd.url.Truncate(sd.pos)
 	sd.url.WriteString("?recurse")
+
 	var data []byte
+
 	data, err = utils.HttpGet(sd.url.String())
 	if err != nil {
 		return
 	}
+
 	var iNodes []interface{}
 	if err = json.Unmarshal(data, &iNodes); err != nil {
 		return nil, err
 	}
+
 	nodes = make(map[string]string)
 
 	for _, i := range iNodes {
@@ -159,6 +176,7 @@ func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 				if s, ok := i.(string); ok {
 					if strings.HasPrefix(s, sd.nsEnd) {
 						s = s[len(sd.nsEnd):]
+
 						_, host, _, ok := splitNode(s)
 						if ok && host == sd.hostname {
 							if i, ok := jNode["Value"]; ok {
@@ -167,6 +185,7 @@ func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 									if err != nil {
 										return nil, err
 									}
+
 									nodes[s] = stringutils.UnsafeString(d)
 								} else {
 									nodes[s] = ""
@@ -193,15 +212,19 @@ func (sd *Nginx) ListMap() (nodes map[string]string, err error) {
 func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 	sd.url.Truncate(sd.pos)
 	sd.url.WriteString("?recurse")
+
 	var data []byte
+
 	data, err = utils.HttpGet(sd.url.String())
 	if err != nil {
 		return
 	}
+
 	var iNodes []interface{}
 	if err = json.Unmarshal(data, &iNodes); err != nil {
 		return nil, err
 	}
+
 	nodes = make([]utils.KV, 0, 3)
 
 	for _, i := range iNodes {
@@ -211,15 +234,18 @@ func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 					if strings.HasPrefix(s, sd.nsEnd) {
 						s = s[len(sd.nsEnd):]
 						kv := utils.KV{Key: s}
+
 						if i, ok := jNode["Value"]; ok {
 							if v, ok := i.(string); ok {
 								d, err := base64.StdEncoding.DecodeString(v)
 								if err != nil {
 									return nil, err
 								}
+
 								kv.Value = stringutils.UnsafeString(d)
 							}
 						}
+
 						if i, ok := jNode["Flags"]; ok {
 							switch v := i.(type) {
 							case float64:
@@ -230,6 +256,7 @@ func (sd *Nginx) Nodes() (nodes []utils.KV, err error) {
 								kv.Flags = v
 							}
 						}
+
 						nodes = append(nodes, kv)
 					} else {
 						return nil, ErrInvalidKey{key: sd.nsEnd, val: s}
@@ -252,9 +279,11 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 		sd.url.WriteString("_/")
 		sd.url.WriteString(sd.hostname)
 		sd.url.WriteByte('/')
+
 		if ip != "" {
 			sd.url.WriteString(ip)
 		}
+
 		sd.url.WriteString(port)
 
 		// add custom query flags
@@ -279,9 +308,11 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 			sd.url.WriteString(sd.hostname)
 			sd.url.WriteByte('/')
 			n := sd.url.Len()
+
 			if ip != "" {
 				sd.url.WriteString(ip)
 			}
+
 			sd.url.WriteString(port)
 
 			// add custom query flags
@@ -292,6 +323,7 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 					sd.logger.Error(
 						"put", zap.String("address", sd.url.String()[n:]), zap.String("dc", dc[i]), zap.Error(nErr),
 					)
+
 					err = nErr
 				}
 			} else {
@@ -299,6 +331,7 @@ func (sd *Nginx) update(ip, port string, dc []string) (err error) {
 					sd.logger.Error(
 						"put", zap.String("address", sd.url.String()[n:]), zap.String("dc", dc[i]), zap.Error(nErr),
 					)
+
 					err = nErr
 				}
 			}
@@ -331,9 +364,11 @@ func (sd *Nginx) Delete(ip, port string, dc []string) (err error) {
 		sd.url.WriteString("_/")
 		sd.url.WriteString(sd.hostname)
 		sd.url.WriteByte('/')
+
 		if ip != "" {
 			sd.url.WriteString(ip)
 		}
+
 		sd.url.WriteString(port)
 
 		if err = utils.HttpDelete(sd.url.String()); err != nil {
@@ -348,15 +383,18 @@ func (sd *Nginx) Delete(ip, port string, dc []string) (err error) {
 			sd.url.WriteString(sd.hostname)
 			sd.url.WriteByte('/')
 			n := sd.url.Len()
+
 			if ip != "" {
 				sd.url.WriteString(ip)
 			}
+
 			sd.url.WriteString(port)
 
 			if nErr := utils.HttpDelete(sd.url.String()); nErr != nil {
 				sd.logger.Error(
 					"delete", zap.String("address", sd.url.String()[n:]), zap.String("dc", dc[i]), zap.Error(nErr),
 				)
+
 				err = nErr
 			}
 		}
@@ -367,27 +405,36 @@ func (sd *Nginx) Delete(ip, port string, dc []string) (err error) {
 
 func (sd *Nginx) Clear(preserveIP, preservePort string) (err error) {
 	var nodes []string
+
 	nodes, err = sd.List()
 	if err != nil {
 		sd.logger.Error(
 			"list", zap.String("address", sd.url.String()[sd.pos:]), zap.Error(err),
 		)
+
 		return
 	}
+
 	if len(nodes) == 0 {
 		return
 	}
+
 	preserveListen := preserveIP + preservePort
+
 	sd.url.WriteByte('/')
+
 	for _, node := range nodes {
 		sd.url.Truncate(sd.pos)
+
 		_, host, listen, _ := splitNode(node)
 		if host == sd.hostname && listen != preserveListen {
 			sd.url.WriteString(node)
+
 			if nErr := utils.HttpDelete(sd.url.String()); nErr != nil {
 				sd.logger.Error(
 					"delete", zap.String("address", sd.url.String()), zap.Error(nErr),
 				)
+
 				err = nErr
 			}
 		}

@@ -60,6 +60,7 @@ func (w *LogResponseWriter) Status() int {
 	if w.status == 0 {
 		return http.StatusOK
 	}
+
 	return w.status
 }
 
@@ -67,6 +68,7 @@ func WrapResponseWriter(w http.ResponseWriter) *LogResponseWriter {
 	if wrapped, ok := w.(*LogResponseWriter); ok {
 		return wrapped
 	}
+
 	return &LogResponseWriter{ResponseWriter: w}
 }
 
@@ -103,6 +105,7 @@ func sdList(name string, args []string) {
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
+
 	if *help || flagSet.NArg() > 0 {
 		flagSet.Usage()
 		return
@@ -115,6 +118,7 @@ func sdList(name string, args []string) {
 
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		var s sd.SD
+
 		logger := zapwriter.Default()
 		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
 			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
@@ -144,6 +148,7 @@ func sdDelete(name string, args []string) {
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
+
 	if *help || flagSet.NArg() > 0 {
 		flagSet.Usage()
 		return
@@ -156,6 +161,7 @@ func sdDelete(name string, args []string) {
 
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		var s sd.SD
+
 		logger := zapwriter.Default()
 		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
 			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
@@ -164,6 +170,7 @@ func sdDelete(name string, args []string) {
 
 		hostname, _ := os.Hostname()
 		hostname, _, _ = strings.Cut(hostname, ".")
+
 		if err = s.Clear("", ""); err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
@@ -184,10 +191,12 @@ func sdEvict(name string, args []string) {
 		fmt.Fprintf(os.Stderr, "  HOST []string\n    	List of hostnames\n")
 	}
 	flagSet.Parse(args)
+
 	if *help {
 		flagSet.Usage()
 		return
 	}
+
 	cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -196,11 +205,13 @@ func sdEvict(name string, args []string) {
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		for _, host := range flagSet.Args() {
 			var s sd.SD
+
 			logger := zapwriter.Default()
 			if s, err = sd.New(&cfg.Common, host, logger); err != nil {
 				fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
 				os.Exit(1)
 			}
+
 			err = s.Clear("", "")
 		}
 	}
@@ -218,6 +229,7 @@ func sdExpired(name string, args []string) {
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
+
 	if *help || flagSet.NArg() > 0 {
 		flagSet.Usage()
 		return
@@ -230,6 +242,7 @@ func sdExpired(name string, args []string) {
 
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		var s sd.SD
+
 		logger := zapwriter.Default()
 		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
 			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
@@ -255,6 +268,7 @@ func sdClean(name string, args []string) {
 		flagSet.PrintDefaults()
 	}
 	flagSet.Parse(args)
+
 	if *help || flagSet.NArg() > 0 {
 		flagSet.Usage()
 		return
@@ -267,6 +281,7 @@ func sdClean(name string, args []string) {
 
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		var s sd.SD
+
 		logger := zapwriter.Default()
 		if s, err = sd.New(&cfg.Common, "", logger); err != nil {
 			fmt.Fprintf(os.Stderr, "service discovery type %q can be registered", cfg.Common.SDType.String())
@@ -284,10 +299,13 @@ func printMatchedRollupRules(metric string, age uint32, rollupRules *rollup.Rule
 	// check metric rollup rules
 	prec, aggr, aggrPattern, retentionPattern := rollupRules.Lookup(metric, age, true)
 	fmt.Printf("  metric %q, age %d -> precision=%d, aggr=%s\n", metric, age, prec, aggr.Name())
+
 	if aggrPattern != nil {
 		fmt.Printf("    aggr pattern: type=%s, regexp=%q, function=%s", aggrPattern.RuleType.String(), aggrPattern.Regexp, aggrPattern.Function)
+
 		if len(aggrPattern.Retention) > 0 {
 			fmt.Print(", retentions:\n")
+
 			for i := range aggrPattern.Retention {
 				fmt.Printf("    [age: %d, precision: %d]\n", aggrPattern.Retention[i].Age, aggrPattern.Retention[i].Precision)
 			}
@@ -295,8 +313,10 @@ func printMatchedRollupRules(metric string, age uint32, rollupRules *rollup.Rule
 			fmt.Print("\n")
 		}
 	}
+
 	if retentionPattern != nil {
 		fmt.Printf("    retention pattern: type=%s, regexp=%q, function=%s, retentions:\n", retentionPattern.RuleType.String(), retentionPattern.Regexp, retentionPattern.Function)
+
 		for i := range retentionPattern.Retention {
 			fmt.Printf("    [age: %d, precision: %d]\n", retentionPattern.Retention[i].Age, retentionPattern.Retention[i].Precision)
 		}
@@ -321,6 +341,7 @@ func checkRollupMatch(name string, args []string) {
 		fmt.Fprintf(os.Stderr, "  METRIC []string\n    	List of metric names\n")
 	}
 	flagSet.Parse(args)
+
 	if *help {
 		flagSet.Usage()
 		return
@@ -333,6 +354,7 @@ func checkRollupMatch(name string, args []string) {
 
 	if *rollupFile != "" {
 		fmt.Printf("rollup file %q\n", *rollupFile)
+
 		if rollup, err := rollup.NewXMLFile(*rollupFile, 0, ""); err == nil {
 			for _, metric := range flagSet.Args() {
 				printMatchedRollupRules(metric, uint32(*age), rollup.Rules())
@@ -341,20 +363,25 @@ func checkRollupMatch(name string, args []string) {
 			log.Fatal(err)
 		}
 	}
+
 	if *configFile != "" {
 		cfg, _, err := config.ReadConfig(*configFile, *exactConfig)
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		ec := 0
+
 		for i := range cfg.DataTable {
 			var rulesTable string
+
 			if *table == "" || *table == cfg.DataTable[i].Table {
 				if cfg.DataTable[i].RollupConf == "auto" || cfg.DataTable[i].RollupConf == "" {
 					rulesTable = cfg.DataTable[i].Table
 					if cfg.DataTable[i].RollupAutoTable != "" {
 						rulesTable = cfg.DataTable[i].RollupAutoTable
 					}
+
 					fmt.Printf("table %q, rollup rules table %q in Clickhouse\n", cfg.DataTable[i].Table, rulesTable)
 				} else {
 					fmt.Printf("rollup file %q\n", cfg.DataTable[i].RollupConf)
@@ -367,10 +394,12 @@ func checkRollupMatch(name string, args []string) {
 							cfg.ClickHouse.TLSConfig, rulesTable)
 						if err != nil {
 							ec = 1
+
 							fmt.Fprintf(os.Stderr, "%v\n", err)
 						}
 					}
 				}
+
 				if rules != nil {
 					for _, metric := range flagSet.Args() {
 						printMatchedRollupRules(metric, uint32(*age), rules)
@@ -378,6 +407,7 @@ func checkRollupMatch(name string, args []string) {
 				}
 			}
 		}
+
 		os.Exit(ec)
 	}
 }
@@ -451,6 +481,7 @@ func main() {
 		if err = config.PrintDefaultConfig(); err != nil {
 			log.Fatal(err)
 		}
+
 		return
 	}
 
@@ -472,6 +503,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	logger := localManager.Logger("start")
 
 	if len(warns) > 0 {
@@ -509,6 +541,7 @@ func main() {
 		if *pprof != "" {
 			listen = *pprof
 		}
+
 		go func() { log.Fatal(http.ListenAndServe(listen, nil)) }()
 	}
 
@@ -517,6 +550,7 @@ func main() {
 		if err := tagger.Make(cfg); err != nil {
 			log.Fatal(err)
 		}
+
 		return
 	}
 
@@ -551,8 +585,10 @@ func main() {
 		if err != nil {
 			status = http.StatusInternalServerError
 			http.Error(w, err.Error(), status)
+
 			return
 		}
+
 		w.Write(b)
 	})
 
@@ -567,6 +603,7 @@ func main() {
 	}
 
 	var exitWait sync.WaitGroup
+
 	srv = &http.Server{
 		Addr:    cfg.Common.Listen,
 		Handler: mux,
@@ -576,6 +613,7 @@ func main() {
 
 	go func() {
 		defer exitWait.Done()
+
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			// unexpected error. port in use?
 			log.Fatalf("ListenAndServe(): %v", err)
@@ -585,6 +623,7 @@ func main() {
 	if cfg.Common.SD != "" && cfg.NeedLoadAvgColect() {
 		go func() {
 			time.Sleep(time.Millisecond * 100)
+
 			sdLogger := localManager.Logger("service discovery")
 			sd.Register(&cfg.Common, sdLogger)
 		}()
@@ -595,6 +634,7 @@ func main() {
 		signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 		<-stop
 		logger.Info("stoping graphite-clickhouse")
+
 		if cfg.Common.SD != "" {
 			// unregister SD
 			sd.Stop()

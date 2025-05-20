@@ -40,11 +40,13 @@ func TestDateParamToEpoch(t *testing.T) {
 			want     int64
 			wantTime string
 		)
+
 		if tt.output != "" {
 			ts, err := time.ParseInLocation(shortForm, tt.output, timeZone)
 			if err != nil {
 				t.Fatalf("error parsing time: %q: %v", tt.output, err)
 			}
+
 			want = ts.Unix()
 			wantTime = ts.Format(time.RFC3339Nano)
 		}
@@ -95,11 +97,13 @@ func TestDateParamToEpochTruncate(t *testing.T) {
 			want     int64
 			wantTime string
 		)
+
 		if tt.output != "" {
 			ts, err := time.ParseInLocation(shortForm, tt.output, timeZone)
 			if err != nil {
 				t.Fatalf("error parsing time: %q: %v", tt.output, err)
 			}
+
 			want = ts.Unix()
 			wantTime = ts.Format(time.RFC3339Nano)
 		}

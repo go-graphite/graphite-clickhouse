@@ -78,6 +78,7 @@ func (p *PatternXML) pattern() Pattern {
 
 func parseXML(body []byte) (*Rules, error) {
 	r := &RulesXML{}
+
 	err := xml.Unmarshal(body, r)
 	if err != nil {
 		return nil, err
@@ -86,10 +87,12 @@ func parseXML(body []byte) (*Rules, error) {
 	// Maybe we've got Clickhouse's graphite.xml?
 	if r.Default == nil && r.Pattern == nil {
 		y := &ClickhouseRollupXML{}
+
 		err = xml.Unmarshal(body, y)
 		if err != nil {
 			return nil, err
 		}
+
 		r = &y.Rules
 	}
 

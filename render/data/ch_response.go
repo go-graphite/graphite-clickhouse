@@ -36,6 +36,7 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 		start, stop, count, getValue := point.FillNulls(points, from, until, step)
 		values := make([]float64, 0, count)
 		isAbsent := make([]bool, 0, count)
+
 		for {
 			value, err := getValue()
 			if err != nil {
@@ -45,6 +46,7 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 				// if err is not point.ErrTimeGreaterStop, the points are corrupted
 				return err
 			}
+
 			if math.IsNaN(value) {
 				values = append(values, 0)
 				isAbsent = append(isAbsent, true)
@@ -53,6 +55,7 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 				isAbsent = append(isAbsent, false)
 			}
 		}
+
 		for _, a := range data.AM.Get(name) {
 			fr := v2pb.FetchResponse{
 				Name:      a.DisplayName,
@@ -64,24 +67,29 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 			}
 			mfr.Metrics = append(mfr.Metrics, fr)
 		}
+
 		return nil
 	}
 
 	// process metrics with points
 	writtenMetrics := make(map[string]struct{})
 	nextMetric := data.GroupByMetric()
+
 	for {
 		points := nextMetric()
 		if len(points) == 0 {
 			break
 		}
+
 		id := points[0].MetricID
 		name := data.MetricName(id)
 		writtenMetrics[name] = struct{}{}
+
 		step, err := data.GetStep(id)
 		if err != nil {
 			return nil, err
 		}
+
 		if err := addResponse(name, step, points); err != nil {
 			return nil, err
 		}
@@ -97,19 +105,23 @@ func (c *CHResponse) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) 
 			}
 		}
 	}
+
 	return mfr, nil
 }
 
 // ToMultiFetchResponseV2 returns protobuf v2pb.MultiFetchResponse message for given CHResponses
 func (cc *CHResponses) ToMultiFetchResponseV2() (*v2pb.MultiFetchResponse, error) {
 	mfr := &v2pb.MultiFetchResponse{Metrics: make([]v2pb.FetchResponse, 0)}
+
 	for _, c := range *cc {
 		m, err := c.ToMultiFetchResponseV2()
 		if err != nil {
 			return nil, err
 		}
+
 		mfr.Metrics = append(mfr.Metrics, m.Metrics...)
 	}
+
 	return mfr, nil
 }
 
@@ -121,6 +133,7 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 		from, until := uint32(c.From), uint32(c.Until)
 		start, stop, count, getValue := point.FillNulls(points, from, until, step)
 		values := make([]float64, 0, count)
+
 		for {
 			value, err := getValue()
 			if err != nil {
@@ -130,8 +143,10 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 				// if err is not point.ErrTimeGreaterStop, the points are corrupted
 				return err
 			}
+
 			values = append(values, value)
 		}
+
 		for _, a := range data.AM.Get(name) {
 			fr := v3pb.FetchResponse{
 				Name:                    a.DisplayName,
@@ -149,28 +164,34 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 			}
 			mfr.Metrics = append(mfr.Metrics, fr)
 		}
+
 		return nil
 	}
 
 	// process metrics with points
 	writtenMetrics := make(map[string]struct{})
 	nextMetric := data.GroupByMetric()
+
 	for {
 		points := nextMetric()
 		if len(points) == 0 {
 			break
 		}
+
 		id := points[0].MetricID
 		name := data.MetricName(id)
 		writtenMetrics[name] = struct{}{}
+
 		consolidationFunc, err := data.GetAggregation(id)
 		if err != nil {
 			return nil, err
 		}
+
 		step, err := data.GetStep(id)
 		if err != nil {
 			return nil, err
 		}
+
 		if err := addResponse(name, consolidationFunc, step, points); err != nil {
 			return nil, err
 		}
@@ -186,18 +207,22 @@ func (c *CHResponse) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) 
 			}
 		}
 	}
+
 	return mfr, nil
 }
 
 // ToMultiFetchResponseV3 returns protobuf v3pb.MultiFetchResponse message for given CHResponses
 func (cc *CHResponses) ToMultiFetchResponseV3() (*v3pb.MultiFetchResponse, error) {
 	mfr := &v3pb.MultiFetchResponse{Metrics: make([]v3pb.FetchResponse, 0)}
+
 	for _, c := range *cc {
 		m, err := c.ToMultiFetchResponseV3()
 		if err != nil {
 			return nil, err
 		}
+
 		mfr.Metrics = append(mfr.Metrics, m.Metrics...)
 	}
+
 	return mfr, nil
 }

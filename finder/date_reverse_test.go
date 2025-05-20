@@ -37,10 +37,12 @@ func TestDateFinderV3_whereFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name+" "+time.Unix(tt.from, 0).Format(time.RFC3339), func(t *testing.T) {
 			f := NewDateFinderV3("http://localhost:8123/", "graphite_index", clickhouse.Options{}).(*DateFinderV3)
+
 			got, gotDate := f.whereFilter(tt.query, tt.from, tt.until)
 			if got.String() != tt.want {
 				t.Errorf("DateFinderV3.whereFilter()[0] = %v, want %v", got, tt.want)
 			}
+
 			if gotDate.String() != tt.wantDate {
 				t.Errorf("DateFinderV3.whereFilter()[1] = %v, want %v", gotDate, tt.wantDate)
 			}

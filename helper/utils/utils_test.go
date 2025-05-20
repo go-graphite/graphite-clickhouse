@@ -8,7 +8,6 @@ import (
 
 func TestTimestampTruncate(t *testing.T) {
 	// reverse sorted
-
 	tests := []struct {
 		ts       int64
 		duration time.Duration

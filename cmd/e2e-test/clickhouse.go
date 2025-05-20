@@ -40,9 +40,11 @@ func (c *Clickhouse) CheckConfig(rootDir string) error {
 	if c.Version == "" {
 		c.Version = "latest"
 	}
+
 	if len(c.Dir) == 0 {
 		return ErrNoSetDir
 	}
+
 	if !strings.HasPrefix(c.Dir, "/") {
 		c.Dir = rootDir + "/" + c.Dir
 	}
@@ -52,6 +54,7 @@ func (c *Clickhouse) CheckConfig(rootDir string) error {
 			c.DockerImage = ClickhouseDefaultImage
 		} else {
 			splitV := strings.Split(c.Version, ".")
+
 			majorV, err := strconv.Atoi(splitV[0])
 			if err != nil {
 				c.DockerImage = ClickhouseDefaultImage
@@ -62,6 +65,7 @@ func (c *Clickhouse) CheckConfig(rootDir string) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -71,10 +75,12 @@ func (c *Clickhouse) Key() string {
 
 func (c *Clickhouse) Start() (string, error) {
 	var err error
+
 	c.httpAddress, err = getFreeTCPPort("")
 	if err != nil {
 		return "", err
 	}
+
 	port := strings.Split(c.httpAddress, ":")[1]
 	c.url = "http://" + c.httpAddress
 
@@ -93,11 +99,13 @@ func (c *Clickhouse) Start() (string, error) {
 		"-v", c.Dir + "/init.sql:/docker-entrypoint-initdb.d/init.sql",
 		"--network", DockerNetwork,
 	}
+
 	if c.TLSEnabled {
 		c.httpsAddress, err = getFreeTCPPort("")
 		if err != nil {
 			return "", err
 		}
+
 		port = strings.Split(c.httpsAddress, ":")[1]
 		c.tlsurl = "https://" + c.httpsAddress
 		chStart = append(chStart,
@@ -107,6 +115,7 @@ func (c *Clickhouse) Start() (string, error) {
 			"-p", port+":8443",
 		)
 	}
+
 	if c.TZ != "" {
 		chStart = append(chStart, "-e", "TZ="+c.TZ)
 	}
@@ -132,6 +141,7 @@ func (c *Clickhouse) Stop(delete bool) (string, error) {
 	if err == nil && delete {
 		return c.Delete()
 	}
+
 	return string(out), err
 }
 
@@ -170,6 +180,7 @@ func (c *Clickhouse) Exec(sql string) (bool, string) {
 
 func (c *Clickhouse) Query(sql string) (string, error) {
 	reader := strings.NewReader(sql)
+
 	request, err := http.NewRequest(http.MethodPost, c.URL(), reader)
 	if err != nil {
 		return "", err
@@ -185,9 +196,11 @@ func (c *Clickhouse) Query(sql string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		return "", errors.New(resp.Status + ": " + string(bytes.TrimRight(msg, "\n")))
 	}
+
 	return string(msg), nil
 }
 
@@ -195,10 +208,12 @@ func (c *Clickhouse) Alive() bool {
 	if len(c.container) == 0 {
 		return false
 	}
+
 	req, err := http.DefaultClient.Get(c.URL())
 	if err != nil {
 		return false
 	}
+
 	defer req.Body.Close()
 
 	return req.StatusCode == http.StatusOK
@@ -208,11 +223,13 @@ func (c *Clickhouse) CopyLog(destDir string, tail uint64) error {
 	if len(c.container) == 0 {
 		return nil
 	}
+
 	dest := destDir + "/clickhouse-server.log"
 
 	chArgs := []string{"cp", c.container + ":/var/log/clickhouse-server/clickhouse-server.log", dest}
 
 	cmd := exec.Command(DockerBinary, chArgs...)
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.New(err.Error() + ": " + string(bytes.TrimRight(out, "\n")))
@@ -230,11 +247,13 @@ func (c *Clickhouse) CopyErrLog(destDir string, tail uint64) error {
 	if len(c.container) == 0 {
 		return nil
 	}
+
 	dest := destDir + "/clickhouse-server.err.log"
 
 	chArgs := []string{"cp", c.container + ":/var/log/clickhouse-server/clickhouse-server.err.log", dest}
 
 	cmd := exec.Command(DockerBinary, chArgs...)
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.New(err.Error() + ": " + string(bytes.TrimRight(out, "\n")))

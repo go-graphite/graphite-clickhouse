@@ -30,6 +30,7 @@ func (c *commonStep) calculateUnsafe(a, b int64) int64 {
 	if a == 0 || b == 0 {
 		return dry.Max(a, b)
 	}
+
 	return dry.LCM(a, b)
 }
 
@@ -43,6 +44,7 @@ func (c *commonStep) calculate(value int64) {
 func (c *commonStep) getResult() int64 {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
+
 	ch := make(chan int64)
 	go func(ch chan int64) {
 		c.wg.Wait()
