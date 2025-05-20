@@ -11,13 +11,15 @@ import (
 	"strings"
 )
 
-var requestIdRegexp *regexp.Regexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
-var passHeaders = []string{
-	"X-Dashboard-Id",
-	"X-Grafana-Org-Id",
-	"X-Panel-Id",
-	"X-Forwarded-For",
-}
+var (
+	requestIdRegexp = regexp.MustCompile("^[a-zA-Z0-9_.-]+$")
+	passHeaders     = []string{
+		"X-Dashboard-Id",
+		"X-Grafana-Org-Id",
+		"X-Panel-Id",
+		"X-Forwarded-For",
+	}
+)
 
 func HttpRequest(r *http.Request) *http.Request {
 	requestID := r.Header.Get("X-Request-Id")

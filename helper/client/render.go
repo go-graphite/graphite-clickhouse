@@ -17,8 +17,10 @@ import (
 	pickle "github.com/lomik/og-rek"
 )
 
-var ErrInvalidFrom = errors.New("invalid from")
-var ErrInvalidUntil = errors.New("invalid until")
+var (
+	ErrInvalidFrom  = errors.New("invalid from")
+	ErrInvalidUntil = errors.New("invalid until")
+)
 
 type Metric struct {
 	Name                    string    `toml:"name"`
@@ -107,7 +109,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		return queryParams, nil, nil, ErrUnsupportedFormat
 	}
 
-	req, err := http.NewRequest("GET", u.String(), reader)
+	req, err := http.NewRequest(http.MethodGet, u.String(), reader)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
@@ -115,6 +117,8 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+	defer resp.Body.Close()
+
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err

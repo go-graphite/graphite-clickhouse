@@ -100,7 +100,6 @@ func (h *Handler) finderCached(ts time.Time, fetchRequests data.MultiTarget, log
 						return
 					}
 				}
-
 			}(tf, expr, targets, i)
 		}
 	}

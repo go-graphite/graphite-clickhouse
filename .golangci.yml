@@ -1,0 +1,97 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+#    - contextcheck
+    - decorder
+#    - dogsled
+    - durationcheck
+#    - errcheck
+#    - errorlint
+#    - fatcontext
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecksumtype
+#    - goconst
+#    - gocyclo
+#    - godot
+    - goheader
+    - govet
+    - grouper
+#    - ineffassign
+    - loggercheck
+#    - makezero
+#    - misspell
+#    - mnd
+#    - nilerr
+#    - noctx
+#    - nosprintfhostport
+    - prealloc
+#    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+#    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+#    - staticcheck
+#    - testifylint
+    - tparallel
+    - unconvert
+#    - unparam
+#    - unused
+    - usestdlibvars
+#    - wastedassign
+    - whitespace
+#    - wsl
+  settings:
+    gocyclo:
+      min-complexity: 15
+    govet:
+      settings:
+        printf:
+          funcs:
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    unparam:
+      check-exported: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - contextcheck
+          - goconst
+          - mnd
+        path: _test\.go
+      - linters:
+          - godot
+        path: notifier/registrator.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+#    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

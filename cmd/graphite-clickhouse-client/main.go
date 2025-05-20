@@ -90,7 +90,7 @@ func main() {
 			formatFind = client.FormatPb_v3
 		}
 
-		queryRaw, r, respHeader, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.MetricsFind(&httpClient, *address, formatFind, *metricsFind, from, until)
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}
@@ -123,7 +123,7 @@ func main() {
 		if formatTags == client.FormatDefault {
 			formatTags = client.FormatJSON
 		}
-		queryRaw, r, respHeader, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.TagsValues(&httpClient, *address, formatTags, *tagsValues, *limit, from, until)
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}
@@ -156,7 +156,7 @@ func main() {
 		if formatTags == client.FormatDefault {
 			formatTags = client.FormatJSON
 		}
-		queryRaw, r, respHeader, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.TagsNames(&httpClient, *address, formatTags, *tagsNames, *limit, from, until)
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}
@@ -178,7 +178,6 @@ func main() {
 			} else {
 				fmt.Println("[]")
 			}
-
 		} else {
 			ec = 1
 			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))
@@ -190,7 +189,7 @@ func main() {
 		if formatRender == client.FormatDefault {
 			formatRender = client.FormatPb_v3
 		}
-		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, []*carbonapi_v3_pb.FilteringFunction{}, maxDataPoints, int64(from), int64(until))
+		queryRaw, r, respHeader, err := client.Render(&httpClient, *address, formatRender, targets, []*carbonapi_v3_pb.FilteringFunction{}, maxDataPoints, from, until)
 		if respHeader != nil {
 			fmt.Printf("Responce header: %+v\n", respHeader)
 		}
@@ -216,7 +215,6 @@ func main() {
 			} else {
 				fmt.Println("[]")
 			}
-
 		} else {
 			ec = 1
 			fmt.Printf("'%s'\n", strings.TrimRight(err.Error(), "\n"))

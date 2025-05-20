@@ -22,7 +22,6 @@ func (m *clickhouseMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestFind(t *testing.T) {
-
 	testCase := func(findQuery, expectedClickHouseQuery string) {
 		requestLog := make(chan []byte, 1)
 		m := &clickhouseMock{
@@ -38,7 +37,7 @@ func TestFind(t *testing.T) {
 		handler := NewHandler(cfg)
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
-			"GET",
+			http.MethodGet,
 			"http://localhost/metrics/find/?local=1&format=pickle&query="+findQuery,
 			nil,
 		)

@@ -462,7 +462,6 @@ func TestParseSeriesByTag(t *testing.T) {
 		{Op: TaggedTermEq, Key: "cpu", Value: "cpu-total"},
 		{Op: TaggedTermMatch, Key: "host", Value: `Vladimirs-MacBook-Pro\.local`},
 	})
-
 }
 
 func newInt(i int) *int {

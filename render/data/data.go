@@ -160,19 +160,19 @@ func dataSplitAggregated(data []byte, atEOF bool) (advance int, token []byte, er
 	}
 
 	nameLen, readBytes, err := ReadUvarint(data)
-	tokenLen := int(readBytes) + int(nameLen)
+	tokenLen := readBytes + int(nameLen)
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
-	tokenLen += int(readBytes) + int(timeLen)*4
+	tokenLen += readBytes + int(timeLen)*4
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
-	tokenLen += int(readBytes) + int(valueLen)*8
+	tokenLen += readBytes + int(valueLen)*8
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
@@ -192,25 +192,25 @@ func dataSplitUnaggregated(data []byte, atEOF bool) (advance int, token []byte, 
 	}
 
 	nameLen, readBytes, err := ReadUvarint(data)
-	tokenLen := int(readBytes) + int(nameLen)
+	tokenLen := readBytes + int(nameLen)
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
-	tokenLen += int(readBytes) + int(timeLen)*4
+	tokenLen += readBytes + int(timeLen)*4
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
-	tokenLen += int(readBytes) + int(valueLen)*8
+	tokenLen += readBytes + int(valueLen)*8
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timestampLen, readBytes, err := ReadUvarint(data[tokenLen:])
-	tokenLen += int(readBytes) + int(timestampLen)*4
+	tokenLen += readBytes + int(timestampLen)*4
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
@@ -271,7 +271,7 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 			return errClickHouseResponse
 		}
 
-		row := rowStart[int(readBytes):]
+		row := rowStart[readBytes:]
 
 		name := row[:int(nameLen)]
 		row = row[int(nameLen):]
@@ -290,13 +290,13 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 		times := make([]uint32, 0, arrayLen)
 		values := make([]float64, 0, arrayLen)
 
-		row = row[int(readBytes):]
+		row = row[readBytes:]
 		for i := uint64(0); i < arrayLen; i++ {
 			times = append(times, binary.LittleEndian.Uint32(row[:4]))
 			row = row[4:]
 		}
 
-		row = row[int(readBytes):]
+		row = row[readBytes:]
 		for i := uint64(0); i < arrayLen; i++ {
 			values = append(values, math.Float64frombits(binary.LittleEndian.Uint64(row[:8])))
 			row = row[8:]
@@ -305,7 +305,7 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 		timestamps := times
 		if !cond.aggregated {
 			timestamps = make([]uint32, 0, arrayLen)
-			row = row[int(readBytes):]
+			row = row[readBytes:]
 			for i := uint64(0); i < arrayLen; i++ {
 				timestamps = append(timestamps, binary.LittleEndian.Uint32(row[:4]))
 				row = row[4:]

@@ -328,7 +328,6 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 }
 
 func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int64, extended bool, metricsCount int64) {
-
 	fromPos := -1
 	if len(r.RangeS) > 0 {
 		fromPos = metrics.SearchInt64Le(r.RangeS, untilFromS)

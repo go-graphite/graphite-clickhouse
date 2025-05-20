@@ -447,7 +447,6 @@ func (ir IndexReverses) Compile() error {
 		if _, ok := IndexReverse[n.Reverse]; !ok {
 			return fmt.Errorf("%s is not valid value for index-reverses.reverse", n.Reverse)
 		}
-
 	}
 	return nil
 }
@@ -548,11 +547,9 @@ func Unmarshal(body []byte, exactConfig bool) (cfg *Config, warns []zap.Field, e
 		decoder.Strict(exactConfig)
 
 		err := decoder.Decode(cfg)
-
 		if err != nil {
 			return nil, nil, err
 		}
-
 	}
 
 	if cfg.Logging == nil {

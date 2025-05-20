@@ -36,5 +36,4 @@ func TestPlainFromTaggedFinderAbs(t *testing.T) {
 	for _, c := range table {
 		assert.Equal(c[1], string(f.Abs([]byte(c[0]))))
 	}
-
 }

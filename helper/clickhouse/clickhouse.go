@@ -275,7 +275,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 
 	url := p.String()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, postBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, postBody)
 	if err != nil {
 		return
 	}
@@ -343,12 +343,12 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	}
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
-	if resp.StatusCode > 500 && resp.StatusCode < 512 {
+	if resp.StatusCode > http.StatusInternalServerError && resp.StatusCode < 512 {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = errs.NewErrorWithCode(string(body), resp.StatusCode)
 		return
-	} else if resp.StatusCode != 200 {
+	} else if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = NewErrWithDescr("clickhouse response status "+strconv.Itoa(resp.StatusCode), string(body))

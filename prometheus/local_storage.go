@@ -5,6 +5,7 @@ package prometheus
 
 import (
 	"context"
+
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/index"

@@ -144,7 +144,6 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 
 	load_avg.Store(0.5)
 	for _, tt := range tests {
-
 		b.Run(fmt.Sprintf("L%d_C%d_N%d_CONCURRENCY%d", tt.l, tt.c, tt.n, tt.concurrencyLevel), func(b *testing.B) {
 			var (
 				err error
@@ -177,7 +176,6 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 					// End test routine
 					wg.Done()
 				}()
-
 			}
 
 			wg.Wait()

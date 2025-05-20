@@ -45,7 +45,7 @@ func TestDateParamToEpoch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error parsing time: %q: %v", tt.output, err)
 			}
-			want = int64(ts.Unix())
+			want = ts.Unix()
 			wantTime = ts.Format(time.RFC3339Nano)
 		}
 
@@ -100,7 +100,7 @@ func TestDateParamToEpochTruncate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error parsing time: %q: %v", tt.output, err)
 			}
-			want = int64(ts.Unix())
+			want = ts.Unix()
 			wantTime = ts.Format(time.RFC3339Nano)
 		}
 

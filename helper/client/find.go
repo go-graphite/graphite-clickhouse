@@ -45,8 +45,8 @@ func MetricsFind(client *http.Client, address string, format FormatType, query s
 		var body []byte
 		r := protov3.MultiGlobRequest{
 			Metrics:   []string{query},
-			StartTime: int64(from),
-			StopTime:  int64(until),
+			StartTime: from,
+			StopTime:  until,
 		}
 
 		body, err = r.Marshal()
@@ -69,7 +69,7 @@ func MetricsFind(client *http.Client, address string, format FormatType, query s
 	}
 
 	u.RawQuery = v.Encode()
-	req, err := http.NewRequest("GET", u.String(), reader)
+	req, err := http.NewRequest(http.MethodGet, u.String(), reader)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
@@ -77,6 +77,7 @@ func MetricsFind(client *http.Client, address string, format FormatType, query s
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
