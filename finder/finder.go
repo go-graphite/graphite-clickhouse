@@ -41,6 +41,7 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		f = NewTagged(
 			config.ClickHouse.URL,
 			config.ClickHouse.TaggedTable,
+			config.ClickHouse.TagsCountTable,
 			config.ClickHouse.TaggedUseDaily,
 			config.FeatureFlags.UseCarbonBehavior,
 			config.FeatureFlags.DontMatchMissingTags,
@@ -147,6 +148,7 @@ func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, 
 	fnd := NewTagged(
 		config.ClickHouse.URL,
 		config.ClickHouse.TaggedTable,
+		config.ClickHouse.TagsCountTable,
 		config.ClickHouse.TaggedUseDaily,
 		config.FeatureFlags.UseCarbonBehavior,
 		config.FeatureFlags.DontMatchMissingTags,
