@@ -671,7 +671,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 				t.Errorf("%s\n- [%d]=%+v\n+ [%d]=%+v", testName, i, expected[i], i, terms[i])
 			}
 		}
-
 	}
 
 	ok(

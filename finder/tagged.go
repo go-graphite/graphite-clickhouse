@@ -631,7 +631,6 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 			date.UntilTimestampToDaysFormat(until),
 		)
 	} else {
-
 		w.Andf(
 			"Date >= '%s'",
 			date.FromTimestampToDaysFormat(from),
