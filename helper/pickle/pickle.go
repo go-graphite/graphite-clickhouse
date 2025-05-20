@@ -67,7 +67,7 @@ func (p *Writer) String(v string) {
 func (p *Writer) Uint32(v uint32) {
 	p.w.Write([]byte{'J'})
 	var b [4]byte
-	binary.LittleEndian.PutUint32(b[:], uint32(v))
+	binary.LittleEndian.PutUint32(b[:], v)
 	p.w.Write(b[:])
 }
 
@@ -78,7 +78,7 @@ func (p *Writer) AppendFloat64(v float64) {
 	b[0] = 'G'
 	b[9] = 'a'
 
-	binary.BigEndian.PutUint64(b[1:10], uint64(u))
+	binary.BigEndian.PutUint64(b[1:10], u)
 
 	p.w.Write(b[:])
 }

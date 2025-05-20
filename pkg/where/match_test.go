@@ -3,9 +3,6 @@ package where
 import "testing"
 
 func Test_ClearGlob(t *testing.T) {
-	type args struct {
-		query string
-	}
 	tests := []struct {
 		query string
 		want  string

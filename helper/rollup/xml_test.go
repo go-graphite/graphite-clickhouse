@@ -66,19 +66,19 @@ func TestParseXML(t *testing.T) {
 
 	expected, _ := (&Rules{
 		Pattern: []Pattern{
-			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
-				Retention{Age: 86400, Precision: 60},
-				Retention{Age: 0, Precision: 3600},
+			{Regexp: "click_cost", Function: "any", Retention: []Retention{
+				{Age: 86400, Precision: 60},
+				{Age: 0, Precision: 3600},
 			}},
-			Pattern{Regexp: "without_function", Function: "", Retention: []Retention{
-				Retention{Age: 0, Precision: 3600},
-				Retention{Age: 86400, Precision: 60},
+			{Regexp: "without_function", Function: "", Retention: []Retention{
+				{Age: 0, Precision: 3600},
+				{Age: 86400, Precision: 60},
 			}},
-			Pattern{Regexp: "without_retention", Function: "min", Retention: nil},
-			Pattern{Regexp: "", Function: "max", Retention: []Retention{
-				Retention{Age: 0, Precision: 60},
-				Retention{Age: 3600, Precision: 300},
-				Retention{Age: 86400, Precision: 3600},
+			{Regexp: "without_retention", Function: "min", Retention: nil},
+			{Regexp: "", Function: "max", Retention: []Retention{
+				{Age: 0, Precision: 60},
+				{Age: 3600, Precision: 300},
+				{Age: 86400, Precision: 3600},
 			}},
 		},
 	}).compile()
@@ -177,7 +177,7 @@ func TestParseXMLTyped(t *testing.T) {
 </graphite_rollup>
 `
 
-	expected := (&Rules{
+	expected := &Rules{
 		Separated: true,
 		Pattern: []Pattern{
 			{
@@ -283,7 +283,7 @@ func TestParseXMLTyped(t *testing.T) {
 				aggr: AggrMap["max"],
 			},
 		},
-	})
+	}
 
 	t.Run("default", func(t *testing.T) {
 		assert := assert.New(t)

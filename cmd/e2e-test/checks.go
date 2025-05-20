@@ -299,7 +299,6 @@ func verifyRender(ch *Clickhouse, gch *GraphiteClickhouse, check *RenderCheck, d
 	from := datetime.TimestampTruncate(check.from, defaultPreision)
 	until := datetime.TimestampTruncate(check.until, defaultPreision)
 	for _, format := range check.Formats {
-
 		var filteringFunctions []*carbonapi_v3_pb.FilteringFunction
 		if format == client.FormatPb_v3 {
 			var err error

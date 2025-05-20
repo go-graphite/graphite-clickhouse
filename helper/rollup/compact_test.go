@@ -13,14 +13,14 @@ func TestParseCompact(t *testing.T) {
 
 	expected, _ := (&Rules{
 		Pattern: []Pattern{
-			Pattern{Regexp: "click_cost", Function: "any", Retention: []Retention{
-				Retention{Age: 0, Precision: 3600},
-				Retention{Age: 86400, Precision: 60},
+			{Regexp: "click_cost", Function: "any", Retention: []Retention{
+				{Age: 0, Precision: 3600},
+				{Age: 86400, Precision: 60},
 			}},
-			Pattern{Regexp: "", Function: "max", Retention: []Retention{
-				Retention{Age: 0, Precision: 60},
-				Retention{Age: 3600, Precision: 300},
-				Retention{Age: 86400, Precision: 3600},
+			{Regexp: "", Function: "max", Retention: []Retention{
+				{Age: 0, Precision: 60},
+				{Age: 3600, Precision: 300},
+				{Age: 86400, Precision: 3600},
 			}},
 		},
 	}).compile()

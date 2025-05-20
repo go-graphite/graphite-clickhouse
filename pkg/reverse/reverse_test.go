@@ -19,10 +19,10 @@ func TestReverse(t *testing.T) {
 
 	for k, expected := range table {
 		assert.Equal(expected, String(k))
-		p := string(k)
+		p := k
 		assert.Equal([]byte(expected), Bytes([]byte(k)))
 		// check k is unchanged
-		assert.Equal(p, string(k))
+		assert.Equal(p, k)
 		// inplace
 		b := make([]byte, len(k))
 		copy(b, k)

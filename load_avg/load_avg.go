@@ -6,9 +6,7 @@ import (
 	"github.com/msaf1980/go-syncutils/atomic"
 )
 
-var (
-	loadAvgStore atomic.Float64
-)
+var loadAvgStore atomic.Float64
 
 func Load() float64 {
 	return loadAvgStore.Load()

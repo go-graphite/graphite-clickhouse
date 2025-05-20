@@ -91,12 +91,10 @@ TableLoop:
 
 		if t.MaxAge != 0 && tf.From < now-int64(t.MaxAge.Seconds()) {
 			continue TableLoop
-
 		}
 
 		if t.MinAge != 0 && tf.Until > now-int64(t.MinAge.Seconds()) {
 			continue TableLoop
-
 		}
 
 		if t.TargetMatchAllRegexp != nil {
@@ -169,9 +167,9 @@ func (tt *Targets) GetRequestedAggregation(target string) (string, error) {
 						graphiteConsolidationFunction,
 						ffArgs[0],
 					)
-
 			}
 		}
 	}
+
 	return "", nil
 }

@@ -4,9 +4,10 @@
 package prometheus
 
 import (
-	"github.com/prometheus/prometheus/util/annotations"
 	"log"
 	"math"
+
+	"github.com/prometheus/prometheus/util/annotations"
 
 	"github.com/lomik/graphite-clickhouse/helper/point"
 

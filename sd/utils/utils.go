@@ -11,9 +11,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 )
 
-var (
-	ErrNotFound = errors.New("entry not found")
-)
+var ErrNotFound = errors.New("entry not found")
 
 type KV struct {
 	Key   string
@@ -33,7 +31,7 @@ func HttpGet(url string) ([]byte, error) {
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
 	return data, err
@@ -54,7 +52,7 @@ func HttpPut(url string, body []byte) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}
@@ -75,7 +73,7 @@ func HttpDelete(url string) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return ErrNotFound
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)
 		return errs.NewErrorWithCode(string(data), resp.StatusCode)
 	}

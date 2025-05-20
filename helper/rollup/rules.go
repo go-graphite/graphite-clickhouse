@@ -419,7 +419,7 @@ func (r *Rules) RollupPoints(pp *point.Points, from int64, step int64) error {
 		return fmt.Errorf("from and step must be >= 0: %v, %v", from, step)
 	}
 
-	now := int64(timeNow().Unix())
+	now := timeNow().Unix()
 	age := int64(0)
 	if now > from {
 		age = now - from

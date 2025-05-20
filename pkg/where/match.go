@@ -5,9 +5,7 @@ import (
 	"strings"
 )
 
-var (
-	opEq string = "="
-)
+var opEq = "="
 
 // ClearGlob cleanup grafana globs like {name}
 func ClearGlob(query string) string {

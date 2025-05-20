@@ -306,7 +306,7 @@ func TestPrepareLookup(t *testing.T) {
 		assert.Equal(t, aggregations, cond.aggregations)
 	})
 
-	t.Run("non-reverse query with overriden aggregation", func(t *testing.T) {
+	t.Run("non-reverse query with override aggregation", func(t *testing.T) {
 		cond := newCondition(5400, 1800, 5)
 
 		cond.aggregated = true

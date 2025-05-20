@@ -101,7 +101,7 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 
 	u.RawQuery = rawQuery.String()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
@@ -109,6 +109,9 @@ func TagsNames(client *http.Client, address string, format FormatType, query str
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
+	defer resp.Body.Close()
+
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
@@ -229,7 +232,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 
 	u.RawQuery = rawQuery.String()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
@@ -237,6 +240,7 @@ func TagsValues(client *http.Client, address string, format FormatType, query st
 	if err != nil {
 		return u.RawQuery, nil, nil, err
 	}
+	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err

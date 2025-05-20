@@ -5,12 +5,12 @@ import (
 )
 
 var AggrMap = map[string]*Aggr{
-	"avg":     &Aggr{"avg", AggrAvg},
-	"max":     &Aggr{"max", AggrMax},
-	"min":     &Aggr{"min", AggrMin},
-	"sum":     &Aggr{"sum", AggrSum},
-	"any":     &Aggr{"any", AggrAny},
-	"anyLast": &Aggr{"anyLast", AggrAnyLast},
+	"avg":     {"avg", AggrAvg},
+	"max":     {"max", AggrMax},
+	"min":     {"min", AggrMin},
+	"sum":     {"sum", AggrSum},
+	"any":     {"any", AggrAny},
+	"anyLast": {"anyLast", AggrAnyLast},
 }
 
 type Aggr struct {

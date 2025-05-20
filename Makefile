@@ -117,3 +117,7 @@ md5sum:
 
 sha256sum:
 	sha256sum $(wildcard $(NAME)_$(VERSION)*.deb) $(wildcard $(NAME)-$(VERSION)*.rpm) > sha256sum
+
+.PHONY: lint
+lint:
+	golangci-lint run

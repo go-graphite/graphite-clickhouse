@@ -5,8 +5,10 @@ import (
 	"errors"
 )
 
-var ErrTimeout = errors.New("timeout exceeded")
-var ErrOverflow = errors.New("storage maximum queries exceeded")
+var (
+	ErrTimeout  = errors.New("timeout exceeded")
+	ErrOverflow = errors.New("storage maximum queries exceeded")
+)
 
 type ServerLimiter interface {
 	Capacity() int

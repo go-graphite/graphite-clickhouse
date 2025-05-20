@@ -70,7 +70,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				u = h.config.ClickHouse.URL + "/?query=" + url.QueryEscape(query)
 			}
 
-			req, _ := http.NewRequest("GET", u, nil)
+			req, _ := http.NewRequest(http.MethodGet, u, nil)
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("healthcheck error",

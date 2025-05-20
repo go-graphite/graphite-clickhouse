@@ -469,7 +469,6 @@ func TestParseSeriesByTag(t *testing.T) {
 		{Op: TaggedTermEq, Key: "cpu", Value: "cpu-total"},
 		{Op: TaggedTermMatch, Key: "host", Value: `Vladimirs-MacBook-Pro\.local`},
 	})
-
 }
 
 func newInt(i int) *int {
@@ -672,7 +671,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 				t.Errorf("%s\n- [%d]=%+v\n+ [%d]=%+v", testName, i, expected[i], i, terms[i])
 			}
 		}
-
 	}
 
 	ok(

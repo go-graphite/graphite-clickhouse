@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,9 +14,11 @@ import (
 	"github.com/msaf1980/go-stringutils"
 )
 
-var ClickhouseContainerName = "clickhouse-server-gch-test"
-var ClickhouseOldImage = "yandex/clickhouse-server"
-var ClickhouseDefaultImage = "clickhouse/clickhouse-server"
+var (
+	ClickhouseContainerName = "clickhouse-server-gch-test"
+	ClickhouseOldImage      = "yandex/clickhouse-server"
+	ClickhouseDefaultImage  = "clickhouse/clickhouse-server"
+)
 
 type Clickhouse struct {
 	Version    string `toml:"version"`
@@ -168,7 +170,7 @@ func (c *Clickhouse) Exec(sql string) (bool, string) {
 
 func (c *Clickhouse) Query(sql string) (string, error) {
 	reader := strings.NewReader(sql)
-	request, err := http.NewRequest("POST", c.URL(), reader)
+	request, err := http.NewRequest(http.MethodPost, c.URL(), reader)
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +179,9 @@ func (c *Clickhouse) Query(sql string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	msg, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	msg, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -195,6 +199,8 @@ func (c *Clickhouse) Alive() bool {
 	if err != nil {
 		return false
 	}
+	defer req.Body.Close()
+
 	return req.StatusCode == http.StatusOK
 }
 
