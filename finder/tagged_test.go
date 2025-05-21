@@ -930,14 +930,16 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 
 func TestTaggedFinder_whereFilter(t *testing.T) {
 	tests := []struct {
-		name         string
-		query        string
-		from         int64
-		until        int64
-		dailyEnabled bool
-		taggedCosts  map[string]*config.Costs
-		want         string
-		wantPre      string
+		name                 string
+		query                string
+		from                 int64
+		until                int64
+		dailyEnabled         bool
+		useCarbonBehavior    bool
+		dontMatchMissingTags bool
+		taggedCosts          map[string]*config.Costs
+		want                 string
+		wantPre              string
 	}{
 		{
 			name:         "nodaily",
@@ -959,26 +961,41 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 				date.FromTimestampToDaysFormat(1668124800) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(1668124810) + "')",
 			wantPre: "",
 		},
+		{
+			name:              "",
+			query:             "seriesByTag('emptyval=', 'what=value')",
+			from:              1668124800, // 2022-11-11 00:00:00 UTC
+			until:             1668124810, // 2022-11-11 00:00:10 UTC
+			dailyEnabled:      true,
+			useCarbonBehavior: true,
+			want: "((Tag1='what=value') AND (NOT arrayExists((x) -> x LIKE 'emptyval=%', Tags))) AND (Date >='" +
+				date.FromTimestampToDaysFormat(1668124800) + "' AND Date <= '" + date.UntilTimestampToDaysFormat(1668124810) + "')",
+			wantPre: "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+" "+time.Unix(tt.from, 0).Format(time.RFC3339), func(t *testing.T) {
 			config := config.New()
 			config.ClickHouse.TaggedCosts = tt.taggedCosts
-			terms, err := ParseSeriesByTag(tt.query, config)
-			if err != nil {
-				t.Fatal(err)
-			}
+			config.FeatureFlags.UseCarbonBehavior = tt.useCarbonBehavior
+			config.FeatureFlags.DontMatchMissingTags = tt.dontMatchMissingTags
+
 			f := NewTagged(
 				"http://localhost:8123/",
 				"graphite_tags",
 				"",
 				tt.dailyEnabled,
-				false,
-				false,
+				tt.useCarbonBehavior,
+				tt.dontMatchMissingTags,
 				false,
 				clickhouse.Options{},
 				tt.taggedCosts,
 			)
+			stat := &FinderStat{}
+			terms, err := f.PrepareTaggedTerms(context.Background(), config, tt.query, tt.from, tt.until, stat)
+			if err != nil {
+				t.Fatal(err)
+			}
 			got, gotDate, err := f.whereFilter(terms, tt.from, tt.until)
 			if err != nil {
 				t.Fatal(err)

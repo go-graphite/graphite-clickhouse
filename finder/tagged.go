@@ -303,8 +303,8 @@ func ParseTaggedConditions(conditions []string, config *config.Config, autocompl
 			terms[i].HasWildcard = where.HasWildcard(terms[i].Value)
 			// special case when using useCarbonBehaviour = true
 			// which matches everything that does not have that tag
-			emptyValue := config.FeatureFlags.UseCarbonBehavior && terms[i].Value == ""
-			if !terms[i].HasWildcard && !emptyValue {
+			terms[i].HasWildcard = terms[i].HasWildcard || config.FeatureFlags.UseCarbonBehavior && terms[i].Value == ""
+			if !terms[i].HasWildcard {
 				nonWildcards++
 			}
 		case "!=":
