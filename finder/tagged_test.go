@@ -1004,7 +1004,9 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 				clickhouse.Options{},
 				tt.taggedCosts,
 			)
+
 			stat := &FinderStat{}
+
 			terms, err := f.PrepareTaggedTerms(context.Background(), config, tt.query, tt.from, tt.until, stat)
 			if err != nil {
 				t.Fatal(err)
