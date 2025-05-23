@@ -29,6 +29,7 @@ func bytesConcat(s1 []byte, s2 []byte) []byte {
 	ret := make([]byte, len(s1)+len(s2))
 	copy(ret, s1)
 	copy(ret[len(s1):], s2)
+
 	return ret
 }
 
@@ -59,6 +60,7 @@ func (p *PrefixFinder) Execute(ctx context.Context, config *config.Config, query
 		if err != nil {
 			return err
 		}
+
 		if !m { // not matched
 			return nil
 		}
@@ -68,6 +70,7 @@ func (p *PrefixFinder) Execute(ctx context.Context, config *config.Config, query
 		// prefix matched, but not finished
 		p.part = strings.Join(ps[:len(qs)], ".") + "."
 		p.matched = PrefixPartialMathed
+
 		return nil
 	}
 

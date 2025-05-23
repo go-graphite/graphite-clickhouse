@@ -24,6 +24,7 @@ func (c *carbonlinkMocked) CacheQueryMulti(ctx context.Context, metrics []string
 
 func TestSetCarbonlingClient(t *testing.T) {
 	assert.Nil(t, carbonlink, "client is set in the begining of tests")
+
 	cfg := config.New()
 	cfg.Carbonlink.Server = "localhost:0"
 	setCarbonlinkClient(&cfg.Carbonlink)
@@ -47,6 +48,7 @@ func TestQueryCarbonlink(t *testing.T) {
 			Value:     14,
 		},
 	}
+
 	for _, m := range metrics {
 		res[m] = dataPoints
 	}
@@ -60,6 +62,7 @@ func TestQueryCarbonlink(t *testing.T) {
 	// Result points.metrics are not ordered
 	pMetrics := []string{points.MetricName(1), points.MetricName(2)}
 	i := 0
+
 	for _, m := range pMetrics {
 		for _, dp := range dataPoints {
 			// There is a tiny chance that point will have greated Timestamp than now. Here we test it's at most the next second
@@ -67,6 +70,7 @@ func TestQueryCarbonlink(t *testing.T) {
 
 			expectedPoint := point.Point{MetricID: points.MetricID(m), Value: dp.Value, Time: uint32(dp.Timestamp), Timestamp: points.List()[i].Timestamp}
 			assert.Equal(t, expectedPoint, points.List()[i], "point is not correct")
+
 			i++
 		}
 	}

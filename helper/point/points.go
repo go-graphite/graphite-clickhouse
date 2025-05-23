@@ -45,6 +45,7 @@ func (pp *Points) MetricID(metricName string) uint32 {
 		id = uint32(len(pp.metrics))
 		pp.idMap[metricName] = id
 	}
+
 	return id
 }
 
@@ -60,6 +61,7 @@ func (pp *Points) MetricName(metricID uint32) string {
 	if i < 1 || len(pp.metrics) < i {
 		return ""
 	}
+
 	return pp.metrics[i-1]
 }
 
@@ -79,6 +81,7 @@ func (pp *Points) GetStep(id uint32) (uint32, error) {
 	if i < 1 || len(pp.steps) < i {
 		return 0, fmt.Errorf("wrong id %d for given steps %d: %w", i, len(pp.steps), ErrWrongMetricID)
 	}
+
 	return pp.steps[i-1], nil
 }
 
@@ -89,6 +92,7 @@ func (pp *Points) SetSteps(steps map[uint32][]string) {
 	}
 
 	pp.steps = make([]uint32, len(pp.metrics))
+
 	for step, mm := range steps {
 		for _, m := range mm {
 			if id, ok := pp.idMap[m]; ok {
@@ -104,6 +108,7 @@ func (pp *Points) GetAggregation(id uint32) (string, error) {
 	if i < 1 || len(pp.aggs) < i {
 		return "", fmt.Errorf("wrong id %d for given functions %d: %w", i, len(pp.aggs), ErrWrongMetricID)
 	}
+
 	return *pp.aggs[i-1], nil
 }
 
@@ -111,9 +116,11 @@ func (pp *Points) GetAggregation(id uint32) (string, error) {
 func (pp *Points) SetAggregations(functions map[string][]string) {
 	pp.aggs = make([]*string, len(pp.metrics))
 	pp.uniqAgg = make([]string, 0, len(functions))
+
 	for f := range functions {
 		pp.uniqAgg = append(pp.uniqAgg, f)
 	}
+
 	for i, f := range pp.uniqAgg {
 		for _, m := range functions[f] {
 			if id, ok := pp.idMap[m]; ok {
@@ -153,6 +160,7 @@ func (pp *Points) Uniq() {
 // It should be called only on sorted and cleaned Points.
 func (pp *Points) GroupByMetric() NextMetric {
 	var i, n int
+
 	l := pp.Len()
 	// i - current position of iterator
 	// n - position of the first record with current metric
@@ -160,15 +168,19 @@ func (pp *Points) GroupByMetric() NextMetric {
 		if n == l {
 			return []Point{}
 		}
+
 		for i = n; i < l; i++ {
 			if pp.list[i].MetricID != pp.list[n].MetricID {
 				points := pp.list[n:i]
 				n = i
+
 				return points
 			}
 		}
+
 		points := pp.list[n:i]
 		n = i
+
 		return points
 	}
 }

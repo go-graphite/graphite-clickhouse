@@ -15,6 +15,7 @@ func max(a, b int) int {
 	if a > b {
 		return a
 	}
+
 	return b
 }
 
@@ -437,11 +438,16 @@ func TestInitMetrics(t *testing.T) {
 			FindRequestMetric = nil
 			TagsRequestMetric = nil
 			RenderRequestMetric = nil
+
 			UnregisterAll()
+
 			c := tt.c
 			Graphite = &graphite.Graphite{}
+
 			InitMetrics(&c, tt.findWaitQueue, tt.tagsWaitQueue)
+
 			Graphite = nil
+
 			assert.Equal(t, tt.want, c)
 			// FindRequestH
 			compareInterface(t, "find.all.requests", FindRequestMetric.RequestsH, true)
@@ -457,6 +463,7 @@ func TestInitMetrics(t *testing.T) {
 			compareInterface(t, "find.all.requests_status_code.5xx", FindRequestMetric.Requests5xx, c.ExtendedStat)
 			//FindRequestMetric
 			assert.Equal(t, tt.wantFindCountName, FindRequestMetric.MetricsCountName)
+
 			for i := 0; i < max(len(c.FindRangeS), len(tt.wantFindRangesMetricsCountNames)); i++ {
 				if i < len(c.FindRangeNames) {
 					// FindRequestH
@@ -472,15 +479,19 @@ func TestInitMetrics(t *testing.T) {
 					compareInterface(t, "find."+c.FindRangeNames[i]+".requests_status_code.504", FindRequestMetric.RangeMetrics[i].Requests504, c.ExtendedStat)
 					compareInterface(t, "find."+c.FindRangeNames[i]+".requests_status_code.5xx", FindRequestMetric.RangeMetrics[i].Requests5xx, c.ExtendedStat)
 				}
+
 				var want, got string
 				if i < len(tt.wantFindRangesMetricsCountNames) {
 					want = tt.wantFindRangesMetricsCountNames[i]
 				}
+
 				if i < len(FindRequestMetric.RangeMetrics) {
 					got = FindRequestMetric.RangeMetrics[i].MetricsCountName
 				}
+
 				assert.Equal(t, want, got)
 			}
+
 			assert.Equal(t, tt.want.FindRangeS, FindRequestMetric.RangeS)
 			assert.Equal(t, tt.want.FindRangeNames, FindRequestMetric.RangeNames)
 			assert.Equalf(t, len(tt.want.FindRangeS), len(FindRequestMetric.RangeMetrics), "FindRequestMetric.RangeMetrics")
@@ -500,8 +511,10 @@ func TestInitMetrics(t *testing.T) {
 			// RenderRequestMetric
 			assert.Equal(t, tt.wantRenderMetricsCountName, RenderRequestMetric.MetricsCountName)
 			assert.Equal(t, tt.wantRenderPointsCountName, RenderRequestMetric.PointsCountName)
+
 			for i := 0; i < max(len(c.RangeS), len(tt.wantRenderRangesMetricsCountNames)); i++ {
 				var want, got string
+
 				if i < len(c.RangeNames) {
 					// FindRequestH
 					compareInterface(t, "render."+c.RangeNames[i]+".requests", RenderRequestMetric.RangeMetrics[i].RequestsH, true)
@@ -517,28 +530,35 @@ func TestInitMetrics(t *testing.T) {
 					compareInterface(t, "render."+c.RangeNames[i]+".requests_status_code.504", RenderRequestMetric.RangeMetrics[i].Requests504, c.ExtendedStat)
 					compareInterface(t, "render."+c.RangeNames[i]+".requests_status_code.5xx", RenderRequestMetric.RangeMetrics[i].Requests5xx, c.ExtendedStat)
 				}
+
 				if i < len(tt.wantRenderRangesMetricsCountNames) {
 					want = tt.wantRenderRangesMetricsCountNames[i]
 				}
+
 				if i < len(RenderRequestMetric.RangeMetrics) {
 					got = RenderRequestMetric.RangeMetrics[i].MetricsCountName
 				}
+
 				assert.Equalf(t, want, got, strconv.Itoa(i))
 
 				if i < len(tt.wantRenderRangesPointsCountNames) {
 					want = tt.wantRenderRangesPointsCountNames[i]
 				}
+
 				if i < len(tt.wantRenderRangesPointsCountNames) {
 					got = RenderRequestMetric.RangeMetrics[i].PointsCountName
 				}
+
 				assert.Equalf(t, want, got, strconv.Itoa(i))
 			}
+
 			assert.Equal(t, tt.want.RangeS, RenderRequestMetric.RangeS)
 			assert.Equal(t, tt.want.RangeNames, RenderRequestMetric.RangeNames)
 			assert.Equalf(t, len(tt.want.RangeS), len(RenderRequestMetric.RangeMetrics), "RenderRequestMetric.RangeMetrics")
 			// cleanup global vars
 			FindRequestMetric = nil
 			RenderRequestMetric = nil
+
 			UnregisterAll()
 		})
 	}

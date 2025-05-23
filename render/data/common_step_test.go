@@ -36,11 +36,13 @@ func newWrapper() *wrapper {
 func TestCommonStepWorker(t *testing.T) {
 	w := newWrapper()
 	w.addTargets(4)
+
 	go func() {
 		lastStep := int64(0)
 		for i := 0; i < 20000; i++ {
 			w.calculateUnsafe(lastStep, 0)
 		}
+
 		w.calc(0)
 		assert.Equal(t, int64(120), w.commonStep.getResult())
 	}()
@@ -49,6 +51,7 @@ func TestCommonStepWorker(t *testing.T) {
 		for i := 0; i < 30000; i++ {
 			w.calculateUnsafe(lastStep, 6)
 		}
+
 		w.calc(6)
 		assert.Equal(t, int64(120), w.commonStep.getResult())
 	}()
@@ -57,6 +60,7 @@ func TestCommonStepWorker(t *testing.T) {
 		for i := 0; i < 40000; i++ {
 			w.calculateUnsafe(lastStep, 8)
 		}
+
 		w.calc(8)
 		assert.Equal(t, int64(120), w.commonStep.getResult())
 	}()
@@ -65,6 +69,7 @@ func TestCommonStepWorker(t *testing.T) {
 		for i := 0; i < 50000; i++ {
 			w.calculateUnsafe(lastStep, 10)
 		}
+
 		w.calc(10)
 		assert.Equal(t, int64(120), w.commonStep.getResult())
 	}()

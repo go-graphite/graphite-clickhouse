@@ -22,6 +22,7 @@ type Index struct {
 
 func New(config *config.Config, ctx context.Context) (*Index, error) {
 	var reader io.ReadCloser
+
 	var err error
 
 	opts := clickhouse.Options{
@@ -73,11 +74,13 @@ func (i *Index) WriteJSON(w http.ResponseWriter) error {
 
 	s := bufio.NewScanner(i.rowsReader)
 	idx := 0
+
 	for s.Scan() {
 		b := s.Bytes()
 		if len(b) == 0 {
 			continue
 		}
+
 		if b[len(b)-1] == '.' {
 			continue
 		}
@@ -86,6 +89,7 @@ func (i *Index) WriteJSON(w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+
 		jsonParts := [][]byte{
 			nil,
 			json_b,
@@ -93,18 +97,22 @@ func (i *Index) WriteJSON(w http.ResponseWriter) error {
 		if idx != 0 {
 			jsonParts[0] = []byte{','}
 		}
+
 		jsonified := bytes.Join(jsonParts, []byte(""))
 
 		_, err = w.Write(jsonified)
 		if err != nil {
 			return err
 		}
+
 		idx++
 	}
+
 	if err := s.Err(); err != nil {
 		return err
 	}
 
 	_, err = w.Write([]byte("]"))
+
 	return err
 }

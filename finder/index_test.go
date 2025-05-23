@@ -189,6 +189,7 @@ func TestIndexFinder_whereFilter(t *testing.T) {
 			if tt.indexReverse == "" {
 				tt.indexReverse = "auto"
 			}
+
 			idx := NewIndex("http://localhost:8123/", "graphite_index", tt.dailyEnabled, tt.indexReverse, tt.indexReverses, clickhouse.Options{}, false).(*IndexFinder)
 			if got := idx.whereFilter(tt.query, tt.from, tt.until); got.String() != tt.want {
 				t.Errorf("IndexFinder.whereFilter() = %v, want %v", got, tt.want)

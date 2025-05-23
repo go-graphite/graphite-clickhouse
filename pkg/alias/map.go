@@ -39,16 +39,20 @@ func (m *Map) MergeTarget(r finder.Result, target string, saveCache bool) []byte
 
 	series := r.Series()
 	buf.Grow(len(series) * 24)
+
 	for i := 0; i < len(series); i++ {
 		if saveCache {
 			buf.Write(series[i])
 			buf.WriteByte('\n')
 		}
+
 		key := string(series[i])
 		if len(key) == 0 {
 			continue
 		}
+
 		abs := string(r.Abs(series[i]))
+
 		m.lock.Lock()
 		if x, ok := m.data[key]; ok {
 			m.data[key] = append(x, Value{Target: target, DisplayName: abs})
@@ -69,23 +73,28 @@ func (m *Map) MergeTarget(r finder.Result, target string, saveCache bool) []byte
 func (m *Map) Len() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+
 	return len(m.data)
 }
 
 // Size returns count of values
 func (m *Map) Size() int {
 	s := 0
+
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+
 	for _, v := range m.data {
 		s += len(v)
 	}
+
 	return s
 }
 
 // Series returns keys of aliases map
 func (m *Map) Series(isReverse bool) []string {
 	series := make([]string, 0, m.Len())
+
 	for k := range m.data {
 		if isReverse {
 			series = append(series, reverse.String(k))
@@ -93,17 +102,20 @@ func (m *Map) Series(isReverse bool) []string {
 			series = append(series, k)
 		}
 	}
+
 	return series
 }
 
 // DisplayNames returns DisplayName from all Values
 func (m *Map) DisplayNames() []string {
 	dn := make([]string, 0, m.Size())
+
 	for _, v := range m.data {
 		for _, a := range v {
 			dn = append(dn, a.DisplayName)
 		}
 	}
+
 	return dn
 }
 

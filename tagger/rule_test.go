@@ -90,7 +90,9 @@ func TestRules(t *testing.T) {
 		if expected == nil {
 			expected = []string{}
 		}
+
 		sort.Strings(expected)
+
 		tags := m.Tags.List()
 		sort.Strings(tags)
 

@@ -16,10 +16,12 @@ func urlParse(rawurl string) (*url.URL, error) {
 	if p < 0 {
 		return url.Parse(rawurl)
 	}
+
 	m, err := url.Parse(rawurl[p:])
 	if m != nil {
 		m.Path = rawurl[:p]
 	}
+
 	return m, err
 }
 

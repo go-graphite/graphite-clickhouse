@@ -28,6 +28,7 @@ func InitQueryMetrics(table string, c *Config) *QueryMetrics {
 	if table == "" {
 		table = "default"
 	}
+
 	if q, exist := QMetrics[table]; exist {
 		return q
 	}
@@ -46,10 +47,12 @@ func InitQueryMetrics(table string, c *Config) *QueryMetrics {
 		queryMetric.RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 		metrics.Register("query."+table+".all.requests", queryMetric.RequestsH)
 		metrics.Register("query."+table+".all.errors", queryMetric.Errors)
+
 		if len(c.RangeS) > 0 {
 			queryMetric.RangeS = c.RangeS
 			queryMetric.RangeNames = c.RangeNames
 			queryMetric.RangeMetrics = make([]QueryMetric, len(c.RangeS))
+
 			for i := range c.RangeS {
 				queryMetric.RangeMetrics[i].RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 				metrics.Register("query."+table+"."+queryMetric.RangeNames[i]+".requests", queryMetric.RangeMetrics[i].RequestsH)
@@ -64,6 +67,7 @@ func InitQueryMetrics(table string, c *Config) *QueryMetrics {
 	} else {
 		queryMetric.RequestsH = metrics.NilHistogram{}
 	}
+
 	QMetrics[table] = queryMetric
 
 	return queryMetric
@@ -71,23 +75,28 @@ func InitQueryMetrics(table string, c *Config) *QueryMetrics {
 
 func SendQueryRead(r *QueryMetrics, from, until, durationMs, read_rows, read_bytes, ch_read_rows, ch_read_bytes int64, err bool) {
 	r.RequestsH.Add(durationMs)
+
 	if ch_read_rows > 0 {
 		Gstatsd.Timing(r.ChReadBytesName, ch_read_bytes, 1.0)
 		Gstatsd.Timing(r.ChReadRowsName, ch_read_rows, 1.0)
 	}
+
 	if err {
 		r.Errors.Add(1)
 	} else {
 		Gstatsd.Timing(r.ReadBytesName, read_bytes, 1.0)
 		Gstatsd.Timing(r.ReadRowsName, read_rows, 1.0)
 	}
+
 	if len(r.RangeS) > 0 {
 		fromPos := metrics.SearchInt64Le(r.RangeS, until-from)
 		r.RangeMetrics[fromPos].RequestsH.Add(durationMs)
+
 		if ch_read_rows > 0 {
 			Gstatsd.Timing(r.RangeMetrics[fromPos].ChReadBytesName, ch_read_bytes, 1.0)
 			Gstatsd.Timing(r.RangeMetrics[fromPos].ChReadRowsName, ch_read_rows, 1.0)
 		}
+
 		if err {
 			r.RangeMetrics[fromPos].Errors.Add(1)
 		} else {

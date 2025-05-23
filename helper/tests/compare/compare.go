@@ -14,6 +14,7 @@ func NearlyEqualSlice(a, b []float64) bool {
 		if math.IsNaN(a[i]) && math.IsNaN(b[i]) {
 			continue
 		}
+
 		if math.IsNaN(a[i]) || math.IsNaN(b[i]) {
 			// unexpected NaN
 			return false
@@ -31,10 +32,12 @@ func NearlyEqual(a, b float64) bool {
 	if math.IsNaN(a) && math.IsNaN(b) {
 		return true
 	}
+
 	if math.IsNaN(a) || math.IsNaN(b) {
 		// unexpected NaN
 		return false
 	}
+
 	if math.Abs(a-b) > eps {
 		return false
 	}
@@ -46,5 +49,6 @@ func Max(a, b int) int {
 	if a >= b {
 		return a
 	}
+
 	return b
 }

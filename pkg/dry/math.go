@@ -5,6 +5,7 @@ func Max(x, y int64) int64 {
 	if x > y {
 		return x
 	}
+
 	return y
 }
 
@@ -13,6 +14,7 @@ func Min(x, y int64) int64 {
 	if x < y {
 		return x
 	}
+
 	return y
 }
 
@@ -22,6 +24,7 @@ func Ceil(x, d int64) int64 {
 	if x <= 0 || d <= 0 {
 		return int64(0)
 	}
+
 	return (x + d - 1) / d
 }
 
@@ -37,6 +40,7 @@ func FloorToMultiplier(x, m int64) int64 {
 	if x <= 0 || m <= 0 {
 		return int64(0)
 	}
+
 	return x / m * m
 }
 
@@ -45,12 +49,14 @@ func GCD(a, b int64) int64 {
 	if b < 0 {
 		b = -b
 	}
+
 	var t int64
 	for b != 0 {
 		t = b
 		b = a % b
 		a = t
 	}
+
 	return a
 }
 
@@ -59,5 +65,6 @@ func LCM(a, b int64) int64 {
 	if a*b < 0 {
 		return -a / GCD(a, b) * b
 	}
+
 	return a / GCD(a, b) * b
 }

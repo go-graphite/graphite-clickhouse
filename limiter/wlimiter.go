@@ -18,6 +18,7 @@ func NewWLimiter(capacity, concurrent int, enableMetrics bool, scope, sub string
 	if capacity <= 0 && concurrent <= 0 {
 		return NoopLimiter{}
 	}
+
 	if concurrent <= 0 {
 		return NewLimiter(capacity, enableMetrics, scope, sub)
 	}
@@ -29,10 +30,12 @@ func NewWLimiter(capacity, concurrent int, enableMetrics bool, scope, sub string
 		w.limiter.ch = make(chan struct{}, capacity)
 		w.limiter.cap = capacity
 	}
+
 	if concurrent > 0 {
 		w.concurrentLimiter.ch = make(chan struct{}, concurrent)
 		w.concurrentLimiter.cap = concurrent
 	}
+
 	return w
 }
 
@@ -47,16 +50,21 @@ func (sl *WLimiter) Enter(ctx context.Context, s string) (err error) {
 			return
 		}
 	}
+
 	if sl.concurrentLimiter.cap > 0 {
 		if sl.concurrentLimiter.enter(ctx, s) != nil {
 			if sl.limiter.cap > 0 {
 				sl.limiter.leave(ctx, s)
 			}
+
 			sl.metrics.WaitErrors.Add(1)
+
 			err = ErrTimeout
 		}
 	}
+
 	sl.metrics.Requests.Add(1)
+
 	return
 }
 
@@ -68,16 +76,21 @@ func (sl *WLimiter) TryEnter(ctx context.Context, s string) (err error) {
 			return
 		}
 	}
+
 	if sl.concurrentLimiter.cap > 0 {
 		if sl.concurrentLimiter.tryEnter(ctx, s) != nil {
 			if sl.limiter.cap > 0 {
 				sl.limiter.leave(ctx, s)
 			}
+
 			sl.metrics.WaitErrors.Add(1)
+
 			err = ErrTimeout
 		}
 	}
+
 	sl.metrics.Requests.Add(1)
+
 	return
 }
 
@@ -86,6 +99,7 @@ func (sl *WLimiter) Leave(ctx context.Context, s string) {
 	if sl.limiter.cap > 0 {
 		sl.limiter.leave(ctx, s)
 	}
+
 	sl.concurrentLimiter.leave(ctx, s)
 }
 

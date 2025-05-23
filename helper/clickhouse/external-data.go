@@ -58,6 +58,7 @@ func (e *ExternalData) SetDebug(debugDir string, perm os.FileMode) {
 	if debugDir == "" || perm == 0 {
 		e.debug = nil
 	}
+
 	e.debug = &extDataDebug{debugDir, perm}
 }
 
@@ -84,10 +85,12 @@ func (e *ExternalData) buildBody(ctx context.Context, u *url.URL) (*bytes.Buffer
 		if t.Format != "" {
 			q.Set(t.Name+"_format", t.Format)
 		}
+
 		structure := make([]string, 0, len(t.Columns))
 		for _, c := range t.Columns {
 			structure = append(structure, c.String())
 		}
+
 		q.Set(t.Name+"_structure", strings.Join(structure, ","))
 		u.RawQuery = q.Encode()
 	}
@@ -101,6 +104,7 @@ func (e *ExternalData) buildBody(ctx context.Context, u *url.URL) (*bytes.Buffer
 	du := *u
 	// Do not lock the execution by debugging process
 	go e.debugDump(ctx, du)
+
 	return body, header, nil
 }
 
@@ -116,12 +120,14 @@ func (e *ExternalData) debugDump(ctx context.Context, u url.URL) {
 
 	for _, t := range e.Tables {
 		filename := path.Join(e.debug.dir, fmt.Sprintf("ext-%v:%v.%v", t.Name, requestID, t.Format))
+
 		err := os.WriteFile(filename, t.Data, e.debug.perm)
 		if err != nil {
 			logger.Warn("external-data", zap.Error(err))
 			// The debug command couldn't be built w/o all external tables
 			return
 		}
+
 		command += fmt.Sprintf("-F '%v=@%v;' ", t.Name, filename)
 	}
 

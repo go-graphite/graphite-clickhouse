@@ -11,6 +11,7 @@ func ishex(c byte) bool {
 	case 'A' <= c && c <= 'F':
 		return true
 	}
+
 	return false
 }
 
@@ -23,6 +24,7 @@ func unhex(c byte) byte {
 	case 'A' <= c && c <= 'F':
 		return c - 'A' + 10
 	}
+
 	return 0
 }
 
@@ -36,7 +38,9 @@ func unescape(s string) string {
 	if first == -1 {
 		return s
 	}
+
 	var t strings.Builder
+
 	t.Grow(len(s))
 	t.WriteString(s[:first])
 

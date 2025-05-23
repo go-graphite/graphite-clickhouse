@@ -67,6 +67,7 @@ func (s *Set) MarshalJSON() ([]byte, error) {
 	}
 
 	var err error
+
 	s.json, err = json.Marshal(s.list)
 	if err != nil {
 		return nil, err

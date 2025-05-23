@@ -112,12 +112,14 @@ func (splitFinder *SplitIndexFinder) Execute(
 		nil,
 	)
 	stat.Table = splitFinder.table
+
 	if err != nil {
 		return err
 	}
 
 	stat.ReadBytes = int64(len(splitFinder.body))
 	splitFinder.body, splitFinder.rows, _ = splitIndexBody(splitFinder.body, splitFinder.useReverse, splitFinder.useCache)
+
 	return nil
 }
 
@@ -133,6 +135,7 @@ func splitQuery(query string, maxNodeToSplitIdx int) ([]string, error) {
 
 	lastClosingBracketIndex := strings.LastIndex(query, "}")
 	reverseNodeCount := strings.Count(query[lastClosingBracketIndex:], ".")
+
 	var reverseWildcardIndex int
 	if lastClosingBracketIndex == len(query)-1 {
 		reverseWildcardIndex = -1
@@ -141,17 +144,20 @@ func splitQuery(query string, maxNodeToSplitIdx int) ([]string, error) {
 	}
 
 	useDirect := true
+
 	if directWildcardIndex >= 0 && reverseWildcardIndex >= 0 {
 		return []string{query}, nil
 	} else if directWildcardIndex < 0 && reverseWildcardIndex >= 0 {
 		if directNodeCount > maxNodeToSplitIdx {
 			return []string{query}, nil
 		}
+
 		useDirect = true
 	} else if directWildcardIndex >= 0 && reverseWildcardIndex < 0 {
 		if reverseNodeCount > maxNodeToSplitIdx {
 			return []string{query}, nil
 		}
+
 		useDirect = false
 	} else {
 		if directNodeCount > maxNodeToSplitIdx && reverseNodeCount > maxNodeToSplitIdx {
@@ -177,11 +183,13 @@ func splitQuery(query string, maxNodeToSplitIdx int) ([]string, error) {
 			if directNodeCount > maxNodeToSplitIdx {
 				return []string{query}, nil
 			}
+
 			useDirect = true
 		} else if reverseNodeCount > directNodeCount {
 			if reverseNodeCount > maxNodeToSplitIdx {
 				return []string{query}, nil
 			}
+
 			useDirect = false
 		} else {
 			if choicesInLeftMost >= choicesInRightMost {
@@ -228,6 +236,7 @@ func splitPartOfQuery(prefix, queryPart, suffix string) ([]string, error) {
 
 func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until int64) (*where.Where, error) {
 	queryWithWildcardIdx := -1
+
 	for i, q := range queries {
 		err := validatePlainQuery(q, splitFinder.wildcardMinDistance)
 		if err != nil {
@@ -250,6 +259,7 @@ func (splitFinder *SplitIndexFinder) whereFilter(queries []string, from, until i
 
 	nonWildcardQueries := make([]string, 0)
 	aggregatedWhere := where.New()
+
 	for _, q := range queries {
 		if splitFinder.useReverse {
 			q = ReverseString(q)

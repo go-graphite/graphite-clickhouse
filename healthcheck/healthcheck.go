@@ -37,6 +37,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		query  string
 		failed int32
 	)
+
 	if h.config.ClickHouse.IndexTable != "" {
 		// non-existing name with wrong level
 		query = "SELECT Path FROM " + h.config.ClickHouse.IndexTable + " WHERE ((Level=20002) AND (Path IN ('NonExistient','NonExistient.'))) AND (Date='1970-02-12') GROUP BY Path FORMAT TabSeparatedRaw"
@@ -44,9 +45,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// non-existing partition
 		query = "SELECT Path FROM " + h.config.ClickHouse.TaggedTable + " WHERE (Tag1='__name__=NonExistient') AND (Date='1970-02-12') GROUP BY Path FORMAT TabSeparatedRaw"
 	}
+
 	if query != "" {
 		failed = 1
 		now := time.Now().Unix()
+
 		for {
 			last := atomic.LoadInt64(&h.last)
 			if now-last < 10 {
@@ -63,6 +66,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			client := http.Client{
 				Timeout: 2 * time.Second,
 			}
+
 			var u string
 			if pos := strings.Index(h.config.ClickHouse.URL, "/?"); pos > 0 {
 				u = h.config.ClickHouse.URL[:pos+2] + "query=" + url.QueryEscape(query)
@@ -71,6 +75,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			req, _ := http.NewRequest(http.MethodGet, u, nil)
+
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("healthcheck error",
@@ -84,27 +89,34 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						failed = 0
 					} else {
 						failed = 1
+
 						logger.Error("healthcheck error",
 							zap.String("error", stringutils.UnsafeString(body)),
 						)
 					}
 				} else {
 					failed = 1
+
 					logger.Error("healthcheck error",
 						zap.Error(err),
 					)
 				}
+
 				resp.Body.Close()
 			} else {
 				failed = 1
+
 				logger.Error("healthcheck error",
 					zap.Error(err),
 				)
 			}
+
 			atomic.StoreInt32(&h.failed, failed)
+
 			break
 		}
 	}
+
 	if failed > 0 {
 		http.Error(w, "Storage healthcheck failed", http.StatusServiceUnavailable)
 	} else {

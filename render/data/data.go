@@ -45,6 +45,7 @@ func (d *Data) GetStep(id uint32) (uint32, error) {
 	if 0 < d.CommonStep {
 		return uint32(d.CommonStep), nil
 	}
+
 	return d.Points.GetStep(id)
 }
 
@@ -54,6 +55,7 @@ func (d *Data) GetAggregation(id uint32) (string, error) {
 	if err != nil {
 		return function, err
 	}
+
 	switch function {
 	case "any":
 		return "first", nil
@@ -119,12 +121,14 @@ func prepareData(ctx context.Context, targets int, fetcher func() *point.Points)
 					)
 				}
 			}
+
 			return
 		case <-ctx.Done():
 			data.e <- fmt.Errorf("prepareData failed: %w", ctx.Err())
 			return
 		}
 	}()
+
 	return data
 }
 
@@ -134,6 +138,7 @@ func (d *data) setSteps(cond *conditions) {
 		d.CommonStep = cond.step
 		return
 	}
+
 	d.Points.SetSteps(cond.steps)
 }
 
@@ -161,18 +166,21 @@ func dataSplitAggregated(data []byte, atEOF bool) (advance int, token []byte, er
 
 	nameLen, readBytes, err := ReadUvarint(data)
 	tokenLen := readBytes + int(nameLen)
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += readBytes + int(timeLen)*4
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += readBytes + int(valueLen)*8
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
@@ -193,24 +201,28 @@ func dataSplitUnaggregated(data []byte, atEOF bool) (advance int, token []byte, 
 
 	nameLen, readBytes, err := ReadUvarint(data)
 	tokenLen := readBytes + int(nameLen)
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timeLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += readBytes + int(timeLen)*4
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	valueLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += readBytes + int(valueLen)*8
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
 
 	timestampLen, readBytes, err := ReadUvarint(data[tokenLen:])
 	tokenLen += readBytes + int(timestampLen)*4
+
 	if err != nil || len(data) < tokenLen {
 		return splitErrorHandler(&data, atEOF, tokenLen, err)
 	}
@@ -226,6 +238,7 @@ func dataSplitUnaggregated(data []byte, atEOF bool) (advance int, token []byte, 
 // Expected, that on error the context will be cancelled on the upper level.
 func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond *conditions) error {
 	pp := d.Points
+
 	dataSplit := dataSplitUnaggregated
 	if cond.aggregated {
 		dataSplit = dataSplitAggregated
@@ -244,6 +257,7 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 	}
 
 	var metricID uint32
+
 	d.mut.Lock()
 	defer func() {
 		d.mut.Unlock()
@@ -306,6 +320,7 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 		if !cond.aggregated {
 			timestamps = make([]uint32, 0, arrayLen)
 			row = row[readBytes:]
+
 			for i := uint64(0); i < arrayLen; i++ {
 				timestamps = append(timestamps, binary.LittleEndian.Uint32(row[:4]))
 				row = row[4:]
@@ -316,6 +331,7 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 			pp.AppendPoint(metricID, values[i], times[i], timestamps[i])
 		}
 	}
+
 	d.spent += time.Since(start)
 
 	err := scanner.Err()
@@ -325,7 +341,9 @@ func (d *data) parseResponse(ctx context.Context, bodyReader io.ReadCloser, cond
 			// format full error string, sometimes parse not failed at start orf error string
 			dataErr.PrependDescription(string(rowStart))
 		}
+
 		bodyReader.Close()
+
 		return err
 	}
 

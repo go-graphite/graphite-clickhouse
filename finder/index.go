@@ -79,14 +79,18 @@ func (idx *IndexFinder) checkReverses(query string) uint8 {
 		if len(rule.Prefix) > 0 && !strings.HasPrefix(query, rule.Prefix) {
 			continue
 		}
+
 		if len(rule.Suffix) > 0 && !strings.HasSuffix(query, rule.Suffix) {
 			continue
 		}
+
 		if rule.Regex != nil && rule.Regex.FindStringIndex(query) == nil {
 			continue
 		}
+
 		return config.IndexReverse[rule.Reverse]
 	}
+
 	return idx.confReverse
 }
 
@@ -106,6 +110,7 @@ func (idx *IndexFinder) useReverse(query string) bool {
 		idx.reverse = queryDirect
 		return idx.useReverse(query)
 	}
+
 	firstWildcardNode := strings.Count(query[:w], ".")
 
 	w = where.IndexLastWildcard(query)
@@ -115,7 +120,9 @@ func (idx *IndexFinder) useReverse(query string) bool {
 		idx.reverse = queryReversed
 		return idx.useReverse(query)
 	}
+
 	idx.reverse = queryDirect
+
 	return idx.useReverse(query)
 }
 
@@ -125,6 +132,7 @@ func useDaily(dailyEnabled bool, from, until int64) bool {
 
 func calculateIndexLevelOffset(useDaily, reverse bool) int {
 	var levelOffset int
+
 	if useDaily {
 		if reverse {
 			levelOffset = ReverseLevelOffset
@@ -162,6 +170,7 @@ func (idx *IndexFinder) whereFilter(query string, from int64, until int64) *wher
 
 	w := idx.where(query, levelOffset)
 	addDatesToWhere(w, idx.useDaily, from, until)
+
 	return w
 }
 
@@ -189,6 +198,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, quer
 	if err != nil {
 		return err
 	}
+
 	w := idx.whereFilter(query, from, until)
 
 	idx.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
@@ -200,6 +210,7 @@ func (idx *IndexFinder) Execute(ctx context.Context, config *config.Config, quer
 		nil,
 	)
 	stat.Table = idx.table
+
 	if err == nil {
 		stat.ReadBytes = int64(len(idx.body))
 		idx.bodySplit()
@@ -246,6 +257,7 @@ func splitIndexBody(body []byte, useReverse, useCache bool) ([]byte, [][]byte, b
 func (idx *IndexFinder) bodySplit() {
 	setDirect := false
 	idx.body, idx.rows, setDirect = splitIndexBody(idx.body, idx.useReverse(""), idx.useCache)
+
 	if setDirect {
 		idx.reverse = queryDirect
 	}

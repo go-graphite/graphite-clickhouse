@@ -29,9 +29,11 @@ func setCarbonlinkClient(config *config.Carbonlink) {
 	if carbonlink != nil {
 		return
 	}
+
 	if config.Server == "" {
 		return
 	}
+
 	carbonlink = &carbonlinkClient{
 		graphitePickle.NewCarbonlinkClient(
 			config.Server,
@@ -42,12 +44,14 @@ func setCarbonlinkClient(config *config.Carbonlink) {
 		),
 		config.TotalTimeout,
 	}
+
 	return
 }
 
 // queryCarbonlink returns callable result fetcher
 func queryCarbonlink(parentCtx context.Context, carbonlink *carbonlinkClient, metrics []string) func() *point.Points {
 	logger := scope.Logger(parentCtx)
+
 	if carbonlink == nil {
 		return func() *point.Points { return nil }
 	}

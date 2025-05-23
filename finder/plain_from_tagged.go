@@ -21,11 +21,14 @@ type plainFromTaggedFinder struct {
 
 func makePlainFromTagged(matchers []TaggedTerm) *plainFromTaggedFinder {
 	var isMetricNameFound bool
+
 	var target string
+
 	for _, m := range matchers {
 		if m.Key == "__name__" && m.Value == "graphite" && m.Op == TaggedTermEq {
 			isMetricNameFound = true
 		}
+
 		if m.Key == "target" && m.Op == TaggedTermEq && m.Value != "" {
 			target = m.Value
 		}
@@ -84,6 +87,7 @@ func (f *plainFromTaggedFinder) Abs(value []byte) []byte {
 	lb := []taggedLabel{
 		{"metric", path},
 	}
+
 	if f.metricName != "" {
 		name = f.metricName
 	}
@@ -104,10 +108,12 @@ func (f *plainFromTaggedFinder) Abs(value []byte) []byte {
 
 	buf.WriteString(name)
 	buf.WriteByte('?')
+
 	for i, l := range lb {
 		if i > 0 {
 			buf.WriteByte('&')
 		}
+
 		buf.WriteString(url.QueryEscape(l.name))
 		buf.WriteByte('=')
 		buf.WriteString(url.QueryEscape(l.value))

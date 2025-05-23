@@ -25,10 +25,12 @@ func TestProcessDataTables(t *testing.T) {
 		table       DataTable
 		tableLegacy string
 	}
+
 	type out struct {
 		tables []DataTable
 		err    error
 	}
+
 	type ctx map[string]bool
 
 	regexpCompileWrapper := func(re string) *regexp.Regexp {
@@ -199,14 +201,17 @@ func TestProcessDataTables(t *testing.T) {
 			if test.in.table.Table != "" {
 				cfg.DataTable = []DataTable{test.in.table}
 			}
+
 			if test.in.tableLegacy != "" {
 				cfg.ClickHouse.DataTableLegacy = test.in.tableLegacy
 			}
+
 			err := cfg.ProcessDataTables()
 			if err != nil {
 				assert.Equal(t, test.out.err, err)
 				return
 			}
+
 			assert.Equal(t, len(test.out.tables), len(cfg.DataTable))
 			// it's difficult to check rollup.Rollup because Rules.updated field
 			// We explicitly don't check it here
@@ -214,6 +219,7 @@ func TestProcessDataTables(t *testing.T) {
 				test.out.tables[i].Rollup = nil
 				cfg.DataTable[i].Rollup = nil
 			}
+
 			assert.Equal(t, test.out.tables, cfg.DataTable)
 		})
 	}
@@ -322,6 +328,7 @@ sample-thereafter = 12
 	)
 	config, _, err := Unmarshal(body, false)
 	expected := New()
+
 	require.NoError(t, err)
 
 	// Common
@@ -558,6 +565,7 @@ sample-thereafter = 12
 	)
 	config, _, err := Unmarshal(body, false)
 	expected := New()
+
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
 	metrics.Graphite = nil
@@ -673,17 +681,21 @@ sample-thereafter = 12
 	expected.ClickHouse.IndexReverses[0] = &IndexReverseRule{"suf", "pref", "", nil, "direct"}
 	r, _ = regexp.Compile("^reg$")
 	expected.ClickHouse.IndexReverses[1] = &IndexReverseRule{"", "", "^reg$", r, "reversed"}
+
 	for i := range config.ClickHouse.QueryParams {
 		if _, ok := config.ClickHouse.QueryParams[i].Limiter.(*limiter.WLimiter); ok && config.ClickHouse.QueryParams[i].MaxQueries > 0 && config.ClickHouse.QueryParams[i].ConcurrentQueries > 0 {
 			config.ClickHouse.QueryParams[i].Limiter = nil
 		}
 	}
+
 	if _, ok := config.ClickHouse.FindLimiter.(*limiter.WLimiter); ok && config.ClickHouse.FindMaxQueries > 0 && config.ClickHouse.FindConcurrentQueries > 0 {
 		config.ClickHouse.FindLimiter = nil
 	}
+
 	if _, ok := config.ClickHouse.TagsLimiter.(*limiter.WLimiter); ok && config.ClickHouse.TagsMaxQueries > 0 && config.ClickHouse.TagsConcurrentQueries > 0 {
 		config.ClickHouse.TagsLimiter = nil
 	}
+
 	for u, q := range config.ClickHouse.UserLimits {
 		if _, ok := q.Limiter.(*limiter.WLimiter); ok && q.MaxQueries > 0 && q.ConcurrentQueries > 0 {
 			q.Limiter = nil
@@ -874,6 +886,7 @@ sample-thereafter = 12
 	)
 	config, _, err := Unmarshal(body, false)
 	expected := New()
+
 	require.NoError(t, err)
 	assert.NotNil(t, metrics.Graphite)
 	metrics.Graphite = nil
@@ -994,17 +1007,21 @@ sample-thereafter = 12
 	expected.ClickHouse.IndexReverses[0] = &IndexReverseRule{"suf", "pref", "", nil, "direct"}
 	r, _ = regexp.Compile("^reg$")
 	expected.ClickHouse.IndexReverses[1] = &IndexReverseRule{"", "", "^reg$", r, "reversed"}
+
 	for i := range config.ClickHouse.QueryParams {
 		if _, ok := config.ClickHouse.QueryParams[i].Limiter.(*limiter.ALimiter); ok {
 			config.ClickHouse.QueryParams[i].Limiter = nil
 		}
 	}
+
 	if _, ok := config.ClickHouse.FindLimiter.(*limiter.WLimiter); ok {
 		config.ClickHouse.FindLimiter = nil
 	}
+
 	if _, ok := config.ClickHouse.TagsLimiter.(*limiter.ALimiter); ok {
 		config.ClickHouse.TagsLimiter = nil
 	}
+
 	for u, q := range config.ClickHouse.UserLimits {
 		if _, ok := q.Limiter.(*limiter.ALimiter); ok {
 			q.Limiter = nil
@@ -1260,6 +1277,7 @@ func TestGetQueryParam(t *testing.T) {
 				for i := range config.ClickHouse.QueryParams {
 					config.ClickHouse.QueryParams[i].Limiter = nil
 				}
+
 				for i, duration := range tt.durations {
 					got := GetQueryParam(config.ClickHouse.QueryParams, duration)
 					if config.ClickHouse.QueryParams[got] != tt.wantParams[i] {

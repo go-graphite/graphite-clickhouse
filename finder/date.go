@@ -59,6 +59,7 @@ func (b *DateFinder) Execute(ctx context.Context, config *config.Config, query s
 			nil,
 		)
 	}
+
 	stat.ReadBytes = int64(len(b.body))
 	stat.Table = b.table
 

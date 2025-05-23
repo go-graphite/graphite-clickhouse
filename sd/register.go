@@ -58,12 +58,14 @@ func Register(cfg *config.Common, logger *zap.Logger) {
 		load          float64
 		w             int64
 	)
+
 	if cfg.SD != "" {
 		if strings.HasPrefix(cfg.Listen, ":") {
 			registerFirst = true
 			listenIP = utils.GetLocalIP()
 			prevIP = listenIP
 		}
+
 		hostname, _ = os.Hostname()
 		hostname, _, _ = strings.Cut(hostname, ".")
 
@@ -71,6 +73,7 @@ func Register(cfg *config.Common, logger *zap.Logger) {
 		if err != nil {
 			panic("serive discovery type not registered")
 		}
+
 		load, err = load_avg.Normalized()
 		if err == nil {
 			load_avg.Store(load)
@@ -135,6 +138,7 @@ func Stop() {
 func Cleanup(cfg *config.Common, sd SD, checkOnly bool) error {
 	if cfg.SD != "" && cfg.SDExpire > 0 {
 		ts := time.Now().Unix() - int64(cfg.SDExpire.Seconds())
+
 		if nodes, err := sd.Nodes(); err == nil {
 			for _, node := range nodes {
 				if node.Flags > 0 {
@@ -145,6 +149,7 @@ func Cleanup(cfg *config.Common, sd SD, checkOnly bool) error {
 							if err = sd.DeleteNode(node.Key); err != nil {
 								return err
 							}
+
 							fmt.Printf("%s: %s (%s), deleted\n", node.Key, node.Value, time.Unix(node.Flags, 0).UTC().Format(time.RFC3339Nano))
 						}
 					}
@@ -156,5 +161,6 @@ func Cleanup(cfg *config.Common, sd SD, checkOnly bool) error {
 			return err
 		}
 	}
+
 	return nil
 }

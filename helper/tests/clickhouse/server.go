@@ -40,6 +40,7 @@ func (h *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range resp.Headers {
 			w.Header().Set(k, v)
 		}
+
 		if resp.Code == 0 || resp.Code == http.StatusOK {
 			w.Write(resp.Body)
 		} else {

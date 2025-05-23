@@ -61,6 +61,7 @@ func TestFormatterReply(t *testing.T) {
 		{&JSON{}, "json", client.FormatJSON},
 		{&Pickle{}, "pickle", client.FormatPickle},
 	}
+
 	tests := []struct {
 		name  string
 		input data.CHResponses
@@ -105,6 +106,7 @@ func TestFormatterReply(t *testing.T) {
 			}, results[1:]...),
 		},
 	}
+
 	for _, formatter := range formatters {
 		t.Run(fmt.Sprintf("format=%s", formatter.name), func(t *testing.T) {
 			for _, tt := range tests {
@@ -112,17 +114,21 @@ func TestFormatterReply(t *testing.T) {
 				// case 1: test for AppendOutEmptySeries = true
 				for i := 0; i < 2; i++ {
 					var expected []client.Metric
+
 					var testName string
+
 					switch i {
 					case 0:
 						expected = tt.expectedWithoutEmpty
 						testName = fmt.Sprintf("NoAppend: %s", tt.name)
+
 						for j := range tt.input {
 							tt.input[j].AppendOutEmptySeries = false
 						}
 					case 1:
 						expected = tt.expectedWithEmpty
 						testName = fmt.Sprintf("WithAppend: %s", tt.name)
+
 						for j := range tt.input {
 							tt.input[j].AppendOutEmptySeries = true
 						}
@@ -134,12 +140,14 @@ func TestFormatterReply(t *testing.T) {
 						// 	ctx = scope.WithDebug(ctx, "Protobuf")
 						// }
 						w := httptest.NewRecorder()
+
 						r, err := http.NewRequestWithContext(ctx, "", "", nil)
 						if err != nil {
 							require.NoErrorf(t, err, "failed to create request")
 						}
 
 						formatter.impl.Reply(w, r, tt.input)
+
 						response := w.Result()
 						defer response.Body.Close()
 
@@ -149,6 +157,7 @@ func TestFormatterReply(t *testing.T) {
 						require.NoError(t, err)
 						got, err := client.Decode(data, formatter.format)
 						require.NoError(t, err)
+
 						if !equalMetrics(expected, got) {
 							t.Errorf("metrics not equal: expected:\n%#v\ngot:\n%#v\n", expected, got)
 						}
@@ -168,20 +177,24 @@ func prepareCHResponses(from, until int64, indices [][]byte, points map[string][
 
 	// points
 	pts := point.NewPoints()
+
 	stringIndex := make([]string, 0, len(indices))
 	for _, each := range indices {
 		stringIndex = append(stringIndex, string(each))
 	}
+
 	for k, v := range points {
 		id := pts.MetricID(k)
 		for _, eachPoint := range v {
 			pts.AppendPoint(id, eachPoint.Value, eachPoint.Time, eachPoint.Timestamp)
 		}
 	}
+
 	pts.SetAggregations(map[string][]string{
 		"avg": stringIndex,
 	})
 	sort.Sort(pts)
+
 	return data.CHResponses{{
 		Data: &data.Data{
 			Points:     pts,
@@ -199,6 +212,7 @@ func emptyValues(size int) []float64 {
 	for i := 0; i < size; i++ {
 		arr = append(arr, math.NaN())
 	}
+
 	return arr
 }
 
@@ -208,12 +222,14 @@ func equalMetrics(m1, m2 []client.Metric) bool {
 	if len(m1) != len(m2) {
 		return false
 	}
+
 	sort.Slice(m1, func(i, j int) bool {
 		return m1[i].Name < m1[j].Name
 	})
 	sort.Slice(m2, func(i, j int) bool {
 		return m2[i].Name < m2[j].Name
 	})
+
 	for i := 0; i < len(m1); i++ {
 		// compare props
 		if m1[i].Name != m2[i].Name ||
@@ -226,15 +242,18 @@ func equalMetrics(m1, m2 []client.Metric) bool {
 		if len(m1[i].Values) != len(m2[i].Values) {
 			return false
 		}
+
 		for j := 0; j < len(m1[i].Values); j++ {
 			a, b := m1[i].Values[j], m2[i].Values[j]
 			if math.IsNaN(a) && math.IsNaN(b) {
 				continue
 			}
+
 			if a != b {
 				return false
 			}
 		}
 	}
+
 	return true
 }

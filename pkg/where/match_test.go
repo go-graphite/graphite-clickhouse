@@ -57,6 +57,7 @@ func Test_HasUnmatchedBrackets(t *testing.T) {
 
 func TestGlob(t *testing.T) {
 	field := "test"
+
 	tests := []struct {
 		query string
 		want  string

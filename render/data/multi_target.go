@@ -43,11 +43,13 @@ func MFRToMultiTarget(v3Request *v3pb.MultiFetchRequest) MultiTarget {
 			} else {
 				multiTarget[tf] = NewTargetsOne(m.PathExpression, len(v3Request.Metrics), alias.New())
 			}
+
 			if len(m.FilterFunctions) > 0 {
 				multiTarget[tf].SetFilteringFunctions(m.PathExpression, m.FilterFunctions)
 			}
 		}
 	}
+
 	return multiTarget
 }
 
@@ -56,18 +58,22 @@ func (m *MultiTarget) checkMetricsLimitExceeded(num int) error {
 		// zero or negative means unlimited
 		return nil
 	}
+
 	for _, t := range *m {
 		if num < t.AM.Len() {
 			return errs.NewErrorWithCode(fmt.Sprintf("metrics limit exceeded: %d < %d", num, t.AM.Len()), http.StatusForbidden)
 		}
 	}
+
 	return nil
 }
 
 func getDataTimeout(cfg *config.Config, m *MultiTarget) time.Duration {
 	dataTimeout := cfg.ClickHouse.DataTimeout
+
 	if len(cfg.ClickHouse.QueryParams) > 1 {
 		var maxDuration time.Duration
+
 		for tf := range *m {
 			duration := time.Second * time.Duration(tf.Until-tf.From)
 			if duration >= maxDuration {
@@ -76,6 +82,7 @@ func getDataTimeout(cfg *config.Config, m *MultiTarget) time.Duration {
 		}
 
 		n := config.GetQueryParam(cfg.ClickHouse.QueryParams, maxDuration)
+
 		return cfg.ClickHouse.QueryParams[n].DataTimeout
 	}
 
@@ -84,6 +91,7 @@ func getDataTimeout(cfg *config.Config, m *MultiTarget) time.Duration {
 
 func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) (string, limiter.ServerLimiter) {
 	n := 0
+
 	if username != "" && len(cfg.ClickHouse.UserLimits) > 0 {
 		if u, ok := cfg.ClickHouse.UserLimits[username]; ok {
 			return username, u.Limiter
@@ -92,6 +100,7 @@ func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) (strin
 
 	if len(cfg.ClickHouse.QueryParams) > 1 {
 		var maxDuration time.Duration
+
 		for tf := range *m {
 			duration := time.Second * time.Duration(tf.Until-tf.From)
 			if duration >= maxDuration {
@@ -107,6 +116,7 @@ func GetQueryLimiter(username string, cfg *config.Config, m *MultiTarget) (strin
 
 func GetQueryLimiterFrom(username string, cfg *config.Config, from, until int64) limiter.ServerLimiter {
 	n := 0
+
 	if username != "" && len(cfg.ClickHouse.UserLimits) > 0 {
 		if u, ok := cfg.ClickHouse.UserLimits[username]; ok {
 			return u.Limiter
@@ -125,6 +135,7 @@ func GetQueryParam(username string, cfg *config.Config, m *MultiTarget) (*config
 
 	if len(cfg.ClickHouse.QueryParams) > 1 {
 		var maxDuration time.Duration
+
 		for tf := range *m {
 			duration := time.Second * time.Duration(tf.Until-tf.From)
 			if duration >= maxDuration {
@@ -145,7 +156,9 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 		wg      sync.WaitGroup
 		entered int
 	)
+
 	logger := scope.Logger(ctx)
+
 	setCarbonlinkClient(&cfg.Carbonlink)
 
 	err := m.checkMetricsLimitExceeded(cfg.Common.MaxMetricsPerTarget)
@@ -161,6 +174,7 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 		for i := 0; i < entered; i++ {
 			qlimiter.Leave(ctxTimeout, "render")
 		}
+
 		cancel()
 	}()
 
@@ -169,6 +183,7 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 
 	for tf, targets := range *m {
 		tf, targets := tf, targets
+
 		cond := &conditions{TimeFrame: &tf,
 			Targets:           targets,
 			aggregated:        cfg.ClickHouse.InternalAggregation,
@@ -177,18 +192,22 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 		if cond.MaxDataPoints <= 0 || int64(cfg.ClickHouse.MaxDataPoints) < cond.MaxDataPoints {
 			cond.MaxDataPoints = int64(cfg.ClickHouse.MaxDataPoints)
 		}
+
 		err := cond.selectDataTable(cfg, cond.TimeFrame, chContext)
 		if err != nil {
 			lock.Lock()
 			errors = append(errors, err)
 			lock.Unlock()
 			logger.Error("data tables is not specified", zap.Error(err))
+
 			return EmptyResponse(), err
 		}
+
 		if qlimiter.Enabled() {
 			start := time.Now()
 			err = qlimiter.Enter(ctxTimeout, "render")
 			*queueDuration += time.Since(start)
+
 			if err != nil {
 				// status = http.StatusServiceUnavailable
 				// queueFail = true
@@ -196,23 +215,31 @@ func (m *MultiTarget) Fetch(ctx context.Context, cfg *config.Config, chContext s
 				lock.Lock()
 				errors = append(errors, err)
 				lock.Unlock()
+
 				break
 			}
+
 			entered++
 		}
+
 		wg.Add(1)
+
 		go func(cond *conditions) {
 			defer wg.Done()
+
 			err := query.getDataPoints(ctxTimeout, cond)
 			if err != nil {
 				lock.Lock()
 				errors = append(errors, err)
 				lock.Unlock()
+
 				return
 			}
 		}(cond)
 	}
+
 	wg.Wait()
+
 	for len(errors) != 0 {
 		return EmptyResponse(), errors[0]
 	}

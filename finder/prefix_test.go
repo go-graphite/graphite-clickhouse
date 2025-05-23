@@ -37,6 +37,7 @@ func TestPrefixFinderExecute(t *testing.T) {
 		f := WrapPrefix(m, test.prefix)
 
 		var stat FinderStat
+
 		config := config.New()
 		err := f.Execute(context.Background(), config, test.query, 0, 0, &stat)
 
@@ -88,6 +89,7 @@ func TestPrefixFinderList(t *testing.T) {
 		f := WrapPrefix(m, prefix)
 
 		var stat FinderStat
+
 		config := config.New()
 		f.Execute(context.Background(), config, test.query, 0, 0, &stat)
 

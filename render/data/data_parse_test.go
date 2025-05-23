@@ -60,6 +60,7 @@ func testCarbonlinkReaderNil() *point.Points {
 func TestUnaggregatedDataParse(t *testing.T) {
 	ctx := context.Background()
 	cond := &conditions{Targets: &Targets{isReverse: false}, aggregated: false}
+
 	t.Run("empty response", func(t *testing.T) {
 		body := []byte{}
 		r := io.NopCloser(bytes.NewReader(body))
@@ -67,6 +68,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 
 		err := d.parseResponse(ctx, r, cond)
 		assert.NoError(t, err)
+
 		werr := d.wait(ctx)
 		assert.NoError(t, werr)
 		assert.Empty(t, d.Points.List())
@@ -99,21 +101,25 @@ func TestUnaggregatedDataParse(t *testing.T) {
 
 			err := d.parseResponse(ctx, r, cond)
 			assert.NoError(t, err)
+
 			werr := d.wait(ctx)
 			assert.NoError(t, werr)
 			// point number
 			p := 0
+
 			for j := 0; j < len(table[i]); j++ {
 				for m := 0; m < len(table[i][j].PointValues.Times); m++ {
 					assert.Equal(t, table[i][j].Metric, d.Points.MetricName(d.Points.List()[p].MetricID))
 					assert.Equal(t, table[i][j].PointValues.Times[m], d.Points.List()[p].Time)
 					assert.Equal(t, table[i][j].PointValues.Values[m], d.Points.List()[p].Value)
 					assert.Equal(t, table[i][j].PointValues.Timestamps[m], d.Points.List()[p].Timestamp)
+
 					p++
 				}
 			}
 		})
 	}
+
 	for i := 0; i < len(table); i++ {
 		t.Run(fmt.Sprintf("reversed #%d", i), func(t *testing.T) {
 			cond := &conditions{Targets: &Targets{isReverse: true}, aggregated: false}
@@ -124,16 +130,19 @@ func TestUnaggregatedDataParse(t *testing.T) {
 
 			err := d.parseResponse(ctx, r, cond)
 			assert.NoError(t, err)
+
 			werr := d.wait(ctx)
 			assert.NoError(t, werr)
 			// point number
 			p := 0
+
 			for j := 0; j < len(table[i]); j++ {
 				for m := 0; m < len(table[i][j].PointValues.Times); m++ {
 					assert.Equal(t, table[i][j].Metric, reverse.String(d.Points.MetricName(d.Points.List()[p].MetricID)))
 					assert.Equal(t, table[i][j].PointValues.Times[m], d.Points.List()[p].Time)
 					assert.Equal(t, table[i][j].PointValues.Values[m], d.Points.List()[p].Value)
 					assert.Equal(t, table[i][j].PointValues.Timestamps[m], d.Points.List()[p].Timestamp)
+
 					p++
 				}
 			}
@@ -185,6 +194,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 				// length of the first metric
 				continue
 			}
+
 			r := io.NopCloser(bytes.NewReader(body[:i]))
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
 
@@ -198,6 +208,7 @@ func TestUnaggregatedDataParse(t *testing.T) {
 func TestAggregatedDataParse(t *testing.T) {
 	ctx := context.Background()
 	cond := &conditions{Targets: &Targets{isReverse: false}, aggregated: true}
+
 	t.Run("empty response", func(t *testing.T) {
 		body := []byte{}
 		d := prepareData(ctx, 1, testCarbonlinkReaderNil)
@@ -233,6 +244,7 @@ func TestAggregatedDataParse(t *testing.T) {
 				// length of the first metric
 				continue
 			}
+
 			r := io.NopCloser(bytes.NewReader(body[:i]))
 
 			d := prepareData(ctx, 1, testCarbonlinkReaderNil)
@@ -288,6 +300,7 @@ func TestAggregatedDataParse(t *testing.T) {
 			{MetricID: 2, Value: 42.1, Time: 1520056686, Timestamp: 1520056686},
 			{MetricID: 2, Value: 43, Time: 1520056690, Timestamp: 1520056690},
 		}
+
 		assert.NoError(t, err)
 		assert.Equal(t, result, d.Points.List())
 	})
@@ -323,6 +336,7 @@ func TestAggregatedDataParse(t *testing.T) {
 
 func TestPrepareDataParse(t *testing.T) {
 	ctx := context.Background()
+
 	t.Run("empty datapoints", func(t *testing.T) {
 		data := prepareData(ctx, 1, testCarbonlinkReaderNil)
 		err := data.wait(ctx)
@@ -333,6 +347,7 @@ func TestPrepareDataParse(t *testing.T) {
 	t.Run("cancelled context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
 		cancel()
+
 		data := prepareData(ctx, 1, testCarbonlinkReaderNil)
 		err := data.wait(ctx)
 		assert.ErrorIs(t, err, context.Canceled)
@@ -346,6 +361,7 @@ func TestPrepareDataParse(t *testing.T) {
 		extraPoints.MetricID("some.metric2")
 		extraPoints.AppendPoint(1, 1, 3, 3)
 		extraPoints.AppendPoint(2, 1, 3, 3)
+
 		reader := func() *point.Points {
 			time.Sleep(1 * time.Millisecond)
 			return extraPoints
@@ -376,9 +392,12 @@ func TestAsyncDataParse(t *testing.T) {
 		extraPoints.MetricID("some.metric2")
 		extraPoints.AppendPoint(1, 1, 3, 3)
 		extraPoints.AppendPoint(2, 1, 3, 3)
+
 		reader := func() *point.Points { return extraPoints }
+
 		ctx, cancel := context.WithTimeout(ctx, -1*time.Nanosecond)
 		defer cancel()
+
 		d := prepareData(ctx, 1, reader)
 		assert.Len(t, d.Points.List(), 0, "timeout should prevent points parsing")
 
@@ -407,12 +426,15 @@ func TestAsyncDataParse(t *testing.T) {
 		extraPoints.MetricID("some.metric2")
 		extraPoints.AppendPoint(1, 1, 3, 3)
 		extraPoints.AppendPoint(2, 1, 3, 3)
+
 		reader := func() *point.Points {
 			time.Sleep(1 * time.Second)
 			return extraPoints
 		}
+
 		ctx, cancel := context.WithTimeout(ctx, 50*time.Nanosecond)
 		defer cancel()
+
 		d := prepareData(ctx, 1, reader)
 		err := d.wait(ctx)
 		assert.Len(t, d.Points.List(), 0, "timeout should prevent points parsing")
@@ -433,6 +455,7 @@ func TestAsyncDataParse(t *testing.T) {
 		// fails after context is cancelled
 		err = d.wait(ctx)
 		assert.ErrorIs(t, err, context.Canceled)
+
 		r = io.NopCloser(bytes.NewReader(body))
 		err = d.parseResponse(ctx, r, cond)
 		assert.ErrorIs(t, err, context.Canceled)

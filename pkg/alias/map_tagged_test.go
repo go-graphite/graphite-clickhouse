@@ -20,11 +20,13 @@ var taggedTarget string = "seriesByTag('name=cpu.loadavg)"
 func createAMTagged() *Map {
 	am := New()
 	am.MergeTarget(taggedResult, taggedTarget, false)
+
 	return am
 }
 
 func TestCreationTagged(t *testing.T) {
 	am := createAMTagged()
+
 	for _, m := range taggedResult.List() {
 		metric := string(m)
 		v, ok := am.data[metric]
@@ -51,6 +53,7 @@ func TestAsyncMergeTagged(t *testing.T) {
 	am := New()
 	wg := sync.WaitGroup{}
 	wg.Add(2)
+
 	go func() {
 		am.MergeTarget(finder.NewMockTagged(testEnvResult), targetTest, false)
 		wg.Done()
@@ -59,6 +62,7 @@ func TestAsyncMergeTagged(t *testing.T) {
 		am.MergeTarget(finder.NewMockTagged(prodEnvResult), targetProd, false)
 		wg.Done()
 	}()
+
 	resultAM := &Map{
 		data: map[string][]Value{
 			"cpu.loadavg?env=test&host=host1": {
@@ -75,15 +79,20 @@ func TestAsyncMergeTagged(t *testing.T) {
 			},
 		},
 	}
+
 	wg.Wait()
+
 	if !assert.Equal(t, resultAM.Len(), am.Len()) {
 		t.FailNow()
 	}
+
 	for i := range am.data {
 		var dv Values = am.data[i]
+
 		sort.Sort(&dv)
 		am.data[i] = dv
 	}
+
 	assert.Equal(t, resultAM, am)
 }
 

@@ -39,6 +39,7 @@ func Test_getWeighted(t *testing.T) {
 	for n, tt := range tests {
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			load_avg.Store(tt.loadAvg)
+
 			if got := getWeighted(tt.n, tt.max); got != tt.want {
 				t.Errorf("load avg = %f getWeighted(%d, %d) = %v, want %v", tt.loadAvg, tt.n, tt.max, got, tt.want)
 			}
@@ -57,6 +58,7 @@ func TestNewALimiter(t *testing.T) {
 	load_avg.Store(0)
 
 	var i int
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 
 	for i = 0; i < concurrent; i++ {
@@ -73,11 +75,13 @@ func TestNewALimiter(t *testing.T) {
 
 	// load_avg 0.5
 	load_avg.Store(0.5)
+
 	k := getWeighted(n, concurrent)
 	require.Equal(t, 0, k)
 
 	// load_avg 0.6
 	load_avg.Store(0.6)
+
 	k = getWeighted(n, concurrent)
 	require.Equal(t, n*6/10, k)
 
@@ -98,6 +102,7 @@ func TestNewALimiter(t *testing.T) {
 
 	// // load_avg 1
 	load_avg.Store(1)
+
 	k = getWeighted(n, concurrent)
 	require.Equal(t, n, k)
 
@@ -143,6 +148,7 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 	}
 
 	load_avg.Store(0.5)
+
 	for _, tt := range tests {
 		b.Run(fmt.Sprintf("L%d_C%d_N%d_CONCURRENCY%d", tt.l, tt.c, tt.n, tt.concurrencyLevel), func(b *testing.B) {
 			var (
@@ -153,13 +159,16 @@ func Benchmark_Limiter_Parallel(b *testing.B) {
 
 			wgStart := sync.WaitGroup{}
 			wg := sync.WaitGroup{}
+
 			wgStart.Add(tt.concurrencyLevel)
 
 			ctx := context.Background()
 
 			b.ResetTimer()
+
 			for i := 0; i < tt.concurrencyLevel; i++ {
 				wg.Add(1)
+
 				go func() {
 					wgStart.Done()
 					wgStart.Wait()

@@ -38,6 +38,7 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 	p.initBuffer()
 
 	totalWritten := 0
+
 	for _, d := range multiData {
 		data := d.Data
 		from := uint32(d.From)
@@ -54,18 +55,23 @@ func replyProtobuf(p pb, w http.ResponseWriter, r *http.Request, multiData data.
 			if len(points) == 0 {
 				break
 			}
+
 			metricName := data.MetricName(points[0].MetricID)
 			writtenMetrics[metricName] = struct{}{}
+
 			step, err := data.GetStep(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get step", zap.Error(err))
 				http.Error(w, fmt.Sprintf("failed to get step for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+
 				return
 			}
+
 			function, err := data.GetAggregation(points[0].MetricID)
 			if err != nil {
 				logger.Error("fail to get function", zap.Error(err))
 				http.Error(w, fmt.Sprintf("failed to get function for metric: %v", data.MetricName(points[0].MetricID)), http.StatusInternalServerError)
+
 				return
 			}
 
@@ -105,13 +111,17 @@ func init() {
 
 func VarintEncode(x uint64) []byte {
 	var buf [protobufMaxVarintBytes]byte
+
 	var n int
+
 	for n = 0; x > 127; n++ {
 		buf[n] = 0x80 | uint8(x&0x7F)
 		x >>= 7
 	}
+
 	buf[n] = uint8(x)
 	n++
+
 	return buf[0:n]
 }
 
@@ -130,13 +140,16 @@ func VarintLen(x uint64) uint64 {
 	if x < 128 {
 		return 1
 	}
+
 	if x < 16384 {
 		return 2
 	}
+
 	j := uint64(2)
 	for i := uint64(16384); i <= x; i *= 128 {
 		j++
 	}
+
 	return j
 }
 

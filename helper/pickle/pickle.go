@@ -66,7 +66,9 @@ func (p *Writer) String(v string) {
 
 func (p *Writer) Uint32(v uint32) {
 	p.w.Write([]byte{'J'})
+
 	var b [4]byte
+
 	binary.LittleEndian.PutUint32(b[:], v)
 	p.w.Write(b[:])
 }

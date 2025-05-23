@@ -98,6 +98,7 @@ func TestTaggedWhere(t *testing.T) {
 					return
 				}
 			}
+
 			require.NoError(err, testName+", err")
 
 			var w, pw *where.Where
@@ -198,6 +199,7 @@ func TestTaggedWhere_UseCarbonBehaviourFlag(t *testing.T) {
 					return
 				}
 			}
+
 			require.NoError(err, testName+", err")
 
 			var w, pw *where.Where
@@ -300,6 +302,7 @@ func TestTaggedWhere_DontMatchMissingTagsFlag(t *testing.T) {
 					return
 				}
 			}
+
 			require.NoError(err, testName+", err")
 
 			var w, pw *where.Where
@@ -402,6 +405,7 @@ func TestTaggedWhere_BothFeatureFlags(t *testing.T) {
 					return
 				}
 			}
+
 			require.NoError(err, testName+", err")
 
 			var w, pw *where.Where
@@ -430,10 +434,12 @@ func TestParseSeriesByTag(t *testing.T) {
 		p, err := ParseSeriesByTag(query, config)
 		assert.NoError(err)
 		assert.Equal(len(expected), len(p))
+
 		length := len(expected)
 		if length < len(p) {
 			length = len(p)
 		}
+
 		for i := 0; i < length; i++ {
 			if i >= len(p) {
 				t.Errorf("%s\n- [%d]=%+v", query, i, expected[i])
@@ -474,6 +480,7 @@ func TestParseSeriesByTag(t *testing.T) {
 func newInt(i int) *int {
 	p := new(int)
 	*p = i
+
 	return p
 }
 
@@ -495,10 +502,12 @@ func TestParseSeriesByTagWithCosts(t *testing.T) {
 		SetCosts(terms, config.ClickHouse.TaggedCosts)
 		SortTaggedTermsByCost(terms)
 		assert.NoError(err)
+
 		length := len(expected)
 		if length < len(terms) {
 			length = len(terms)
 		}
+
 		for i := 0; i < length; i++ {
 			if i >= len(terms) {
 				t.Errorf("%s\n- [%d]=%+v", query, i, expected[i])
@@ -625,6 +634,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 
 		cfg, _ := config.DefaultConfig()
 		cfg.ClickHouse.URL = srv.URL
+
 		if useTagCostsFromConfig {
 			cfg.ClickHouse.TaggedCosts = taggedCosts
 		}
@@ -650,11 +660,13 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		)
 
 		stat := &FinderStat{}
+
 		terms, err := taggedFinder.PrepareTaggedTerms(context.Background(), cfg, query, from, until, stat)
 		if expectedErr != nil {
 			assert.Equal(expectedErr, err, testName+", err")
 			return
 		}
+
 		assert.NoError(err)
 		assert.Equal(metricMightExist, taggedFinder.metricMightExists, testName+", metricMightExist")
 
@@ -662,6 +674,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		if length < len(terms) {
 			length = len(terms)
 		}
+
 		for i := 0; i < length; i++ {
 			if i >= len(terms) {
 				t.Errorf("%s\n- [%d]=%+v", testName, i, expected[i])
@@ -964,10 +977,12 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 		t.Run(tt.name+" "+time.Unix(tt.from, 0).Format(time.RFC3339), func(t *testing.T) {
 			config := config.New()
 			config.ClickHouse.TaggedCosts = tt.taggedCosts
+
 			terms, err := ParseSeriesByTag(tt.query, config)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			f := NewTagged(
 				"http://localhost:8123/",
 				"graphite_tags",
@@ -979,13 +994,16 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 				clickhouse.Options{},
 				tt.taggedCosts,
 			)
+
 			got, gotDate, err := f.whereFilter(terms, tt.from, tt.until)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if got.String() != tt.want {
 				t.Errorf("TaggedFinder.whereFilter()[0] = %v, want %v", got, tt.want)
 			}
+
 			if gotDate.String() != tt.wantPre {
 				t.Errorf("TaggedFinder.whereFilter()[1] = %v, want %v", gotDate, tt.wantPre)
 			}
@@ -1024,6 +1042,7 @@ func TestTaggedFinder_Abs(t *testing.T) {
 			} else {
 				tf = NewTagged("http:/127.0.0.1:8123", "graphite_tags", "", true, false, false, false, clickhouse.Options{}, nil)
 			}
+
 			if got := string(tf.Abs(tt.v)); got != string(tt.want) {
 				t.Errorf("TaggedDecode() =\n%q\nwant\n%q", got, string(tt.want))
 			}

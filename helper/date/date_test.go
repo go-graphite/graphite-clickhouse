@@ -15,6 +15,7 @@ func isVerbose() bool {
 			return true
 		}
 	}
+
 	return false
 }
 
