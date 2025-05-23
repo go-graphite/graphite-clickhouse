@@ -41,6 +41,7 @@ type Metric struct {
 // Valid formats are carbonapi_v3_pb. protobuf, pickle, json
 func Render(client *http.Client, address string, format FormatType, targets []string, filteringFunctions []*protov3.FilteringFunction, maxDataPoints, from, until int64) (string, []Metric, http.Header, error) {
 	rUrl := "/render/"
+
 	if format == FormatDefault {
 		format = FormatPb_v3
 	}
@@ -53,9 +54,11 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	if from <= 0 {
 		return queryParams, nil, nil, ErrInvalidFrom
 	}
+
 	if until <= 0 {
 		return queryParams, nil, nil, ErrInvalidUntil
 	}
+
 	fromStr := strconv.FormatInt(from, 10)
 	untilStr := strconv.FormatInt(until, 10)
 	maxDataPointsStr := strconv.FormatInt(maxDataPoints, 10)
@@ -66,7 +69,9 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	}
 
 	var v url.Values
+
 	var reader io.Reader
+
 	switch format {
 	case FormatPb_v3:
 		v = url.Values{
@@ -75,6 +80,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		u.RawQuery = v.Encode()
 
 		var body []byte
+
 		r := protov3.MultiFetchRequest{
 			Metrics: make([]protov3.FetchRequest, len(targets)),
 		}
@@ -93,6 +99,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 		if err != nil {
 			return queryParams, nil, nil, err
 		}
+
 		if body != nil {
 			reader = bytes.NewReader(body)
 		}
@@ -113,16 +120,19 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queryParams, nil, nil, err
 	}
+
 	if resp.StatusCode == http.StatusNotFound {
 		return queryParams, nil, resp.Header, nil
 	} else if resp.StatusCode != http.StatusOK {
@@ -133,6 +143,7 @@ func Render(client *http.Client, address string, format FormatType, targets []st
 	if err != nil {
 		return queryParams, nil, resp.Header, err
 	}
+
 	return queryParams, metrics, resp.Header, nil
 }
 
@@ -142,13 +153,16 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 		metrics []Metric
 		err     error
 	)
+
 	switch format {
 	case FormatPb_v3:
 		var r protov3.MultiFetchResponse
+
 		err = r.Unmarshal(b)
 		if err != nil {
 			return nil, err
 		}
+
 		metrics = make([]Metric, 0, len(r.Metrics))
 		for _, m := range r.Metrics {
 			metrics = append(metrics, Metric{
@@ -168,11 +182,14 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 		}
 	case FormatPb_v2, FormatProtobuf:
 		var r protov2.MultiFetchResponse
+
 		err = r.Unmarshal(b)
 		if err != nil {
 			return nil, err
 		}
+
 		metrics = make([]Metric, 0, len(r.Metrics))
+
 		for _, m := range r.Metrics {
 			for i, a := range m.IsAbsent {
 				if a {
@@ -191,14 +208,17 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 	case FormatPickle:
 		reader := bytes.NewReader(b)
 		decoder := pickle.NewDecoder(reader)
+
 		p, err := decoder.Decode()
 		if err != nil {
 			return nil, err
 		}
+
 		for _, v := range p.([]interface{}) {
 			m := v.(map[interface{}]interface{})
 			vals := m["values"].([]interface{})
 			values := make([]float64, len(vals))
+
 			for i, vv := range vals {
 				if _, isNaN := vv.(pickle.None); isNaN {
 					values[i] = math.NaN()
@@ -206,6 +226,7 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 					values[i] = vv.(float64)
 				}
 			}
+
 			metrics = append(metrics, Metric{
 				Name:           m["name"].(string),
 				PathExpression: m["pathExpression"].(string),
@@ -217,13 +238,17 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 		}
 	case FormatJSON:
 		var r jsonResponse
+
 		err = json.Unmarshal(b, &r)
 		if err != nil {
 			return nil, err
 		}
+
 		metrics = make([]Metric, 0, len(r.Metrics))
+
 		for _, m := range r.Metrics {
 			values := make([]float64, len(m.Values))
+
 			for i, v := range m.Values {
 				if v == nil {
 					values[i] = math.NaN()
@@ -231,6 +256,7 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 					values[i] = *v
 				}
 			}
+
 			metrics = append(metrics, Metric{
 				Name:           m.Name,
 				PathExpression: m.PathExpression,
@@ -243,6 +269,7 @@ func Decode(b []byte, format FormatType) ([]Metric, error) {
 	default:
 		return nil, ErrUnsupportedFormat
 	}
+
 	return metrics, nil
 }
 

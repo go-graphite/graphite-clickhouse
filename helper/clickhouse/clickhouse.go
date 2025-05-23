@@ -63,6 +63,7 @@ func extractClickhouseError(e string) (int, string) {
 			if end := strings.Index(e, " (version "); end != -1 {
 				e = e[0:end]
 			}
+
 			return http.StatusForbidden, "Storage read limit " + e
 		} else if start := strings.Index(e, ": Memory limit "); start != -1 {
 			return http.StatusForbidden, "Storage read limit for memory"
@@ -72,34 +73,44 @@ func extractClickhouseError(e string) (int, string) {
 			return http.StatusServiceUnavailable, "Storage configuration error"
 		}
 	}
+
 	if strings.HasPrefix(e, "clickhouse response status 404: Code: 60. DB::Exception: Table default.") {
 		return http.StatusServiceUnavailable, "Storage default tables damaged"
 	}
+
 	if strings.HasPrefix(e, "clickhouse response status 500: Code: 427") || strings.HasPrefix(e, "clickhouse response status 400: Code: 427.") {
 		return http.StatusBadRequest, "Incorrect regex syntax"
 	}
+
 	return http.StatusServiceUnavailable, "Storage unavailable"
 }
 
 func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) {
 	status = http.StatusOK
 	errStr := err.Error()
+
 	if err == ErrInvalidTimeRange {
 		status = http.StatusBadRequest
 		http.Error(w, errStr, status)
+
 		return
 	}
+
 	if err == limiter.ErrTimeout || err == limiter.ErrOverflow {
 		queueFail = true
 		status = http.StatusServiceUnavailable
 		http.Error(w, err.Error(), status)
+
 		return
 	}
+
 	if _, ok := err.(*ErrWithDescr); ok {
 		status, errStr = extractClickhouseError(errStr)
 		http.Error(w, errStr, status)
+
 		return
 	}
+
 	netErr, ok := err.(net.Error)
 	if ok {
 		if netErr.Timeout() {
@@ -117,8 +128,10 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 			status = http.StatusServiceUnavailable
 			http.Error(w, "Storage network error", status)
 		}
+
 		return
 	}
+
 	errCode, ok := err.(errs.ErrorWithCode)
 	if ok {
 		if (errCode.Code > 500 && errCode.Code < 512) ||
@@ -129,8 +142,10 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 			status = http.StatusInternalServerError
 			http.Error(w, html.EscapeString(errStr), status)
 		}
+
 		return
 	}
+
 	if errors.Is(err, context.Canceled) {
 		status = http.StatusGatewayTimeout
 		http.Error(w, "Storage read context canceled", status)
@@ -139,6 +154,7 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 		status = http.StatusInternalServerError
 		http.Error(w, html.EscapeString(errStr), status)
 	}
+
 	return
 }
 
@@ -164,15 +180,18 @@ func (r *LoggedReader) Read(p []byte) (int, error) {
 		r.finished = true
 		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
+
 	return n, err
 }
 
 func (r *LoggedReader) Close() error {
 	err := r.reader.Close()
+
 	if !r.finished {
 		r.finished = true
 		r.logger.Info("query", zap.String("query_id", r.queryID), zap.Duration("time", time.Since(r.start)))
 	}
+
 	return err
 }
 
@@ -230,6 +249,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	if len(queryForLogger) > 500 {
 		queryForLogger = queryForLogger[:395] + "<...>" + queryForLogger[len(queryForLogger)-100:]
 	}
+
 	logger := scope.Logger(ctx).With(zap.String("query", formatSQL(queryForLogger)))
 
 	defer func() {
@@ -245,6 +265,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	}
 
 	var b [8]byte
+
 	binary.LittleEndian.PutUint64(b[:], rand.Uint64())
 	queryID := fmt.Sprintf("%x", b)
 
@@ -257,6 +278,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	p.RawQuery = q.Encode()
 
 	var contentHeader string
+
 	if postBody != nil {
 		q := p.Query()
 		q.Set("query", query)
@@ -265,6 +287,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		q := p.Query()
 		q.Set("query", query)
 		p.RawQuery = q.Encode()
+
 		postBody, contentHeader, err = extData.buildBody(ctx, p)
 		if err != nil {
 			return
@@ -281,6 +304,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	}
 
 	req.Header.Add("User-Agent", scope.ClickhouseUserAgent(ctx))
+
 	if contentHeader != "" {
 		req.Header.Add("Content-Type", contentHeader)
 	}
@@ -306,6 +330,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 			DisableKeepAlives: true,
 		},
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return
@@ -317,14 +342,17 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	summaryHeader := resp.Header.Get("X-Clickhouse-Summary")
 	read_rows := int64(-1)
 	read_bytes := int64(-1)
+
 	if len(summaryHeader) > 0 {
 		summary := make(map[string]string)
 		err = json.Unmarshal([]byte(summaryHeader), &summary)
+
 		if err == nil {
 			// TODO: use in carbon metrics sender when it will be implemented
 			fields := make([]zapcore.Field, 0, len(summary))
 			for k, v := range summary {
 				fields = append(fields, zap.String(k, v))
+
 				switch k {
 				case "read_rows":
 					read_rows, _ = strconv.ParseInt(v, 10, 64)
@@ -332,9 +360,11 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 					read_bytes, _ = strconv.ParseInt(v, 10, 64)
 				}
 			}
+
 			sort.Slice(fields, func(i int, j int) bool {
 				return fields[i].Key < fields[j].Key
 			})
+
 			logger = logger.With(fields...)
 		} else {
 			logger.Warn("query", zap.Error(err), zap.String("clickhouse-summary", summaryHeader))
@@ -347,11 +377,13 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = errs.NewErrorWithCode(string(body), resp.StatusCode)
+
 		return
 	} else if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = NewErrWithDescr("clickhouse response status "+strconv.Itoa(resp.StatusCode), string(body))
+
 		return
 	}
 
@@ -375,6 +407,7 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, encod
 
 	body, err := io.ReadAll(bodyReader)
 	bodyReader.Close()
+
 	if err != nil {
 		return nil, bodyReader.ChReadRows(), bodyReader.ChReadBytes(), err
 	}
@@ -384,18 +417,24 @@ func do(ctx context.Context, dsn string, query string, postBody io.Reader, encod
 
 func ReadUvarint(array []byte) (uint64, int, error) {
 	var x uint64
+
 	var s uint
+
 	l := len(array) - 1
+
 	for i := 0; ; i++ {
 		if i > l {
 			return x, i + 1, ErrUvarintRead
 		}
+
 		if array[i] < 0x80 {
 			if i > 9 || i == 9 && array[i] > 1 {
 				return x, i + 1, ErrUvarintOverflow
 			}
+
 			return x | uint64(array[i])<<s, i + 1, nil
 		}
+
 		x |= uint64(array[i]&0x7f) << s
 		s += 7
 	}

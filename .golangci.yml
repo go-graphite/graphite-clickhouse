@@ -49,7 +49,7 @@ linters:
     - usestdlibvars
 #    - wastedassign
     - whitespace
-#    - wsl
+    - wsl
   settings:
     gocyclo:
       min-complexity: 15

@@ -31,18 +31,23 @@ func GlobExpandSimple(value, prefix string, result *[]string) error {
 		if end <= 1 {
 			return errs.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
 		}
+
 		if end == -1 || strings.IndexAny(value[start+1:start+end], "{}") != -1 {
 			return errs.NewErrorWithCode("malformed glob: "+value, http.StatusBadRequest)
 		}
+
 		if start > 0 {
 			prefix = prefix + value[0:start]
 		}
+
 		g := value[start+1 : start+end]
 		values := strings.Split(g, ",")
+
 		var postfix string
 		if end+start-1 < len(value) {
 			postfix = value[start+end+1:]
 		}
+
 		for _, v := range values {
 			if err := GlobExpandSimple(postfix, prefix+v, result); err != nil {
 				return err
@@ -62,6 +67,7 @@ func GlobToRegexp(g string) string {
 	s = strings.ReplaceAll(s, "?", "[^.]")
 	s = strings.ReplaceAll(s, ",", "|")
 	s = strings.ReplaceAll(s, "*", "([^.]*?)")
+
 	return s
 }
 
@@ -100,15 +106,18 @@ func NonRegexpPrefix(expr string) string {
 					return expr[:eq+1]
 				}
 			}
+
 			return expr[:i]
 		}
 	}
+
 	return expr
 }
 
 func escape(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `'`, `\'`)
+
 	return s
 }
 
@@ -117,6 +126,7 @@ func escapeRegex(s string) string {
 	if strings.Contains(s, "|") {
 		s = "(" + s + ")"
 	}
+
 	return s
 }
 
@@ -125,6 +135,7 @@ func likeEscape(s string) string {
 	s = strings.ReplaceAll(s, `%`, `\%`)
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `'`, `\'`)
+
 	return s
 }
 
@@ -148,6 +159,7 @@ func quoteRegex(key, value string) string {
 	if startLine {
 		return fmt.Sprintf("'^%s%s%s'", key, opEq, escapeRegex(value[1:]))
 	}
+
 	return fmt.Sprintf("'^%s%s.*%s'", key, opEq, escapeRegex(value))
 }
 
@@ -181,15 +193,20 @@ func In(field string, list []string) string {
 	}
 
 	var buf strings.Builder
+
 	buf.WriteString(field)
 	buf.WriteString(" IN (")
+
 	for i, v := range list {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
+
 		buf.WriteString(quote(v))
 	}
+
 	buf.WriteByte(')')
+
 	return buf.String()
 }
 
@@ -220,6 +237,7 @@ func (w *Where) And(exp string) {
 	if exp == "" {
 		return
 	}
+
 	if w.where != "" {
 		w.where = fmt.Sprintf("(%s) AND (%s)", w.where, exp)
 	} else {
@@ -231,6 +249,7 @@ func (w *Where) Or(exp string) {
 	if exp == "" {
 		return
 	}
+
 	if w.where != "" {
 		w.where = fmt.Sprintf("(%s) OR (%s)", w.where, exp)
 	} else {
@@ -250,6 +269,7 @@ func (w *Where) SQL() string {
 	if w.where == "" {
 		return ""
 	}
+
 	return "WHERE " + w.where
 }
 
@@ -257,5 +277,6 @@ func (w *Where) PreWhereSQL() string {
 	if w.where == "" {
 		return ""
 	}
+
 	return "PREWHERE " + w.where
 }

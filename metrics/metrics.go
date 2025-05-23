@@ -80,6 +80,7 @@ func NewWaitMetric(enable bool, scope, sub string) WaitMetric {
 
 		return w
 	}
+
 	return WaitMetric{
 		WaitErrors:   metrics.NilCounter{},
 		Requests:     metrics.NilCounter{},
@@ -183,6 +184,7 @@ func initFindMetrics(scope string, c *Config, waitQueue bool) *FindMetrics {
 		requestMetric.RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 		metrics.Register(scope+".all.requests", requestMetric.RequestsH)
 		metrics.Register(scope+".all.errors", requestMetric.Errors)
+
 		if c.ExtendedStat {
 			metrics.Register(scope+".all.requests_status_code.200", requestMetric.Requests200)
 			metrics.Register(scope+".all.requests_status_code.400", requestMetric.Requests400)
@@ -194,10 +196,12 @@ func initFindMetrics(scope string, c *Config, waitQueue bool) *FindMetrics {
 			metrics.Register(scope+".all.requests_status_code.504", requestMetric.Requests504)
 			metrics.Register(scope+".all.requests_status_code.5xx", requestMetric.Requests5xx)
 		}
+
 		if len(c.FindRangeS) > 0 {
 			requestMetric.RangeS = c.FindRangeS
 			requestMetric.RangeNames = c.FindRangeNames
 			requestMetric.RangeMetrics = make([]ReqMetric, len(c.FindRangeS))
+
 			for i := range c.FindRangeS {
 				requestMetric.RangeMetrics[i].RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 				requestMetric.RangeMetrics[i].Errors = metrics.NewCounter()
@@ -205,6 +209,7 @@ func initFindMetrics(scope string, c *Config, waitQueue bool) *FindMetrics {
 				requestMetric.RangeMetrics[i].PointsCountName = scope + "." + requestMetric.RangeNames[i] + ".points"
 				metrics.Register(scope+"."+c.FindRangeNames[i]+".requests", requestMetric.RangeMetrics[i].RequestsH)
 				metrics.Register(scope+"."+c.FindRangeNames[i]+".errors", requestMetric.RangeMetrics[i].Errors)
+
 				if c.ExtendedStat {
 					requestMetric.RangeMetrics[i].Requests200 = metrics.NewCounter()
 					requestMetric.RangeMetrics[i].Requests400 = metrics.NewCounter()
@@ -273,6 +278,7 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 		metrics.Register(scope+".all.requests", requestMetric.RequestsH)
 		metrics.Register(scope+".all.requests_finder", requestMetric.FinderH)
 		metrics.Register(scope+".all.errors", requestMetric.Errors)
+
 		if c.ExtendedStat {
 			metrics.Register(scope+".all.requests_status_code.200", requestMetric.Requests200)
 			metrics.Register(scope+".all.requests_status_code.400", requestMetric.Requests400)
@@ -284,10 +290,12 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 			metrics.Register(scope+".all.requests_status_code.504", requestMetric.Requests504)
 			metrics.Register(scope+".all.requests_status_code.5xx", requestMetric.Requests5xx)
 		}
+
 		if len(c.RangeS) > 0 {
 			requestMetric.RangeS = c.RangeS
 			requestMetric.RangeNames = c.RangeNames
 			requestMetric.RangeMetrics = make([]RenderMetric, len(c.RangeS))
+
 			for i := range c.RangeS {
 				requestMetric.RangeMetrics[i].RequestsH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
 				requestMetric.RangeMetrics[i].FinderH = metrics.NewVSumHistogram(c.BucketsWidth, c.BucketsLabels).SetNameTotal("")
@@ -297,6 +305,7 @@ func initRenderMetrics(scope string, c *Config) *RenderMetrics {
 				metrics.Register(scope+"."+c.RangeNames[i]+".requests", requestMetric.RangeMetrics[i].RequestsH)
 				metrics.Register(scope+"."+c.RangeNames[i]+".requests_finder", requestMetric.RangeMetrics[i].FinderH)
 				metrics.Register(scope+"."+c.RangeNames[i]+".errors", requestMetric.RangeMetrics[i].Errors)
+
 				if c.ExtendedStat {
 					requestMetric.RangeMetrics[i].Requests200 = metrics.NewCounter()
 					requestMetric.RangeMetrics[i].Requests400 = metrics.NewCounter()
@@ -332,15 +341,19 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 	if len(r.RangeS) > 0 {
 		fromPos = metrics.SearchInt64Le(r.RangeS, untilFromS)
 	}
+
 	r.RequestsH.Add(durationMs)
+
 	if fromPos >= 0 {
 		r.RangeMetrics[fromPos].RequestsH.Add(durationMs)
 	}
+
 	switch statusCode {
 	case 200:
 		if extended {
 			r.Requests200.Add(1)
 			Gstatsd.Timing(r.MetricsCountName, metricsCount, 1.0)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests200.Add(1)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
@@ -348,8 +361,10 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		}
 	case 400:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests400.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests400.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -357,8 +372,10 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		}
 	case 403:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests403.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests403.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -368,6 +385,7 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		if extended {
 			r.Requests404.Add(1)
 			Gstatsd.Timing(r.MetricsCountName, metricsCount, 1.0)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests404.Add(1)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
@@ -375,8 +393,10 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		}
 	case 500:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests500.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests500.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -384,8 +404,10 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		}
 	case 503:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests503.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests503.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -393,8 +415,10 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		}
 	case 504:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests504.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests504.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -404,18 +428,21 @@ func SendFindMetrics(r *FindMetrics, statusCode int, durationMs, untilFromS int6
 		if extended {
 			if statusCode > 500 {
 				r.Requests5xx.Add(1)
+
 				if fromPos >= 0 {
 					r.RangeMetrics[fromPos].Requests5xx.Add(1)
 					r.RangeMetrics[fromPos].Errors.Add(1)
 				}
 			} else {
 				r.Requests4xx.Add(1)
+
 				if fromPos >= 0 {
 					r.RangeMetrics[fromPos].Requests4xx.Add(1)
 					r.RangeMetrics[fromPos].Errors.Add(1)
 				}
 			}
 		}
+
 		r.Errors.Add(1)
 	}
 }
@@ -425,12 +452,15 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 	if len(r.RangeS) > 0 {
 		fromPos = metrics.SearchInt64Le(r.RangeS, untilFromS)
 	}
+
 	startMs := start.UnixMilli()
 	endMs := end.UnixMilli()
+
 	var (
 		durFinderMs int64
 		durFetchMs  int64
 	)
+
 	durMs := endMs - startMs
 	if fetch.IsZero() {
 		durFinderMs = durMs
@@ -439,31 +469,39 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		durFinderMs = fetchMs - startMs
 		durFetchMs = endMs - fetchMs
 	}
+
 	r.RequestsH.Add(durMs)
 	r.FinderH.Add(durFinderMs)
+
 	if fromPos >= 0 {
 		r.RangeMetrics[fromPos].RequestsH.Add(durMs)
 		r.RangeMetrics[fromPos].FinderH.Add(durFinderMs)
 	}
+
 	switch statusCode {
 	case 200:
 		if extended {
 			r.Requests200.Add(1)
 			Gstatsd.Timing(r.MetricsCountName, metricsCount, 1.0)
 			Gstatsd.Timing(r.PointsCountName, points, 1.0)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests200.Add(1)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
+
 				if durFetchMs > 0 {
 					Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
 				}
+
 				r.RangeMetrics[fromPos].FinderH.Add(durFinderMs)
 			}
 		}
 	case 400:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests400.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests400.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -471,8 +509,10 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		}
 	case 403:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests403.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests403.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -482,20 +522,25 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		if extended {
 			r.Requests404.Add(1)
 			Gstatsd.Timing(r.MetricsCountName, metricsCount, 1.0)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests404.Add(1)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].MetricsCountName, metricsCount, 1.0)
 				Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
+
 				if durFetchMs > 0 {
 					Gstatsd.Timing(r.RangeMetrics[fromPos].PointsCountName, points, 1.0)
 				}
+
 				r.RangeMetrics[fromPos].FinderH.Add(durFinderMs)
 			}
 		}
 	case 500:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests500.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests500.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -503,8 +548,10 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		}
 	case 503:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests503.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests503.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -512,8 +559,10 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		}
 	case 504:
 		r.Errors.Add(1)
+
 		if extended {
 			r.Requests504.Add(1)
+
 			if fromPos >= 0 {
 				r.RangeMetrics[fromPos].Requests504.Add(1)
 				r.RangeMetrics[fromPos].Errors.Add(1)
@@ -523,18 +572,21 @@ func SendRenderMetrics(r *RenderMetrics, statusCode int, start, fetch, end time.
 		if extended {
 			if statusCode > 500 {
 				r.Requests5xx.Add(1)
+
 				if fromPos >= 0 {
 					r.RangeMetrics[fromPos].Requests5xx.Add(1)
 					r.RangeMetrics[fromPos].Errors.Add(1)
 				}
 			} else {
 				r.Requests4xx.Add(1)
+
 				if fromPos >= 0 {
 					r.RangeMetrics[fromPos].Requests4xx.Add(1)
 					r.RangeMetrics[fromPos].Errors.Add(1)
 				}
 			}
 		}
+
 		r.Errors.Add(1)
 	}
 }
@@ -548,10 +600,13 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 	if c != nil && Graphite != nil {
 		metrics.RegisterRuntimeMemStats(nil)
 		go metrics.CaptureRuntimeMemStats(c.MetricInterval)
+
 		if len(c.BucketsWidth) == 0 {
 			c.BucketsWidth = []int64{200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000}
 		}
+
 		labels := make([]string, len(c.BucketsWidth)+1)
+
 		for i := 0; i <= len(c.BucketsWidth); i++ {
 			if i >= len(c.BucketsLabels) || c.BucketsLabels[i] == "" {
 				if i < len(c.BucketsWidth) {
@@ -563,11 +618,13 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 				labels[i] = c.BucketsLabels[i]
 			}
 		}
+
 		c.BucketsLabels = labels
 
 		if len(c.Ranges) > 0 {
 			// c.RangeS = make([]int64, 0, len(c.Range)+1)
 			untilFrom := make([]rangeName, 0, len(c.Ranges)+1)
+
 			for name, v := range c.Ranges {
 				if v <= 0 {
 					untilFrom = append(untilFrom, rangeName{name: name, v: math.MaxInt64})
@@ -575,14 +632,18 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 					untilFrom = append(untilFrom, rangeName{name: name, v: int64(v.Seconds())})
 				}
 			}
+
 			sort.Slice(untilFrom, func(i, j int) bool {
 				return untilFrom[i].v < untilFrom[j].v
 			})
+
 			if untilFrom[len(untilFrom)-1].v != math.MaxInt64 {
 				untilFrom = append(untilFrom, rangeName{name: "history", v: math.MaxInt64})
 			}
+
 			c.RangeS = make([]int64, len(untilFrom))
 			c.RangeNames = make([]string, len(untilFrom))
+
 			for i := range untilFrom {
 				c.RangeNames[i] = untilFrom[i].name
 				c.RangeS[i] = untilFrom[i].v
@@ -592,6 +653,7 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 		if len(c.FindRanges) > 0 {
 			// c.RangeS = make([]int64, 0, len(c.Range)+1)
 			untilFrom := make([]rangeName, 0, len(c.Ranges)+1)
+
 			for name, v := range c.FindRanges {
 				if v <= 0 {
 					untilFrom = append(untilFrom, rangeName{name: name, v: math.MaxInt64})
@@ -599,20 +661,25 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 					untilFrom = append(untilFrom, rangeName{name: name, v: int64(v.Seconds())})
 				}
 			}
+
 			sort.Slice(untilFrom, func(i, j int) bool {
 				return untilFrom[i].v < untilFrom[j].v
 			})
+
 			if untilFrom[len(untilFrom)-1].v != math.MaxInt64 {
 				untilFrom = append(untilFrom, rangeName{name: "history", v: math.MaxInt64})
 			}
+
 			c.FindRangeS = make([]int64, len(untilFrom))
 			c.FindRangeNames = make([]string, len(untilFrom))
+
 			for i := range untilFrom {
 				c.FindRangeNames[i] = untilFrom[i].name
 				c.FindRangeS[i] = untilFrom[i].v
 			}
 		}
 	}
+
 	initFindCacheMetrics(c)
 	FindRequestMetric = initFindMetrics("find", c, findWaitQueue)
 	TagsRequestMetric = initFindMetrics("tags", c, tagsWaitQueue)
@@ -621,6 +688,7 @@ func InitMetrics(c *Config, findWaitQueue, tagsWaitQueue bool) {
 
 func DisableMetrics() {
 	metrics.UseNilMetrics = true
+
 	InitMetrics(nil, false, false)
 }
 

@@ -30,10 +30,13 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL string) (string, error) 
 	if len(c.Version) == 0 {
 		c.Version = "latest"
 	}
+
 	if len(c.DockerImage) == 0 {
 		c.DockerImage = "ghcr.io/go-graphite/carbon-clickhouse"
 	}
+
 	var err error
+
 	c.address, err = getFreeTCPPort("")
 	if err != nil {
 		return "", err
@@ -54,11 +57,13 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL string) (string, error) 
 
 	name := filepath.Base(c.Template)
 	tpl := path.Join(testDir, c.Template)
+
 	tmpl, err := template.New(name).ParseFiles(tpl)
 	if err != nil {
 		c.Cleanup()
 		return "", err
 	}
+
 	param := struct {
 		CLICKHOUSE_URL string
 		CCH_ADDR       string
@@ -68,11 +73,13 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL string) (string, error) 
 	}
 
 	configFile := path.Join(c.storeDir, "carbon-clickhouse.conf")
+
 	f, err := os.OpenFile(configFile, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		c.Cleanup()
 		return "", err
 	}
+
 	err = tmpl.ExecuteTemplate(f, name, param)
 	if err != nil {
 		c.Cleanup()
@@ -95,6 +102,7 @@ func (c *CarbonClickhouse) Start(testDir, clickhouseURL string) (string, error) 
 	cchStart = append(cchStart, c.DockerImage+":"+c.Version)
 
 	cmd := exec.Command(DockerBinary, cchStart...)
+
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		dateLocal, _ := exec.Command("date").Output()
@@ -119,6 +127,7 @@ func (c *CarbonClickhouse) Stop(delete bool) (string, error) {
 	if err == nil && delete {
 		return c.Delete()
 	}
+
 	return string(out), err
 }
 

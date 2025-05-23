@@ -93,15 +93,19 @@ func Parse(content string) (*Rules, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		if rule.Equal != "" {
 			rule.BytesEqual = []byte(rule.Equal)
 		}
+
 		if rule.Contains != "" {
 			rule.BytesContains = []byte(rule.Contains)
 		}
+
 		if rule.HasPrefix != "" {
 			rule.BytesHasPrefix = []byte(rule.HasPrefix)
 		}
+
 		if rule.HasSuffix != "" {
 			rule.BytesHasSuffix = []byte(rule.HasSuffix)
 		}
@@ -132,6 +136,7 @@ func (r *Rules) Match(m *Metric) {
 func matchByPrefix(path []byte, tree *Tree, m *Metric) {
 	x := tree
 	i := 0
+
 	for {
 		if i >= len(path) {
 			break
@@ -155,6 +160,7 @@ func matchByPrefix(path []byte, tree *Tree, m *Metric) {
 func matchBySuffix(path []byte, tree *Tree, m *Metric) {
 	x := tree
 	i := len(path) - 1
+
 	for {
 		if i <= 0 {
 			break

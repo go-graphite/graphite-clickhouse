@@ -18,6 +18,7 @@ func getWeighted(n, max int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	loadAvg := load_avg.Load()
 	if loadAvg < 0.6 {
 		return 0
@@ -28,6 +29,7 @@ func getWeighted(n, max int) int {
 		if max <= 1 {
 			return 1
 		}
+
 		return max - 1
 	}
 
@@ -49,9 +51,11 @@ func NewALimiter(capacity, concurrent, n int, enableMetrics bool, scope, sub str
 	if capacity <= 0 && concurrent <= 0 {
 		return NoopLimiter{}
 	}
+
 	if n >= concurrent {
 		n = concurrent - 1
 	}
+
 	if n <= 0 {
 		return NewWLimiter(capacity, concurrent, enableMetrics, scope, sub)
 	}
@@ -69,8 +73,10 @@ func NewALimiter(capacity, concurrent, n int, enableMetrics bool, scope, sub str
 
 func (sl *ALimiter) balance() int {
 	var last int
+
 	for {
 		start := time.Now()
+
 		n := getWeighted(sl.n, sl.concurrent)
 		if n > last {
 			for i := 0; i < n-last; i++ {
@@ -78,13 +84,16 @@ func (sl *ALimiter) balance() int {
 					break
 				}
 			}
+
 			last = n
 		} else if n < last {
 			for i := 0; i < last-n; i++ {
 				sl.concurrentLimiter.leave(ctxMain, "balance")
 			}
+
 			last = n
 		}
+
 		delay := time.Since(start)
 		if delay < checkDelay {
 			time.Sleep(checkDelay - delay)
@@ -103,16 +112,21 @@ func (sl *ALimiter) Enter(ctx context.Context, s string) (err error) {
 			return
 		}
 	}
+
 	if sl.concurrentLimiter.cap > 0 {
 		if sl.concurrentLimiter.enter(ctx, s) != nil {
 			if sl.limiter.cap > 0 {
 				sl.limiter.leave(ctx, s)
 			}
+
 			sl.m.WaitErrors.Add(1)
+
 			err = ErrTimeout
 		}
 	}
+
 	sl.m.Requests.Add(1)
+
 	return
 }
 
@@ -124,16 +138,21 @@ func (sl *ALimiter) TryEnter(ctx context.Context, s string) (err error) {
 			return
 		}
 	}
+
 	if sl.concurrentLimiter.cap > 0 {
 		if sl.concurrentLimiter.tryEnter(ctx, s) != nil {
 			if sl.limiter.cap > 0 {
 				sl.limiter.leave(ctx, s)
 			}
+
 			sl.m.WaitErrors.Add(1)
+
 			err = ErrTimeout
 		}
 	}
+
 	sl.m.Requests.Add(1)
+
 	return
 }
 
@@ -142,6 +161,7 @@ func (sl *ALimiter) Leave(ctx context.Context, s string) {
 	if sl.limiter.cap > 0 {
 		sl.limiter.leave(ctx, s)
 	}
+
 	sl.concurrentLimiter.leave(ctx, s)
 }
 

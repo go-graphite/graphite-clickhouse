@@ -33,12 +33,15 @@ func (q TagQ) String() string {
 	if q.Param != nil && q.Value != nil {
 		return fmt.Sprintf("{\"param\"=%#v, \"value\"=%#v}", *q.Param, *q.Value)
 	}
+
 	if q.Param != nil {
 		return fmt.Sprintf("{\"param\"=%#v}", *q.Param)
 	}
+
 	if q.Value != nil {
 		return fmt.Sprintf("{\"value\"=%#v}", *q.Value)
 	}
+
 	return "{}"
 }
 
@@ -46,9 +49,11 @@ func (q *TagQ) Where(field string) string {
 	if q.Param != nil && q.Value != nil && *q.Value != "*" {
 		return where.Eq(field, *q.Param+*q.Value)
 	}
+
 	if q.Param != nil {
 		return where.HasPrefix(field, *q.Param)
 	}
+
 	if q.Value != nil && *q.Value != "*" {
 		return where.Eq(field, *q.Value)
 	}
@@ -152,6 +157,7 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 		if len(qs) == 0 {
 			break
 		}
+
 		if qs[0] == "_tag" {
 			if len(qs) >= 2 {
 				v := qs[1]
@@ -187,6 +193,7 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 		} else {
 			t.state = TagList
 		}
+
 		return t.tagListSQL()
 	}
 
@@ -196,6 +203,7 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	}
 
 	t.state = TagListSeries
+
 	return t.seriesSQL()
 }
 
@@ -216,6 +224,7 @@ func (t *TagFinder) Execute(ctx context.Context, config *config.Config, query st
 	}
 
 	var sql string
+
 	sql, err = t.MakeSQL(query)
 	if err != nil || sql == "" {
 		return
@@ -246,11 +255,13 @@ func (t *TagFinder) List() [][]byte {
 	rows := bytes.Split(t.body, []byte{'\n'})
 
 	skip := 0
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			skip++
 			continue
 		}
+
 		if skip > 0 {
 			rows[i-skip] = rows[i]
 		}
@@ -295,15 +306,18 @@ func (t *TagFinder) Series() [][]byte {
 	rows := t.List()
 
 	skip := 0
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			skip++
 			continue
 		}
+
 		if rows[i][len(rows[i])-1] == '.' {
 			skip++
 			continue
 		}
+
 		if skip > 0 {
 			rows[i-skip] = rows[i]
 		}

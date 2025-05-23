@@ -76,6 +76,7 @@ func DateParamToEpoch(s string, tz *time.Location, now time.Time, truncate time.
 		yy, mm, dd := now.Date()
 		hh, min, _ := parseTime(s) // error ignored, we know it's valid
 		dt := time.Date(yy, mm, dd, hh, min, 0, 0, tz)
+
 		return dt.Unix()
 	}
 
@@ -88,9 +89,11 @@ func DateParamToEpoch(s string, tz *time.Location, now time.Time, truncate time.
 	s = strings.Replace(s, "_", " ", 1) // Go can't parse _ in date strings
 
 	var ts, ds string
+
 	split := strings.Fields(s)
 
 	var t time.Time
+
 	switch {
 	case len(split) == 1:
 		delim := strings.IndexAny(s, "+-")
@@ -126,14 +129,17 @@ func DateParamToEpoch(s string, tz *time.Location, now time.Time, truncate time.
 					ts = s[:delim+1]
 					s = s[delim+1:]
 				}
+
 				offset, err := parser.IntervalString(ts, 1)
 				if err != nil {
 					offset64, err := strconv.ParseInt(ts, 10, 32)
 					if err != nil {
 						return 0
 					}
+
 					offset = int32(offset64)
 				}
+
 				t = t.Add(time.Duration(offset) * time.Second)
 			}
 
@@ -176,8 +182,8 @@ dateStringSwitch:
 
 	var hour, minute int
 	if ts != "" {
-		hour, minute, _ = parseTime(ts)
 		// defaults to hour=0, minute=0 on error, which is midnight, which is fine for now
+		hour, minute, _ = parseTime(ts)
 	}
 
 	yy, mm, dd := t.Date()
@@ -190,6 +196,7 @@ func Timezone(qtz string) (*time.Location, error) {
 	if qtz == "" {
 		qtz = "Local"
 	}
+
 	return time.LoadLocation(qtz)
 }
 
@@ -197,7 +204,9 @@ func TimestampTruncate(ts int64, truncate time.Duration) int64 {
 	if ts == 0 || truncate == 0 {
 		return ts
 	}
+
 	tm := time.Unix(ts, 0).UTC()
+
 	return tm.Truncate(truncate).UTC().Unix()
 }
 
@@ -205,5 +214,6 @@ func TimeTruncate(tm time.Time, truncate time.Duration) time.Time {
 	if truncate == 0 {
 		return tm
 	}
+
 	return tm.Truncate(truncate)
 }

@@ -110,6 +110,7 @@ func TestFillNulls(t *testing.T) {
 		until  uint32
 		step   uint32
 	}
+
 	type expected struct {
 		values []float64
 		start  uint32
@@ -117,6 +118,7 @@ func TestFillNulls(t *testing.T) {
 		count  uint32
 		err    error
 	}
+
 	tests := []struct {
 		name string
 		in
@@ -186,36 +188,44 @@ func TestFillNulls(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := expected{}
+
 			var (
 				getter GetValueOrNaN
 				value  float64
 			)
+
 			result.start, result.stop, result.count, getter = FillNulls(test.points, test.from, test.until, test.step)
 
 			result.values = make([]float64, 0, result.count)
+
 			for {
 				value, result.err = getter()
 				if result.err != nil {
 					break
 				}
+
 				result.values = append(result.values, value)
 			}
 
 			if !errors.Is(result.err, ErrTimeGreaterStop) {
 				assert.ErrorIs(t, result.err, test.expected.err)
 			}
+
 			result.err = nil
 			test.expected.err = nil
 
 			// Comparing values requires work around NaNs
 			assert.Equal(t, len(result.values), len(test.expected.values), "the length of expected and got values are different")
+
 			for i := range result.values {
 				if math.IsNaN(test.expected.values[i]) {
 					assert.True(t, math.IsNaN(result.values[i]))
 					continue
 				}
+
 				assert.Equal(t, test.expected.values[i], result.values[i])
 			}
+
 			result.values = []float64{}
 			test.expected.values = []float64{}
 

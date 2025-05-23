@@ -47,6 +47,7 @@ func getTestCases() (tables []ExternalTable) {
 			Data:   []byte(`aFloat=13.13	aDate=2013-12-13`),
 		},
 	}
+
 	return
 }
 
@@ -76,18 +77,23 @@ func TestBuildBody(t *testing.T) {
 		assert.NoError(t, err, "body is not built")
 		assert.Regexp(t, "^multipart/form-data; boundary=[A-Fa-f0-9]+$", header, "header does not match")
 		contentID := strings.TrimPrefix(header, "multipart/form-data; boundary=")
+
 		var b string
+
 		vals := make(url.Values)
+
 		for _, table := range tt {
 			b += "--" + contentID
 			b += "\r\nContent-Disposition: form-data; name=\"" + table.Name + "\"; filename=\"" + table.Name + "\"\r\n"
 			b += "Content-Type: application/octet-stream\r\n\r\n" + string(table.Data) + "\r\n"
 			vals[table.Name+"_format"] = []string{table.Format}
 			vals[table.Name+"_structure"] = make([]string, 0)
+
 			for _, c := range table.Columns {
 				vals[table.Name+"_structure"] = append(vals[table.Name+"_structure"], c.String())
 			}
 		}
+
 		b += "--" + contentID + "--\r\n"
 		assert.Equal(t, b, body.String(), "built body and expected body don't match")
 	}
@@ -95,18 +101,23 @@ func TestBuildBody(t *testing.T) {
 
 func TestDebugDump(t *testing.T) {
 	extData := NewExternalData(getTestCases()...)
+
 	dir, err := os.MkdirTemp(".", "external-data")
 	if err != nil {
 		t.Fatalf("unable to create directory %s: %v", dir, err)
 	}
+
 	defer os.RemoveAll(dir)
 
 	reqID := fmt.Sprintf("%x", rand.Uint32())
 	ctx := scope.WithRequestID(context.Background(), reqID)
 	ctx = scope.WithDebug(ctx, "External-Data")
+
 	extData.SetDebug(dir, 0640)
+
 	u := url.URL{}
 	extData.debugDump(ctx, u)
+
 	for _, table := range extData.Tables {
 		dumpFile := filepath.Join(dir, fmt.Sprintf("ext-%v:%v.%v", table.Name, reqID, table.Format))
 		assert.FileExists(t, dumpFile)

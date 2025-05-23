@@ -61,6 +61,7 @@ func defaultDate(t time.Time) time.Time {
 func minLocalAndUTC(t time.Time) time.Time {
 	tu := defaultDate(t.UTC())
 	td := defaultDate(t)
+
 	if tu.Unix() < td.Unix() {
 		return tu
 	} else {
@@ -83,6 +84,7 @@ func MinTimeToDaysFormat(t time.Time) string {
 func maxLocalAndUTC(t time.Time) time.Time {
 	tu := defaultDate(t.UTC())
 	td := defaultDate(t)
+
 	if tu.Unix() > td.Unix() {
 		return tu
 	} else {

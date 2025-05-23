@@ -36,11 +36,13 @@ var findTarget string = "*.name.*"
 func createAM() *Map {
 	am := New()
 	am.MergeTarget(finderResult, findTarget, false)
+
 	return am
 }
 
 func TestCreation(t *testing.T) {
 	am := createAM()
+
 	for _, m := range finderResult.List() {
 		metric := string(m)
 		v, ok := am.data[metric]
@@ -55,6 +57,7 @@ func TestAsyncMerge(t *testing.T) {
 	target2 := "5*.name.*"
 	wg := sync.WaitGroup{}
 	wg.Add(2)
+
 	go func() {
 		am.MergeTarget(finderResult, findTarget, false)
 		wg.Done()
@@ -68,6 +71,7 @@ func TestAsyncMerge(t *testing.T) {
 		am.MergeTarget(finder.NewMockFinder(result), target2, false)
 		wg.Done()
 	}()
+
 	resultAM := &Map{
 		data: map[string][]Value{
 			"5_sec.name.max": {
@@ -89,21 +93,27 @@ func TestAsyncMerge(t *testing.T) {
 			},
 		},
 	}
+
 	wg.Wait()
+
 	if !assert.Equal(t, resultAM.Len(), am.Len()) {
 		t.FailNow()
 	}
+
 	for i := range am.data {
 		var dv Values = am.data[i]
+
 		sort.Sort(&dv)
 		am.data[i] = dv
 	}
+
 	assert.Equal(t, resultAM, am)
 }
 
 func TestLen(t *testing.T) {
 	am := createAM()
 	assert.Equal(t, 4, am.Len())
+
 	result := [][]byte{
 		[]byte("5_sec.name.any"),
 		[]byte("5_min.name.min"), // it's repeated
@@ -115,6 +125,7 @@ func TestLen(t *testing.T) {
 func TestSize(t *testing.T) {
 	am := createAM()
 	assert.Equal(t, 4, am.Size())
+
 	result := [][]byte{
 		[]byte("5_sec.name.any"),
 		[]byte("5_min.name.min"), // it's repeated, but it increases Size
@@ -130,6 +141,7 @@ func TestDisplayNames(t *testing.T) {
 	expectedSeries := finderResult.Strings()
 	sort.Strings(expectedSeries)
 	assert.Equal(t, expectedSeries, sortedDisplayNames)
+
 	anotherFinderResult := finder.NewMockFinder([][]byte{
 		[]byte("5_sec.name.any"),
 		[]byte("5_min.name.min"), // it's repeated, but it increases Size

@@ -83,6 +83,7 @@ func Test_getCacheTimeout(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("getCacheTimeout() = %v, want %v", got, tt.want)
 			}
+
 			if gotStr != tt.wantStr {
 				t.Errorf("getCacheTimeout() = %q, want %q", gotStr, tt.wantStr)
 			}

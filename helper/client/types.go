@@ -41,6 +41,7 @@ func (a *FormatType) Set(value string) error {
 	default:
 		return fmt.Errorf("invalid format type %s", value)
 	}
+
 	return nil
 }
 

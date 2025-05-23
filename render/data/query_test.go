@@ -31,6 +31,7 @@ var finderResult *finder.MockFinder = finder.NewMockFinder([][]byte{
 func newAM() *alias.Map {
 	am := alias.New()
 	am.MergeTarget(finderResult, "*.name.*", false)
+
 	return am
 }
 
@@ -39,7 +40,9 @@ func newRules(reversed bool) *rollup.Rules {
 	oneMin := []rollup.Retention{{Age: 0, Precision: 60}, {Age: 3600, Precision: 300}}
 	fiveMin := []rollup.Retention{{Age: 0, Precision: 300}, {Age: 3600, Precision: 1200}}
 	emptyRet := make([]rollup.Retention, 0)
+
 	var pattern []rollup.Pattern
+
 	if reversed {
 		pattern = []rollup.Pattern{
 			genPattern("[.]5_sec$", "", fiveSec),
@@ -59,7 +62,9 @@ func newRules(reversed bool) *rollup.Rules {
 			genPattern("[.]avg$", "avg", emptyRet),
 		}
 	}
+
 	rules, _ := rollup.NewMockRules(pattern, 30, "avg")
+
 	return rules
 }
 
@@ -73,6 +78,7 @@ func newCondition(fromAge, untilAge, maxDataPoints int64) *conditions {
 	tt := NewTargets([]string{"*.name.*"}, newAM())
 	tt.pointsTable = "graphite.data"
 	tt.rollupRules = newRules(false)
+
 	return &conditions{TimeFrame: &tf, Targets: tt}
 }
 
@@ -81,6 +87,7 @@ func extTableString(et map[string]*strings.Builder) map[string]string {
 	for a := range et {
 		ett[a] = et[a].String()
 	}
+
 	return ett
 }
 
@@ -90,6 +97,7 @@ func TestPrepareMetricsLists(t *testing.T) {
 		cond.isReverse = false
 		cond.rollupUseReverted = false
 		cond.prepareMetricsLists()
+
 		expectedSeries := finderResult.Strings()
 		sort.Strings(expectedSeries)
 		sort.Strings(cond.metricsLookup)
@@ -115,15 +123,19 @@ func TestPrepareMetricsLists(t *testing.T) {
 		cond.isReverse = true
 		cond.rollupUseReverted = false
 		cond.prepareMetricsLists()
+
 		for i := range cond.metricsRequested {
 			assert.Equal(t, cond.metricsRequested[i], reverse.String(cond.metricsUnreverse[i]))
 		}
+
 		expectedSeries := finderResult.Strings()
 		sort.Strings(expectedSeries)
+
 		expectedSeriesReversed := make([]string, len(expectedSeries))
 		for i := range expectedSeries {
 			expectedSeriesReversed[i] = reverse.String(expectedSeries[i])
 		}
+
 		sort.Strings(expectedSeriesReversed)
 		sort.Strings(cond.metricsLookup)
 		sort.Strings(cond.metricsRequested)
@@ -134,9 +146,11 @@ func TestPrepareMetricsLists(t *testing.T) {
 
 		cond.rollupUseReverted = true
 		cond.prepareMetricsLists()
+
 		for i := range cond.metricsRequested {
 			assert.Equal(t, cond.metricsRequested[i], reverse.String(cond.metricsUnreverse[i]))
 		}
+
 		sort.Strings(cond.metricsLookup)
 		sort.Strings(cond.metricsRequested)
 		sort.Strings(cond.metricsUnreverse)
@@ -163,6 +177,7 @@ func TestPrepareLookup(t *testing.T) {
 		sort.Strings(cond.metricsRequested)
 		sort.Strings(cond.metricsUnreverse)
 		cond.prepareLookup()
+
 		aggregations := map[string][]string{
 			"avg": {"10_min.name.any", "1_min.name.avg"},
 			"max": {"5_sec.name.max"},
@@ -177,15 +192,18 @@ func TestPrepareLookup(t *testing.T) {
 			1200: {},
 		}
 		assert.Equal(t, steps, cond.steps)
+
 		bodies := make(map[string]string)
 		for a, m := range aggregations {
 			bodies[a] = strings.Join(m, "\n") + "\n"
 		}
+
 		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
 
 		cond.From = ageToTimestamp(1800)
 		cond.Until = ageToTimestamp(0)
 		cond.prepareLookup()
+
 		steps = map[uint32][]string{
 			30:  {},
 			60:  {},
@@ -206,6 +224,7 @@ func TestPrepareLookup(t *testing.T) {
 		sort.Strings(cond.metricsRequested)
 		sort.Strings(cond.metricsUnreverse)
 		cond.prepareLookup()
+
 		aggregations := map[string][]string{
 			"avg": {"10_min.name.any", "1_min.name.avg"},
 			"max": {"5_sec.name.max"},
@@ -220,12 +239,14 @@ func TestPrepareLookup(t *testing.T) {
 			1200: {"5_min.name.min"},
 		}
 		assert.Equal(t, steps, cond.steps)
+
 		bodies := map[string]string{"": "10_min.name.any\n1_min.name.avg\n5_min.name.min\n5_sec.name.max\n"}
 		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
 
 		cond.From = ageToTimestamp(1800)
 		cond.Until = ageToTimestamp(0)
 		cond.prepareLookup()
+
 		steps = map[uint32][]string{
 			5:   {"5_sec.name.max"},
 			30:  {"10_min.name.any"},
@@ -245,6 +266,7 @@ func TestPrepareLookup(t *testing.T) {
 		sort.Strings(cond.metricsUnreverse)
 		sort.Strings(cond.metricsRequested)
 		cond.prepareLookup()
+
 		aggregations := map[string][]string{
 			"avg": {"10_min.name.any", "1_min.name.avg", "5_min.name.min", "5_sec.name.max"},
 		}
@@ -254,6 +276,7 @@ func TestPrepareLookup(t *testing.T) {
 			30: {"10_min.name.any", "1_min.name.avg", "5_min.name.min", "5_sec.name.max"},
 		}
 		assert.Equal(t, steps, cond.steps)
+
 		bodies := map[string]string{"": "any.name.10_min\navg.name.1_min\nmax.name.5_sec\nmin.name.5_min\n"}
 		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
 
@@ -272,9 +295,11 @@ func TestPrepareLookup(t *testing.T) {
 		cond.isReverse = true
 		cond.prepareMetricsLists()
 		cond.prepareLookup()
+
 		for a := range cond.aggregations {
 			sort.Strings(cond.aggregations[a])
 		}
+
 		aggregations := map[string][]string{
 			"avg": {"10_min.name.any", "1_min.name.avg"},
 			"max": {"5_sec.name.max"},
@@ -293,15 +318,18 @@ func TestPrepareLookup(t *testing.T) {
 		cond.From = ageToTimestamp(1800)
 		cond.Until = ageToTimestamp(0)
 		cond.prepareLookup()
+
 		steps = map[uint32][]string{
 			5:   {"5_sec.name.max"},
 			30:  {"10_min.name.any"},
 			60:  {"1_min.name.avg"},
 			300: {"5_min.name.min"},
 		}
+
 		for a := range cond.aggregations {
 			sort.Strings(cond.aggregations[a])
 		}
+
 		assert.Equal(t, steps, cond.steps)
 		assert.Equal(t, aggregations, cond.aggregations)
 	})
@@ -315,13 +343,16 @@ func TestPrepareLookup(t *testing.T) {
 		sort.Strings(cond.metricsLookup)
 		sort.Strings(cond.metricsRequested)
 		sort.Strings(cond.metricsUnreverse)
+
 		var aggregations map[string][]string
+
 		for _, aggrStr := range []string{"avg", "min", "max", "sum"} {
 			cond.SetFilteringFunctions(
 				"*.name.*",
 				[]*v3pb.FilteringFunction{{Name: "consolidateBy", Arguments: []string{aggrStr}}},
 			)
 			cond.prepareLookup()
+
 			aggregations = map[string][]string{
 				aggrStr: {"10_min.name.any", "1_min.name.avg", "5_min.name.min", "5_sec.name.max"},
 			}
@@ -336,15 +367,18 @@ func TestPrepareLookup(t *testing.T) {
 			1200: {},
 		}
 		assert.Equal(t, steps, cond.steps)
+
 		bodies := make(map[string]string)
 		for a, m := range aggregations {
 			bodies[a] = strings.Join(m, "\n") + "\n"
 		}
+
 		assert.Equal(t, bodies, extTableString(cond.extDataBodies))
 
 		cond.From = ageToTimestamp(1800)
 		cond.Until = ageToTimestamp(0)
 		cond.prepareLookup()
+
 		steps = map[uint32][]string{
 			30:  {},
 			60:  {},
@@ -363,12 +397,15 @@ func TestSetStep(t *testing.T) {
 		cond.prepareMetricsLists()
 		cond.prepareLookup()
 		cond.setStep(nil)
+
 		var step int64 = 300
+
 		assert.Equal(t, step, cond.step)
 
 		cond.From = ageToTimestamp(5400)
 		cond.prepareLookup()
 		cond.setStep(nil)
+
 		step = 1200
 		assert.Equal(t, step, cond.step)
 	})
@@ -387,7 +424,9 @@ func TestSetStep(t *testing.T) {
 
 		cStep.addTargets(1)
 		cond.setStep(cStep)
+
 		var step int64 = 1800 / 2
+
 		assert.Equal(t, step, cond.step)
 
 		cStep.addTargets(1)
@@ -396,6 +435,7 @@ func TestSetStep(t *testing.T) {
 		cond.Until = ageToTimestamp(700)
 		cond.MaxDataPoints = 5
 		cond.setStep(cStep)
+
 		step = 300
 		assert.Equal(t, step, cond.step)
 
@@ -404,6 +444,7 @@ func TestSetStep(t *testing.T) {
 		cond.MaxDataPoints = 10
 		cond.steps = map[uint32][]string{1: {}, 5: {}, 3: {}, 4: {}}
 		cond.setStep(cStep)
+
 		step = 60
 		assert.Equal(t, step, cond.step)
 
@@ -412,12 +453,15 @@ func TestSetStep(t *testing.T) {
 		cond.MaxDataPoints = 7
 		cond.steps = map[uint32][]string{1: {}, 5: {}, 8: {}, 4: {}}
 		cond.setStep(cStep)
+
 		step = 80
 		assert.Equal(t, step, cond.step)
 
 		cStep.addTargets(1)
+
 		cond.MaxDataPoints = 6
 		cond.setStep(cStep)
+
 		step = 120
 		assert.Equal(t, step, cond.step)
 	})
@@ -429,10 +473,12 @@ func TestSetFromUntil(t *testing.T) {
 		until int64
 		step  int64
 	}
+
 	type out struct {
 		from  int64
 		until int64
 	}
+
 	tests := []struct {
 		in  in
 		out out
@@ -460,12 +506,14 @@ func TestSetFromUntil(t *testing.T) {
 // prewhere, where and both generators are checked here
 func TestGenerateQuery(t *testing.T) {
 	table := "graphite.table"
+
 	type in struct {
 		from  int64
 		until int64
 		step  int64
 		agg   string
 	}
+
 	tests := []struct {
 		in           in
 		aggregated   string
@@ -519,6 +567,7 @@ func TestGenerateQuery(t *testing.T) {
 			cond.setWhere()
 			unaggQuery := cond.generateQuery(test.in.agg)
 			assert.Equal(t, test.unaggregated, unaggQuery)
+
 			cond.aggregated = true
 			aggQuery := cond.generateQuery(test.in.agg)
 			assert.Equal(t, test.aggregated, aggQuery)

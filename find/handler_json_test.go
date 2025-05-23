@@ -51,6 +51,7 @@ func testResponce(t *testing.T, step int, h *Handler, tt *testStruct, wantCached
 
 func TestHandler_ServeValuesJSON(t *testing.T) {
 	metrics.DisableMetrics()
+
 	srv := clickhouse.NewTestServer()
 	defer srv.Close()
 
@@ -87,6 +88,7 @@ func TestHandler_ServeValuesJSON(t *testing.T) {
 	}
 
 	var queries uint64
+
 	for i, tt := range tests {
 		t.Run(tt.request.URL.RawQuery+"#"+strconv.Itoa(i), func(t *testing.T) {
 			for i := 0; i < 2; i++ {
@@ -112,7 +114,9 @@ func TestHandler_ServeValuesCachedJSON(t *testing.T) {
 		Size:           8192,
 		FindTimeoutSec: 1,
 	}
+
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("metric-finder", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
@@ -148,6 +152,7 @@ func TestHandler_ServeValuesCachedJSON(t *testing.T) {
 	}
 
 	var queries uint64
+
 	for i, tt := range tests {
 		t.Run(tt.request.URL.RawQuery+"#"+strconv.Itoa(i), func(t *testing.T) {
 			testResponce(t, 0, h, &tt, "")

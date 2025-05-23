@@ -25,6 +25,7 @@ type BytesCache interface {
 func NewExpireCache(maxsize uint64) BytesCache {
 	ec := expirecache.New[string, []byte](maxsize)
 	go ec.ApproximateCleaner(10 * time.Second)
+
 	return &ExpireCache{ec: ec}
 }
 
@@ -62,6 +63,7 @@ func (m *MemcachedCache) Get(k string) ([]byte, error) {
 	done := make(chan bool, 1)
 
 	var err error
+
 	var item *memcache.Item
 
 	go func() {
@@ -83,6 +85,7 @@ func (m *MemcachedCache) Get(k string) ([]byte, error) {
 		if errors.Is(err, memcache.ErrCacheMiss) {
 			err = ErrNotFound
 		}
+
 		return nil, err
 	}
 
@@ -92,6 +95,7 @@ func (m *MemcachedCache) Get(k string) ([]byte, error) {
 func (m *MemcachedCache) Set(k string, v []byte, expire int32) {
 	key := sha256.Sum256([]byte(k))
 	hk := hex.EncodeToString(key[:])
+
 	go func() {
 		_ = m.client.Set(&memcache.Item{Key: m.prefix + hk, Value: v, Expiration: expire})
 	}()

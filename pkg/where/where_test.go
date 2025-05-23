@@ -25,12 +25,14 @@ func TestGlobExpandSimple(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
 			var got []string
+
 			err := GlobExpandSimple(tt.value, "", &got)
 			if tt.wantErr {
 				assert.Error(t, err, "Expand() not returns error for %v", tt.value)
 			} else {
 				assert.NoErrorf(t, err, "Expand() returns error %v for %v", err, tt.value)
 			}
+
 			assert.Equal(t, tt.want, got, "Expand() result")
 		})
 	}

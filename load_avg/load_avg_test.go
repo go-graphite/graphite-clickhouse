@@ -76,9 +76,11 @@ func TestWeight(t *testing.T) {
 		if tt.degraged == 0 {
 			tt.degraged = 4 // default
 		}
+
 		if tt.degragedLoadAvg == 0 {
 			tt.degragedLoadAvg = 1.0 // default
 		}
+
 		t.Run(fmt.Sprintf("%d#%f#%f#%f", tt.weight, tt.degraged, tt.degragedLoadAvg, tt.loadAvg), func(t *testing.T) {
 			if got := Weight(tt.weight, tt.degraged, tt.degragedLoadAvg, tt.loadAvg); got != tt.want {
 				t.Errorf("Weight(%d, %f, %f, %f) = %v, want %v", tt.weight, tt.degraged, tt.degragedLoadAvg, tt.loadAvg, got, tt.want)

@@ -35,7 +35,9 @@ func (d *AtomicDuration) UnmarshalText(b []byte) error {
 	if err != nil {
 		return err
 	}
+
 	d.Store(val)
+
 	return nil
 }
 
@@ -66,6 +68,7 @@ func (p *HttpReverseProxy) Start(remoteURL string) (err error) {
 	p.srv = httptest.NewUnstartedServer(p)
 
 	p.wg.Add(1)
+
 	go func() {
 		defer p.wg.Done()
 
@@ -79,6 +82,7 @@ func (p *HttpReverseProxy) Stop() {
 	if p.srv == nil {
 		return
 	}
+
 	p.srv.CloseClientConnections()
 	p.srv.Close()
 	p.wg.Wait()

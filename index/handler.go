@@ -36,8 +36,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		status = http.StatusBadRequest
 		http.Error(w, err.Error(), status)
+
 		return
 	}
+
 	i.WriteJSON(w)
 	i.Close()
 }

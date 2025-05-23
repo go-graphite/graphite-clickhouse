@@ -58,6 +58,7 @@ func (s TaggedTermList) Less(i, j int) bool {
 	if s[i].Op < s[j].Op {
 		return true
 	}
+
 	if s[i].Op > s[j].Op {
 		return false
 	}
@@ -70,6 +71,7 @@ func (s TaggedTermList) Less(i, j int) bool {
 	if s[i].Key == "__name__" && s[j].Key != "__name__" {
 		return true
 	}
+
 	return false
 }
 
@@ -122,13 +124,16 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			// container_name=""  ==> response should not contain container_name
 			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.HasPrefix("x", term.Key+"=")), nil
 		}
+
 		if strings.Contains(term.Value, "*") {
 			return where.Like("Tag1", term.concatMask()), nil
 		}
+
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
+
 		if len(values) == 1 {
 			return where.Eq("Tag1", values[0]), nil
 		} else if len(values) > 1 {
@@ -142,18 +147,22 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			// container_name!=""  ==> container_name exists and it is not empty
 			return where.HasPrefixAndNotEq("Tag1", term.Key+"="), nil
 		}
+
 		var whereLikeAnyVal string
 		if dontMatchMissingTags {
 			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
 		}
+
 		if strings.Contains(term.Value, "*") {
 			whereLike := where.Like("x", term.concatMask())
 			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
+
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
+
 		if len(values) == 1 {
 			whereEq := where.Eq("x", values[0])
 			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
@@ -171,7 +180,9 @@ func TaggedTermWhere1(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		if dontMatchMissingTags {
 			whereLikeAnyVal = where.HasPrefix("Tag1", term.Key+"=") + " AND "
 		}
+
 		whereMatch := where.Match("x", term.Key, term.Value)
+
 		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
@@ -187,13 +198,16 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			// container_name=""  ==> response should not contain container_name
 			return fmt.Sprintf("NOT arrayExists((x) -> %s, Tags)", where.HasPrefix("x", term.Key+"=")), nil
 		}
+
 		if strings.Contains(term.Value, "*") {
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.Like("x", term.concatMask())), nil
 		}
+
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
+
 		if len(values) == 1 {
 			return where.ArrayHas("Tags", values[0]), nil
 		} else if len(values) > 1 {
@@ -201,6 +215,7 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			for _, v := range values {
 				w.Or(where.ArrayHas("Tags", v))
 			}
+
 			return w.String(), nil
 		} else {
 			return where.ArrayHas("Tags", term.concat()), nil
@@ -211,18 +226,22 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 			// container_name!=""  ==> container_name exists and it is not empty
 			return fmt.Sprintf("arrayExists((x) -> %s, Tags)", where.HasPrefixAndNotEq("x", term.Key+"=")), nil
 		}
+
 		var whereLikeAnyVal string
 		if dontMatchMissingTags {
 			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
 		}
+
 		if strings.Contains(term.Value, "*") {
 			whereLike := where.Like("x", term.concatMask())
 			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereLike), nil
 		}
+
 		var values []string
 		if err := where.GlobExpandSimple(term.Value, term.Key+"=", &values); err != nil {
 			return "", err
 		}
+
 		if len(values) == 1 {
 			whereEq := where.Eq("x", values[0])
 			return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereEq), nil
@@ -240,7 +259,9 @@ func TaggedTermWhereN(term *TaggedTerm, useCarbonBehaviour, dontMatchMissingTags
 		if dontMatchMissingTags {
 			whereLikeAnyVal = fmt.Sprintf("arrayExists((x) -> %s, Tags) AND ", where.HasPrefix("x", term.Key+"="))
 		}
+
 		whereMatch := where.Match("x", term.Key, term.Value)
+
 		return fmt.Sprintf("%sNOT arrayExists((x) -> %s, Tags)", whereLikeAnyVal, whereMatch), nil
 	default:
 		return "", nil
@@ -253,9 +274,11 @@ func setCost(term *TaggedTerm, costs *config.Costs) {
 			if cost, ok := costs.ValuesCost[term.Value]; ok {
 				term.Cost = cost
 				term.NonDefaultCost = true
+
 				return
 			}
 		}
+
 		if term.Op == TaggedTermEq && !term.HasWildcard && costs.Cost != nil {
 			term.Cost = *costs.Cost // only for non-wildcared eq
 			term.NonDefaultCost = true
@@ -352,6 +375,7 @@ func parseString(s string) (string, string, error) {
 
 func seriesByTagArgs(query string) ([]string, error) {
 	var err error
+
 	args := make([]string, 0, 8)
 
 	// trim spaces
@@ -359,13 +383,16 @@ func seriesByTagArgs(query string) ([]string, error) {
 	if !strings.HasPrefix(e, "seriesByTag(") {
 		return nil, ErrSyntaxSeriesByTag
 	}
+
 	if e[len(e)-1] != ')' {
 		return nil, ErrSyntaxSeriesByTag
 	}
+
 	e = e[12 : len(e)-1]
 
 	for len(e) > 0 {
 		var arg string
+
 		if e[0] == '\'' || e[0] == '"' {
 			if arg, e, err = parseString(e); err != nil {
 				return nil, err
@@ -380,6 +407,7 @@ func seriesByTagArgs(query string) ([]string, error) {
 			return nil, errs.NewErrorfWithCode(http.StatusBadRequest, "seriesByTag arg missing quote %q", e)
 		}
 	}
+
 	return args, nil
 }
 
@@ -399,13 +427,16 @@ func ParseSeriesByTag(query string, config *config.Config) ([]TaggedTerm, error)
 func TaggedWhere(terms []TaggedTerm, useCarbonBehaviour, dontMatchMissingTags bool) (*where.Where, *where.Where, error) {
 	w := where.New()
 	pw := where.New()
+
 	x, err := TaggedTermWhere1(&terms[0], useCarbonBehaviour, dontMatchMissingTags)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if terms[0].Op == TaggedTermMatch {
 		pw.And(x)
 	}
+
 	w.And(x)
 
 	for i := 1; i < len(terms); i++ {
@@ -413,6 +444,7 @@ func TaggedWhere(terms []TaggedTerm, useCarbonBehaviour, dontMatchMissingTags bo
 		if err != nil {
 			return nil, nil, err
 		}
+
 		w.And(and)
 	}
 
@@ -430,6 +462,7 @@ func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query
 	if err != nil {
 		return err
 	}
+
 	return t.ExecutePrepared(ctx, terms, from, until, stat)
 }
 
@@ -451,6 +484,7 @@ func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) 
 			date.FromTimestampToDaysFormat(from),
 		)
 	}
+
 	return w, pw, nil
 }
 
@@ -464,6 +498,7 @@ func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, 
 	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
 	stat.Table = t.table
 	stat.ReadBytes = int64(len(t.body))
+
 	return err
 }
 
@@ -475,11 +510,13 @@ func (t *TaggedFinder) List() [][]byte {
 	rows := bytes.Split(t.body, []byte{'\n'})
 
 	skip := 0
+
 	for i := 0; i < len(rows); i++ {
 		if len(rows[i]) == 0 {
 			skip++
 			continue
 		}
+
 		if skip > 0 {
 			rows[i-skip] = rows[i]
 		}
@@ -499,15 +536,18 @@ func tagsParse(path string) (string, []string, error) {
 	if n == 1 || args == "" {
 		return name, nil, fmt.Errorf("incomplete tags in '%s'", path)
 	}
+
 	tags := strings.Split(args, "&")
 	for i := range tags {
 		tags[i] = unescape(tags[i])
 	}
+
 	return unescape(name), tags, nil
 }
 
 func TaggedDecode(v []byte) []byte {
 	s := stringutils.UnsafeString(v)
+
 	name, tags, err := tagsParse(s)
 	if err != nil {
 		return v
@@ -516,6 +556,7 @@ func TaggedDecode(v []byte) []byte {
 	if len(tags) == 0 {
 		return stringutils.UnsafeStringBytes(&name)
 	}
+
 	sort.Strings(tags)
 
 	var sb stringutils.Builder
@@ -528,10 +569,12 @@ func TaggedDecode(v []byte) []byte {
 	sb.Grow(length)
 
 	sb.WriteString(name)
+
 	for _, tag := range tags {
 		sb.WriteString(";")
 		sb.WriteString(tag)
 	}
+
 	return sb.Bytes()
 }
 
@@ -565,6 +608,7 @@ func (t *TaggedFinder) PrepareTaggedTerms(ctx context.Context, cfg *config.Confi
 	if t.metricMightExists || len(t.taggedCosts) != 0 {
 		SetCosts(terms, t.taggedCosts)
 	}
+
 	SortTaggedTermsByCost(terms)
 
 	return terms, nil
@@ -615,7 +659,9 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 			if err != nil {
 				return err
 			}
+
 			w.Or(sqlTerm)
+
 			eqTermCount++
 		}
 	}
@@ -640,6 +686,7 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 	sql := fmt.Sprintf("SELECT Tag1, sum(Count) as cnt FROM %s %s GROUP BY Tag1 FORMAT TabSeparatedRaw", t.tag1CountTable, w.SQL())
 
 	var err error
+
 	t.body, _, _, err = clickhouse.Query(scope.WithTable(ctx, t.tag1CountTable), t.url, sql, t.opts, nil)
 	if err != nil {
 		return err
@@ -649,6 +696,7 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 
 	// create cost var to validate CH response without writing to t.taggedCosts
 	var costs map[string]*config.Costs
+
 	costs, err = chResultToCosts(rows)
 	if err != nil {
 		return err
@@ -661,6 +709,7 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 	if len(rows) < eqTermCount {
 		t.body = []byte{}
 		t.metricMightExists = false
+
 		return nil
 	}
 
@@ -679,17 +728,22 @@ func SetCosts(terms []TaggedTerm, costs map[string]*config.Costs) {
 
 func chResultToCosts(body [][]byte) (map[string]*config.Costs, error) {
 	costs := make(map[string]*config.Costs, 0)
+
 	for i := 0; i < len(body); i++ {
 		s := stringutils.UnsafeString(body[i])
+
 		tag, val, count, err := parseTag1CountRow(s)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse result from clickhouse while querying for tag costs: %s", err.Error())
 		}
+
 		if costs[tag] == nil {
 			costs[tag] = &config.Costs{Cost: nil, ValuesCost: make(map[string]int, 0)}
 		}
+
 		costs[tag].ValuesCost[val] = count
 	}
+
 	return costs, nil
 }
 
@@ -699,14 +753,18 @@ func parseTag1CountRow(s string) (string, string, int, error) {
 		cnt, n                int
 		err                   error
 	)
+
 	if tag1, count, n = stringutils.Split2(s, "\t"); n != 2 {
 		return "", "", 0, fmt.Errorf("no tag count")
 	}
+
 	if tag, val, n = stringutils.Split2(tag1, "="); n != 2 {
 		return "", "", 0, fmt.Errorf("no '=' in Tag1")
 	}
+
 	if cnt, err = strconv.Atoi(count); err != nil {
 		return "", "", 0, fmt.Errorf("can't convert count to int")
 	}
+
 	return tag, val, cnt, nil
 }

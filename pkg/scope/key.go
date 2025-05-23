@@ -18,6 +18,7 @@ func String(ctx context.Context, key string) string {
 	if value, ok := ctx.Value(scopeKey(key)).(string); ok {
 		return value
 	}
+
 	return ""
 }
 
@@ -26,6 +27,7 @@ func Bool(ctx context.Context, key string) bool {
 	if _, ok := ctx.Value(scopeKey(key)).(bool); ok {
 		return true
 	}
+
 	return false
 }
 
@@ -65,5 +67,6 @@ func ClickhouseUserAgent(ctx context.Context) string {
 	if grafana != "" {
 		return fmt.Sprintf("Graphite-Clickhouse/%s (table:%s) Grafana(%s)", Version, Table(ctx), grafana)
 	}
+
 	return fmt.Sprintf("Graphite-Clickhouse/%s (table:%s)", Version, Table(ctx))
 }

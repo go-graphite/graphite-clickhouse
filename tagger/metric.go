@@ -31,6 +31,7 @@ func (m *Metric) IsLeaf() uint8 {
 	if len(m.Path) > 0 && m.Path[len(m.Path)-1] == '.' {
 		return 0
 	}
+
 	return 1
 }
 

@@ -348,6 +348,7 @@ func TestSplitIndexFinder_whereFilter(t *testing.T) {
 
 			got, err := f.whereFilter(tc.givenQueries, tc.givenFrom, tc.givenUntil)
 			assert.Equal(t, tc.expectedErr, err)
+
 			if err == nil {
 				assert.Equal(t, tc.expectedWhereStr, got.String())
 			}

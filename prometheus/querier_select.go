@@ -24,23 +24,28 @@ func (q *Querier) lookup(ctx context.Context, from, until int64, qlimiter limite
 	if err != nil {
 		return nil, err
 	}
+
 	var (
 		stat     finder.FinderStat
 		limitCtx context.Context
 		cancel   context.CancelFunc
 	)
+
 	if qlimiter.Enabled() {
 		limitCtx, cancel = context.WithTimeout(ctx, q.config.ClickHouse.IndexTimeout)
 		defer cancel()
+
 		start := time.Now()
 		err = qlimiter.Enter(limitCtx, "render")
 		*queueDuration += time.Since(start)
+
 		if err != nil {
 			// status = http.StatusServiceUnavailable
 			// queueFail = true
 			// http.Error(w, err.Error(), status)
 			return nil, err
 		}
+
 		defer qlimiter.Leave(limitCtx, "render")
 	}
 	// TODO: implement use stat for Prometheus queries
@@ -52,6 +57,7 @@ func (q *Querier) lookup(ctx context.Context, from, until int64, qlimiter limite
 
 	am := alias.New()
 	am.Merge(fndResult, false)
+
 	return am, nil
 }
 
@@ -62,6 +68,7 @@ func (q *Querier) timeRange(hints *storage.SelectHints) (int64, int64) {
 	if hints != nil && hints.Start > 0 && hints.Start < 5662310400000 {
 		from = time.Unix(hints.Start/1000, (hints.Start%1000)*1000000)
 	}
+
 	if hints != nil && hints.End > 0 && hints.End < 5662310400000 {
 		until = time.Unix(hints.End/1000, (hints.End%1000)*1000000)
 	}
@@ -90,8 +97,10 @@ func (q *Querier) Select(ctx context.Context, sortSeries bool, hints *storage.Se
 	var (
 		queueDuration time.Duration
 	)
+
 	from, until := q.timeRange(hints)
 	qlimiter := data.GetQueryLimiterFrom("", q.config, from, until)
+
 	am, err := q.lookup(ctx, from, until, qlimiter, &queueDuration, labelsMatcher...)
 	if err != nil {
 		return nil //, nil, err @TODO
@@ -120,6 +129,7 @@ func (q *Querier) Select(ctx context.Context, sortSeries bool, hints *storage.Se
 			MaxDataPoints: maxDataPoints,
 		}: data.NewTargets([]string{}, am),
 	}
+
 	reply, err := multiTarget.Fetch(ctx, q.config, config.ContextPrometheus, qlimiter, &queueDuration)
 	if err != nil {
 		return nil // , nil, err @TODO

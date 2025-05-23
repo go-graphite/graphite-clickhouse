@@ -47,6 +47,7 @@ func TestSelectDataTableTime(t *testing.T) {
 	}
 	err := cfg.ProcessDataTables()
 	assert.NoError(t, err)
+
 	tg := NewTargets([]string{"metric"}, nil)
 
 	tests := []struct {
@@ -117,6 +118,7 @@ func TestSelectDataTableMatch(t *testing.T) {
 	}
 	err := cfg.ProcessDataTables()
 	assert.NoError(t, err)
+
 	tf := &TimeFrame{ageToTimestamp(3600*24 - 1), ageToTimestamp(1800), 1}
 
 	tests := []struct {

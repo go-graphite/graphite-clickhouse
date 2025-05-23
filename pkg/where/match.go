@@ -10,12 +10,14 @@ var opEq = "="
 // ClearGlob cleanup grafana globs like {name}
 func ClearGlob(query string) string {
 	p := 0
+
 	s := strings.IndexAny(query, "{[")
 	if s == -1 {
 		return query
 	}
 
 	found := false
+
 	var builder strings.Builder
 
 	for {
@@ -26,13 +28,17 @@ func ClearGlob(query string) string {
 				// { not closed, glob with error
 				break
 			}
+
 			e += s + 1
+
 			delim := strings.IndexRune(query[s+1:e], ',')
 			if delim == -1 {
 				if !found {
 					builder.Grow(len(query) - 2)
+
 					found = true
 				}
+
 				builder.WriteString(query[p:s])
 				builder.WriteString(query[s+1 : e-1])
 				p = e
@@ -44,33 +50,41 @@ func ClearGlob(query string) string {
 				break
 			} else {
 				symbols := 0
+
 				for _, c := range query[s+1 : s+e+1] {
 					_ = c // for loop over runes
+
 					symbols++
 					if symbols == 2 {
 						break
 					}
 				}
+
 				if symbols <= 1 {
 					if !found {
 						builder.Grow(len(query) - 2)
+
 						found = true
 					}
+
 					builder.WriteString(query[p:s])
 					builder.WriteString(query[s+1 : s+e+1])
 					p = e + s + 2
 				}
 			}
+
 			e += s + 2
 		}
 
 		if e >= len(query) {
 			break
 		}
+
 		s = strings.IndexAny(query[e:], "{[")
 		if s == -1 {
 			break
 		}
+
 		s += e
 	}
 
@@ -78,8 +92,10 @@ func ClearGlob(query string) string {
 		if p < len(query) {
 			builder.WriteString(query[p:])
 		}
+
 		return builder.String()
 	}
+
 	return query
 }
 
@@ -95,13 +111,16 @@ func HasUnmatchedBrackets(query string) bool {
 			if c == '{' || c == '[' {
 				stack = append(stack, c)
 			}
+
 			if c == '}' || c == ']' {
 				if len(stack) == 0 || stack[len(stack)-1] != matchingBracket[c] {
 					return true
 				}
+
 				stack = stack[:len(stack)-1]
 			}
 		}
+
 		return len(stack) != 0
 	}
 
@@ -173,11 +192,13 @@ func TreeGlob(field string, query string) string {
 func ConcatMatchKV(key, value string) string {
 	startLine := value[0] == '^'
 	endLine := value[len(value)-1] == '$'
+
 	if startLine && endLine {
 		return key + opEq + value[1:]
 	} else if startLine {
 		return key + opEq + value[1:] + "\\\\%"
 	}
+
 	return key + opEq + "\\\\%" + value
 }
 
@@ -185,8 +206,10 @@ func Match(field string, key, value string) string {
 	if len(value) == 0 || value == "*" {
 		return Like(field, key+"=%")
 	}
+
 	expr := ConcatMatchKV(key, value)
 	simplePrefix := NonRegexpPrefix(expr)
+
 	if len(simplePrefix) == len(expr) {
 		return Eq(field, expr)
 	} else if len(simplePrefix) == len(expr)-1 && expr[len(expr)-1] == '$' {

@@ -34,6 +34,7 @@ func NewAuto(addr string, tlsConfig *tls.Config, table string, interval time.Dur
 	}
 
 	go r.updateWorker()
+
 	return r, nil
 }
 
@@ -62,6 +63,7 @@ func NewXMLFile(filename string, defaultPrecision uint32, defaultFunction string
 
 func NewDefault(defaultPrecision uint32, defaultFunction string) (*Rollup, error) {
 	rules := &Rules{Pattern: []Pattern{}}
+
 	rules, err := rules.prepare(defaultPrecision, defaultFunction)
 	if err != nil {
 		return nil, err
@@ -78,6 +80,7 @@ func (r *Rollup) Rules() *Rules {
 	r.mu.RLock()
 	rules := r.rules
 	r.mu.RUnlock()
+
 	return rules
 }
 
@@ -97,6 +100,7 @@ func (r *Rollup) update() error {
 	r.mu.Lock()
 	r.rules = rules
 	r.mu.Unlock()
+
 	return nil
 }
 

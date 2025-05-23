@@ -24,6 +24,7 @@ func String(path string) string {
 func reverse(m []byte) {
 	i := 0
 	j := len(m) - 1
+
 	for i < j {
 		m[i], m[j] = m[j], m[i]
 		i++
@@ -39,6 +40,7 @@ func Inplace(path []byte) {
 	reverse(path)
 
 	var a, b int
+
 	l := len(path)
 	for b = 0; b < l; b++ {
 		if path[b] == '.' {
@@ -46,6 +48,7 @@ func Inplace(path []byte) {
 			a = b + 1
 		}
 	}
+
 	reverse(path[a:b])
 }
 
@@ -55,6 +58,7 @@ func Bytes(path []byte) []byte {
 	if bytes.IndexByte(path, '?') >= 0 {
 		return path
 	}
+
 	r := make([]byte, len(path))
 	copy(r, path)
 	Inplace(r)

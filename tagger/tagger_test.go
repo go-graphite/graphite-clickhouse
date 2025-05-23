@@ -293,39 +293,53 @@ func TestCutMetricsIntoParts(t *testing.T) {
 
 func TestCutMetricsIntoPartsRandom(t *testing.T) {
 	require := require.New(t)
+
 	rand.Seed(time.Now().UnixNano())
+
 	for n := 0; n < 1000; n++ {
 		metricList := make([]Metric, rand.Intn(100))
 		tagsMax := rand.Intn(100) + 1
 		tagsCnt := 0
+
 		for i := range metricList {
 			tags := make([]string, rand.Intn(tagsMax)+1)
 			tagsCnt += len(tags)
+
 			for j := range tags {
 				tags[j] = fmt.Sprintf("tag%d", j)
 			}
+
 			metricList[i].Tags = new(Set).Add(tags...)
 		}
+
 		threads := rand.Intn(110)
 		parts, _ := cutMetricsIntoParts(metricList, threads)
+
 		if threads == 0 {
 			threads = 1
 		}
+
 		if len(parts) > threads {
 			v, _ := json.MarshalIndent(parts, "", "    ")
 			fmt.Println(string(v))
 		}
+
 		require.LessOrEqual(len(parts), threads, fmt.Sprint(tagsCnt, len(metricList), len(parts), threads))
+
 		if len(metricList) > 0 {
 			require.LessOrEqual(len(parts), len(metricList), fmt.Sprint(tagsCnt, len(metricList), len(parts), threads))
 		}
+
 		i := 0
+
 		for _, p := range parts {
 			for _, m := range p {
 				require.Equal(metricList[i], m)
+
 				i++
 			}
 		}
+
 		require.Equal(len(metricList), i)
 	}
 }

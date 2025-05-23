@@ -83,6 +83,7 @@ func Test_buildTaggedRegex(t *testing.T) {
 				if tt.match != "" && !re.Match([]byte(tt.match)) {
 					t.Errorf("match(%q, %q) must be true", tt.tagsStr, tt.match)
 				}
+
 				if tt.nomatch != "" && re.Match([]byte(tt.nomatch)) {
 					t.Errorf("match(%q, %q) must be false", tt.tagsStr, tt.match)
 				}
@@ -706,6 +707,7 @@ func BenchmarkLookupSum(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.sum", 1, false)
 		_ = precision
@@ -718,6 +720,7 @@ func BenchmarkLookupSumSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.sum", 1, false)
 		_ = precision
@@ -730,6 +733,7 @@ func BenchmarkLookupSumTagged(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("sum?env=test&tag=Fake5", 1, false)
 		_ = precision
@@ -742,6 +746,7 @@ func BenchmarkLookupSumTaggedSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("sum?env=test&tag=Fake5", 1, false)
 		_ = precision
@@ -754,6 +759,7 @@ func BenchmarkLookupMax(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.max", 1, false)
 		_ = precision
@@ -766,6 +772,7 @@ func BenchmarkLookupMaxSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.max", 1, false)
 		_ = precision
@@ -778,6 +785,7 @@ func BenchmarkLookupMaxTagged(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("max?env=test&tag=Fake5", 1, false)
 		_ = precision
@@ -790,6 +798,7 @@ func BenchmarkLookupMaxTaggedSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("max?env=test&tag=Fake5", 1, false)
 		_ = precision
@@ -802,6 +811,7 @@ func BenchmarkLookupDefault(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.p95", 1, false)
 		_ = precision
@@ -814,6 +824,7 @@ func BenchmarkLookupDefaultSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("test.p95", 1, false)
 		_ = precision
@@ -826,6 +837,7 @@ func BenchmarkLookupDefaultTagged(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("p95?env=test&tag=Fake5", 1, false)
 		_ = precision
@@ -838,6 +850,7 @@ func BenchmarkLookupDefaultTaggedSeparated(b *testing.B) {
 	require.NoError(b, err)
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		precision, ag, _, _ := r.Lookup("p95?env=test&tag=Fake5", 1, false)
 		_ = precision
