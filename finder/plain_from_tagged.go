@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/metrics"
 )
 
 // Special finder for query plain graphite from prometheus
@@ -67,8 +68,8 @@ func (f *plainFromTaggedFinder) Target() string {
 	return f.target
 }
 
-func (f *plainFromTaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error {
-	return f.wrappedPlain.Execute(ctx, config, query, from, until, stat)
+func (f *plainFromTaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) error {
+	return f.wrappedPlain.Execute(ctx, config, query, from, until)
 }
 
 // For Render
@@ -128,4 +129,8 @@ func (f *plainFromTaggedFinder) List() [][]byte {
 
 func (f *plainFromTaggedFinder) Bytes() ([]byte, error) {
 	return nil, ErrNotImplemented
+}
+
+func (f *plainFromTaggedFinder) Stats() []metrics.FinderStat {
+	return f.wrappedPlain.Stats()
 }

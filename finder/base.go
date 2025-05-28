@@ -9,6 +9,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -20,6 +21,7 @@ type BaseFinder struct {
 	table string             // graphite_tree table
 	opts  clickhouse.Options // timeout, connectTimeout
 	body  []byte             // clickhouse response body
+	stats []metrics.FinderStat
 }
 
 func NewBase(url string, table string, opts clickhouse.Options) Finder {
@@ -27,6 +29,7 @@ func NewBase(url string, table string, opts clickhouse.Options) Finder {
 		url:   url,
 		table: table,
 		opts:  opts,
+		stats: make([]metrics.FinderStat, 0),
 	}
 }
 
@@ -40,8 +43,12 @@ func (b *BaseFinder) where(query string) *where.Where {
 	return w
 }
 
-func (b *BaseFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (b *BaseFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) (err error) {
 	w := b.where(query)
+
+	b.stats = append(b.stats, metrics.FinderStat{})
+	stat := &b.stats[len(b.stats)-1]
+
 	b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, b.table),
 		b.url,
@@ -100,4 +107,8 @@ func (b *BaseFinder) Abs(v []byte) []byte {
 
 func (b *BaseFinder) Bytes() ([]byte, error) {
 	return b.body, nil
+}
+
+func (b *BaseFinder) Stats() []metrics.FinderStat {
+	return b.stats
 }

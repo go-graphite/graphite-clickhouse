@@ -11,7 +11,6 @@ import (
 	"github.com/go-graphite/carbonapi/pkg/parser"
 	v3pb "github.com/go-graphite/protocol/carbonapi_v3_pb"
 	"github.com/lomik/graphite-clickhouse/config"
-	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/utils"
 	"github.com/lomik/graphite-clickhouse/logs"
@@ -41,7 +40,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var (
 		metricsCount  int64
-		stat          finder.FinderStat
+		stat          metrics.FinderStat
 		queueFail     bool
 		queueDuration time.Duration
 		findCache     bool
@@ -195,7 +194,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	f, err := New(h.config, r.Context(), query, &stat)
+	f, err := New(h.config, r.Context(), query)
 
 	if entered {
 		// release early as possible

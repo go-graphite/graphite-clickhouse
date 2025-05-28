@@ -201,15 +201,12 @@ func (h *Handler) finder(fetchRequests data.MultiTarget, ctx context.Context, lo
 
 				var err error
 
-				// Search in small index table first
-				var stat finder.FinderStat
-
 				fStart := time.Now()
-				fndResult, err = finder.Find(h.config, ctx, target, tf.From, tf.Until, &stat)
+				fndResult, err = finder.Find(h.config, ctx, target, tf.From, tf.Until)
 				d := time.Since(fStart).Milliseconds()
 
 				if err != nil {
-					metrics.SendQueryReadByTable(stat.Table, tf.From, tf.Until, d, 0, 0, stat.ChReadRows, stat.ChReadBytes, true)
+					metrics.SendQueryReadByTable(tf.From, tf.Until, d, 0, fndResult.Stats(), true)
 					logger.Error("find", zap.Error(err))
 					lock.Lock()
 					errors = append(errors, err)
@@ -237,7 +234,7 @@ func (h *Handler) finder(fetchRequests data.MultiTarget, ctx context.Context, lo
 				lock.Unlock()
 
 				*metricsLen += rows
-				metrics.SendQueryReadByTable(stat.Table, tf.From, tf.Until, d, int64(rows), stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, false)
+				metrics.SendQueryReadByTable(tf.From, tf.Until, d, int64(rows), fndResult.Stats(), false)
 			}(tf, expr, targets, i)
 		}
 	}

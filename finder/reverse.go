@@ -7,6 +7,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -50,19 +51,19 @@ func WrapReverse(f Finder, url string, table string, opts clickhouse.Options) *R
 	}
 }
 
-func (r *ReverseFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (r *ReverseFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) (err error) {
 	p := strings.LastIndexByte(query, '.')
 	if p < 0 || p >= len(query)-1 {
-		return r.wrapped.Execute(ctx, config, query, from, until, stat)
+		return r.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	if where.HasWildcard(query[p+1:]) {
-		return r.wrapped.Execute(ctx, config, query, from, until, stat)
+		return r.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	r.isUsed = true
 
-	return r.baseFinder.Execute(ctx, config, ReverseString(query), from, until, stat)
+	return r.baseFinder.Execute(ctx, config, ReverseString(query), from, until)
 }
 
 func (r *ReverseFinder) List() [][]byte {
@@ -97,4 +98,8 @@ func (r *ReverseFinder) Abs(v []byte) []byte {
 
 func (f *ReverseFinder) Bytes() ([]byte, error) {
 	return f.wrapped.Bytes()
+}
+
+func (f *ReverseFinder) Stats() []metrics.FinderStat {
+	return f.wrapped.Stats()
 }

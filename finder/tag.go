@@ -8,6 +8,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -66,10 +67,12 @@ type TagFinder struct {
 	url         string             // clickhouse dsn
 	table       string             // graphite_tag table
 	opts        clickhouse.Options // clickhouse timeout, connectTimeout, etc
+	stats       []metrics.FinderStat
 	state       TagState
 	tagQuery    []TagQ
 	seriesQuery string
 	tagPrefix   []byte
+	useWrapped  bool
 	body        []byte // clickhouse response
 }
 
@@ -77,11 +80,12 @@ var EmptyList [][]byte = [][]byte{}
 
 func WrapTag(f Finder, url string, table string, opts clickhouse.Options) *TagFinder {
 	return &TagFinder{
-		wrapped:  f,
-		url:      url,
-		table:    table,
-		opts:     opts,
-		tagQuery: make([]TagQ, 0),
+		wrapped:    f,
+		url:        url,
+		table:      table,
+		opts:       opts,
+		tagQuery:   make([]TagQ, 0),
+		useWrapped: true,
 	}
 }
 
@@ -207,21 +211,23 @@ func (t *TagFinder) MakeSQL(query string) (string, error) {
 	return t.seriesSQL()
 }
 
-func (t *TagFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (t *TagFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) (err error) {
 	t.state = TagSkip
 
 	if query == "" {
-		return t.wrapped.Execute(ctx, config, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	if query == "*" {
 		t.state = TagRoot
-		return t.wrapped.Execute(ctx, config, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	if !strings.HasPrefix(query, "_tag.") && query != "_tag" {
-		return t.wrapped.Execute(ctx, config, query, from, until, stat)
+		return t.wrapped.Execute(ctx, config, query, from, until)
 	}
+
+	t.useWrapped = false
 
 	var sql string
 
@@ -229,6 +235,9 @@ func (t *TagFinder) Execute(ctx context.Context, config *config.Config, query st
 	if err != nil || sql == "" {
 		return
 	}
+
+	t.stats = append(t.stats, metrics.FinderStat{})
+	stat := &t.stats[len(t.stats)-1]
 
 	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
 	stat.Table = t.table
@@ -336,4 +345,11 @@ func (t *TagFinder) Abs(v []byte) []byte {
 
 func (t *TagFinder) Bytes() ([]byte, error) {
 	return nil, ErrNotImplemented
+}
+
+func (t *TagFinder) Stats() []metrics.FinderStat {
+	if t.useWrapped {
+		return t.wrapped.Stats()
+	}
+	return t.stats
 }
