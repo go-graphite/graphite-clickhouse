@@ -333,5 +333,6 @@ func (splitFinder *SplitIndexFinder) Stats() []metrics.FinderStat {
 	if splitFinder.useWrapped {
 		return splitFinder.wrapped.Stats()
 	}
+
 	return splitFinder.stats
 }

@@ -351,5 +351,6 @@ func (t *TagFinder) Stats() []metrics.FinderStat {
 	if t.useWrapped {
 		return t.wrapped.Stats()
 	}
+
 	return t.stats
 }

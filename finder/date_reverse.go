@@ -74,5 +74,6 @@ func (f *DateFinderV3) Series() [][]byte {
 	for i := 0; i < len(list); i++ {
 		list[i] = ReverseBytes(list[i])
 	}
+
 	return list
 }
