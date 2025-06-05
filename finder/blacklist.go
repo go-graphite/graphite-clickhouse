@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/metrics"
 )
 
 type BlacklistFinder struct {
@@ -20,7 +21,7 @@ func WrapBlacklist(f Finder, blacklist []*regexp.Regexp) *BlacklistFinder {
 	}
 }
 
-func (p *BlacklistFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (p *BlacklistFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) (err error) {
 	for i := 0; i < len(p.blacklist); i++ {
 		if p.blacklist[i].MatchString(query) {
 			p.matched = true
@@ -28,7 +29,7 @@ func (p *BlacklistFinder) Execute(ctx context.Context, config *config.Config, qu
 		}
 	}
 
-	return p.wrapped.Execute(ctx, config, query, from, until, stat)
+	return p.wrapped.Execute(ctx, config, query, from, until)
 }
 
 func (p *BlacklistFinder) List() [][]byte {
@@ -54,4 +55,8 @@ func (p *BlacklistFinder) Abs(v []byte) []byte {
 
 func (p *BlacklistFinder) Bytes() ([]byte, error) {
 	return nil, ErrNotImplemented
+}
+
+func (p *BlacklistFinder) Stats() []metrics.FinderStat {
+	return p.wrapped.Stats()
 }

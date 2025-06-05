@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
 
@@ -42,7 +43,7 @@ func WrapPrefix(f Finder, prefix string) *PrefixFinder {
 	}
 }
 
-func (p *PrefixFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error {
+func (p *PrefixFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) error {
 	qs := strings.Split(query, ".")
 
 	// check regexp
@@ -76,7 +77,7 @@ func (p *PrefixFinder) Execute(ctx context.Context, config *config.Config, query
 
 	p.matched = PrefixMatched
 
-	return p.wrapped.Execute(ctx, config, strings.Join(qs[len(ps):], "."), from, until, stat)
+	return p.wrapped.Execute(ctx, config, strings.Join(qs[len(ps):], "."), from, until)
 }
 
 func (p *PrefixFinder) List() [][]byte {
@@ -117,4 +118,8 @@ func (p *PrefixFinder) Abs(value []byte) []byte {
 
 func (p *PrefixFinder) Bytes() ([]byte, error) {
 	return nil, ErrNotImplemented
+}
+
+func (p *PrefixFinder) Stats() []metrics.FinderStat {
+	return p.wrapped.Stats()
 }

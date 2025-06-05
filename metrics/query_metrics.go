@@ -18,6 +18,13 @@ type QueryMetrics struct {
 	RangeMetrics []QueryMetric
 }
 
+type FinderStat struct {
+	ReadBytes   int64
+	ChReadRows  int64
+	ChReadBytes int64
+	Table       string
+}
+
 var (
 	QMetrics            map[string]*QueryMetrics = make(map[string]*QueryMetrics)
 	AutocompleteQMetric *QueryMetrics
@@ -112,8 +119,10 @@ func SendQueryReadChecked(r *QueryMetrics, from, until, durationMs, read_rows, r
 	}
 }
 
-func SendQueryReadByTable(table string, from, until, durationMs, read_rows, read_bytes, ch_read_rows, ch_read_bytes int64, err bool) {
-	if r, ok := QMetrics[table]; ok {
-		SendQueryRead(r, from, until, durationMs, read_rows, read_bytes, ch_read_rows, ch_read_bytes, err)
+func SendQueryReadByTable(from, until, durationMs, read_rows int64, stats []FinderStat, err bool) {
+	for _, stat := range stats {
+		if r, ok := QMetrics[stat.Table]; ok {
+			SendQueryRead(r, from, until, durationMs, read_rows, stat.ReadBytes, stat.ChReadRows, stat.ChReadBytes, err)
+		}
 	}
 }

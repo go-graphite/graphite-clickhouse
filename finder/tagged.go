@@ -13,6 +13,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/date"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 
@@ -86,8 +87,8 @@ type TaggedFinder struct {
 	useCarbonBehavior    bool
 	dontMatchMissingTags bool
 	metricMightExists    bool // if false, skip all subsequent queries because we determined that result will be empty anyway
-
-	body []byte // clickhouse response
+	stats                []metrics.FinderStat
+	body                 []byte // clickhouse response
 }
 
 func NewTagged(url string, table, tag1CountTable string, dailyEnabled, useCarbonBehavior, dontMatchMissingTags, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
@@ -102,6 +103,7 @@ func NewTagged(url string, table, tag1CountTable string, dailyEnabled, useCarbon
 		useCarbonBehavior:    useCarbonBehavior,
 		dontMatchMissingTags: dontMatchMissingTags,
 		metricMightExists:    true,
+		stats:                make([]metrics.FinderStat, 0),
 	}
 }
 
@@ -457,13 +459,13 @@ func NewCachedTags(body []byte) *TaggedFinder {
 	}
 }
 
-func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) error {
-	terms, err := t.PrepareTaggedTerms(ctx, config, query, from, until, stat)
+func (t *TaggedFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) error {
+	terms, err := t.PrepareTaggedTerms(ctx, config, query, from, until)
 	if err != nil {
 		return err
 	}
 
-	return t.ExecutePrepared(ctx, terms, from, until, stat)
+	return t.ExecutePrepared(ctx, terms, from, until)
 }
 
 func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) (*where.Where, *where.Where, error) {
@@ -488,11 +490,15 @@ func (t *TaggedFinder) whereFilter(terms []TaggedTerm, from int64, until int64) 
 	return w, pw, nil
 }
 
-func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) error {
+func (t *TaggedFinder) ExecutePrepared(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
 	w, pw, err := t.whereFilter(terms, from, until)
 	if err != nil {
 		return err
 	}
+
+	t.stats = append(t.stats, metrics.FinderStat{})
+	stat := &t.stats[len(t.stats)-1]
+
 	// TODO: consider consistent query generator
 	sql := fmt.Sprintf("SELECT Path FROM %s %s %s GROUP BY Path FORMAT TabSeparatedRaw", t.table, pw.PreWhereSQL(), w.SQL())
 	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.table), t.url, sql, t.opts, nil)
@@ -590,14 +596,18 @@ func (t *TaggedFinder) Bytes() ([]byte, error) {
 	return nil, ErrNotImplemented
 }
 
-func (t *TaggedFinder) PrepareTaggedTerms(ctx context.Context, cfg *config.Config, query string, from int64, until int64, stat *FinderStat) (terms []TaggedTerm, err error) {
+func (t *TaggedFinder) Stats() []metrics.FinderStat {
+	return t.stats
+}
+
+func (t *TaggedFinder) PrepareTaggedTerms(ctx context.Context, cfg *config.Config, query string, from int64, until int64) (terms []TaggedTerm, err error) {
 	terms, err = ParseSeriesByTag(query, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	if t.tag1CountTable != "" {
-		err = t.SetCostsFromCountTable(ctx, terms, from, until, stat)
+		err = t.SetCostsFromCountTable(ctx, terms, from, until)
 		if err != nil {
 			return nil, err
 		}
@@ -649,7 +659,7 @@ func SortTaggedTermsByCost(terms []TaggedTerm) {
 	})
 }
 
-func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []TaggedTerm, from int64, until int64, stat *FinderStat) error {
+func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
 	w := where.New()
 	eqTermCount := 0
 
@@ -687,7 +697,11 @@ func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []Tagge
 
 	var err error
 
-	t.body, _, _, err = clickhouse.Query(scope.WithTable(ctx, t.tag1CountTable), t.url, sql, t.opts, nil)
+	t.stats = append(t.stats, metrics.FinderStat{})
+	stat := &t.stats[len(t.stats)-1]
+	stat.Table = t.tag1CountTable
+
+	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.tag1CountTable), t.url, sql, t.opts, nil)
 	if err != nil {
 		return err
 	}

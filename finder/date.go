@@ -7,6 +7,7 @@ import (
 
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -30,7 +31,7 @@ func NewDateFinder(url string, table string, tableVersion int, opts clickhouse.O
 	return &DateFinder{b, tableVersion}
 }
 
-func (b *DateFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64, stat *FinderStat) (err error) {
+func (b *DateFinder) Execute(ctx context.Context, config *config.Config, query string, from int64, until int64) (err error) {
 	w := b.where(query)
 
 	dateWhere := where.New()
@@ -39,6 +40,9 @@ func (b *DateFinder) Execute(ctx context.Context, config *config.Config, query s
 		time.Unix(from, 0).Format("2006-01-02"),
 		time.Unix(until, 0).Format("2006-01-02"),
 	)
+
+	b.stats = append(b.stats, metrics.FinderStat{})
+	stat := &b.stats[len(b.stats)-1]
 
 	if b.tableVersion == 2 {
 		b.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(

@@ -9,6 +9,7 @@ import (
 	"github.com/lomik/graphite-clickhouse/config"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	"github.com/lomik/graphite-clickhouse/metrics"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 	"github.com/lomik/graphite-clickhouse/pkg/where"
 )
@@ -31,6 +32,7 @@ type SplitIndexFinder struct {
 	wrapped Finder
 	body    []byte
 	rows    [][]byte
+	stats   []metrics.FinderStat
 	// useWrapped indicated if we should use wrapped Finder.
 	useWrapped          bool
 	useReverse          bool
@@ -74,7 +76,6 @@ func (splitFinder *SplitIndexFinder) Execute(
 	query string,
 	from int64,
 	until int64,
-	stat *FinderStat,
 ) error {
 	if where.HasUnmatchedBrackets(query) {
 		return errs.NewErrorWithCode("query has unmatched brackets", http.StatusBadRequest)
@@ -85,7 +86,7 @@ func (splitFinder *SplitIndexFinder) Execute(
 	idx := strings.IndexAny(query, "{}")
 	if idx == -1 {
 		splitFinder.useWrapped = true
-		return splitFinder.wrapped.Execute(ctx, config, query, from, until, stat)
+		return splitFinder.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	splitQueries, err := splitQuery(query, config.ClickHouse.MaxNodeToSplitIndex)
@@ -95,13 +96,16 @@ func (splitFinder *SplitIndexFinder) Execute(
 
 	if len(splitQueries) <= 1 {
 		splitFinder.useWrapped = true
-		return splitFinder.wrapped.Execute(ctx, config, query, from, until, stat)
+		return splitFinder.wrapped.Execute(ctx, config, query, from, until)
 	}
 
 	w, err := splitFinder.whereFilter(splitQueries, from, until)
 	if err != nil {
 		return err
 	}
+
+	splitFinder.stats = append(splitFinder.stats, metrics.FinderStat{})
+	stat := &splitFinder.stats[len(splitFinder.stats)-1]
 
 	splitFinder.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(
 		scope.WithTable(ctx, splitFinder.table),
@@ -323,4 +327,12 @@ func (splitFinder *SplitIndexFinder) Bytes() ([]byte, error) {
 	}
 
 	return splitFinder.body, nil
+}
+
+func (splitFinder *SplitIndexFinder) Stats() []metrics.FinderStat {
+	if splitFinder.useWrapped {
+		return splitFinder.wrapped.Stats()
+	}
+
+	return splitFinder.stats
 }

@@ -1012,6 +1012,10 @@ func (c *Config) setupGraphiteMetrics() bool {
 		metrics.InitQueryMetrics(c.ClickHouse.TaggedTable, &c.Metrics)
 	}
 
+	if c.ClickHouse.TagsCountTable != "" {
+		metrics.InitQueryMetrics(c.ClickHouse.TagsCountTable, &c.Metrics)
+	}
+
 	return metrics.Graphite != nil
 }
 

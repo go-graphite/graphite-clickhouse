@@ -659,9 +659,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			cfg.ClickHouse.TaggedCosts,
 		)
 
-		stat := &FinderStat{}
-
-		terms, err := taggedFinder.PrepareTaggedTerms(context.Background(), cfg, query, from, until, stat)
+		terms, err := taggedFinder.PrepareTaggedTerms(context.Background(), cfg, query, from, until)
 		if expectedErr != nil {
 			assert.Equal(expectedErr, err, testName+", err")
 			return
@@ -1005,9 +1003,7 @@ func TestTaggedFinder_whereFilter(t *testing.T) {
 				tt.taggedCosts,
 			)
 
-			stat := &FinderStat{}
-
-			terms, err := f.PrepareTaggedTerms(context.Background(), config, tt.query, tt.from, tt.until, stat)
+			terms, err := f.PrepareTaggedTerms(context.Background(), config, tt.query, tt.from, tt.until)
 			if err != nil {
 				t.Fatal(err)
 			}
