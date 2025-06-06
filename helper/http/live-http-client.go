@@ -42,7 +42,6 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 			if err != nil {
 				return nil, err
 			}
-			// if strings.TrimSpace(line) == "" || line == "\r\n" {
 			if line == "\r\n" {
 				break HEADERS
 			}
