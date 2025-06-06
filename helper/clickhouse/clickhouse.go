@@ -41,6 +41,11 @@ const (
 	ContentEncodingZstd ContentEncoding = "zstd"
 )
 
+const (
+	ClickHouseProgressHeader string = "X-Clickhouse-Progress"
+	ClickHouseSummaryHeader string = "X-Clickhouse-Summary"
+)
+
 func NewErrWithDescr(err string, data string) error {
 	return &ErrWithDescr{err, data}
 }
@@ -207,6 +212,13 @@ func (r *LoggedReader) ChReadBytes() int64 {
 	return r.read_bytes
 }
 
+type queryStats struct {
+	readRows int64
+	readBytes int64
+	loggerFields []zapcore.Field
+	rawHeader string
+}
+
 func formatSQL(q string) string {
 	s := strings.Split(q, "\n")
 	for i := 0; i < len(s); i++ {
@@ -333,9 +345,11 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 
 	if err != nil {
 		if opts.CheckRequestProgress && resp != nil {
-			progressHeader := resp.Header.Values("X-Clickhouse-Progress")
-			lastProgress := progressHeader[len(progressHeader)-1]
-			logger.Warn("query", zap.Error(err), zap.String("clickhouse-progress", lastProgress))
+			stats, parse_err := getQueryStats(resp, ClickHouseProgressHeader)
+			if parse_err != nil {
+				logger.Warn("query", zap.Error(err), zap.String("clickhouse-progress", stats.rawHeader))
+			}
+			logger = logger.With(stats.loggerFields...)
 		}
 		return
 	}
@@ -343,37 +357,22 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	// chproxy overwrite our query id. So read it again
 	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
 
-	summaryHeader := resp.Header.Get("X-Clickhouse-Summary")
-	read_rows := int64(-1)
-	read_bytes := int64(-1)
+	stats, err := getQueryStats(resp, ClickHouseSummaryHeader)
+	if err != nil {
+		summaryHeader := resp.Header.Get(ClickHouseSummaryHeader)
+		logger.Warn("query",
+			zap.Error(err),
+			zap.String("clickhouse-summary", summaryHeader))
+		err = nil
+	}
 
-	if len(summaryHeader) > 0 {
-		summary := make(map[string]string)
-		err = json.Unmarshal([]byte(summaryHeader), &summary)
+	read_rows, read_bytes, fields := stats.readRows, stats.readBytes, stats.loggerFields
 
-		if err == nil {
-			// TODO: use in carbon metrics sender when it will be implemented
-			fields := make([]zapcore.Field, 0, len(summary))
-			for k, v := range summary {
-				fields = append(fields, zap.String(k, v))
-
-				switch k {
-				case "read_rows":
-					read_rows, _ = strconv.ParseInt(v, 10, 64)
-				case "read_bytes":
-					read_bytes, _ = strconv.ParseInt(v, 10, 64)
-				}
-			}
-
-			sort.Slice(fields, func(i int, j int) bool {
-				return fields[i].Key < fields[j].Key
-			})
-
-			logger = logger.With(fields...)
-		} else {
-			logger.Warn("query", zap.Error(err), zap.String("clickhouse-summary", summaryHeader))
-			err = nil
-		}
+	if len(fields) > 0 {
+		sort.Slice(fields, func(i, j int) bool {
+			return fields[i].Key < fields[j].Key
+		})
+		logger = logger.With(fields...)
 	}
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
@@ -402,6 +401,65 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 
 	return
 }
+
+func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, error) {
+	read_rows := int64(-1)
+	read_bytes := int64(-1)
+
+	if resp == nil {
+		return queryStats{
+			readRows: read_rows,
+			readBytes: read_bytes,
+			loggerFields: []zapcore.Field{},
+		}, nil
+	}
+
+	statsHeader := ""
+	progressHeaders := resp.Header.Values(statsHeaderName)
+	if len(progressHeaders) > 0 {
+		statsHeader = progressHeaders[len(progressHeaders)-1]
+	} else {
+		return queryStats{
+			readRows: read_rows,
+			readBytes: read_bytes,
+			loggerFields: []zapcore.Field{},
+		}, nil
+	}
+
+	stats := make(map[string]string)
+	err := json.Unmarshal([]byte(statsHeader), &stats)
+	if err != nil {
+		return queryStats{
+			readRows: read_rows,
+			readBytes: read_bytes,
+			loggerFields: []zapcore.Field{},
+			rawHeader: statsHeader,
+		}, err
+	}
+
+	// TODO: use in carbon metrics sender when it will be implemented
+	fields := make([]zapcore.Field, 0, len(stats))
+	for k, v := range stats {
+		fields = append(fields, zap.String(k, v))
+		switch k {
+		case "read_rows":
+			read_rows, _ = strconv.ParseInt(v, 10, 64)
+		case "read_bytes":
+			read_bytes, _ = strconv.ParseInt(v, 10, 64)
+		}
+	}
+	sort.Slice(fields, func(i int, j int) bool {
+		return fields[i].Key < fields[j].Key
+	})
+
+	return queryStats{
+		readRows: read_rows,
+		readBytes: read_bytes,
+		loggerFields: fields,
+		rawHeader: statsHeader,
+	}, nil
+}
+
 
 func sendRequestViaDefaultClient(request *http.Request, opts *Options) (*http.Response, error) {
 	client := &http.Client{

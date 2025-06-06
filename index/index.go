@@ -40,7 +40,7 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 			// 	"SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
 			// 	config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset,
 			// ),
-			"SELECT max(hex(SHA256(toString(number)))) FROM (SELECT number FROM system.numbers LIMIT 100000000) FORMAT CSV",
+			"SELECT max(hex(SHA256(toString(number)))) FROM (SELECT number FROM system.numbers LIMIT 10000000) FORMAT CSV",
 			opts,
 			nil,
 		)

@@ -34,7 +34,7 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 			if err != nil {
 				return nil, err
 			}
-			return resp, io.EOF
+			return resp, ctx.Err()
 		
 		default:
 			line, err := reader.ReadString('\n')
