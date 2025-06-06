@@ -82,7 +82,7 @@ func Make(cfg *config.Config) error {
 		TLSConfig:      cfg.ClickHouse.TLSConfig,
 		Timeout:        cfg.ClickHouse.IndexTimeout,
 		ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
-		CheckRequestProgress: cfg.FeatureFlags.CollectExpandedQueryTelemetry,
+		CheckRequestProgress: cfg.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 	}
 

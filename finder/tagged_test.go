@@ -645,7 +645,7 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			Timeout:        cfg.ClickHouse.IndexTimeout,
 			ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
 			TLSConfig:      cfg.ClickHouse.TLSConfig,
-			CheckRequestProgress: cfg.FeatureFlags.CollectExpandedQueryTelemetry,
+			CheckRequestProgress: cfg.FeatureFlags.LogQueryProgress,
 			ProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 		}
 

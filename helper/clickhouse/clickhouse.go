@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	// "github.com/lomik/graphite-clickhouse/helper/client"
 	httpHelper "github.com/lomik/graphite-clickhouse/helper/http"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/limiter"
@@ -415,9 +414,9 @@ func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, err
 	}
 
 	statsHeader := ""
-	progressHeaders := resp.Header.Values(statsHeaderName)
-	if len(progressHeaders) > 0 {
-		statsHeader = progressHeaders[len(progressHeaders)-1]
+	statsHeaders := resp.Header.Values(statsHeaderName)
+	if len(statsHeaders) > 0 {
+		statsHeader = statsHeaders[len(statsHeaders)-1]
 	} else {
 		return queryStats{
 			readRows: read_rows,
@@ -481,6 +480,8 @@ func sendRequestWithProgressCheck(request *http.Request, opts *Options) (*http.R
 		DialContext: (&net.Dialer{
 			Timeout: opts.ConnectTimeout,
 		}).DialContext,
+		TLSClientConfig: opts.TLSConfig,
+		DisableKeepAlives: true,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)

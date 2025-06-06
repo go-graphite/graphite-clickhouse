@@ -195,7 +195,7 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 					Timeout:        chDataTimeout,
 					ConnectTimeout: q.chConnectTimeout,
 					TLSConfig:      q.chTLSConfig,
-					CheckRequestProgress: q.featureFlags.CollectExpandedQueryTelemetry,
+					CheckRequestProgress: q.featureFlags.LogQueryProgress,
 					ProgressSendingInterval: q.chProgressSendingInterval,
 				},
 				extData,

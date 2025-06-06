@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"github.com/lomik/graphite-clickhouse/config"
-	// "github.com/lomik/graphite-clickhouse/finder"
+	"github.com/lomik/graphite-clickhouse/finder"
 	"github.com/lomik/graphite-clickhouse/helper/clickhouse"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 )
@@ -28,7 +28,7 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 	opts := clickhouse.Options{
 		TLSConfig:      config.ClickHouse.TLSConfig,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		CheckRequestProgress: config.FeatureFlags.CollectExpandedQueryTelemetry,
+		CheckRequestProgress: config.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 	if config.ClickHouse.IndexTable != "" {
@@ -36,11 +36,10 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 		reader, err = clickhouse.Reader(
 			scope.WithTable(ctx, config.ClickHouse.IndexTable),
 			config.ClickHouse.URL,
-			// fmt.Sprintf(
-			// 	"SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
-			// 	config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset,
-			// ),
-			"SELECT max(hex(SHA256(toString(number)))) FROM (SELECT number FROM system.numbers LIMIT 10000000) FORMAT CSV",
+			fmt.Sprintf(
+				"SELECT Path FROM %s WHERE Date = '%s' AND Level >= %d AND Level < %d GROUP BY Path",
+				config.ClickHouse.IndexTable, finder.DefaultTreeDate, finder.TreeLevelOffset, finder.ReverseTreeLevelOffset,
+			),
 			opts,
 			nil,
 		)
