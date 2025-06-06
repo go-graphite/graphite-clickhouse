@@ -59,8 +59,10 @@ type query struct {
 	chQueryParams []config.QueryParam
 
 	chConnectTimeout time.Duration
+	chProgressSendingInterval time.Duration
 	debugDir         string
 	debugExtDataPerm os.FileMode
+	featureFlags *config.FeatureFlags
 	lock             sync.RWMutex
 }
 
@@ -111,9 +113,11 @@ func newQuery(cfg *config.Config, targets int) *query {
 		cStep:            cStep,
 		chQueryParams:    cfg.ClickHouse.QueryParams,
 		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+		chProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 		chTLSConfig:      cfg.ClickHouse.TLSConfig,
 		debugDir:         cfg.Debug.Directory,
 		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
+		featureFlags: &cfg.FeatureFlags,
 		lock:             sync.RWMutex{},
 	}
 
@@ -191,6 +195,8 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 					Timeout:        chDataTimeout,
 					ConnectTimeout: q.chConnectTimeout,
 					TLSConfig:      q.chTLSConfig,
+					CheckRequestProgress: q.featureFlags.CollectExpandedQueryTelemetry,
+					ProgressSendingInterval: q.chProgressSendingInterval,
 				},
 				extData,
 			)

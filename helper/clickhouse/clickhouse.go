@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	// "github.com/lomik/graphite-clickhouse/helper/client"
+	httpHelper "github.com/lomik/graphite-clickhouse/helper/http"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
 	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
@@ -162,6 +164,8 @@ type Options struct {
 	TLSConfig      *tls.Config
 	Timeout        time.Duration
 	ConnectTimeout time.Duration
+	ProgressSendingInterval time.Duration
+	CheckRequestProgress bool
 }
 
 type LoggedReader struct {
@@ -274,7 +278,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	// Get X-Clickhouse-Summary header
 	// TODO: remove when https://github.com/ClickHouse/ClickHouse/issues/16207 is done
 	q.Set("send_progress_in_http_headers", "1")
-	q.Set("http_headers_progress_interval_ms", "10000")
+	q.Set("http_headers_progress_interval_ms", strconv.FormatInt(opts.ProgressSendingInterval.Milliseconds(), 10))
 	p.RawQuery = q.Encode()
 
 	var contentHeader string
@@ -320,19 +324,19 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
 
-	client := &http.Client{
-		Timeout: opts.Timeout,
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout: opts.ConnectTimeout,
-			}).Dial,
-			TLSClientConfig:   opts.TLSConfig,
-			DisableKeepAlives: true,
-		},
+	var resp *http.Response
+	if opts.CheckRequestProgress {
+		resp, err = sendRequestWithProgressCheck(req, &opts)
+	} else {
+		resp, err = sendRequestViaDefaultClient(req, &opts)
 	}
 
-	resp, err := client.Do(req)
 	if err != nil {
+		if opts.CheckRequestProgress && resp != nil {
+			progressHeader := resp.Header.Values("X-Clickhouse-Progress")
+			lastProgress := progressHeader[len(progressHeader)-1]
+			logger.Warn("query", zap.Error(err), zap.String("clickhouse-progress", lastProgress))
+		}
 		return
 	}
 
@@ -397,6 +401,34 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	}
 
 	return
+}
+
+func sendRequestViaDefaultClient(request *http.Request, opts *Options) (*http.Response, error) {
+	client := &http.Client{
+		Timeout: opts.Timeout,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: opts.ConnectTimeout,
+			}).DialContext,
+			TLSClientConfig: opts.TLSConfig,
+			DisableKeepAlives: true,
+		},
+	}
+
+	return client.Do(request)
+}
+
+func sendRequestWithProgressCheck(request *http.Request, opts *Options) (*http.Response, error) {
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: opts.ConnectTimeout,
+		}).DialContext,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	defer cancel()
+
+	return httpHelper.DoHTTPOverTCP(ctx, transport, request)
 }
 
 func do(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {

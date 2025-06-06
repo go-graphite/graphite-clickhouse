@@ -53,6 +53,8 @@ func (q *Querier) LabelValues(ctx context.Context, label string, hints *storage.
 			TLSConfig:      q.config.ClickHouse.TLSConfig,
 			Timeout:        q.config.ClickHouse.IndexTimeout,
 			ConnectTimeout: q.config.ClickHouse.ConnectTimeout,
+			CheckRequestProgress: q.config.FeatureFlags.CollectExpandedQueryTelemetry,
+			ProgressSendingInterval: q.config.ClickHouse.ProgressSendingInterval,
 		},
 		nil,
 	)
@@ -88,6 +90,8 @@ func (q *Querier) LabelNames(ctx context.Context, hints *storage.LabelHints, mat
 			Timeout:        q.config.ClickHouse.IndexTimeout,
 			ConnectTimeout: q.config.ClickHouse.ConnectTimeout,
 			TLSConfig:      q.config.ClickHouse.TLSConfig,
+			CheckRequestProgress: q.config.FeatureFlags.CollectExpandedQueryTelemetry,
+			ProgressSendingInterval: q.config.ClickHouse.ProgressSendingInterval,
 		},
 		nil,
 	)

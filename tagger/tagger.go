@@ -82,6 +82,8 @@ func Make(cfg *config.Config) error {
 		TLSConfig:      cfg.ClickHouse.TLSConfig,
 		Timeout:        cfg.ClickHouse.IndexTimeout,
 		ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+		CheckRequestProgress: cfg.FeatureFlags.CollectExpandedQueryTelemetry,
+		ProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 	}
 
 	begin := func(b string, fields ...zapcore.Field) {

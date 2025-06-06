@@ -147,6 +147,8 @@ func RemoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 			Timeout:        timeoutRulesLoad,
 			ConnectTimeout: timeoutRulesLoad,
 			TLSConfig:      tlsConf,
+			CheckRequestProgress: false,
+			ProgressSendingInterval: 10 * time.Second,
 		},
 		nil,
 	)
@@ -176,6 +178,8 @@ func RemoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 				Timeout:        timeoutRulesLoad,
 				ConnectTimeout: timeoutRulesLoad,
 				TLSConfig:      tlsConf,
+				CheckRequestProgress: false,
+				ProgressSendingInterval: 10 * time.Second,
 			},
 			nil,
 		)

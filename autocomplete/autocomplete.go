@@ -370,6 +370,8 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 				TLSConfig:      h.config.ClickHouse.TLSConfig,
 				Timeout:        h.config.ClickHouse.IndexTimeout,
 				ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
+				CheckRequestProgress: h.config.FeatureFlags.CollectExpandedQueryTelemetry,
+				ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
 			},
 			nil,
 		)
@@ -642,6 +644,8 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 				TLSConfig:      h.config.ClickHouse.TLSConfig,
 				Timeout:        h.config.ClickHouse.IndexTimeout,
 				ConnectTimeout: h.config.ClickHouse.ConnectTimeout,
+				CheckRequestProgress: h.config.FeatureFlags.CollectExpandedQueryTelemetry,
+				ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
 			},
 			nil,
 		)

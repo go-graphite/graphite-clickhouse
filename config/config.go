@@ -123,6 +123,7 @@ type Common struct {
 type FeatureFlags struct {
 	UseCarbonBehavior    bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, prefers carbon's behaviour on how tags are treated"`
 	DontMatchMissingTags bool `toml:"dont-match-missing-tags" json:"dont-match-missing-tags" comment:"if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all"`
+	CollectExpandedQueryTelemetry bool `toml:"collect-expanded-query-telemetry" json:"collect-expanded-query-telemetry" comment:"if true, gch will log affected rows count by clickhouse query"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -209,6 +210,8 @@ type ClickHouse struct {
 	URL         string        `toml:"url"                      json:"url"                      comment:"default url, see https://clickhouse.tech/docs/en/interfaces/http. Can be overwritten with query-params"`
 	DataTimeout time.Duration `toml:"data-timeout"             json:"data-timeout"             comment:"default total timeout to fetch data, can be overwritten with query-params"`
 	QueryParams []QueryParam  `toml:"query-params"             json:"query-params"             comment:"customized query params (url, data timeout, limiters) for durations greater or equal"`
+
+	ProgressSendingInterval time.Duration `toml:"progress-sending"`
 
 	RenderMaxQueries        int `toml:"render-max-queries" json:"render-max-queries" comment:"Max queries to render queiries"`
 	RenderConcurrentQueries int `toml:"render-concurrent-queries" json:"render-concurrent-queries" comment:"Concurrent queries to render queiries"`

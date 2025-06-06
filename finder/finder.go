@@ -27,6 +27,8 @@ func newPlainFinder(ctx context.Context, config *config.Config, query string, fr
 		TLSConfig:      config.ClickHouse.TLSConfig,
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:  config.FeatureFlags.CollectExpandedQueryTelemetry,
+		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 
 	var f Finder
@@ -124,6 +126,8 @@ func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, 
 		Timeout:        config.ClickHouse.IndexTimeout,
 		ConnectTimeout: config.ClickHouse.ConnectTimeout,
 		TLSConfig:      config.ClickHouse.TLSConfig,
+		CheckRequestProgress: config.FeatureFlags.CollectExpandedQueryTelemetry,
+		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 
 	useCache := config.Common.FindCache != nil
