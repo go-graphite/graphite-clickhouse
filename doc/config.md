@@ -290,6 +290,8 @@ Note that this option only works for terms with '=' operator in them.
  use-carbon-behaviour = false
  # if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all
  dont-match-missing-tags = false
+ # if true, gch will log affected rows count by clickhouse query
+ log-query-progress = false
 
 [metrics]
  # graphite relay address
@@ -320,6 +322,8 @@ Note that this option only works for terms with '=' operator in them.
  url = "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1"
  # default total timeout to fetch data, can be overwritten with query-params
  data-timeout = "1m0s"
+ # time interval for ch query progress sending, it's equal to http_headers_progress_interval_ms header
+ progress-sending-interval = "10s"
  # Max queries to render queiries
  render-max-queries = 0
  # Concurrent queries to render queiries
