@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 )
@@ -38,7 +37,6 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 		
 		default:
 			line, err := reader.ReadString('\n')
-			fmt.Println(line)
 			if err != nil {
 				return nil, err
 			}
