@@ -484,10 +484,7 @@ func sendRequestWithProgressCheck(request *http.Request, opts *Options) (*http.R
 		DisableKeepAlives: true,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
-	defer cancel()
-
-	return httpHelper.DoHTTPOverTCP(ctx, transport, request)
+	return httpHelper.DoHTTPOverTCP(request.Context(), transport, request, opts.Timeout)
 }
 
 func do(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {
