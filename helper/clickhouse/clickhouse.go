@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	httpHelper "github.com/lomik/graphite-clickhouse/helper/http"
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	httpHelper "github.com/lomik/graphite-clickhouse/helper/http"
 	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 
@@ -42,7 +42,7 @@ const (
 
 const (
 	ClickHouseProgressHeader string = "X-Clickhouse-Progress"
-	ClickHouseSummaryHeader string = "X-Clickhouse-Summary"
+	ClickHouseSummaryHeader  string = "X-Clickhouse-Summary"
 )
 
 func NewErrWithDescr(err string, data string) error {
@@ -165,11 +165,11 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 }
 
 type Options struct {
-	TLSConfig      *tls.Config
-	Timeout        time.Duration
-	ConnectTimeout time.Duration
+	TLSConfig               *tls.Config
+	Timeout                 time.Duration
+	ConnectTimeout          time.Duration
 	ProgressSendingInterval time.Duration
-	CheckRequestProgress bool
+	CheckRequestProgress    bool
 }
 
 type LoggedReader struct {
@@ -212,10 +212,10 @@ func (r *LoggedReader) ChReadBytes() int64 {
 }
 
 type queryStats struct {
-	readRows int64
-	readBytes int64
+	readRows     int64
+	readBytes    int64
 	loggerFields []zapcore.Field
-	rawHeader string
+	rawHeader    string
 }
 
 func formatSQL(q string) string {
@@ -348,8 +348,10 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 			if parse_err != nil {
 				logger.Warn("query", zap.Error(err), zap.String("clickhouse-progress", stats.rawHeader))
 			}
+
 			logger = logger.With(stats.loggerFields...)
 		}
+
 		return
 	}
 
@@ -362,6 +364,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		logger.Warn("query",
 			zap.Error(err),
 			zap.String("clickhouse-summary", summaryHeader))
+
 		err = nil
 	}
 
@@ -371,6 +374,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		sort.Slice(fields, func(i, j int) bool {
 			return fields[i].Key < fields[j].Key
 		})
+
 		logger = logger.With(fields...)
 	}
 
@@ -407,32 +411,34 @@ func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, err
 
 	if resp == nil {
 		return queryStats{
-			readRows: read_rows,
-			readBytes: read_bytes,
+			readRows:     read_rows,
+			readBytes:    read_bytes,
 			loggerFields: []zapcore.Field{},
 		}, nil
 	}
 
 	statsHeader := ""
 	statsHeaders := resp.Header.Values(statsHeaderName)
+
 	if len(statsHeaders) > 0 {
 		statsHeader = statsHeaders[len(statsHeaders)-1]
 	} else {
 		return queryStats{
-			readRows: read_rows,
-			readBytes: read_bytes,
+			readRows:     read_rows,
+			readBytes:    read_bytes,
 			loggerFields: []zapcore.Field{},
 		}, nil
 	}
 
 	stats := make(map[string]string)
+
 	err := json.Unmarshal([]byte(statsHeader), &stats)
 	if err != nil {
 		return queryStats{
-			readRows: read_rows,
-			readBytes: read_bytes,
+			readRows:     read_rows,
+			readBytes:    read_bytes,
 			loggerFields: []zapcore.Field{},
-			rawHeader: statsHeader,
+			rawHeader:    statsHeader,
 		}, err
 	}
 
@@ -440,6 +446,7 @@ func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, err
 	fields := make([]zapcore.Field, 0, len(stats))
 	for k, v := range stats {
 		fields = append(fields, zap.String(k, v))
+
 		switch k {
 		case "read_rows":
 			read_rows, _ = strconv.ParseInt(v, 10, 64)
@@ -447,18 +454,18 @@ func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, err
 			read_bytes, _ = strconv.ParseInt(v, 10, 64)
 		}
 	}
+
 	sort.Slice(fields, func(i int, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
 
 	return queryStats{
-		readRows: read_rows,
-		readBytes: read_bytes,
+		readRows:     read_rows,
+		readBytes:    read_bytes,
 		loggerFields: fields,
-		rawHeader: statsHeader,
+		rawHeader:    statsHeader,
 	}, nil
 }
-
 
 func sendRequestViaDefaultClient(request *http.Request, opts *Options) (*http.Response, error) {
 	client := &http.Client{
@@ -467,7 +474,7 @@ func sendRequestViaDefaultClient(request *http.Request, opts *Options) (*http.Re
 			DialContext: (&net.Dialer{
 				Timeout: opts.ConnectTimeout,
 			}).DialContext,
-			TLSClientConfig: opts.TLSConfig,
+			TLSClientConfig:   opts.TLSConfig,
 			DisableKeepAlives: true,
 		},
 	}
@@ -480,7 +487,7 @@ func sendRequestWithProgressCheck(request *http.Request, opts *Options) (*http.R
 		DialContext: (&net.Dialer{
 			Timeout: opts.ConnectTimeout,
 		}).DialContext,
-		TLSClientConfig: opts.TLSConfig,
+		TLSClientConfig:   opts.TLSConfig,
 		DisableKeepAlives: true,
 	}
 

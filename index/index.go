@@ -26,9 +26,9 @@ func New(config *config.Config, ctx context.Context) (*Index, error) {
 	var err error
 
 	opts := clickhouse.Options{
-		TLSConfig:      config.ClickHouse.TLSConfig,
-		ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		CheckRequestProgress: config.FeatureFlags.LogQueryProgress,
+		TLSConfig:               config.ClickHouse.TLSConfig,
+		ConnectTimeout:          config.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:    config.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 	if config.ClickHouse.IndexTable != "" {

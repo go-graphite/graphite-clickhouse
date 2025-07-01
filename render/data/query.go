@@ -58,12 +58,12 @@ type query struct {
 	chTLSConfig   *tls.Config
 	chQueryParams []config.QueryParam
 
-	chConnectTimeout time.Duration
+	chConnectTimeout          time.Duration
 	chProgressSendingInterval time.Duration
-	debugDir         string
-	debugExtDataPerm os.FileMode
-	featureFlags *config.FeatureFlags
-	lock             sync.RWMutex
+	debugDir                  string
+	debugExtDataPerm          os.FileMode
+	featureFlags              *config.FeatureFlags
+	lock                      sync.RWMutex
 }
 
 type conditions struct {
@@ -109,16 +109,16 @@ func newQuery(cfg *config.Config, targets int) *query {
 	}
 
 	query := &query{
-		CHResponses:      make([]CHResponse, 0, targets),
-		cStep:            cStep,
-		chQueryParams:    cfg.ClickHouse.QueryParams,
-		chConnectTimeout: cfg.ClickHouse.ConnectTimeout,
+		CHResponses:               make([]CHResponse, 0, targets),
+		cStep:                     cStep,
+		chQueryParams:             cfg.ClickHouse.QueryParams,
+		chConnectTimeout:          cfg.ClickHouse.ConnectTimeout,
 		chProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
-		chTLSConfig:      cfg.ClickHouse.TLSConfig,
-		debugDir:         cfg.Debug.Directory,
-		debugExtDataPerm: cfg.Debug.ExternalDataPerm,
-		featureFlags: &cfg.FeatureFlags,
-		lock:             sync.RWMutex{},
+		chTLSConfig:               cfg.ClickHouse.TLSConfig,
+		debugDir:                  cfg.Debug.Directory,
+		debugExtDataPerm:          cfg.Debug.ExternalDataPerm,
+		featureFlags:              &cfg.FeatureFlags,
+		lock:                      sync.RWMutex{},
 	}
 
 	return query
@@ -192,10 +192,10 @@ func (q *query) getDataPoints(ctx context.Context, cond *conditions) error {
 				chURL,
 				query,
 				clickhouse.Options{
-					Timeout:        chDataTimeout,
-					ConnectTimeout: q.chConnectTimeout,
-					TLSConfig:      q.chTLSConfig,
-					CheckRequestProgress: q.featureFlags.LogQueryProgress,
+					Timeout:                 chDataTimeout,
+					ConnectTimeout:          q.chConnectTimeout,
+					TLSConfig:               q.chTLSConfig,
+					CheckRequestProgress:    q.featureFlags.LogQueryProgress,
 					ProgressSendingInterval: q.chProgressSendingInterval,
 				},
 				extData,

@@ -24,10 +24,10 @@ type Finder interface {
 
 func newPlainFinder(ctx context.Context, config *config.Config, query string, from int64, until int64, useCache bool) Finder {
 	opts := clickhouse.Options{
-		TLSConfig:      config.ClickHouse.TLSConfig,
-		Timeout:        config.ClickHouse.IndexTimeout,
-		ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		CheckRequestProgress:  config.FeatureFlags.LogQueryProgress,
+		TLSConfig:               config.ClickHouse.TLSConfig,
+		Timeout:                 config.ClickHouse.IndexTimeout,
+		ConnectTimeout:          config.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:    config.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 
@@ -123,10 +123,10 @@ func Leaf(value []byte) ([]byte, bool) {
 
 func FindTagged(ctx context.Context, config *config.Config, terms []TaggedTerm, from int64, until int64) (Result, error) {
 	opts := clickhouse.Options{
-		Timeout:        config.ClickHouse.IndexTimeout,
-		ConnectTimeout: config.ClickHouse.ConnectTimeout,
-		TLSConfig:      config.ClickHouse.TLSConfig,
-		CheckRequestProgress: config.FeatureFlags.LogQueryProgress,
+		Timeout:                 config.ClickHouse.IndexTimeout,
+		ConnectTimeout:          config.ClickHouse.ConnectTimeout,
+		TLSConfig:               config.ClickHouse.TLSConfig,
+		CheckRequestProgress:    config.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: config.ClickHouse.ProgressSendingInterval,
 	}
 

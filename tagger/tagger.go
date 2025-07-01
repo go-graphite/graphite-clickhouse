@@ -79,10 +79,10 @@ func Make(cfg *config.Config) error {
 
 	logger := zapwriter.Logger("tagger")
 	chOpts := clickhouse.Options{
-		TLSConfig:      cfg.ClickHouse.TLSConfig,
-		Timeout:        cfg.ClickHouse.IndexTimeout,
-		ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
-		CheckRequestProgress: cfg.FeatureFlags.LogQueryProgress,
+		TLSConfig:               cfg.ClickHouse.TLSConfig,
+		Timeout:                 cfg.ClickHouse.IndexTimeout,
+		ConnectTimeout:          cfg.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:    cfg.FeatureFlags.LogQueryProgress,
 		ProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 	}
 

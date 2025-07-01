@@ -17,6 +17,7 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 	if err != nil {
 		return nil, err
 	}
+
 	err = conn.SetDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return nil, err
@@ -35,14 +36,18 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				fake_body_delimer := bytes.NewBuffer([]byte{'\r', '\n', '\r', '\n'})
+
 				resp, err := http.ReadResponse(bufio.NewReader(io.MultiReader(&backup_buf, fake_body_delimer)), nil)
 				if err != nil {
 					return nil, err
 				}
+
 				return resp, netErr
 			}
+
 			return nil, err
 		}
+
 		if line == "\r\n" {
 			break
 		}
@@ -50,6 +55,6 @@ func DoHTTPOverTCP(ctx context.Context, transport *http.Transport, req *http.Req
 
 	full_resp_stream := io.MultiReader(&backup_buf, conn)
 	resp, err := http.ReadResponse(bufio.NewReader(full_resp_stream), nil)
+
 	return resp, err
 }
-

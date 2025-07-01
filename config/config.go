@@ -123,7 +123,7 @@ type Common struct {
 type FeatureFlags struct {
 	UseCarbonBehavior    bool `toml:"use-carbon-behaviour" json:"use-carbon-behaviour" comment:"if true, prefers carbon's behaviour on how tags are treated"`
 	DontMatchMissingTags bool `toml:"dont-match-missing-tags" json:"dont-match-missing-tags" comment:"if true, seriesByTag terms containing '!=' or '!=~' operators will not match metrics that don't have the tag at all"`
-	LogQueryProgress bool `toml:"log-query-progress" json:"log-query-progress" comment:"if true, gch will log affected rows count by clickhouse query"`
+	LogQueryProgress     bool `toml:"log-query-progress" json:"log-query-progress" comment:"if true, gch will log affected rows count by clickhouse query"`
 }
 
 // IndexReverseRule contains rules to use direct or reversed request to index table
@@ -393,25 +393,25 @@ func New() *Config {
 			DegragedLoad:     1.0,
 		},
 		ClickHouse: ClickHouse{
-			URL:                  "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1",
-			DataTimeout:          time.Minute,
+			URL:                     "http://localhost:8123?cancel_http_readonly_queries_on_client_close=1",
+			DataTimeout:             time.Minute,
 			ProgressSendingInterval: 10 * time.Second,
-			IndexTable:           "graphite_index",
-			IndexUseDaily:        true,
-			TaggedUseDaily:       true,
-			IndexReverse:         "auto",
-			IndexReverses:        IndexReverses{},
-			IndexTimeout:         time.Minute,
-			TaggedTable:          "graphite_tagged",
-			TaggedAutocompleDays: 7,
-			ExtraPrefix:          "",
-			ConnectTimeout:       time.Second,
-			DataTableLegacy:      "",
-			RollupConfLegacy:     "auto",
-			MaxDataPoints:        1048576,
-			InternalAggregation:  true,
-			FindLimiter:          limiter.NoopLimiter{},
-			TagsLimiter:          limiter.NoopLimiter{},
+			IndexTable:              "graphite_index",
+			IndexUseDaily:           true,
+			TaggedUseDaily:          true,
+			IndexReverse:            "auto",
+			IndexReverses:           IndexReverses{},
+			IndexTimeout:            time.Minute,
+			TaggedTable:             "graphite_tagged",
+			TaggedAutocompleDays:    7,
+			ExtraPrefix:             "",
+			ConnectTimeout:          time.Second,
+			DataTableLegacy:         "",
+			RollupConfLegacy:        "auto",
+			MaxDataPoints:           1048576,
+			InternalAggregation:     true,
+			FindLimiter:             limiter.NoopLimiter{},
+			TagsLimiter:             limiter.NoopLimiter{},
 		},
 		Tags: Tags{
 			Threads:     1,
