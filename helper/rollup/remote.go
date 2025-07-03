@@ -144,9 +144,11 @@ func RemoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 		addr,
 		query,
 		clickhouse.Options{
-			Timeout:        timeoutRulesLoad,
-			ConnectTimeout: timeoutRulesLoad,
-			TLSConfig:      tlsConf,
+			Timeout:                 timeoutRulesLoad,
+			ConnectTimeout:          timeoutRulesLoad,
+			TLSConfig:               tlsConf,
+			CheckRequestProgress:    false,
+			ProgressSendingInterval: 10 * time.Second,
 		},
 		nil,
 	)
@@ -173,9 +175,11 @@ func RemoteLoad(addr string, tlsConf *tls.Config, table string) (*Rules, error) 
 			addr,
 			query,
 			clickhouse.Options{
-				Timeout:        timeoutRulesLoad,
-				ConnectTimeout: timeoutRulesLoad,
-				TLSConfig:      tlsConf,
+				Timeout:                 timeoutRulesLoad,
+				ConnectTimeout:          timeoutRulesLoad,
+				TLSConfig:               tlsConf,
+				CheckRequestProgress:    false,
+				ProgressSendingInterval: 10 * time.Second,
 			},
 			nil,
 		)

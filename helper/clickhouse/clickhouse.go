@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/lomik/graphite-clickhouse/helper/errs"
+	httpHelper "github.com/lomik/graphite-clickhouse/helper/http"
 	"github.com/lomik/graphite-clickhouse/limiter"
 	"github.com/lomik/graphite-clickhouse/pkg/scope"
 
@@ -37,6 +38,11 @@ const (
 	ContentEncodingNone ContentEncoding = "none"
 	ContentEncodingGzip ContentEncoding = "gzip"
 	ContentEncodingZstd ContentEncoding = "zstd"
+)
+
+const (
+	ClickHouseProgressHeader string = "X-Clickhouse-Progress"
+	ClickHouseSummaryHeader  string = "X-Clickhouse-Summary"
 )
 
 func NewErrWithDescr(err string, data string) error {
@@ -159,9 +165,11 @@ func HandleError(w http.ResponseWriter, err error) (status int, queueFail bool) 
 }
 
 type Options struct {
-	TLSConfig      *tls.Config
-	Timeout        time.Duration
-	ConnectTimeout time.Duration
+	TLSConfig               *tls.Config
+	Timeout                 time.Duration
+	ConnectTimeout          time.Duration
+	ProgressSendingInterval time.Duration
+	CheckRequestProgress    bool
 }
 
 type LoggedReader struct {
@@ -201,6 +209,13 @@ func (r *LoggedReader) ChReadRows() int64 {
 
 func (r *LoggedReader) ChReadBytes() int64 {
 	return r.read_bytes
+}
+
+type queryStats struct {
+	readRows     int64
+	readBytes    int64
+	loggerFields []zapcore.Field
+	rawHeader    string
 }
 
 func formatSQL(q string) string {
@@ -274,7 +289,7 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	// Get X-Clickhouse-Summary header
 	// TODO: remove when https://github.com/ClickHouse/ClickHouse/issues/16207 is done
 	q.Set("send_progress_in_http_headers", "1")
-	q.Set("http_headers_progress_interval_ms", "10000")
+	q.Set("http_headers_progress_interval_ms", strconv.FormatInt(opts.ProgressSendingInterval.Milliseconds(), 10))
 	p.RawQuery = q.Encode()
 
 	var contentHeader string
@@ -320,56 +335,47 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
 
-	client := &http.Client{
-		Timeout: opts.Timeout,
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout: opts.ConnectTimeout,
-			}).Dial,
-			TLSClientConfig:   opts.TLSConfig,
-			DisableKeepAlives: true,
-		},
+	var resp *http.Response
+	if opts.CheckRequestProgress {
+		resp, err = sendRequestWithProgressCheck(req, &opts)
+	} else {
+		resp, err = sendRequestViaDefaultClient(req, &opts)
 	}
 
-	resp, err := client.Do(req)
 	if err != nil {
+		if opts.CheckRequestProgress && resp != nil {
+			stats, parse_err := getQueryStats(resp, ClickHouseProgressHeader)
+			if parse_err != nil {
+				logger.Warn("query", zap.Error(err), zap.String("clickhouse-progress", stats.rawHeader))
+			}
+
+			logger = logger.With(stats.loggerFields...)
+		}
+
 		return
 	}
 
 	// chproxy overwrite our query id. So read it again
 	chQueryID = resp.Header.Get("X-ClickHouse-Query-Id")
 
-	summaryHeader := resp.Header.Get("X-Clickhouse-Summary")
-	read_rows := int64(-1)
-	read_bytes := int64(-1)
+	stats, err := getQueryStats(resp, ClickHouseSummaryHeader)
+	if err != nil {
+		summaryHeader := resp.Header.Get(ClickHouseSummaryHeader)
+		logger.Warn("query",
+			zap.Error(err),
+			zap.String("clickhouse-summary", summaryHeader))
 
-	if len(summaryHeader) > 0 {
-		summary := make(map[string]string)
-		err = json.Unmarshal([]byte(summaryHeader), &summary)
+		err = nil
+	}
 
-		if err == nil {
-			// TODO: use in carbon metrics sender when it will be implemented
-			fields := make([]zapcore.Field, 0, len(summary))
-			for k, v := range summary {
-				fields = append(fields, zap.String(k, v))
+	read_rows, read_bytes, fields := stats.readRows, stats.readBytes, stats.loggerFields
 
-				switch k {
-				case "read_rows":
-					read_rows, _ = strconv.ParseInt(v, 10, 64)
-				case "read_bytes":
-					read_bytes, _ = strconv.ParseInt(v, 10, 64)
-				}
-			}
+	if len(fields) > 0 {
+		sort.Slice(fields, func(i, j int) bool {
+			return fields[i].Key < fields[j].Key
+		})
 
-			sort.Slice(fields, func(i int, j int) bool {
-				return fields[i].Key < fields[j].Key
-			})
-
-			logger = logger.With(fields...)
-		} else {
-			logger.Warn("query", zap.Error(err), zap.String("clickhouse-summary", summaryHeader))
-			err = nil
-		}
+		logger = logger.With(fields...)
 	}
 
 	// check for return 5xx error, may be 502 code if clickhouse accesed via reverse proxy
@@ -397,6 +403,95 @@ func reader(ctx context.Context, dsn string, query string, postBody io.Reader, e
 	}
 
 	return
+}
+
+func getQueryStats(resp *http.Response, statsHeaderName string) (queryStats, error) {
+	read_rows := int64(-1)
+	read_bytes := int64(-1)
+
+	if resp == nil {
+		return queryStats{
+			readRows:     read_rows,
+			readBytes:    read_bytes,
+			loggerFields: []zapcore.Field{},
+		}, nil
+	}
+
+	statsHeader := ""
+	statsHeaders := resp.Header.Values(statsHeaderName)
+
+	if len(statsHeaders) > 0 {
+		statsHeader = statsHeaders[len(statsHeaders)-1]
+	} else {
+		return queryStats{
+			readRows:     read_rows,
+			readBytes:    read_bytes,
+			loggerFields: []zapcore.Field{},
+		}, nil
+	}
+
+	stats := make(map[string]string)
+
+	err := json.Unmarshal([]byte(statsHeader), &stats)
+	if err != nil {
+		return queryStats{
+			readRows:     read_rows,
+			readBytes:    read_bytes,
+			loggerFields: []zapcore.Field{},
+			rawHeader:    statsHeader,
+		}, err
+	}
+
+	// TODO: use in carbon metrics sender when it will be implemented
+	fields := make([]zapcore.Field, 0, len(stats))
+	for k, v := range stats {
+		fields = append(fields, zap.String(k, v))
+
+		switch k {
+		case "read_rows":
+			read_rows, _ = strconv.ParseInt(v, 10, 64)
+		case "read_bytes":
+			read_bytes, _ = strconv.ParseInt(v, 10, 64)
+		}
+	}
+
+	sort.Slice(fields, func(i int, j int) bool {
+		return fields[i].Key < fields[j].Key
+	})
+
+	return queryStats{
+		readRows:     read_rows,
+		readBytes:    read_bytes,
+		loggerFields: fields,
+		rawHeader:    statsHeader,
+	}, nil
+}
+
+func sendRequestViaDefaultClient(request *http.Request, opts *Options) (*http.Response, error) {
+	client := &http.Client{
+		Timeout: opts.Timeout,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: opts.ConnectTimeout,
+			}).DialContext,
+			TLSClientConfig:   opts.TLSConfig,
+			DisableKeepAlives: true,
+		},
+	}
+
+	return client.Do(request)
+}
+
+func sendRequestWithProgressCheck(request *http.Request, opts *Options) (*http.Response, error) {
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: opts.ConnectTimeout,
+		}).DialContext,
+		TLSClientConfig:   opts.TLSConfig,
+		DisableKeepAlives: true,
+	}
+
+	return httpHelper.DoHTTPOverTCP(request.Context(), transport, request, opts.Timeout)
 }
 
 func do(ctx context.Context, dsn string, query string, postBody io.Reader, encoding ContentEncoding, opts Options, extData *ExternalData) ([]byte, int64, int64, error) {

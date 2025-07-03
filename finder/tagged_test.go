@@ -642,9 +642,11 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		srv.AddResponce(sql, response)
 
 		opts := clickhouse.Options{
-			Timeout:        cfg.ClickHouse.IndexTimeout,
-			ConnectTimeout: cfg.ClickHouse.ConnectTimeout,
-			TLSConfig:      cfg.ClickHouse.TLSConfig,
+			Timeout:                 cfg.ClickHouse.IndexTimeout,
+			ConnectTimeout:          cfg.ClickHouse.ConnectTimeout,
+			TLSConfig:               cfg.ClickHouse.TLSConfig,
+			CheckRequestProgress:    cfg.FeatureFlags.LogQueryProgress,
+			ProgressSendingInterval: cfg.ClickHouse.ProgressSendingInterval,
 		}
 
 		taggedFinder := NewTagged(
