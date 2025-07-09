@@ -71,13 +71,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[string]bool, error) {
-	f := r.Form["expr"]
-	expr := make([]string, 0, len(f))
+func getTagCountQuerier(config *config.Config, opts clickhouse.Options) *finder.TagCountQuerier {
+	var tcq *finder.TagCountQuerier = nil
+	if config.ClickHouse.TagsCountTable != "" {
+		tcq = finder.NewTagCountQuerier(
+			config.ClickHouse.URL,
+			config.ClickHouse.TagsCountTable,
+			opts,
+			config.FeatureFlags.UseCarbonBehavior,
+			config.FeatureFlags.DontMatchMissingTags,
+			config.ClickHouse.TaggedUseDaily,
+		)
+	}
+	return tcq
+}
 
-	for i := 0; i < len(f); i++ {
-		if f[i] != "" {
-			expr = append(expr, f[i])
+func (h *Handler) requestExpr(r *http.Request, tcq *finder.TagCountQuerier, from, until int64) (*where.Where, *where.Where, map[string]bool, error) {
+	formExpr := r.Form["expr"]
+	expr := make([]string, 0, len(formExpr))
+
+	for i := 0; i < len(formExpr); i++ {
+		if formExpr[i] != "" {
+			expr = append(expr, formExpr[i])
 		}
 	}
 
@@ -94,6 +109,15 @@ func (h *Handler) requestExpr(r *http.Request) (*where.Where, *where.Where, map[
 	if err != nil {
 		return wr, pw, usedTags, err
 	}
+
+	if tcq != nil {
+		tagValuesCosts, err := tcq.GetCostsFromCountTable(r.Context(), terms, from, until)
+		if err != nil {
+			return wr, pw, usedTags, err
+		}
+		finder.SetCosts(terms, tagValuesCosts)
+	}
+	finder.SortTaggedTermsByCost(terms)
 
 	wr, pw, err = finder.TaggedWhere(terms, h.config.FeatureFlags.UseCarbonBehavior, h.config.FeatureFlags.DontMatchMissingTags)
 	if err != nil {
@@ -214,6 +238,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		queueFail     bool
 		queueDuration time.Duration
 		findCache     bool
+		opts          clickhouse.Options
 	)
 
 	username := r.Header.Get("X-Forwarded-User")
@@ -290,7 +315,21 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	wr, pw, usedTags, err := h.requestExpr(r)
+	opts = clickhouse.Options{
+		TLSConfig:               h.config.ClickHouse.TLSConfig,
+		Timeout:                 h.config.ClickHouse.IndexTimeout,
+		ConnectTimeout:          h.config.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:    h.config.FeatureFlags.LogQueryProgress,
+		ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
+	}
+
+	wr, pw, usedTags, err := h.requestExpr(
+		r,
+		getTagCountQuerier(h.config, opts),
+		start.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Unix(),
+		start.Unix(),
+	)
+
 	if err != nil {
 		status = http.StatusBadRequest
 		http.Error(w, err.Error(), status)
@@ -366,13 +405,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
-			clickhouse.Options{
-				TLSConfig:               h.config.ClickHouse.TLSConfig,
-				Timeout:                 h.config.ClickHouse.IndexTimeout,
-				ConnectTimeout:          h.config.ClickHouse.ConnectTimeout,
-				CheckRequestProgress:    h.config.FeatureFlags.LogQueryProgress,
-				ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
-			},
+			opts,
 			nil,
 		)
 
@@ -490,6 +523,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		queueFail     bool
 		queueDuration time.Duration
 		findCache     bool
+		opts          clickhouse.Options
 	)
 
 	username := r.Header.Get("X-Forwarded-User")
@@ -567,8 +601,23 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	opts = clickhouse.Options{
+		TLSConfig:               h.config.ClickHouse.TLSConfig,
+		Timeout:                 h.config.ClickHouse.IndexTimeout,
+		ConnectTimeout:          h.config.ClickHouse.ConnectTimeout,
+		CheckRequestProgress:    h.config.FeatureFlags.LogQueryProgress,
+		ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
+	}
+
 	if !findCache {
-		wr, pw, usedTags, err := h.requestExpr(r)
+
+		wr, pw, usedTags, err := h.requestExpr(
+			r,
+			getTagCountQuerier(h.config, opts),
+			start.AddDate(0, 0, -h.config.ClickHouse.TaggedAutocompleDays).Unix(),
+			start.Unix(),
+		)
+
 		if err == finder.ErrCostlySeriesByTag {
 			status = http.StatusForbidden
 			http.Error(w, err.Error(), status)
@@ -640,13 +689,7 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 			scope.WithTable(r.Context(), h.config.ClickHouse.TaggedTable),
 			h.config.ClickHouse.URL,
 			sql,
-			clickhouse.Options{
-				TLSConfig:               h.config.ClickHouse.TLSConfig,
-				Timeout:                 h.config.ClickHouse.IndexTimeout,
-				ConnectTimeout:          h.config.ClickHouse.ConnectTimeout,
-				CheckRequestProgress:    h.config.FeatureFlags.LogQueryProgress,
-				ProgressSendingInterval: h.config.ClickHouse.ProgressSendingInterval,
-			},
+			opts,
 			nil,
 		)
 

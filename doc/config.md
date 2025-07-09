@@ -228,7 +228,7 @@ Here we additionally create a materialized view to automatically save the quanti
 graphite-clickhouse will query this table when it tries to decide which tag should be used when querying graphite_tagged table.
 Overall using this parameter will somewhat increase writing load but can improve reading tagged metrics greatly in some cases.
 
-Note that this option only works for terms with '=' operator in them.
+Note that this option only works for terms with '=' operator in them. Using it will also override tag costs that were set manually with tagged-costs option.
 
 ```toml
 [common]

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/lomik/graphite-clickhouse/config"
@@ -79,10 +78,10 @@ func (s TaggedTermList) Less(i, j int) bool {
 type TaggedFinder struct {
 	url                  string                   // clickhouse dsn
 	table                string                   // graphite_tag table
-	tag1CountTable       string                   // table that helps to choose the most optimal Tag1
+	tcq                  *TagCountQuerier         // An object for querying tag weights from clickhouse. See doc/config.md for details.
 	absKeepEncoded       bool                     // Abs returns url encoded value. For queries from prometheus
 	opts                 clickhouse.Options       // clickhouse query timeout
-	taggedCosts          map[string]*config.Costs // costs for taggs (sor tune index search)
+	configuredTagCosts   map[string]*config.Costs // costs for taggs (sor tune index search)
 	dailyEnabled         bool
 	useCarbonBehavior    bool
 	dontMatchMissingTags bool
@@ -92,19 +91,30 @@ type TaggedFinder struct {
 }
 
 func NewTagged(url string, table, tag1CountTable string, dailyEnabled, useCarbonBehavior, dontMatchMissingTags, absKeepEncoded bool, opts clickhouse.Options, taggedCosts map[string]*config.Costs) *TaggedFinder {
-	return &TaggedFinder{
+	fnd := &TaggedFinder{
 		url:                  url,
 		table:                table,
-		tag1CountTable:       tag1CountTable,
+		tcq:                  nil,
 		absKeepEncoded:       absKeepEncoded,
 		opts:                 opts,
-		taggedCosts:          taggedCosts,
+		configuredTagCosts:   taggedCosts,
 		dailyEnabled:         dailyEnabled,
 		useCarbonBehavior:    useCarbonBehavior,
 		dontMatchMissingTags: dontMatchMissingTags,
 		metricMightExists:    true,
 		stats:                make([]metrics.FinderStat, 0),
 	}
+	if tag1CountTable != "" {
+		fnd.tcq = NewTagCountQuerier(
+			url,
+			tag1CountTable,
+			opts,
+			useCarbonBehavior,
+			dontMatchMissingTags,
+			dailyEnabled,
+		)
+	}
+	return fnd
 }
 
 func (term *TaggedTerm) concat() string {
@@ -606,17 +616,18 @@ func (t *TaggedFinder) PrepareTaggedTerms(ctx context.Context, cfg *config.Confi
 		return nil, err
 	}
 
-	if t.tag1CountTable != "" {
-		err = t.SetCostsFromCountTable(ctx, terms, from, until)
+	var tagCounts map[string]*config.Costs = nil
+	if t.tcq != nil {
+		tagCounts, err = t.tcq.GetCostsFromCountTable(ctx, terms, from, until)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Set costs from count table only if it has all tag-value pairs contained in the seriesByTag query (t.metricMightExist == true)
-	// or if tagged costs were set in the config file and t.metricMightExist == false
-	if t.metricMightExists || len(t.taggedCosts) != 0 {
-		SetCosts(terms, t.taggedCosts)
+	if tagCounts != nil {
+		SetCosts(terms, tagCounts)
+	} else if len(t.configuredTagCosts) != 0 {
+		SetCosts(terms, t.configuredTagCosts)
 	}
 
 	SortTaggedTermsByCost(terms)
@@ -659,126 +670,10 @@ func SortTaggedTermsByCost(terms []TaggedTerm) {
 	})
 }
 
-func (t *TaggedFinder) SetCostsFromCountTable(ctx context.Context, terms []TaggedTerm, from int64, until int64) error {
-	w := where.New()
-	eqTermCount := 0
-
-	for i := 0; i < len(terms); i++ {
-		if terms[i].Op == TaggedTermEq && !terms[i].HasWildcard && terms[i].Value != "" {
-			sqlTerm, err := TaggedTermWhere1(&terms[i], t.useCarbonBehavior, t.dontMatchMissingTags)
-			if err != nil {
-				return err
-			}
-
-			w.Or(sqlTerm)
-
-			eqTermCount++
-		}
-	}
-
-	if w.SQL() == "" {
-		return nil
-	}
-
-	if t.dailyEnabled {
-		w.Andf(
-			"Date >= '%s' AND Date <= '%s'",
-			date.FromTimestampToDaysFormat(from),
-			date.UntilTimestampToDaysFormat(until),
-		)
-	} else {
-		w.Andf(
-			"Date >= '%s'",
-			date.FromTimestampToDaysFormat(from),
-		)
-	}
-
-	sql := fmt.Sprintf("SELECT Tag1, sum(Count) as cnt FROM %s %s GROUP BY Tag1 FORMAT TabSeparatedRaw", t.tag1CountTable, w.SQL())
-
-	var err error
-
-	t.stats = append(t.stats, metrics.FinderStat{})
-	stat := &t.stats[len(t.stats)-1]
-	stat.Table = t.tag1CountTable
-
-	t.body, stat.ChReadRows, stat.ChReadBytes, err = clickhouse.Query(scope.WithTable(ctx, t.tag1CountTable), t.url, sql, t.opts, nil)
-	if err != nil {
-		return err
-	}
-
-	rows := t.List()
-
-	// create cost var to validate CH response without writing to t.taggedCosts
-	var costs map[string]*config.Costs
-
-	costs, err = chResultToCosts(rows)
-	if err != nil {
-		return err
-	}
-
-	// The metric does not exist if the response has less rows
-	// than there were tags with '=' op in the initial request
-	// This is due to each tag-value pair of a metric being written
-	// exactly one time as Tag1
-	if len(rows) < eqTermCount {
-		t.body = []byte{}
-		t.metricMightExists = false
-
-		return nil
-	}
-
-	t.taggedCosts = costs
-
-	return nil
-}
-
 func SetCosts(terms []TaggedTerm, costs map[string]*config.Costs) {
 	for i := 0; i < len(terms); i++ {
 		if cost, ok := costs[terms[i].Key]; ok {
 			setCost(&terms[i], cost)
 		}
 	}
-}
-
-func chResultToCosts(body [][]byte) (map[string]*config.Costs, error) {
-	costs := make(map[string]*config.Costs, 0)
-
-	for i := 0; i < len(body); i++ {
-		s := stringutils.UnsafeString(body[i])
-
-		tag, val, count, err := parseTag1CountRow(s)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse result from clickhouse while querying for tag costs: %s", err.Error())
-		}
-
-		if costs[tag] == nil {
-			costs[tag] = &config.Costs{Cost: nil, ValuesCost: make(map[string]int, 0)}
-		}
-
-		costs[tag].ValuesCost[val] = count
-	}
-
-	return costs, nil
-}
-
-func parseTag1CountRow(s string) (string, string, int, error) {
-	var (
-		tag1, count, tag, val string
-		cnt, n                int
-		err                   error
-	)
-
-	if tag1, count, n = stringutils.Split2(s, "\t"); n != 2 {
-		return "", "", 0, fmt.Errorf("no tag count")
-	}
-
-	if tag, val, n = stringutils.Split2(tag1, "="); n != 2 {
-		return "", "", 0, fmt.Errorf("no '=' in Tag1")
-	}
-
-	if cnt, err = strconv.Atoi(count); err != nil {
-		return "", "", 0, fmt.Errorf("can't convert count to int")
-	}
-
-	return tag, val, cnt, nil
 }
