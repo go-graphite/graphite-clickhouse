@@ -114,6 +114,7 @@ func NewTagged(url string, table, tag1CountTable string, dailyEnabled, useCarbon
 			dailyEnabled,
 		)
 	}
+
 	return fnd
 }
 

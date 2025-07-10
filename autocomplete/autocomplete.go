@@ -83,6 +83,7 @@ func getTagCountQuerier(config *config.Config, opts clickhouse.Options) *finder.
 			config.ClickHouse.TaggedUseDaily,
 		)
 	}
+
 	return tcq
 }
 
@@ -115,8 +116,10 @@ func (h *Handler) requestExpr(r *http.Request, tcq *finder.TagCountQuerier, from
 		if err != nil {
 			return wr, pw, usedTags, err
 		}
+
 		finder.SetCosts(terms, tagValuesCosts)
 	}
+
 	finder.SortTaggedTermsByCost(terms)
 
 	wr, pw, err = finder.TaggedWhere(terms, h.config.FeatureFlags.UseCarbonBehavior, h.config.FeatureFlags.DontMatchMissingTags)
@@ -610,7 +613,6 @@ func (h *Handler) ServeValues(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !findCache {
-
 		wr, pw, usedTags, err := h.requestExpr(
 			r,
 			getTagCountQuerier(h.config, opts),
