@@ -116,8 +116,12 @@ func (h *Handler) requestExpr(r *http.Request, tcq *finder.TagCountQuerier, from
 		if err != nil {
 			return wr, pw, usedTags, err
 		}
+		if tagValuesCosts != nil {
+			finder.SetCosts(terms, tagValuesCosts)
+		} else if len(h.config.ClickHouse.TaggedCosts) != 0 {
+			finder.SetCosts(terms, h.config.ClickHouse.TaggedCosts)
+		}
 
-		finder.SetCosts(terms, tagValuesCosts)
 	}
 
 	finder.SortTaggedTermsByCost(terms)

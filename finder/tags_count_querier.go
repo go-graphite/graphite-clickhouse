@@ -38,6 +38,10 @@ func NewTagCountQuerier(url, table string, opts clickhouse.Options, useCarbonBeh
 }
 
 func (tcq *TagCountQuerier) GetCostsFromCountTable(ctx context.Context, terms []TaggedTerm, from int64, until int64) (map[string]*config.Costs, error) {
+	if len(terms) < 2 {
+		return nil, nil
+	}
+
 	w := where.New()
 	eqTermCount := 0
 
