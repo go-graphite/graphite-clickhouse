@@ -166,6 +166,7 @@ func TestHandler_ServeTagsWithCache(t *testing.T) {
 	}
 
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("autocomplete", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
@@ -352,6 +353,7 @@ func TestHandler_ServeValuesWithCache(t *testing.T) {
 	}
 
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("autocomplete", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
@@ -413,6 +415,7 @@ func TestHandler_ServeValuesWithCacheAndExpr(t *testing.T) {
 	}
 
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("autocomplete", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
@@ -547,6 +550,7 @@ func TestHandler_ServeValuesNoCache(t *testing.T) {
 	}
 
 	var err error
+
 	cfg.Common.FindCache, err = config.CreateCache("autocomplete", &cfg.Common.FindCacheConfig)
 	if err != nil {
 		t.Fatalf("Failed to create find cache: %v", err)
