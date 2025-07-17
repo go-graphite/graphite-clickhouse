@@ -271,7 +271,7 @@ func (h *Handler) ServeTags(w http.ResponseWriter, r *http.Request) {
 		limiter.SendDuration(queueDuration.Milliseconds())
 		metrics.SendFindMetrics(metrics.TagsRequestMetric, status, dMS, 0, h.config.Metrics.ExtendedStat, metricsCount)
 
-		if !findCache && chReadRows != 0 && chReadBytes != 0 {
+		if !findCache && chReadRows > 0 && chReadBytes > 0 {
 			errored := status != http.StatusOK && status != http.StatusNotFound
 			metrics.SendQueryRead(metrics.AutocompleteQMetric, 0, 0, dMS, metricsCount, readBytes, chReadRows, chReadBytes, errored)
 		}
