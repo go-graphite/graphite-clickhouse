@@ -625,7 +625,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		testName, query, sql string,
 		response *chtest.TestResponse,
 		expected []TaggedTerm,
-		metricMightExist bool,
 		expectedErr error,
 		useTagCostsFromConfig bool,
 	) {
@@ -668,7 +667,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 		}
 
 		assert.NoError(err)
-		assert.Equal(metricMightExist, taggedFinder.metricMightExists, testName+", metricMightExist")
 
 		length := len(expected)
 		if length < len(terms) {
@@ -701,7 +699,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 10, NonDefaultCost: true},
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -721,7 +718,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
 			{Op: TaggedTermEq, Key: "key", Value: "value", Cost: 0, NonDefaultCost: false},
 		},
-		false,
 		nil,
 		false,
 	)
@@ -741,7 +737,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
 			{Op: TaggedTermEq, Key: "key", Value: "value", Cost: 0, NonDefaultCost: false},
 		},
-		false,
 		nil,
 		false,
 	)
@@ -761,7 +756,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 			{Op: TaggedTermEq, Key: "dc", Value: "*", Cost: 0, NonDefaultCost: false, HasWildcard: true},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -782,7 +776,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermMatch, Key: "status", Value: "^o.*", Cost: 0},
 			{Op: TaggedTermMatch, Key: "key", Value: "val.*", Cost: 0},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -803,7 +796,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermNe, Key: "status", Value: "on", Cost: 0},
 			{Op: TaggedTermNe, Key: "key", Value: "value", Cost: 0},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -824,7 +816,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermNotMatch, Key: "status", Value: "^o.*", Cost: 0},
 			{Op: TaggedTermNotMatch, Key: "key", Value: "val.*", Cost: 0},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -839,7 +830,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermMatch, Key: "dc", Value: "west", Cost: 0},
 			{Op: TaggedTermMatch, Key: "key", Value: "^val", Cost: 0},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -859,7 +849,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 10, NonDefaultCost: true},
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -879,7 +868,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 			{Op: TaggedTermEq, Key: "__name__", Value: "load.avg", Cost: 10000, NonDefaultCost: true},
 		},
-		true,
 		nil,
 		false,
 	)
@@ -899,7 +887,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 0, NonDefaultCost: false},
 			{Op: TaggedTermEq, Key: "dc", Value: "west", Cost: 0, NonDefaultCost: false},
 		},
-		false,
 		nil,
 		false,
 	)
@@ -915,7 +902,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			Body: []byte("broken_response"),
 		},
 		nil,
-		true,
 		fmt.Errorf("failed to parse result from clickhouse while querying for tag costs: no tag count"),
 		false,
 	)
@@ -935,7 +921,6 @@ func TestParseSeriesByTagWithCostsFromCountTable(t *testing.T) {
 			{Op: TaggedTermEq, Key: "__name__", Value: "high_cost", Cost: 70, NonDefaultCost: true},
 			{Op: TaggedTermEq, Key: "environment", Value: "production", Cost: 100, NonDefaultCost: true},
 		},
-		false,
 		nil,
 		true,
 	)
