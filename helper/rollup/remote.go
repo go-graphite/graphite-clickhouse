@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,8 +17,8 @@ type rollupRulesResponseRecord struct {
 	RuleType  RuleType `json:"rule_type"`
 	Regexp    string   `json:"regexp"`
 	Function  string   `json:"function"`
-	Age       string   `json:"age"`
-	Precision string   `json:"precision"`
+	Age       uint64   `json:"age"`
+	Precision uint64   `json:"precision"`
 	IsDefault int      `json:"is_default"`
 }
 type rollupRulesResponse struct {
@@ -39,17 +38,7 @@ func parseJson(body []byte) (*Rules, error) {
 	}
 
 	makeRetention := func(d *rollupRulesResponseRecord) (Retention, error) {
-		age, err := strconv.ParseInt(d.Age, 10, 32)
-		if err != nil {
-			return Retention{}, err
-		}
-
-		prec, err := strconv.ParseInt(d.Precision, 10, 32)
-		if err != nil {
-			return Retention{}, err
-		}
-
-		return Retention{Age: uint32(age), Precision: uint32(prec)}, nil
+		return Retention{Age: uint32(d.Age), Precision: uint32(d.Precision)}, nil
 	}
 
 	last := func() *Pattern {
@@ -70,7 +59,7 @@ func parseJson(body []byte) (*Rules, error) {
 				defaultFunction = d.Function
 			}
 
-			if d.Age != "" && d.Precision != "" && d.Precision != "0" {
+			if d.Precision != 0 {
 				rt, err := makeRetention(&d)
 				if err != nil {
 					return nil, err
@@ -88,7 +77,7 @@ func parseJson(body []byte) (*Rules, error) {
 				})
 			}
 
-			if d.Age != "" && d.Precision != "" && d.Precision != "0" {
+			if d.Precision != 0 {
 				rt, err := makeRetention(&d)
 				if err != nil {
 					return nil, err

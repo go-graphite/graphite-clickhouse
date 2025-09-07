@@ -49,50 +49,50 @@ func TestParseJson(t *testing.T) {
 		{
 			"regexp": "^hourly",
 			"function": "",
-			"age": "0",
-			"precision": "3600",
+			"age": 0,
+			"precision": 3600,
 			"is_default": 0
 		},
 		{
 			"regexp": "^hourly",
 			"function": "",
-			"age": "3600",
-			"precision": "13600",
+			"age": 3600,
+			"precision": 13600,
 			"is_default": 0
 		},
 		{
 			"regexp": "^live",
 			"function": "",
-			"age": "0",
-			"precision": "1",
+			"age": 0,
+			"precision": 1,
 			"is_default": 0
 		},
 		{
 			"regexp": "total$",
 			"function": "sum",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
 			"regexp": "min$",
 			"function": "min",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
 			"regexp": "max$",
 			"function": "max",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
 			"regexp": "",
 			"function": "max",
-			"age": "0",
-			"precision": "60",
+			"age": 0,
+			"precision": 60,
 			"is_default": 1
 		}
 	],
@@ -162,48 +162,48 @@ func TestParseJsonTyped(t *testing.T) {
 			"rule_type": "all",
 			"regexp": "^hourly",
 			"function": "",
-			"age": "0",
-			"precision": "3600",
+			"age": 0,
+			"precision": 3600,
 			"is_default": 0
 		},
 		{
 			"rule_type": "all",
 			"regexp": "^hourly",
 			"function": "",
-			"age": "3600",
-			"precision": "13600",
+			"age": 3600,
+			"precision": 13600,
 			"is_default": 0
 		},
 		{
 			"rule_type": "all",
 			"regexp": "^live",
 			"function": "",
-			"age": "0",
-			"precision": "1",
+			"age": 0,
+			"precision": 1,
 			"is_default": 0
 		},
 		{
 			"rule_type": "plain",
 			"regexp": "total$",
 			"function": "sum",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
 			"rule_type": "plain",
 			"regexp": "min$",
 			"function": "min",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
 			"rule_type": "plain",
 			"regexp": "max$",
 			"function": "max",
-			"age": "0",
-			"precision": "0",
+			"age": 0,
+			"precision": 0,
 			"is_default": 0
 		},
 		{
@@ -220,8 +220,8 @@ func TestParseJsonTyped(t *testing.T) {
 			"rule_type": "all",
 			"regexp": "",
 			"function": "max",
-			"age": "0",
-			"precision": "60",
+			"age": 0,
+			"precision": 60,
 			"is_default": 1
 		}
 	],
