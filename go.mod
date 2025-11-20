@@ -1,6 +1,6 @@
 module github.com/lomik/graphite-clickhouse
 
-go 1.23.1
+go 1.24.0
 
 require (
 	github.com/BurntSushi/toml v0.3.1
@@ -30,7 +30,7 @@ require (
 	github.com/prometheus/prometheus v0.0.0-20240827104400-e6cfa720fbe6
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.18.0
 )
 
 require (
@@ -115,14 +115,14 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
-	golang.org/x/tools v0.24.0 // indirect
+	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/grpc v1.66.0 // indirect
