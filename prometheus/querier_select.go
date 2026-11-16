@@ -115,7 +115,7 @@ func (q *Querier) Select(ctx context.Context, sortSeries bool, hints *storage.Se
 	}
 
 	var step int64 = 60000
-	if hints.Step != 0 {
+	if hints != nil && hints.Step != 0 {
 		step = hints.Step
 	}
 
